@@ -1,0 +1,198 @@
+# Production topology on one host: postgres, redis, one-shot migrate, api, worker, web, portal,
+# Caddy edge proxy and a scheduled pg_dump. The Omada Controller is NOT part of this file.
+#
+#   cp .env.example .env.production   # then fill real values (see docs/deployment.md)
+#   docker compose --env-file .env.production -f infra/docker/compose.prod.yml build
+#   docker compose --env-file .env.production -f infra/docker/compose.prod.yml up -d
+#
+# The same file supplies ${...} interpolation (--env-file) and container env (env_file below).
+# Inside Compose, hosts are service names: DATABASE_URL/REDIS_URL/API_INTERNAL_URL are
+# overridden here so a host-development .env cannot leak "localhost" into containers.
+
+name: advo
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379
+  API_INTERNAL_URL: http://api:4000
+  API_PORT: "4000"
+  TRUST_PROXY: "true"
+
+x-backend: &backend
+  image: ${ADVO_IMAGE_PREFIX:-advo}/backend:${ADVO_IMAGE_TAG:-latest}
+  build:
+    context: ../..
+    dockerfile: infra/docker/Dockerfile
+    target: backend
+  env_file: ${ADVO_ENV_FILE:-../../.env.production}
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  logging: &logging
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis:7.4.11-alpine
+    restart: unless-stopped
+    # BullMQ needs noeviction; AOF keeps queued jobs across restarts (the DB outbox remains the source of truth).
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  # Exactly one migration run before any new api/worker container starts.
+  migrate:
+    <<: *backend
+    restart: "no"
+    working_dir: /repo/packages/db
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *backend
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    stop_grace_period: 30s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  worker:
+    <<: *backend
+    restart: unless-stopped
+    working_dir: /repo/apps/worker
+    environment:
+      <<: *backend-env
+    # BullMQ close() waits for in-flight jobs; unfinished outbox leases are retried after expiry.
+    stop_grace_period: 90s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    image: ${ADVO_IMAGE_PREFIX:-advo}/web:${ADVO_IMAGE_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${WEB_PUBLIC_URL}
+        NEXT_PUBLIC_WEB_URL: ${WEB_PUBLIC_URL}
+        NEXT_PUBLIC_PORTAL_URL: ${PORTAL_PUBLIC_URL}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp, /app/apps/web/.next/cache]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      api: { condition: service_healthy }
+    logging: *logging
+
+  portal:
+    image: ${ADVO_IMAGE_PREFIX:-advo}/portal:${ADVO_IMAGE_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+      target: portal
+      args:
+        NEXT_PUBLIC_API_URL: ${PORTAL_PUBLIC_URL}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    read_only: true
+    tmpfs: [/tmp, /app/apps/portal/.next/cache]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      api: { condition: service_healthy }
+    logging: *logging
+
+  proxy:
+    image: caddy:2.11.4-alpine
+    restart: unless-stopped
+    ports:
+      - "${PROXY_HTTP_PORT:-80}:80"
+      - "${PROXY_HTTPS_PORT:-443}:443"
+    environment:
+      # Site addresses default to the public URLs; override only when the proxy listens on a
+      # different port than the browser uses (local checks).
+      WEB_ADDRESS: ${PROXY_WEB_ADDRESS:-${WEB_PUBLIC_URL}}
+      PORTAL_ADDRESS: ${PROXY_PORTAL_ADDRESS:-${PORTAL_PUBLIC_URL}}
+      API_ADDRESS: ${PROXY_API_ADDRESS:-${API_PUBLIC_URL}}
+      HSTS_SNIPPET: ${HSTS_SNIPPET:-hsts}
+    volumes:
+      - ../proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, portal, api]
+    logging: *logging
+
+  backup:
+    image: postgres:16.15-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    entrypoint: ["/bin/sh", "/scripts/backup-loop.sh"]
+    volumes:
+      - ../scripts/backup-loop.sh:/scripts/backup-loop.sh:ro
+      - ${BACKUP_DIR:-../../backups}:/backups
+    depends_on:
+      postgres: { condition: service_healthy }
+    logging: *logging
+
+  # Private-network scrape target; enable with: --profile observability
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    # metrics-token holds the same value as METRICS_TOKEN (file is git-ignored).
+    volumes:
+      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ../observability/metrics-token:/etc/prometheus/metrics-token:ro
+      - prom_data:/prometheus
+    logging: *logging
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+  prom_data:

@@ -1,0 +1,38 @@
+{
+  "name": "@advo/portal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "node ../../scripts/guard-next-build.mjs && next build",
+    "start": "next start --port 3001",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'lint: pending eslint config'",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@advo/api-client": "workspace:*",
+    "@advo/contracts": "workspace:*",
+    "@advo/i18n": "workspace:*",
+    "@advo/ui": "workspace:*",
+    "@heroui/react": "3.2.6",
+    "@heroui/styles": "3.2.6",
+    "@internationalized/date": "^3.12.4",
+    "@react-aria/ssr": "^3.10.1",
+    "@react-aria/utils": "^3.34.1",
+    "next": "^15.5.3",
+    "react": "^19.1.1",
+    "react-aria": "^3.52.1",
+    "react-aria-components": "^1.21.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

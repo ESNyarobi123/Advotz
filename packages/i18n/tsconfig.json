@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": true,
+    /*
+     * The base config resolves with NodeNext, which requires explicit `.js`
+     * extensions on relative imports. That works for `tsc` but not for the
+     * bundler that actually consumes this package: Next.js compiles
+     * `@advo/i18n` straight from source (`transpilePackages`) and cannot
+     * resolve `./catalogs/auth.js` to `auth.ts`. This package is only ever
+     * consumed as TypeScript source by a bundler, so Bundler resolution — the
+     * same mode `@advo/ui` uses — is the correct one here.
+     */
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

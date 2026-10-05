@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "@advo/ui/tokens.css";
+
+/*
+ * The shared design system lives in a sibling workspace package. Tailwind's
+ * automatic source detection is rooted at this app, so without this directive
+ * utilities used only inside packages/ui are never generated.
+ */
+@source "../../../../packages/ui/src";
+
+/*
+ * Design system: HeroUI v3 + @advo/ui brand tokens.
+ *
+ * HeroUI ships its own Tailwind v4 theme layer that resets `--font-sans` to a
+ * system stack. Our `@theme` block below is emitted after that import, so the
+ * Advo tokens win and every HeroUI component inherits Inter.
+ */
+@theme {
+  --color-advo-charcoal: var(--advo-charcoal);
+  --color-advo-blue: var(--advo-blue);
+  --color-advo-blue-hover: var(--advo-blue-hover);
+  --color-advo-gold: var(--advo-gold);
+  --color-advo-gold-hover: var(--advo-gold-hover);
+  --color-advo-orange: var(--advo-orange);
+  --color-advo-track: var(--advo-track);
+  --color-advo-page: var(--advo-page);
+  --color-advo-card: var(--advo-card);
+  --color-advo-text: var(--advo-text);
+  --color-advo-muted: var(--advo-muted);
+  --color-advo-border: var(--advo-border);
+
+  /* Premium-light surfaces (mirrors packages/ui/src/tokens.css). */
+  --color-advo-surface: var(--advo-surface);
+  --color-advo-surface-soft: var(--advo-surface-soft);
+  --color-advo-surface-sunken: var(--advo-surface-sunken);
+  --color-advo-blue-soft: var(--advo-blue-soft);
+  --color-advo-gold-soft: var(--advo-gold-soft);
+  --color-advo-success-soft: var(--advo-success-soft);
+  --color-advo-warning-soft: var(--advo-warning-soft);
+  --color-advo-danger-soft: var(--advo-danger-soft);
+  --color-advo-violet: var(--advo-violet);
+  --color-advo-violet-soft: var(--advo-violet-soft);
+  --color-advo-teal: var(--advo-teal);
+  --color-advo-teal-soft: var(--advo-teal-soft);
+
+  /* Soft elevation steps. */
+  --shadow-advo-field: var(--advo-shadow-field);
+  --shadow-advo-card: var(--advo-shadow-card);
+  --shadow-advo-lift: var(--advo-shadow-lift);
+
+  /* Inter is loaded by the root layout via next/font and exposed as
+   * --advo-font-inter; the token stack is the fallback. */
+  --font-sans: var(--advo-font-inter, var(--advo-font));
+  --font-mono: var(--advo-font-mono);
+
+  /* Radius — the system default is the "medium" step; only form controls use
+   * the "large" step (`rounded-field`). Legacy utilities (lg/xl/2xl/3xl) are
+   * pinned to the medium step so the whole product renders one radius. */
+  --radius-sm: var(--advo-radius-sm);
+  --radius-md: var(--advo-radius-md);
+  --radius-lg: var(--advo-radius-md);
+  --radius-xl: var(--advo-radius-md);
+  --radius-2xl: var(--advo-radius-md);
+  --radius-3xl: var(--advo-radius-md);
+  --radius-card: var(--advo-radius-card);
+  --radius-field: var(--advo-radius-field);
+}
+
+/*
+ * HeroUI theming.
+ *
+ * HeroUI v3 reads a small set of CSS variables. We map the Advo brand onto
+ * them so HeroUI components are branded out of the box:
+ *   --radius       12px  surfaces, cards, buttons, chips (the "medium" step)
+ *   --field-radius 16px  inputs, selects, textareas   (the "large" step)
+ *   --accent       the Advo blue used for primary actions and focus rings
+ *
+ * These rules sit in `layer base` to match HeroUI's own layer, and the light
+ * block is guarded with `:not(.dark)` so that adding a dark theme later still
+ * works (`:root` alone would out-specify HeroUI's `.dark` block).
+ */
+@layer base {
+  /* Tokens HeroUI declares once for both themes. */
+  :root,
+  :host {
+    --radius: var(--advo-radius-md);
+    --field-radius: var(--advo-radius-lg);
+    --accent: var(--advo-blue);
+    --accent-foreground: #ffffff;
+  }
+
+  /* Light theme surfaces, mapped 1:1 onto the Advo palette. */
+  :root:not(.dark):not([data-theme="dark"]),
+  :host(:not(.dark):not([data-theme="dark"])) {
+    --background: var(--advo-page);
+    --surface: var(--advo-card);
+    --surface-foreground: var(--advo-text);
+    --overlay: var(--advo-card);
+    --overlay-foreground: var(--advo-text);
+    --foreground: var(--advo-text);
+    --muted: var(--advo-muted);
+    --border: var(--advo-border);
+    --separator: var(--advo-border);
+    --default: var(--advo-page);
+    --default-foreground: var(--advo-text);
+    --field-background: var(--advo-card);
+    --field-foreground: var(--advo-text);
+    --field-placeholder: var(--advo-muted);
+  }
+
+  /*
+   * Most HeroUI components read the Tailwind radius scale, which `@theme`
+   * above pins to the Advo "medium" step (12px). A few compute their radius
+   * as `calc(var(--radius) * 2.5)` instead, which would render 30px here.
+   * Pin those to the medium step too so the product keeps a single radius.
+   */
+  .table-root--primary,
+  .tabs__list-container {
+    border-radius: var(--advo-radius-md);
+  }
+}
+
+html {
+  font-family: var(--advo-font-inter, var(--advo-font));
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  /*
+   * Premium-light canvas: the flat page colour plus two very faint brand
+   * washes, so large white cards sit on a surface that is not dead-flat.
+   * `fixed` keeps the wash from scrolling away from the content.
+   */
+  background-color: var(--advo-page);
+  background-image:
+    radial-gradient(60rem 32rem at 100% -8rem, rgba(27, 94, 164, 0.06), transparent 60%),
+    radial-gradient(48rem 28rem at -6rem 4rem, rgba(251, 161, 2, 0.05), transparent 60%);
+  background-attachment: fixed;
+  color: var(--advo-text);
+  font-family: var(--advo-font-inter, var(--advo-font));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

@@ -1,0 +1,46 @@
+{
+  "name": "advo-tz",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Advo TZ \u2014 Smart WiFi Billing & Network Management",
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel --filter=@advo/api --filter=@advo/worker --filter=@advo/web --filter=@advo/portal",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "pnpm --filter @advo/e2e e2e",
+    "db:generate": "pnpm --filter @advo/db generate",
+    "db:migrate:dev": "pnpm --filter @advo/db migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @advo/db migrate:deploy",
+    "db:seed:demo": "pnpm --filter @advo/api seed:demo",
+    "admin:bootstrap": "pnpm --filter @advo/api admin:bootstrap",
+    "services:up": "docker compose -f infra/docker/compose.dev.yml up -d postgres redis",
+    "services:down": "docker compose -f infra/docker/compose.dev.yml stop postgres redis",
+    "services:status": "docker compose -f infra/docker/compose.dev.yml ps",
+    "verify:config": "tsx scripts/verify-config.ts",
+    "verify:integrations": "tsx scripts/verify-integrations.ts",
+    "format": "prettier --write .",
+    "smoke": "pnpm --filter @advo/api smoke"
+  },
+  "devDependencies": {
+    "@advo/config": "workspace:*",
+    "@advo/omada": "workspace:*",
+    "@advo/payments": "workspace:*",
+    "@swc-node/register": "^1.12.1",
+    "@swc/core": "^1.16.2",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2",
+    "unplugin-swc": "^2.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}

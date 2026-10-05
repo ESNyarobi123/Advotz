@@ -1,0 +1,1333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Identity ───────────────────────────────
+
+enum UserRole {
+  ADMIN
+  RESELLER
+  AGENT
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum ResellerStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum AgentStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum OnboardingStep {
+  PROFILE
+  PLAN
+  SITE
+  DEVICE
+  COMPLETE
+}
+
+enum AttributionSource {
+  SELF_REFERRAL_CODE
+  AGENT_INVITATION
+  ADMIN_CORRECTION
+}
+
+enum LeadStatus {
+  INVITED
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum VerificationPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+  INVITATION
+  PAYOUT_DESTINATION
+}
+
+enum RegistrationSource {
+  SELF
+  AGENT_INVITE
+  ADMIN
+}
+
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  role            UserRole
+  email           String     @unique
+  phone           String?    @unique
+  name            String
+  passwordHash    String
+  status          UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt DateTime?
+  mfaEnabled      Boolean    @default(false)
+  mfaSecretEnc    String?
+  /// Last accepted TOTP time step (unix seconds / 30); codes at or before it are replays.
+  mfaLastStep     Int?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  sessions       AuthSession[]
+  tokens         VerificationToken[]
+  reseller       Reseller?
+  agent          Agent?
+  auditEvents    AuditEvent[]        @relation("AuditActor")
+  supportTickets SupportTicket[]     @relation("TicketOwner")
+}
+
+model AuthSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  userAgent  String?
+  ipAddress  String?
+  mfaPassed  Boolean   @default(false)
+  /// Set when an Admin is acting as this user; the session is short-lived and audited.
+  impersonatedByUserId String? @db.Uuid
+  /// Admin-supplied justification captured at impersonation start.
+  impersonationReason  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([impersonatedByUserId])
+}
+
+model VerificationToken {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String?             @db.Uuid
+  purpose   VerificationPurpose
+  subject   String
+  tokenHash String              @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  metadata  Json?
+  createdAt DateTime            @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([purpose, subject])
+  @@index([expiresAt])
+}
+
+model Reseller {
+  id                 String             @id @default(uuid()) @db.Uuid
+  ownerUserId        String             @unique @db.Uuid
+  businessName       String
+  slug               String             @unique
+  status             ResellerStatus     @default(PENDING_VERIFICATION)
+  registrationSource RegistrationSource
+  onboardingStep     OnboardingStep     @default(PROFILE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  owner         User                  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  attribution   ReferralAttribution?
+  invitation    ResellerInvitation?
+  subscription  Subscription?
+  invoices      SubscriptionInvoice[]
+  sites         Site[]
+  packages      WifiPackage[]
+  customers     Customer[]
+  orders        Order[]
+  deviceClaims  DeviceClaim[]
+  devices       Device[]
+  voucherGroups VoucherGroup[]
+  grants        AccessGrant[]
+  accruals      CommissionAccrual[]
+  promotions    PromotionRequest[]
+
+  @@index([status])
+}
+
+model Agent {
+  id           String      @id @default(uuid()) @db.Uuid
+  userId       String      @unique @db.Uuid
+  referralCode String      @unique
+  status       AgentStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  leads        Lead[]
+  invitations  ResellerInvitation[]
+  attributions ReferralAttribution[]
+  policies     CommissionPolicy[]
+  accruals     CommissionAccrual[]
+
+  @@index([status])
+}
+
+model Lead {
+  id           String     @id @default(uuid()) @db.Uuid
+  agentId      String     @db.Uuid
+  businessName String
+  contactName  String
+  email        String
+  phone        String
+  consentAt    DateTime
+  status       LeadStatus @default(INVITED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  agent      Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  invitation ResellerInvitation?
+
+  @@index([agentId, status])
+  @@index([email])
+}
+
+model ResellerInvitation {
+  id                 String    @id @default(uuid()) @db.Uuid
+  leadId             String    @unique @db.Uuid
+  agentId            String    @db.Uuid
+  tokenHash          String    @unique
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  acceptedResellerId String?   @unique @db.Uuid
+  createdAt          DateTime  @default(now())
+
+  lead             Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent            Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  acceptedReseller Reseller? @relation(fields: [acceptedResellerId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([expiresAt])
+}
+
+model ReferralAttribution {
+  id          String            @id @default(uuid()) @db.Uuid
+  resellerId  String            @unique @db.Uuid
+  agentId     String            @db.Uuid
+  source      AttributionSource
+  effectiveAt DateTime          @default(now())
+  expiresAt   DateTime?
+  reason      String?
+  createdAt   DateTime          @default(now())
+
+  reseller Reseller @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+  agent    Agent    @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  @@index([agentId])
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  targetType  String
+  targetId    String?
+  resellerId  String?  @db.Uuid
+  reason      String?
+  metadata    Json?
+  requestId   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([resellerId, createdAt])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+model OutboxEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  payload        Json
+  payloadVersion Int       @default(1)
+  attempts       Int       @default(0)
+  lastError      String?
+  dispatchedAt   DateTime?
+  nextAttemptAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  @@index([dispatchedAt, nextAttemptAt])
+  @@index([aggregateType, aggregateId])
+}
+
+// ─────────────────────────── Platform billing ───────────────────────────
+
+enum SubscriptionState {
+  NONE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  OPEN
+  PAID
+  VOID
+}
+
+model PlatformPlan {
+  id            String   @id @default(uuid()) @db.Uuid
+  code          String
+  version       Int
+  name          String
+  priceTzs      BigInt
+  periodDays    Int
+  trialEligible Boolean  @default(false)
+  trialDays     Int?
+  maxSites      Int
+  maxDevices    Int
+  maxPackages   Int
+  features      Json     @default("{}")
+  active        Boolean  @default(true)
+  isDemo        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  subscriptions Subscription[]
+  invoices      SubscriptionInvoice[]
+
+  @@unique([code, version])
+  @@index([active])
+}
+
+model Subscription {
+  id                 String            @id @default(uuid()) @db.Uuid
+  resellerId         String            @unique @db.Uuid
+  state              SubscriptionState @default(NONE)
+  planId             String?           @db.Uuid
+  entitlements       Json?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialUsedAt        DateTime?
+  suspendedReason    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  reseller Reseller              @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  plan     PlatformPlan?         @relation(fields: [planId], references: [id], onDelete: Restrict)
+  invoices SubscriptionInvoice[]
+
+  @@index([state, currentPeriodEnd])
+}
+
+model SubscriptionInvoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  resellerId     String        @db.Uuid
+  subscriptionId String        @db.Uuid
+  planId         String        @db.Uuid
+  planSnapshot   Json
+  amountTzs      BigInt
+  periodDays     Int
+  status         InvoiceStatus @default(OPEN)
+  isFirstPayment Boolean?
+  paidAt         DateTime?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  createdAt      DateTime      @default(now())
+
+  reseller     Reseller            @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  subscription Subscription        @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  plan         PlatformPlan        @relation(fields: [planId], references: [id], onDelete: Restrict)
+  order        Order?
+  accruals     CommissionAccrual[]
+
+  @@index([resellerId, createdAt])
+}
+
+// ─────────────────────────── Network inventory ──────────────────────────
+
+enum ControllerMode {
+  FAKE
+  LIVE
+}
+
+enum SiteState {
+  REQUESTED
+  PROVISIONING
+  AWAITING_DEVICE
+  READY
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum MappingState {
+  PENDING
+  PROVISIONING
+  PROVISIONED
+  MANUAL_REQUIRED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum DeviceClaimState {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  ADOPTION_PENDING
+  ADOPTED
+  FAILED
+}
+
+model Controller {
+  id                   String         @id @default(uuid()) @db.Uuid
+  name                 String
+  type                 String         @default("software")
+  mode                 ControllerMode
+  baseUrl              String?
+  omadacId             String?
+  version              String?
+  portalTimeSemantics  String?
+  credentialsEnc       String?
+  credentialKeyVersion Int            @default(1)
+  healthStatus         String         @default("unknown")
+  lastHealthAt         DateTime?
+  lastHealthError      String?
+  isDefault            Boolean        @default(false)
+  active               Boolean        @default(true)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  capabilities ControllerCapability[]
+  mappings     ControllerSiteMapping[]
+  devices      Device[]
+}
+
+model ControllerCapability {
+  id           String   @id @default(uuid()) @db.Uuid
+  controllerId String   @db.Uuid
+  operation    String
+  supported    Boolean
+  verified     Boolean
+  reason       String?
+  limits       Json?
+  evidence     String?
+  updatedAt    DateTime @updatedAt
+
+  controller Controller @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+
+  @@unique([controllerId, operation])
+}
+
+model Site {
+  id            String    @id @default(uuid()) @db.Uuid
+  resellerId    String    @db.Uuid
+  name          String
+  location      String?
+  timezone      String    @default("Africa/Dar_es_Salaam")
+  slug          String    @unique
+  state         SiteState @default(REQUESTED)
+  portalTitle   String?
+  portalMessage String?
+  landingUrl    String?
+  /**
+   * Guest-portal look and feel captured in the Captive Portal designer
+   * (Reseller → Captive Portal). Shape is validated by `portalThemeSchema` in
+   * `@advo/contracts`: brand colors, corner radius and button style.
+   */
+  portalTheme   Json?
+  /**
+   * Reseller-editable portal content (advert banner + featured businesses)
+   * captured in the Captive Portal designer. Shape is validated by
+   * `portalContentSchema` in `@advo/contracts`.
+   */
+  portalContent Json?
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  reseller    Reseller                @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  mapping     ControllerSiteMapping?
+  claims      DeviceClaim[]
+  devices     Device[]
+  assignments PackageSiteAssignment[]
+  contexts    PortalContext[]
+  grants      AccessGrant[]
+  orders      Order[]
+  promotions  PromotionRequest[]
+
+  @@unique([id, resellerId])
+  @@index([resellerId, state])
+}
+
+model ControllerSiteMapping {
+  id           String       @id @default(uuid()) @db.Uuid
+  siteId       String       @unique @db.Uuid
+  controllerId String       @db.Uuid
+  remoteSiteId String?
+  remoteName   String
+  state        MappingState @default(PENDING)
+  lastError    String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  site       Site       @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  controller Controller @relation(fields: [controllerId], references: [id], onDelete: Restrict)
+
+  @@unique([controllerId, remoteSiteId])
+}
+
+model DeviceClaim {
+  id              String           @id @default(uuid()) @db.Uuid
+  resellerId      String           @db.Uuid
+  siteId          String           @db.Uuid
+  name            String?
+  mac             String
+  model           String?
+  hardwareVersion String?
+  serial          String?
+  /**
+   * Optional local device account (the EAP/Switch login) the Controller uses to
+   * adopt the device. The username is stored as-is; the password is encrypted
+   * with the same AES-256-GCM helper as Controller credentials (SECRETS_ENCRYPTION_KEY).
+   */
+  deviceUsername    String?
+  devicePasswordEnc String?
+  state           DeviceClaimState @default(SUBMITTED)
+  reviewReason    String?
+  reviewedBy      String?          @db.Uuid
+  reviewedAt      DateTime?
+  lastError       String?
+  deviceId        String?          @unique @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  reseller Reseller @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  site     Site     @relation(fields: [siteId, resellerId], references: [id, resellerId], onDelete: Restrict)
+  device   Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([resellerId, state])
+  @@index([mac])
+}
+
+model Device {
+  id              String    @id @default(uuid()) @db.Uuid
+  resellerId      String    @db.Uuid
+  siteId          String    @db.Uuid
+  controllerId    String?   @db.Uuid
+  name            String?
+  mac             String    @unique
+  model           String?
+  hardwareVersion String?
+  firmware        String?
+  observedStatus  String    @default("unknown")
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  reseller   Reseller     @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  site       Site         @relation(fields: [siteId, resellerId], references: [id, resellerId], onDelete: Restrict)
+  controller Controller?  @relation(fields: [controllerId], references: [id], onDelete: SetNull)
+  claim      DeviceClaim?
+
+  @@index([resellerId, siteId])
+}
+
+// ───────────────────────────── Catalogue ────────────────────────────────
+
+enum QuotaType {
+  UNLIMITED
+  TOTAL
+  DAILY
+  MONTHLY
+}
+
+enum PackageStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model WifiPackage {
+  id                String        @id @default(uuid()) @db.Uuid
+  resellerId        String        @db.Uuid
+  name              String
+  status            PackageStatus @default(ACTIVE)
+  currentRevisionId String?       @unique @db.Uuid
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  reseller        Reseller                @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  revisions       PackageRevision[]       @relation("PackageRevisions")
+  currentRevision PackageRevision?        @relation("CurrentRevision", fields: [currentRevisionId], references: [id], onDelete: Restrict)
+  assignments     PackageSiteAssignment[]
+
+  @@unique([id, resellerId])
+  @@index([resellerId, status])
+}
+
+model PackageRevision {
+  id                      String    @id @default(uuid()) @db.Uuid
+  packageId               String    @db.Uuid
+  resellerId              String    @db.Uuid
+  revision                Int
+  name                    String
+  priceTzs                BigInt
+  durationSeconds         Int
+  downloadKbps            Int?
+  uploadKbps              Int?
+  quotaType               QuotaType @default(UNLIMITED)
+  quotaBytes              BigInt?
+  maxDevices              Int       @default(1)
+  activationWindowSeconds Int       @default(86400)
+  createdAt               DateTime  @default(now())
+
+  package       WifiPackage    @relation("PackageRevisions", fields: [packageId, resellerId], references: [id, resellerId], onDelete: Restrict)
+  currentOf     WifiPackage?   @relation("CurrentRevision")
+  voucherGroups VoucherGroup[]
+  orders        Order[]
+  grants        AccessGrant[]
+
+  @@unique([packageId, revision])
+  @@unique([id, resellerId])
+}
+
+model PackageSiteAssignment {
+  packageId  String   @db.Uuid
+  siteId     String   @db.Uuid
+  resellerId String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  package WifiPackage @relation(fields: [packageId, resellerId], references: [id, resellerId], onDelete: Cascade)
+  site    Site        @relation(fields: [siteId, resellerId], references: [id, resellerId], onDelete: Cascade)
+
+  @@id([packageId, siteId])
+  @@index([siteId])
+}
+
+model Customer {
+  id         String   @id @default(uuid()) @db.Uuid
+  resellerId String   @db.Uuid
+  phone      String
+  firstName  String?
+  lastName   String?
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  reseller Reseller @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  orders   Order[]
+
+  @@unique([resellerId, phone])
+}
+
+model PortalContext {
+  id           String   @id @default(uuid()) @db.Uuid
+  tokenHash    String   @unique
+  siteId       String   @db.Uuid
+  resellerId   String   @db.Uuid
+  clientMac    String
+  clientIp     String?
+  apMac        String?
+  gatewayMac   String?
+  ssidName     String?
+  radioId      String?
+  vid          String?
+  remoteSiteId String?
+  redirectUrl  String?
+  corroborated Boolean  @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  site Site @relation(fields: [siteId, resellerId], references: [id, resellerId], onDelete: Cascade)
+
+  @@index([clientMac])
+  @@index([expiresAt])
+}
+
+// ────────────────────────── Orders and payments ─────────────────────────
+
+enum OrderPurpose {
+  WIFI_PACKAGE
+  PLATFORM_SUBSCRIPTION
+}
+
+enum OrderPaymentState {
+  UNPAID
+  PAID
+  OVERPAID
+  CANCELLED
+  REFUND_PENDING
+  REFUNDED
+  NEEDS_REVIEW
+}
+
+enum FulfillmentState {
+  NOT_STARTED
+  PENDING
+  FULFILLED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum PaymentAttemptState {
+  CREATED
+  DISPATCHING
+  PENDING
+  UNKNOWN
+  COMPLETED
+  FAILED
+  VOIDED
+  EXPIRED
+  NEEDS_REVIEW
+}
+
+enum InboxState {
+  RECEIVED
+  PROCESSED
+  QUARANTINED
+  IGNORED
+  FAILED
+}
+
+model Order {
+  id                    String            @id @default(uuid()) @db.Uuid
+  purpose               OrderPurpose
+  resellerId            String            @db.Uuid
+  siteId                String?           @db.Uuid
+  customerId            String?           @db.Uuid
+  packageRevisionId     String?           @db.Uuid
+  invoiceId             String?           @unique @db.Uuid
+  amountTzs             BigInt
+  currency              String            @default("TZS")
+  priceSnapshot         Json
+  paymentState          OrderPaymentState @default(UNPAID)
+  fulfillmentState      FulfillmentState  @default(NOT_STARTED)
+  publicTokenHash       String?           @unique
+  portalContextId       String?           @db.Uuid
+  clientMac             String?
+  requestIdempotencyKey String
+  paidAt                DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  reseller        Reseller             @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  site            Site?                @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  customer        Customer?            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  packageRevision PackageRevision?     @relation(fields: [packageRevisionId], references: [id], onDelete: Restrict)
+  invoice         SubscriptionInvoice? @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  attempts        PaymentAttempt[]
+  grant           AccessGrant?
+
+  @@unique([resellerId, requestIdempotencyKey])
+  @@index([resellerId, createdAt])
+  @@index([paymentState, fulfillmentState])
+}
+
+model PaymentAttempt {
+  id                String              @id @default(uuid()) @db.Uuid
+  orderId           String              @db.Uuid
+  provider          String
+  providerAccountId String
+  providerReference String?
+  idempotencyKey    String              @unique
+  requestHash       String
+  requestPayload    Json
+  state             PaymentAttemptState @default(CREATED)
+  expiresAt         DateTime?
+  amountReceivedTzs BigInt?
+  feeTzs            BigInt?
+  lastError         String?
+  completedAt       DateTime?
+  lastCheckedAt     DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([providerAccountId, providerReference])
+  @@index([state, updatedAt])
+  @@index([orderId])
+}
+
+model WebhookInboxEvent {
+  id                String     @id @default(uuid()) @db.Uuid
+  provider          String
+  providerAccountId String
+  eventId           String
+  eventType         String
+  payload           Json
+  payloadHash       String
+  state             InboxState @default(RECEIVED)
+  reason            String?
+  attempts          Int        @default(0)
+  receivedAt        DateTime   @default(now())
+  processedAt       DateTime?
+
+  @@unique([providerAccountId, eventId])
+  @@index([state, receivedAt])
+}
+
+// ───────────────────────── Vouchers and access ──────────────────────────
+
+enum VoucherGroupState {
+  ACTIVE
+  ARCHIVED
+}
+
+enum VoucherState {
+  UNUSED
+  REDEEMED
+  REVOKED
+  EXPIRED
+  DELETED
+}
+
+enum GrantState {
+  PENDING_ACTIVATION
+  ACTIVE
+  EXPIRED
+  QUOTA_EXHAUSTED
+  REVOKED
+  ACTIVATION_FAILED
+}
+
+enum GrantDeviceAuthState {
+  RESERVED
+  AUTHORIZING
+  AUTHORIZED
+  UNKNOWN
+  REVOKE_PENDING
+  REVOKED
+  FAILED
+}
+
+enum TerminationCategory {
+  USER_DISCONNECTED
+  CONNECTION_LOST
+  ENTITLEMENT_EXPIRED
+  QUOTA_ACTION
+  EXPLICIT_REVOKE
+  UNKNOWN
+}
+
+model VoucherGroup {
+  id                String            @id @default(uuid()) @db.Uuid
+  resellerId        String            @db.Uuid
+  packageRevisionId String            @db.Uuid
+  name              String
+  state             VoucherGroupState @default(ACTIVE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  reseller        Reseller        @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  packageRevision PackageRevision @relation(fields: [packageRevisionId, resellerId], references: [id, resellerId], onDelete: Restrict)
+  vouchers        Voucher[]
+
+  @@index([resellerId, state])
+}
+
+model Voucher {
+  id         String       @id @default(uuid()) @db.Uuid
+  resellerId String       @db.Uuid
+  groupId    String       @db.Uuid
+  codeLookup String       @unique
+  codeEnc    String
+  state      VoucherState @default(UNUSED)
+  redeemedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  group VoucherGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  grant AccessGrant?
+
+  @@index([resellerId, state])
+  @@index([groupId])
+}
+
+model AccessGrant {
+  id                   String     @id @default(uuid()) @db.Uuid
+  resellerId           String     @db.Uuid
+  siteId               String     @db.Uuid
+  orderId              String?    @unique @db.Uuid
+  voucherId            String?    @unique @db.Uuid
+  packageRevisionId    String     @db.Uuid
+  packageSnapshot      Json
+  durationSeconds      Int
+  maxDevices           Int
+  state                GrantState @default(PENDING_ACTIVATION)
+  activationDeadline   DateTime
+  candidateActivatedAt DateTime?
+  candidateExpiresAt   DateTime?
+  activatedAt          DateTime?
+  expiresAt            DateTime?
+  confirmedAt          DateTime?
+  revokedAt            DateTime?
+  recoveryTokenHash    String?    @unique
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  reseller        Reseller            @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  site            Site                @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  order           Order?              @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  voucher         Voucher?            @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  packageRevision PackageRevision     @relation(fields: [packageRevisionId], references: [id], onDelete: Restrict)
+  devices         AccessGrantDevice[]
+  sessions        NetworkSession[]
+
+  @@index([resellerId, state])
+  @@index([state, expiresAt])
+}
+
+model AccessGrantDevice {
+  id                 String               @id @default(uuid()) @db.Uuid
+  grantId            String               @db.Uuid
+  clientMac          String
+  portalContextId    String?              @db.Uuid
+  authState          GrantDeviceAuthState @default(RESERVED)
+  attempts           Int                  @default(0)
+  lastError          String?
+  controllerResponse Json?
+  authorizedAt       DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  grant    AccessGrant      @relation(fields: [grantId], references: [id], onDelete: Restrict)
+  sessions NetworkSession[]
+
+  @@unique([grantId, clientMac])
+  @@index([authState])
+}
+
+model NetworkSession {
+  id                  String               @id @default(uuid()) @db.Uuid
+  grantId             String               @db.Uuid
+  grantDeviceId       String               @db.Uuid
+  clientMac           String
+  startedAt           DateTime
+  lastObservedAt      DateTime
+  endedAt             DateTime?
+  terminationCategory TerminationCategory?
+
+  grant  AccessGrant       @relation(fields: [grantId], references: [id], onDelete: Restrict)
+  device AccessGrantDevice @relation(fields: [grantDeviceId], references: [id], onDelete: Restrict)
+
+  @@index([grantId])
+}
+
+// ───────────────────────────── Commission ───────────────────────────────
+
+enum CommissionTrigger {
+  FIRST_SUBSCRIPTION_PAYMENT
+  SUBSCRIPTION_RENEWAL
+}
+
+enum CommissionMode {
+  FIXED
+  PERCENTAGE
+}
+
+enum CommissionState {
+  PENDING_HOLD
+  AVAILABLE
+  RESERVED_FOR_WITHDRAWAL
+  PAID
+  REVERSED
+  NEEDS_REVIEW
+}
+
+model CommissionPolicy {
+  id                      String            @id @default(uuid()) @db.Uuid
+  name                    String
+  agentId                 String?           @db.Uuid
+  trigger                 CommissionTrigger
+  mode                    CommissionMode
+  fixedTzs                BigInt?
+  basisPoints             Int?
+  eligiblePlanCodes       String[]
+  referralEligibilityDays Int?
+  holdDays                Int               @default(0)
+  maxPerInvoiceTzs        BigInt?
+  effectiveFrom           DateTime
+  effectiveTo             DateTime?
+  isDemo                  Boolean           @default(false)
+  createdBy               String?           @db.Uuid
+  createdAt               DateTime          @default(now())
+
+  agent    Agent?              @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  accruals CommissionAccrual[]
+
+  @@index([trigger, effectiveFrom])
+}
+
+model CommissionAccrual {
+  id              String            @id @default(uuid()) @db.Uuid
+  agentId         String            @db.Uuid
+  resellerId      String            @db.Uuid
+  invoiceId       String            @db.Uuid
+  sourcePaymentId String            @db.Uuid
+  trigger         CommissionTrigger
+  policyId        String            @db.Uuid
+  policySnapshot  Json
+  eligibleBaseTzs BigInt
+  amountTzs       BigInt
+  reservedTzs     BigInt            @default(0)
+  paidTzs         BigInt            @default(0)
+  reversedTzs     BigInt            @default(0)
+  state           CommissionState   @default(PENDING_HOLD)
+  availableAt     DateTime
+  reason          String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  agent       Agent                  @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  reseller    Reseller               @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  invoice     SubscriptionInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  policy      CommissionPolicy       @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  allocations WithdrawalAllocation[]
+
+  @@unique([sourcePaymentId, agentId, trigger])
+  @@index([agentId, state])
+  @@index([state, availableAt])
+}
+
+// ─────────────────────────────── Ledger ─────────────────────────────────
+
+enum LedgerOwnerType {
+  PLATFORM
+  RESELLER
+  AGENT
+}
+
+enum LedgerAccountType {
+  PROVIDER_CLEARING
+  PLATFORM_SUBSCRIPTION_REVENUE
+  PLATFORM_SALE_FEE_REVENUE
+  PLATFORM_WITHDRAWAL_FEE_REVENUE
+  PROVIDER_FEE_EXPENSE
+  COMMISSION_EXPENSE
+  OVERPAYMENT_LIABILITY
+  RESELLER_PAYABLE
+  RESELLER_PENDING_SETTLEMENT
+  AGENT_PENDING_PAYABLE
+  AGENT_AVAILABLE_PAYABLE
+  WITHDRAWAL_RESERVE
+  PAYOUT_CLEARING
+}
+
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+model LedgerAccount {
+  id            String            @id @default(uuid()) @db.Uuid
+  ownerType     LedgerOwnerType
+  ownerId       String
+  type          LedgerAccountType
+  currency      String            @default("TZS")
+  normalBalance NormalBalance
+  createdAt     DateTime          @default(now())
+
+  lines JournalLine[]
+
+  @@unique([ownerType, ownerId, type, currency])
+}
+
+model Journal {
+  id                String   @id @default(uuid()) @db.Uuid
+  sourceKey         String   @unique
+  sourceType        String
+  description       String
+  reversesJournalId String?  @db.Uuid
+  actorUserId       String?  @db.Uuid
+  createdAt         DateTime @default(now())
+
+  lines JournalLine[]
+
+  @@index([sourceType, createdAt])
+}
+
+model JournalLine {
+  id        String   @id @default(uuid()) @db.Uuid
+  journalId String   @db.Uuid
+  accountId String   @db.Uuid
+  debitTzs  BigInt   @default(0)
+  creditTzs BigInt   @default(0)
+  createdAt DateTime @default(now())
+
+  journal Journal       @relation(fields: [journalId], references: [id], onDelete: Restrict)
+  account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt])
+  @@index([journalId])
+}
+
+// ──────────────────────────── Withdrawals ───────────────────────────────
+
+enum BeneficiaryType {
+  RESELLER
+  AGENT
+}
+
+enum WithdrawalState {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  UNKNOWN
+  COMPLETED
+  FAILED
+  REVERSED
+  REJECTED
+  NEEDS_REVIEW
+}
+
+enum PayoutAttemptState {
+  CREATED
+  DISPATCHING
+  PENDING
+  UNKNOWN
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+model PayoutDestination {
+  id            String          @id @default(uuid()) @db.Uuid
+  ownerType     BeneficiaryType
+  ownerId       String          @db.Uuid
+  recipientName String
+  phone         String
+  verifiedAt    DateTime?
+  archivedAt    DateTime?
+  createdAt     DateTime        @default(now())
+
+  withdrawals Withdrawal[]
+
+  @@index([ownerType, ownerId])
+}
+
+model Withdrawal {
+  id                    String          @id @default(uuid()) @db.Uuid
+  ownerType             BeneficiaryType
+  ownerId               String          @db.Uuid
+  destinationId         String          @db.Uuid
+  destinationSnapshot   Json
+  amountTzs             BigInt
+  providerFeeTzs        BigInt
+  platformFeeTzs        BigInt
+  totalDebitTzs         BigInt
+  feeQuoteSnapshot      Json
+  quotedAt              DateTime
+  state                 WithdrawalState @default(REQUESTED)
+  reviewReason          String?
+  reviewedBy            String?         @db.Uuid
+  reviewedAt            DateTime?
+  failureReason         String?
+  requestIdempotencyKey String
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  destination PayoutDestination      @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  allocations WithdrawalAllocation[]
+  attempts    PayoutAttempt[]
+
+  @@unique([ownerType, ownerId, requestIdempotencyKey])
+  @@index([state, createdAt])
+}
+
+model WithdrawalAllocation {
+  id           String   @id @default(uuid()) @db.Uuid
+  withdrawalId String   @db.Uuid
+  accrualId    String?  @db.Uuid
+  amountTzs    BigInt
+  state        String   @default("reserved")
+  createdAt    DateTime @default(now())
+
+  withdrawal Withdrawal         @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+  accrual    CommissionAccrual? @relation(fields: [accrualId], references: [id], onDelete: Restrict)
+
+  @@index([withdrawalId])
+  @@index([accrualId])
+}
+
+model PayoutAttempt {
+  id                String             @id @default(uuid()) @db.Uuid
+  withdrawalId      String             @db.Uuid
+  provider          String
+  providerAccountId String
+  providerReference String?
+  idempotencyKey    String             @unique
+  requestHash       String
+  requestPayload    Json
+  state             PayoutAttemptState @default(CREATED)
+  feeTzs            BigInt?
+  lastError         String?
+  lastCheckedAt     DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  withdrawal Withdrawal @relation(fields: [withdrawalId], references: [id], onDelete: Restrict)
+
+  @@unique([providerAccountId, providerReference])
+  @@index([state, updatedAt])
+}
+
+// ───────────────────────────── Operations ───────────────────────────────
+
+enum OperationState {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  UNKNOWN
+  NEEDS_REVIEW
+  UNSUPPORTED
+}
+
+model NetworkOperation {
+  id              String         @id @default(uuid()) @db.Uuid
+  resellerId      String?        @db.Uuid
+  siteId          String?        @db.Uuid
+  kind            String
+  targetType      String
+  targetId        String
+  idempotencyKey  String         @unique
+  state           OperationState @default(PENDING)
+  attempts        Int            @default(0)
+  lastErrorCode   String?
+  lastError       String?
+  nextRetryAt     DateTime?
+  responseSummary Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([resellerId, createdAt])
+  @@index([state, nextRetryAt])
+}
+
+model Notification {
+  id              String   @id @default(uuid()) @db.Uuid
+  recipientUserId String?  @db.Uuid
+  channel         String
+  template        String
+  to              String
+  dedupKey        String   @unique
+  state           String   @default("queued")
+  simulated       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([recipientUserId, createdAt])
+}
+
+model SupportTicket {
+  id              String   @id @default(uuid()) @db.Uuid
+  ownerUserId     String   @db.Uuid
+  subject         String
+  state           String   @default("open")
+  assignedAdminId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  owner    User             @relation("TicketOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  messages SupportMessage[]
+
+  @@index([ownerUserId, state])
+  @@index([state, createdAt])
+}
+
+model SupportMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticketId     String   @db.Uuid
+  authorUserId String   @db.Uuid
+  body         String
+  createdAt    DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  version   Int      @default(1)
+  updatedBy String?  @db.Uuid
+  updatedAt DateTime @updatedAt
+}
+
+// ────────────────────────── Portal extras ────────────────────────────────
+
+enum ListingKind {
+  JOB
+  OPPORTUNITY
+}
+
+/**
+ * Jobs & opportunities shown on the guest "connected" page. Platform-managed
+ * by Admin (a shared recruitment-partner feed), not per reseller.
+ */
+model PlatformListing {
+  id             String      @id @default(uuid()) @db.Uuid
+  kind           ListingKind
+  title          String
+  organization   String      @default("")
+  location       String      @default("")
+  employmentType String      @default("")
+  summary        String      @default("")
+  description    String      @default("")
+  sortOrder      Int         @default(0)
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([kind, active, sortOrder])
+}
+
+enum PromotionRequestState {
+  NEW
+  CONTACTED
+  WON
+  DECLINED
+}
+
+/**
+ * A local business asking the reseller to run a banner promotion on their WiFi
+ * portal. Submitted from the guest page, reviewed in the Captive Portal
+ * designer. No payment is taken here.
+ */
+model PromotionRequest {
+  id            String                @id @default(uuid()) @db.Uuid
+  siteId        String                @db.Uuid
+  resellerId    String                @db.Uuid
+  packageCode   String
+  durationLabel String
+  priceTzs      BigInt
+  fullName      String
+  mobile        String
+  email         String?
+  business      String
+  location      String
+  description   String
+  offer         String
+  state         PromotionRequestState @default(NEW)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  site     Site     @relation(fields: [siteId, resellerId], references: [id, resellerId], onDelete: Cascade)
+  reseller Reseller @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+
+  @@index([siteId, state, createdAt])
+  @@index([resellerId, createdAt])
+}

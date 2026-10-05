@@ -1,0 +1,67 @@
+# Advo TZ edge proxy.
+# WEB_ADDRESS / PORTAL_ADDRESS / API_ADDRESS are full site addresses, e.g.
+#   https://app.advo.co.tz   https://wifi.advo.co.tz   https://api.advo.co.tz
+# With an https:// address Caddy obtains and renews certificates automatically (ports 80/443
+# must reach this host). A plain http:// address disables TLS — local checks only.
+#
+# Request bodies are streamed to the API unmodified, so Snippe webhook signatures are verified
+# over the exact bytes Snippe sent. Caddy discards any client-supplied X-Forwarded-* headers
+# (no trusted_proxies configured) and sets its own, which the API trusts via TRUST_PROXY=true.
+
+(edge) {
+	request_body {
+		max_size 1MB
+	}
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+	# Metrics and API docs are for the private network only.
+	@private path /api/v1/internal/* /api/docs*
+	respond @private 404
+	log {
+		output stdout
+		format json
+	}
+}
+
+(hsts) {
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+# Selected with HSTS_SNIPPET=nohsts for plain-http local checks.
+(nohsts) {
+}
+
+{$API_ADDRESS} {
+	import edge
+	import {$HSTS_SNIPPET:hsts}
+	reverse_proxy api:4000
+}
+
+# Browser apps call the API on their own origin (/api/*), so session cookies stay first-party.
+{$WEB_ADDRESS} {
+	import edge
+	import {$HSTS_SNIPPET:hsts}
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
+
+# The captive portal host must be in the Omada pre-authentication allow-list (walled garden).
+{$PORTAL_ADDRESS} {
+	import edge
+	import {$HSTS_SNIPPET:hsts}
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy portal:3001
+	}
+}

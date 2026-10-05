@@ -1,0 +1,901 @@
+"use client";
+
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { formatDateTime, formatTzs } from "@advo/api-client";
+import { useOverlayState } from "@heroui/react";
+import { Button, Card, Input, Label, Modal } from "@heroui/react";
+import { AdvoKpi, Notice, SoftIcon, StatusChip } from "@advo/ui";
+import {
+  ArchiveRestore,
+  CalendarClock,
+  Coins,
+  ChevronDown,
+  Filter,
+  Gauge,
+  History,
+  Layers,
+  Pencil,
+  Plus,
+  Receipt,
+  Search,
+  Sparkles,
+  Tag,
+  Trash2,
+  TriangleAlert,
+  Users,
+  Wifi,
+} from "lucide-react";
+import { Field, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
+import { ReasonDialog } from "@/features/common/reason-dialog";
+import { api } from "@/lib/api";
+import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
+import { useI18n } from "@/lib/i18n";
+
+/**
+ * Row shape returned by `GET /admin/plans`.
+ *
+ * Plans are versioned: one row per (code, version). The API adds `subscriptions`,
+ * `paidInvoiceCount` and `paidRevenueTzs` so a card can show real usage and decide
+ * whether the row is still deletable.
+ */
+export type PlanRow = {
+  id: string;
+  code: string;
+  version: number;
+  name: string;
+  priceTzs: string;
+  periodDays: number;
+  trialEligible: boolean;
+  trialDays: number | null;
+  maxSites: number;
+  maxDevices: number;
+  maxPackages: number;
+  active: boolean;
+  isDemo: boolean;
+  createdAt: string;
+  subscriptions: number;
+  paidInvoiceCount: number;
+  paidRevenueTzs: string;
+  _count: { subscriptions: number; invoices: number };
+};
+
+/**
+ * One plan code and every version published under it, newest first.
+ *
+ * `current` is the version on sale when there is one — otherwise the newest — so a
+ * rollback never leaves the headline showing an archived price.
+ */
+type PlanFamily = { code: string; versions: PlanRow[]; current: PlanRow; older: PlanRow[] };
+
+/** Filters the pill row cycles through. */
+const FILTERS = ["all", "active", "archived", "demo"] as const;
+type FilterKey = (typeof FILTERS)[number];
+
+/** Static labels keep the translator call fully typed instead of built from a template. */
+const FILTER_LABEL: Record<
+  FilterKey,
+  | "admin.plans.filter.all"
+  | "admin.plans.filter.active"
+  | "admin.plans.filter.archived"
+  | "admin.plans.filter.demo"
+> = {
+  all: "admin.plans.filter.all",
+  active: "admin.plans.filter.active",
+  archived: "admin.plans.filter.archived",
+  demo: "admin.plans.filter.demo",
+};
+
+/** Reference counts that make a row unsafe to delete. */
+function references(plan: PlanRow): number {
+  return plan._count.subscriptions + plan._count.invoices;
+}
+
+export function AdminPlansScreen() {
+  const { t } = useI18n();
+  const plans = useResource<PlanRow[]>("/admin/plans");
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
+  /** `undefined` = closed, `null` = creating, a row = editing that row. */
+  const [formTarget, setFormTarget] = useState<PlanRow | null | undefined>(undefined);
+  const [reasonTarget, setReasonTarget] = useState<{ kind: "archive" | "reactivate" | "delete"; plan: PlanRow } | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const rows = plans.data ?? [];
+
+  const stats = useMemo(() => {
+    const active = rows.filter((r) => r.active).length;
+    const archived = rows.filter((r) => !r.active).length;
+    const demo = rows.filter((r) => r.isDemo).length;
+    const families = new Set(rows.map((r) => r.code)).size;
+    const subscribers = rows.reduce((sum, r) => sum + r.subscriptions, 0);
+    const withSubscribers = rows.filter((r) => r.subscriptions > 0).length;
+    // Paid revenue is counted once per code: an invoice is billed against one version.
+    const revenue = rows.reduce((sum, r) => sum + BigInt(r.paidRevenueTzs), 0n);
+    const invoices = rows.reduce((sum, r) => sum + r.paidInvoiceCount, 0);
+    return { total: rows.length, active, archived, demo, families, subscribers, withSubscribers, revenue, invoices };
+  }, [rows]);
+
+  /** Newest version of each code, so a code is one card rather than a row per version. */
+  const families = useMemo<PlanFamily[]>(() => {
+    const byCode = new Map<string, PlanRow[]>();
+    for (const row of rows) {
+      const list = byCode.get(row.code) ?? [];
+      list.push(row);
+      byCode.set(row.code, list);
+    }
+    return [...byCode.entries()]
+      .map(([code, versions]) => {
+        const sorted = [...versions].sort((a, b) => b.version - a.version);
+        const current = sorted.find((v) => v.active) ?? sorted[0];
+        return { code, versions: sorted, current, older: sorted.filter((v) => v.id !== current.id) };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
+  }, [rows]);
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return families.filter((family) => {
+      // A filter matches a family when any of its versions qualifies, so an archived
+      // code with a live version still shows under "On sale".
+      const matchesFilter = family.versions.some((v) =>
+        filter === "all"
+          ? true
+          : filter === "active"
+            ? v.active
+            : filter === "archived"
+              ? !v.active
+              : v.isDemo,
+      );
+      if (!matchesFilter) return false;
+      if (!needle) return true;
+      return family.versions
+        .some((v) => [v.code, v.name, v.priceTzs, String(v.version)].join(" ").toLowerCase().includes(needle));
+    });
+  }, [families, query, filter]);
+
+  async function afterChange(message: string) {
+    setFlash(message);
+    await plans.reload();
+  }
+
+  return (
+    <div className="mx-auto max-w-[1500px] space-y-6 pb-4">
+      <PageHero
+        actions={
+          <Button onPress={() => setFormTarget(null)} size="sm" type="button" variant="primary">
+            <Plus className="size-4" />
+            {t("admin.plans.action.create")}
+          </Button>
+        }
+        description={t("admin.plans.description")}
+        eyebrow={t("admin.plans.eyebrow")}
+        icon={<Layers />}
+        iconTone="teal"
+        meta={
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--advo-border)] bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-advo-muted tabular-nums">
+              <Tag className="size-3" />
+              {t("admin.plans.count", { count: stats.total })}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-advo-success-soft px-2.5 py-1 text-[11px] font-bold text-emerald-700 tabular-nums">
+              <Sparkles className="size-3" />
+              {t("admin.plans.codeCount", { count: stats.families })}
+            </span>
+          </>
+        }
+        title={t("admin.plans.title")}
+      />
+
+      {flash ? (
+        <Notice tone="success">
+          <span className="flex flex-wrap items-center gap-2">
+            {flash}
+            <button className="font-bold underline" onClick={() => setFlash(null)} type="button">
+              ✕
+            </button>
+          </span>
+        </Notice>
+      ) : null}
+
+      {/* ── Summary ── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <AdvoKpi
+          hint={t("admin.plans.kpi.totalHint", { codes: stats.families })}
+          icon={<Layers />}
+          iconTone="teal"
+          label={t("admin.plans.kpi.total")}
+          value={stats.total}
+        />
+        <AdvoKpi
+          hint={t("admin.plans.kpi.activeHint")}
+          icon={<Sparkles />}
+          iconTone="success"
+          label={t("admin.plans.kpi.active")}
+          value={stats.active}
+        />
+        <AdvoKpi
+          hint={t("admin.plans.kpi.subscribersHint", { plans: stats.withSubscribers })}
+          icon={<Users />}
+          iconTone="accent"
+          label={t("admin.plans.kpi.subscribers")}
+          value={stats.subscribers}
+        />
+        <AdvoKpi
+          hint={t("admin.plans.kpi.revenueHint", { count: stats.invoices })}
+          icon={<Coins />}
+          iconTone="gold"
+          label={t("admin.plans.kpi.revenue")}
+          value={formatTzs(stats.revenue)}
+        />
+      </div>
+
+      {/* ── Search & filter ── */}
+      <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
+        <SectionHeader
+          action={
+            <span className="rounded-full bg-advo-surface-soft px-2.5 py-1 text-[11px] font-bold text-advo-muted tabular-nums">
+              {visible.length} / {families.length}
+            </span>
+          }
+          icon={<Filter />}
+          iconTone="teal"
+          title={t("admin.plans.search.title")}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-advo-muted" />
+            <Input
+              aria-label={t("admin.plans.search.label")}
+              className="pl-9"
+              placeholder={t("admin.plans.search.placeholder")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="group">
+            {FILTERS.map((key) => (
+              <button
+                className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                  filter === key
+                    ? "bg-advo-blue text-white"
+                    : "bg-advo-surface-soft text-advo-muted hover:bg-advo-blue-soft hover:text-advo-blue"
+                }`}
+                key={key}
+                onClick={() => setFilter(key)}
+                type="button"
+              >
+                {t(FILTER_LABEL[key])}
+                <span className="ml-1.5 tabular-nums opacity-70">
+                  {key === "all"
+                    ? stats.total
+                    : key === "active"
+                      ? stats.active
+                      : key === "archived"
+                        ? stats.archived
+                        : stats.demo}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Cards ── */}
+      <ResourceView resource={plans}>
+        {() =>
+          visible.length === 0 ? (
+            <Card className="shadow-advo-card ring-1 ring-advo-border/70">
+              <span className="flex flex-col items-center gap-2 py-6">
+                <SoftIcon size="lg" tone={families.length === 0 ? "teal" : "accent"}>
+                  <Layers />
+                </SoftIcon>
+                <span className="text-sm font-bold text-advo-text">
+                  {families.length === 0 ? t("admin.plans.emptyNone") : t("admin.plans.empty")}
+                </span>
+                <span className="max-w-md text-center text-xs text-advo-muted">
+                  {families.length === 0 ? t("admin.plans.emptyNoneHint") : t("admin.plans.emptyHint")}
+                </span>
+                {families.length === 0 ? (
+                  <Button onPress={() => setFormTarget(null)} size="sm" type="button" variant="primary">
+                    <Plus className="size-4" />
+                    {t("admin.plans.action.create")}
+                  </Button>
+                ) : null}
+              </span>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              {visible.map((family) => (
+                <PlanFamilyCard
+                  family={family}
+                  key={family.code}
+                  onEdit={setFormTarget}
+                  onReason={(kind, plan) => setReasonTarget({ kind, plan })}
+                />
+              ))}
+            </div>
+          )
+        }
+      </ResourceView>
+
+      <PlanFormModal
+        onClose={() => setFormTarget(undefined)}
+        onSaved={afterChange}
+        plan={formTarget ?? null}
+        open={formTarget !== undefined}
+      />
+
+      <PlanReasonDialog
+        onClose={() => setReasonTarget(null)}
+        onDone={afterChange}
+        target={reasonTarget}
+      />
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Cards ─────────────────────────────── */
+
+/** One plan code: the live version up front, older versions folded away underneath. */
+function PlanFamilyCard({
+  family,
+  onEdit,
+  onReason,
+}: {
+  family: PlanFamily;
+  onEdit: (plan: PlanRow) => void;
+  onReason: (kind: "archive" | "reactivate" | "delete", plan: PlanRow) => void;
+}) {
+  const { t } = useI18n();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const plan = family.current;
+  const older = family.older;
+  const blocked = references(plan) > 0;
+
+  return (
+    <Card className="group gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-advo-lift">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <SoftIcon size="lg" tone={plan.active ? "teal" : "warning"}>
+            <Layers />
+          </SoftIcon>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-base font-black tracking-tight text-advo-text">{plan.name}</h3>
+              {plan.isDemo ? <StatusChip tone="warning">{t("admin.plans.badge.demo")}</StatusChip> : null}
+            </div>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-advo-muted">
+              <span className="font-mono font-bold">{plan.code}</span>
+              <span>·</span>
+              <span>{t("admin.plans.version", { version: plan.version })}</span>
+              {family.versions.length > 1 ? (
+                <>
+                  <span>·</span>
+                  <span>{t("admin.plans.versionsCount", { count: family.versions.length })}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+        </div>
+        <StatusChip tone={plan.active ? "success" : "default"} size="md">
+          {plan.active ? t("admin.plans.badge.active") : t("admin.plans.badge.archived")}
+        </StatusChip>
+      </div>
+
+      {/* ── Price ── */}
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-[var(--advo-border)] bg-gradient-to-br from-white to-[var(--advo-blue-soft)] px-4 py-3">
+        <div>
+          <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+            {t("admin.plans.form.section.pricing")}
+          </p>
+          <p className="mt-0.5 text-xl font-black tracking-tight text-advo-text tabular-nums">
+            {t("admin.plans.perPeriod", { price: formatTzs(plan.priceTzs), days: plan.periodDays })}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-advo-muted">
+          <CalendarClock className="size-3" />
+          {plan.trialEligible
+            ? t("admin.plans.trial.days", { days: plan.trialDays ?? 0 })
+            : t("admin.plans.trial.none")}
+        </span>
+      </div>
+
+      {/* ── Usage & limits ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Mini icon={<Users />} label={t("admin.plans.metric.subscribers")} value={plan.subscriptions} />
+        <Mini
+          icon={<Coins />}
+          label={t("admin.plans.metric.revenue")}
+          value={formatTzs(plan.paidRevenueTzs)}
+        />
+        <Mini icon={<Wifi />} label={t("admin.plans.metric.sites")} value={plan.maxSites} />
+        <Mini icon={<Gauge />} label={t("admin.plans.metric.devices")} value={plan.maxDevices} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip icon={<Receipt />}>
+          {t("admin.plans.limit.packages", { count: plan.maxPackages })}
+        </Chip>
+        <Chip icon={<Coins />}>
+          {t("admin.plans.metric.invoices")}: <span className="font-bold tabular-nums">{plan.paidInvoiceCount}</span>
+        </Chip>
+      </div>
+
+      {/* ── Actions ── */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--advo-border)] pt-3.5">
+        <Button onPress={() => onEdit(plan)} size="sm" type="button" variant="primary">
+          <Pencil className="size-3.5" />
+          {t("admin.plans.action.edit")}
+        </Button>
+        <Button
+          onPress={() => onReason(plan.active ? "archive" : "reactivate", plan)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {plan.active ? <ArchiveRestore className="size-3.5" /> : <Sparkles className="size-3.5" />}
+          {plan.active ? t("admin.plans.action.archive") : t("admin.plans.action.reactivate")}
+        </Button>
+        <Button
+          className="ml-auto"
+          isDisabled={blocked}
+          onPress={() => onReason("delete", plan)}
+          size="sm"
+          type="button"
+          variant="danger-soft"
+        >
+          <Trash2 className="size-3.5" />
+          {t("admin.plans.action.delete")}
+        </Button>
+      </div>
+
+      {blocked ? (
+        <p className="flex items-start gap-1.5 rounded-lg bg-advo-warning-soft px-3 py-2 text-[11px] font-semibold text-[#b45309]">
+          <TriangleAlert className="mt-0.5 size-3 shrink-0" />
+          {t("admin.plans.deleteBlocked", { count: references(plan) })}
+        </p>
+      ) : null}
+
+      {/* ── Version history ── */}
+      {older.length > 0 ? (
+        <div className="border-t border-[var(--advo-border)] pt-3">
+          <button
+            className="flex w-full items-center justify-between gap-2 text-left"
+            onClick={() => setHistoryOpen((open) => !open)}
+            type="button"
+          >
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-advo-muted">
+              <History className="size-3.5" />
+              {t("admin.plans.history.title")}
+              <span className="rounded-full bg-advo-surface-soft px-1.5 py-0.5 tabular-nums">{older.length}</span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-advo-blue">
+              {historyOpen ? t("admin.plans.history.hide") : t("admin.plans.history.toggle")}
+              <ChevronDown className={`size-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+            </span>
+          </button>
+
+          {historyOpen ? (
+            <ul className="mt-2.5 space-y-2">
+              {older.map((version) => (
+                <VersionRow
+                  key={version.id}
+                  onReason={onReason}
+                  version={version}
+                />
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+/** A retired version: read-only terms plus the two actions that still make sense. */
+function VersionRow({
+  version,
+  onReason,
+}: {
+  version: PlanRow;
+  onReason: (kind: "archive" | "reactivate" | "delete", plan: PlanRow) => void;
+}) {
+  const { t } = useI18n();
+  const blocked = references(version) > 0;
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--advo-border)] bg-advo-surface-soft/50 px-3 py-2.5">
+      <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-white font-mono text-[10px] font-bold text-advo-muted ring-1 ring-advo-border">
+        {version.version}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-bold text-advo-text tabular-nums">
+          {t("admin.plans.perPeriod", { price: formatTzs(version.priceTzs), days: version.periodDays })}
+        </p>
+        <p className="flex flex-wrap items-center gap-x-1.5 text-[10px] text-advo-muted">
+          <span>{formatDateTime(version.createdAt)}</span>
+          <span>·</span>
+          <span>{t("admin.plans.limit.sites", { count: version.maxSites })}</span>
+          <span>·</span>
+          <span>{t("admin.plans.limit.devices", { count: version.maxDevices })}</span>
+          {version.isDemo ? (
+            <>
+              <span>·</span>
+              <span className="font-bold">{t("admin.plans.badge.demo")}</span>
+            </>
+          ) : null}
+        </p>
+      </div>
+      <StatusChip tone={version.active ? "success" : "default"}>
+        {version.active ? t("admin.plans.badge.active") : t("admin.plans.badge.archived")}
+      </StatusChip>
+      <div className="flex items-center gap-1.5">
+        {!version.active ? (
+          <Button onPress={() => onReason("reactivate", version)} size="sm" type="button" variant="ghost">
+            <Sparkles className="size-3.5" />
+            {t("admin.plans.action.reactivate")}
+          </Button>
+        ) : (
+          <Button onPress={() => onReason("archive", version)} size="sm" type="button" variant="ghost">
+            <ArchiveRestore className="size-3.5" />
+            {t("admin.plans.action.archive")}
+          </Button>
+        )}
+        <Button
+          aria-label={`${t("admin.plans.action.delete")} ${t("admin.plans.version", { version: version.version })}`}
+          isDisabled={blocked}
+          onPress={() => onReason("delete", version)}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+/** Small static chip used for the plan's secondary facts. */
+function Chip({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--advo-border)] bg-advo-surface-soft/60 px-2.5 py-1 text-[11px] font-semibold text-advo-muted">
+      <span className="[&_svg]:size-3">{icon}</span>
+      {children}
+    </span>
+  );
+}
+
+/** Compact metric tile used inside a plan card. */
+function Mini({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-[var(--advo-border)] bg-advo-surface-soft/60 px-3 py-2">
+      <p className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+        <span className="[&_svg]:size-3">{icon}</span>
+        <span className="truncate">{label}</span>
+      </p>
+      <p className="mt-0.5 truncate text-sm font-black text-advo-text tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+/* ────────────────────────── Create / edit modal ────────────────────────── */
+
+/**
+ * One modal for both create and edit.
+ *
+ * `plan === null` means create; a row means edit. `open` drives the overlay so the
+ * modal is always mounted and HeroUI can run its enter/exit transition.
+ */
+function PlanFormModal({
+  open,
+  plan,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  plan: PlanRow | null;
+  onClose: () => void;
+  onSaved: (message: string) => Promise<void> | void;
+}) {
+  const { t } = useI18n();
+  const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
+  const [done, setDone] = useState(false);
+
+  const save = useAction(async (form: HTMLFormElement) => {
+    const v = formValues(form);
+    const payload = {
+      code: v.code.toLowerCase(),
+      name: v.name,
+      priceTzs: v.priceTzs,
+      periodDays: toInt(v.periodDays),
+      trialEligible: v.trialEligible === "true",
+      trialDays: toInt(v.trialDays),
+      maxSites: toInt(v.maxSites),
+      maxDevices: toInt(v.maxDevices),
+      maxPackages: toInt(v.maxPackages),
+      isDemo: v.isDemo === "true",
+    };
+    if (plan) {
+      await api.put(`/admin/plans/${plan.id}`, payload);
+      await onSaved(t("admin.plans.form.successEdit"));
+    } else {
+      await api.post("/admin/plans", payload);
+      await onSaved(t("admin.plans.form.successCreate"));
+    }
+    form.reset();
+    setDone(true);
+  });
+
+  const resetError = save.setError;
+  // Reopening must not show the previous run's result or error.
+  useEffect(() => {
+    if (open) {
+      setDone(false);
+      resetError(null);
+    }
+  }, [open, resetError]);
+
+  function close() {
+    setDone(false);
+    save.setError(null);
+    onClose();
+  }
+
+  // A live plan with subscribers cannot be rewritten in place, so say so before saving.
+  const willVersion = plan !== null && references(plan) > 0;
+  const title = plan
+    ? t("admin.plans.form.titleEdit", { name: plan.name })
+    : t("admin.plans.form.titleCreate");
+
+  return (
+    <Modal.Root state={overlay}>
+      <Modal.Backdrop>
+        <Modal.Container size="lg">
+          <Modal.Dialog className="bg-white">
+            <Modal.Header>
+              <Modal.Heading className="text-base font-black text-advo-text">{title}</Modal.Heading>
+            </Modal.Header>
+            <Modal.Body>
+              {done ? (
+                <div className="space-y-4">
+                  <Notice tone="success">
+                    {plan ? t("admin.plans.form.successEdit") : t("admin.plans.form.successCreate")}
+                  </Notice>
+                  <div className="flex justify-end border-t border-[var(--advo-border)] pt-4">
+                    <Button onPress={close} type="button" variant="primary">
+                      {t("admin.plans.form.done")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <form
+                  // Keyed so opening for a different plan re-applies every defaultValue.
+                  className="space-y-5"
+                  key={plan?.id ?? "create"}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void save.run(e.currentTarget);
+                  }}
+                >
+                  <p className="text-xs text-advo-muted">
+                    {plan ? t("admin.plans.form.descriptionEdit") : t("admin.plans.form.descriptionCreate")}
+                  </p>
+
+                  {/* Identity */}
+                  <FormSection icon={<Tag />} title={t("admin.plans.form.section.identity")}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field
+                        defaultValue={plan?.code}
+                        hint={t("admin.plans.form.codeHint")}
+                        label={t("admin.plans.form.code")}
+                        name="code"
+                        pattern="[a-zA-Z0-9-]+"
+                        placeholder={t("admin.plans.form.codePlaceholder")}
+                        required
+                      />
+                      <Field
+                        defaultValue={plan?.name}
+                        label={t("admin.plans.form.name")}
+                        name="name"
+                        placeholder={t("admin.plans.form.namePlaceholder")}
+                        required
+                      />
+                    </div>
+                  </FormSection>
+
+                  {/* Pricing */}
+                  <FormSection icon={<Coins />} title={t("admin.plans.form.section.pricing")}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field
+                        defaultValue={plan?.priceTzs}
+                        hint={t("admin.plans.form.priceHint")}
+                        label={t("admin.plans.form.price")}
+                        min={1}
+                        name="priceTzs"
+                        required
+                        type="number"
+                      />
+                      <Field
+                        defaultValue={plan?.periodDays ?? 30}
+                        hint={t("admin.plans.form.periodDaysHint")}
+                        label={t("admin.plans.form.periodDays")}
+                        max={366}
+                        min={1}
+                        name="periodDays"
+                        required
+                        type="number"
+                      />
+                    </div>
+                  </FormSection>
+
+                  {/* Limits */}
+                  <FormSection icon={<Gauge />} title={t("admin.plans.form.section.limits")}>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <Field defaultValue={plan?.maxSites} label={t("admin.plans.form.maxSites")} min={1} name="maxSites" required type="number" />
+                      <Field defaultValue={plan?.maxDevices} label={t("admin.plans.form.maxDevices")} min={1} name="maxDevices" required type="number" />
+                      <Field defaultValue={plan?.maxPackages} label={t("admin.plans.form.maxPackages")} min={1} name="maxPackages" required type="number" />
+                    </div>
+                  </FormSection>
+
+                  {/* Trial & classification */}
+                  <FormSection icon={<Sparkles />} title={t("admin.plans.form.section.trial")}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field
+                        defaultValue={plan?.trialDays ?? undefined}
+                        hint={t("admin.plans.form.trialDaysHint")}
+                        label={t("admin.plans.form.trialDays")}
+                        max={90}
+                        min={1}
+                        name="trialDays"
+                        type="number"
+                      />
+                      <div className="flex flex-col justify-center gap-3 sm:pt-6">
+                        <Checkbox name="trialEligible" defaultChecked={plan?.trialEligible} label={t("admin.plans.form.trialEligible")} />
+                        <Checkbox name="isDemo" defaultChecked={plan?.isDemo} label={t("admin.plans.form.isDemo")} />
+                        <p className="text-[11px] text-advo-muted">{t("admin.plans.form.isDemoHint")}</p>
+                      </div>
+                    </div>
+                  </FormSection>
+
+                  {/* What saving will actually do */}
+                  <Notice tone={willVersion ? "warning" : "accent"}>
+                    {willVersion && plan
+                      ? t("admin.plans.form.willVersion", { count: references(plan) })
+                      : t("admin.plans.form.willReplace")}
+                  </Notice>
+
+                  {save.error ? <Notice tone="danger">{save.error}</Notice> : null}
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--advo-border)] pt-4">
+                    <Button onPress={close} type="button" variant="ghost">
+                      {t("admin.plans.form.cancel")}
+                    </Button>
+                    <Button isDisabled={save.pending} type="submit" variant="primary">
+                      {plan ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+                      {save.pending ? "…" : plan ? t("admin.plans.form.submitEdit") : t("admin.plans.form.submitCreate")}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </Modal.Body>
+            <Modal.CloseTrigger aria-label={t("admin.plans.form.cancel")} />
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal.Root>
+  );
+}
+
+/** A titled group of fields inside the plan modal. */
+function FormSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <fieldset className="rounded-2xl border border-[var(--advo-border)] p-4">
+      <legend className="flex items-center gap-1.5 px-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+        <span className="[&_svg]:size-3.5">{icon}</span>
+        {title}
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+/** Plain checkbox with the label wrapping the input, so clicking the text toggles it. */
+function Checkbox({ name, label, defaultChecked }: { name: string; label: string; defaultChecked?: boolean }) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input className="h-4 w-4 accent-[var(--advo-blue)]" defaultChecked={defaultChecked} name={name} type="checkbox" value="true" />
+      {label}
+    </label>
+  );
+}
+
+/* ───────────────── Archive / reactivate / delete dialog ───────────────── */
+
+/**
+ * Plan actions mapped onto the shared audited-reason dialog.
+ *
+ * Archive and reactivate are reversible, delete is not — so delete gets the danger
+ * treatment while the other two stay neutral. The reason is never sent as less than
+ * three characters: the API rejects shorter ones anyway.
+ */
+function PlanReasonDialog({
+  target,
+  onClose,
+  onDone,
+}: {
+  target: { kind: "archive" | "reactivate" | "delete"; plan: PlanRow } | null;
+  onClose: () => void;
+  onDone: (message: string) => Promise<void> | void;
+}) {
+  const { t } = useI18n();
+  const plan = target?.plan;
+  const name = plan?.name ?? "";
+
+  // The verb doubles as the flash message, so the three actions cannot drift apart.
+  const verb =
+    target?.kind === "delete"
+      ? t("admin.plans.action.delete")
+      : target?.kind === "reactivate"
+        ? t("admin.plans.action.reactivate")
+        : t("admin.plans.action.archive");
+
+  return (
+    <ReasonDialog
+      labels={{
+        title:
+          target?.kind === "delete"
+            ? t("admin.plans.dialog.deleteTitle", { name })
+            : target?.kind === "reactivate"
+              ? t("admin.plans.dialog.reactivateTitle", { name })
+              : t("admin.plans.dialog.archiveTitle", { name }),
+        note:
+          target?.kind === "delete"
+            ? t("admin.plans.dialog.deleteNote")
+            : target?.kind === "reactivate"
+              ? t("admin.plans.dialog.reactivateNote")
+              : t("admin.plans.dialog.archiveNote"),
+        reasonLabel: t("admin.plans.dialog.reason"),
+        reasonPlaceholder: t("admin.plans.dialog.reasonPlaceholder"),
+        reasonHint: t("admin.plans.dialog.reasonHint"),
+        tooShort: t("admin.plans.dialog.reasonTooShort"),
+        cancel: t("admin.plans.dialog.cancel"),
+        confirm: t("admin.plans.dialog.confirm"),
+      }}
+      onClose={onClose}
+      onSubmit={async (reason) => {
+        if (!target || !plan) return;
+        if (target.kind === "delete") {
+          // The API client's `del` cannot carry a body, and the reason must be audited.
+          await api.request(`/admin/plans/${plan.id}`, {
+            method: "DELETE",
+            body: JSON.stringify({ reason }),
+          });
+        } else {
+          await api.post(`/admin/plans/${plan.id}/active`, {
+            active: target.kind === "reactivate",
+            reason,
+          });
+        }
+        await onDone(`${verb} — ${plan.name}`);
+      }}
+      open={target !== null}
+      summary={
+        plan ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--advo-border)] bg-advo-surface-soft/60 px-3.5 py-2.5">
+            <div>
+              <p className="text-sm font-black text-advo-text">{plan.name}</p>
+              <p className="font-mono text-[10px] text-advo-muted">
+                {plan.code} · {t("admin.plans.version", { version: plan.version })}
+              </p>
+            </div>
+            <p className="text-sm font-bold text-advo-text tabular-nums">
+              {t("admin.plans.perPeriod", { price: formatTzs(plan.priceTzs), days: plan.periodDays })}
+            </p>
+          </div>
+        ) : null
+      }
+      tone={target?.kind === "delete" ? "danger" : "primary"}
+    />
+  );
+}

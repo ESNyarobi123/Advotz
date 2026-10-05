@@ -1,0 +1,115 @@
+# Alert rules for the spec §22 list. Thresholds are starting points — tune them from observed
+# traffic. Every metric is a gauge computed from PostgreSQL by /api/v1/internal/metrics.
+groups:
+  - name: advo-money
+    rules:
+      - alert: LedgerOutOfBalance
+        expr: advo_ledger_balanced == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "Ledger debits and credits differ by {{ $value }} TZS"
+          runbook: docs/runbooks.md#mismatched-ledger
+
+      - alert: PaidOrdersWithoutFulfilment
+        expr: advo_paid_orders_unfulfilled > 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $value }} paid orders not fulfilled after 10+ minutes"
+          runbook: docs/runbooks.md#paid-but-not-connected
+
+      - alert: PayoutsUnknownOrStale
+        expr: advo_payout_attempts_stale > 0 or sum(advo_withdrawals{state="UNKNOWN"}) > 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Payouts unresolved for 30+ minutes or in UNKNOWN state"
+          runbook: docs/runbooks.md#unknown-payout
+
+      - alert: PaymentsNeedReview
+        expr: sum(advo_payment_attempts{state=~"UNKNOWN|NEEDS_REVIEW"}) > 0
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Payment attempts waiting for reconciliation or review"
+          runbook: docs/runbooks.md#delayed-webhook
+
+  - name: advo-events
+    rules:
+      - alert: OutboxLag
+        expr: advo_outbox_oldest_pending_age_seconds > 300
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Oldest undispatched outbox event is {{ $value }}s old — is the worker running?"
+          runbook: docs/runbooks.md#redis-outage
+
+      - alert: OutboxDeadEvents
+        expr: advo_outbox_dead_events > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $value }} outbox events exhausted retries"
+          runbook: docs/runbooks.md#dead-outbox-events
+
+      - alert: WebhookInboxFailures
+        expr: sum(advo_webhook_inbox_events{state=~"FAILED|QUARANTINED"}) > 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Webhook inbox has failed or quarantined events"
+          runbook: docs/runbooks.md#delayed-webhook
+
+      - alert: WebhookInboxBacklog
+        expr: advo_webhook_inbox_oldest_unprocessed_age_seconds > 300
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Received webhooks not processed for {{ $value }}s"
+          runbook: docs/runbooks.md#delayed-webhook
+
+  - name: advo-network
+    rules:
+      - alert: ActivationFailureRate
+        expr: |
+          sum(advo_grant_device_updates_last_hour{state=~"FAILED|UNKNOWN"})
+            / clamp_min(sum(advo_grant_device_updates_last_hour), 1) > 0.1
+          and sum(advo_grant_device_updates_last_hour) >= 10
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "More than 10% of device authorisations failed or unknown in the last hour"
+          runbook: docs/runbooks.md#paid-but-not-connected
+
+      - alert: ControllerUnreachable
+        expr: advo_controller_reachable{mode="LIVE"} == 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Controller {{ $labels.controller }} unreachable at last inspection"
+          runbook: docs/runbooks.md#controller-outage
+
+      - alert: ControllerErrors
+        expr: sum by (code) (advo_network_operation_errors_last_hour) > 5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Controller error code {{ $labels.code }} seen {{ $value }} times in the last hour"
+          runbook: docs/runbooks.md#controller-outage
+
+      - alert: ExpiredAccessStillObserved
+        expr: advo_sessions_observed_after_expiry > 0 or advo_grants_active_past_expiry > 0
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: "Expired grants still observed authorised / not swept"
+          runbook: docs/runbooks.md#wrong-quota-enforcement
+
+  - name: advo-availability
+    rules:
+      - alert: ApiMetricsDown
+        expr: up{job="advo-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Prometheus cannot scrape the Advo API"

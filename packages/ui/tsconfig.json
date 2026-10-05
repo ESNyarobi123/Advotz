@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "noEmit": true,
+    /*
+     * The base config resolves with NodeNext, which cannot follow the
+     * extensionless directory re-exports inside `@heroui/react`'s type
+     * entrypoint (`export * from "./components"`). This package is consumed
+     * as TypeScript source by bundlers (Next.js `transpilePackages`), so
+     * Bundler resolution is the correct mode here.
+     */
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  },
+  "include": [
+    "src/**/*"
+  ]
+}

@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Generated
+packages/db/src/generated/
+coverage/
+playwright-report/
+test-results/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+.turbo/
+
+# Docker volumes / local data
+infra/docker/data/
+
+# Certificates / keys
+*.pem
+*.key
+!infra/**/*.example
+tests/e2e/.state/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+
+# Production env, backups and scrape secret
+.env.production
+
+backups/
+infra/observability/metrics-token

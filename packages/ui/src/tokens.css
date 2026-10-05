@@ -1,0 +1,77 @@
+:root {
+  --advo-charcoal: #111213;
+  --advo-blue: #1b5ea4;
+  --advo-blue-hover: #2176c2;
+  --advo-gold: #fba102;
+  --advo-gold-hover: #e08f02;
+  --advo-orange: #f16304;
+  --advo-page: #f6f8fc;
+  /* Neutral track behind progress bars and meters. */
+  --advo-track: #ebeff5;
+  --advo-card: #ffffff;
+  --advo-text: #18212f;
+  --advo-muted: #526174;
+  --advo-border: #e6ebf2;
+  --advo-success: #166534;
+  --advo-warning: #92400e;
+  --advo-danger: #b91c1c;
+  --advo-brand-gradient: linear-gradient(135deg, #fba102, #f16304);
+
+  /*
+   * Premium-light surfaces.
+   *
+   * The dashboard reads as one calm, light canvas: a faint tinted page, white
+   * cards with a hairline border and a soft two-layer shadow, and pastel
+   * "soft" tints behind icon tiles and status accents. The plain colour tokens
+   * above stay the source of truth for text and brand; these are only the
+   * surfaces built on top of them.
+   */
+  --advo-surface: #ffffff;
+  --advo-surface-soft: #f2f5fa;
+  /* Slightly stronger tint for hovered rows, inset panels and rails. */
+  --advo-surface-sunken: #eef2f8;
+  --advo-blue-soft: #e9f1fb;
+  --advo-gold-soft: #fff4e0;
+  --advo-success-soft: #e7f6ee;
+  --advo-warning-soft: #fdf2e3;
+  --advo-danger-soft: #fdebef;
+  --advo-violet: #6d5bd0;
+  --advo-violet-soft: #efecfb;
+  --advo-teal: #0d9488;
+  --advo-teal-soft: #e4f6f4;
+
+  /* Hairline + soft shadows used by every card, panel and popover. */
+  --advo-shadow-field: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --advo-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 14px 34px -20px rgba(16, 24, 40, 0.24);
+  --advo-shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.05), 0 26px 48px -24px rgba(16, 24, 40, 0.32);
+
+  /* Brand washes: a white card fading into a brand tint, used by hero panels. */
+  --advo-gradient-blue: linear-gradient(135deg, #1b5ea4 0%, #2176c2 100%);
+  --advo-gradient-hero: linear-gradient(135deg, #ffffff 0%, #ffffff 45%, #eef4fc 100%);
+  --advo-gradient-gold: linear-gradient(135deg, #fba102 0%, #f16304 100%);
+
+  /*
+   * Typography — Inter is the single typeface for the whole product
+   * (marketing, auth, admin, reseller, agent and the guest portal).
+   * The Next.js layouts load Inter through `next/font/google` and expose it as
+   * `--advo-font-inter`; the stack below is the standalone fallback used when
+   * that variable is absent (unit tests, static HTML, portal frames).
+   */
+  --advo-font: "Inter", "Inter Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --advo-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /*
+   * Radius — one scale for the entire system.
+   * `md` is the default ("medium") radius for every surface and control:
+   * cards, panels, tables, menus, buttons and chips.
+   * `lg` is the "large" radius reserved for form controls, so that inputs,
+   * selects and textareas read as interactive fields.
+   */
+  --advo-radius-sm: 8px;
+  --advo-radius-md: 12px;
+  --advo-radius-lg: 16px;
+  --advo-radius-field: var(--advo-radius-lg);
+  --advo-radius-card: var(--advo-radius-md);
+}
