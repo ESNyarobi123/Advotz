@@ -625,6 +625,28 @@ async function ownedDevice(resellerId: string, deviceId: string) {
   return { device, remoteSiteId: mapping.remoteSiteId, controllerId: mapping.controllerId };
 }
 
+function renameWaiting(err: unknown): boolean {
+  const text = err instanceof ControllerError
+    ? `${err.vendorMessage ?? ""} ${err.message}`
+    : typeof err === "string"
+      ? err
+      : err instanceof Error
+        ? err.message
+        : "";
+  return /does not exist/i.test(text);
+}
+
+function alreadyForgotten(err: unknown): boolean {
+  const text = err instanceof ControllerError
+    ? `${err.vendorMessage ?? ""} ${err.message}`
+    : typeof err === "string"
+      ? err
+      : err instanceof Error
+        ? err.message
+        : "";
+  return /not exist|not found|does not exist|unknown device|no such device/i.test(text);
+}
+
 function failController(err: unknown, fallback: string): never {
   if (err instanceof UnsupportedCapabilityError) badRequest(fallback);
   if (err instanceof ControllerError) {
@@ -646,23 +668,31 @@ export async function renameDevice(
 ) {
   const { device, remoteSiteId, controllerId } = await ownedDevice(resellerId, deviceId);
   const { adapter } = await getControllerAdapter(controllerId);
+  const name = input.name.trim();
   let kind: string | undefined;
+  let presence: string | undefined;
   try {
     const remote = await adapter.listDevices({ remoteSiteId });
-    kind = remote.find((row) => normalizeMac(row.mac) === device.mac)?.kind;
+    const found = remote.find((row) => normalizeMac(row.mac) === device.mac);
+    kind = found?.kind;
+    presence = found?.presence;
   } catch {
     kind = undefined;
   }
-  try {
-    const renamed = await adapter.renameDevice({ remoteSiteId, mac: device.mac, name: input.name.trim(), kind });
-    if (!renamed.ok) badRequest(renamed.reason ?? "The controller could not rename this device.");
-  } catch (err) {
-    failController(err, "The controller could not rename this device.");
+  // A device that is still pending has no adopted AP record, so the controller
+  // rejects the rename. Keep the name here and send it after adoption succeeds.
+  if (presence !== "pending") {
+    try {
+      const renamed = await adapter.renameDevice({ remoteSiteId, mac: device.mac, name, kind });
+      if (!renamed.ok && !renameWaiting(renamed.reason)) badRequest(renamed.reason ?? "The controller could not rename this device.");
+    } catch (err) {
+      if (!renameWaiting(err)) failController(err, "The controller could not rename this device.");
+    }
   }
   const updated = await prisma.device.update({
     where: { id: device.id },
     data: {
-      name: input.name.trim(),
+      name,
       model: input.model === undefined ? device.model : input.model.trim() || null,
     },
   });
@@ -690,12 +720,20 @@ export async function retryDeviceAdopt(
     failController(err, ADOPT_REJECTED);
   }
   let observedStatus = device.observedStatus;
+  let adopted: RemoteDevice | undefined;
   try {
     const remote = await adapter.listDevices({ remoteSiteId });
-    const found = remote.find((row) => normalizeMac(row.mac) === device.mac);
-    observedStatus = found?.presence === "active" ? "active" : "offline";
+    adopted = remote.find((row) => normalizeMac(row.mac) === device.mac);
+    observedStatus = adopted?.presence === "active" ? "active" : "offline";
   } catch {
     observedStatus = "offline";
+  }
+  if (device.name && adopted && adopted.presence !== "pending") {
+    try {
+      await adapter.renameDevice({ remoteSiteId, mac: device.mac, name: device.name, kind: adopted.kind });
+    } catch {
+      // Adoption already succeeded. Rename can be sent again from the device card.
+    }
   }
   return prisma.device.update({
     where: { id: device.id },
@@ -712,9 +750,11 @@ export async function removeDevice(resellerId: string, actorUserId: string, devi
   const { adapter } = await getControllerAdapter(controllerId);
   try {
     const forgotten = await adapter.forgetDevice({ remoteSiteId, mac: device.mac });
-    if (!forgotten.ok) badRequest(forgotten.reason ?? "The controller could not remove this device.");
+    if (!forgotten.ok && !alreadyForgotten(forgotten.reason)) {
+      badRequest(forgotten.reason ?? "The controller could not remove this device.");
+    }
   } catch (err) {
-    failController(err, "The controller could not remove this device.");
+    if (!alreadyForgotten(err)) failController(err, "The controller could not remove this device.");
   }
   await prisma.$transaction(async (tx) => {
     await tx.device.delete({ where: { id: device.id } });

@@ -202,25 +202,45 @@ function numericStatus(value: unknown): number | null {
 /**
  * Map an Omada device row to active, offline, or still pending.
  *
- * Omada's OpenAPI (and the controller device list) reports two layers:
- * `statusCategory` is 0 pending, 1 connected, 2 disconnected, 3 heartbeat missed, 4 isolated.
- * The detailed `status` uses 0 for disconnected, 14 or 15 for connected, and 20–24 while
- * the device is pending, adopting, or managed by someone else.
+ * Omada 6.3 reports two layers. The category (`statusCategory`, or `status` on the
+ * device list) is 0 disconnected, 1 connected, 2 pending, 3 heartbeat missed, 4 isolated.
+ * `detailStatus` is the finer code: 0 disconnected, 14–17 connected, 20–24 pending or adopting.
  */
-export function devicePresence(row: { status?: unknown; statusCategory?: unknown }): DevicePresence {
-  const category = numericStatus(row.statusCategory);
-  if (category === 1) return "active";
-  if (category === 0) return "pending";
-  if (category === 2 || category === 3 || category === 4) return "offline";
-
-  const text = String(row.status ?? "").trim().toLowerCase();
+export function devicePresence(row: { status?: unknown; statusCategory?: unknown; detailStatus?: unknown }): DevicePresence {
+  const text = typeof row.status === "string" ? row.status.trim().toLowerCase() : "";
   if (text === "connected" || text === "online" || text === "active") return "active";
   if (text === "pending" || text === "adopting" || text === "adopt_failed" || text === "managed_by_others") return "pending";
   if (text === "disconnected" || text === "offline" || text === "isolated" || text === "heartbeat_missed") return "offline";
 
+  const explicitCategory = numericStatus(row.statusCategory);
+  const detail = numericStatus(row.detailStatus);
   const status = numericStatus(row.status);
-  if (status === 14 || status === 15) return "active";
-  if (status === 20 || status === 21 || status === 22 || status === 23 || status === 24) return "pending";
-  if (status === 0) return "offline";
+  const category = explicitCategory ?? (detail !== null ? status : null);
+  if (category === 1) return "active";
+  if (category === 2) return "pending";
+  if (category === 0 || category === 3 || category === 4) return "offline";
+
+  const detailValue = detail ?? status;
+  if (detailValue === 14 || detailValue === 15 || detailValue === 16 || detailValue === 17) return "active";
+  if (detailValue !== null && detailValue >= 20 && detailValue <= 24) return "pending";
+  if (detail === null && explicitCategory === null && status !== null) {
+    if (status === 1) return "active";
+    if (status === 2) return "pending";
+    if (status === 0 || status === 3 || status === 4) return "offline";
+  }
   return "offline";
+}
+
+/** Human text for an Omada adopt-result code. `null` means the adopt succeeded. */
+export function adoptFailureMessage(code: number): string | null {
+  if (code === 0) return null;
+  const known: Record<number, string> = {
+    [-39002]: "The device did not respond to the adopt command.",
+    [-39003]: "The username or password is incorrect.",
+    [-39004]: "The controller could not adopt this device.",
+    [-39005]: "The device is not connected to the controller. Power it on and connect it, then try again.",
+    [-39329]: "The controller could not reach the uplink access point.",
+  };
+  if (known[code]) return known[code];
+  return Number.isFinite(code) ? `The controller did not adopt this device (${code}).` : null;
 }

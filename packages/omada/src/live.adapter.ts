@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { unsupported, type ControllerCapabilities, type CapabilityResult } from "./capabilities.js";
 import {
+  adoptFailureMessage,
   bandFromOmada,
   bandToOmada,
   devicePresence,
@@ -307,14 +308,37 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   }
 
   async adoptDevice(input: VerifiedAdoptionInput): Promise<RemoteOperationResult> {
-    await this.requireOpenApi("adoptDevice").call("adoptDevice", {
+    const api = this.requireOpenApi("adoptDevice");
+    const deviceMac = omadaMac(input.mac);
+    await api.call("adoptDevice", {
       siteId: input.remoteSiteId,
-      // Omada addresses the device by uppercase dashed MAC, both in the path and the body.
-      deviceMac: omadaMac(input.mac),
+      deviceMac,
       deviceUsername: input.deviceUsername ?? "",
       devicePassword: input.devicePassword ?? "",
     });
+    if (!api.has("getAdoptResult")) return { ok: true };
+    const failure = await this.adoptOutcome(api, input.remoteSiteId, deviceMac);
+    if (failure) throw new ControllerError(failure, "rejected", false, undefined, failure);
     return { ok: true };
+  }
+
+  /**
+   * start-adopt only queues the command. The previous result can still be sitting
+   * on the controller, so read it twice before trusting a failure.
+   */
+  private async adoptOutcome(api: OmadaOpenApiClient, remoteSiteId: string, deviceMac: string): Promise<string | null> {
+    let failure: string | null = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await delay(attempt === 0 ? 1500 : 1000);
+      const result = (await api.call("getAdoptResult", { siteId: remoteSiteId, deviceMac })) as { adoptErrorCode?: unknown };
+      const code = typeof result?.adoptErrorCode === "number" ? result.adoptErrorCode : Number(result?.adoptErrorCode);
+      if (code === 0) return null;
+      const message = adoptFailureMessage(code);
+      if (!message) continue;
+      if (failure === message && attempt >= 3) return message;
+      failure = message;
+    }
+    return failure ?? "The controller is still adopting this device. Try again in a moment.";
   }
 
   async listClients(input: RemoteSiteLocator): Promise<RemoteClient[]> {
@@ -449,4 +473,8 @@ function preAuthHosts(portalUrl: string, controllerBaseUrl: string): string[] {
   add(controllerBaseUrl);
   add("https://api.snippe.sh");
   return [...hosts];
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

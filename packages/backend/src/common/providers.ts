@@ -14,6 +14,7 @@ import {
   type OpenApiContract,
   type PortalTimeSemantics,
 } from "@advo/omada";
+import { fileURLToPath } from "node:url";
 import { prisma, type Controller } from "@advo/db";
 import { decryptSecret } from "./crypto.js";
 
@@ -99,7 +100,7 @@ export async function getControllerAdapter(controllerId: string): Promise<{ cont
     const creds = readControllerCredentials(controller);
     let contract: OpenApiContract | null = null;
     if (creds.openApiContract) {
-      contract = openApiContractSchema.parse(creds.openApiContract);
+      contract = withShippedOperations(openApiContractSchema.parse(creds.openApiContract));
     } else if (process.env.OMADA_OPENAPI_CONTRACT_PATH) {
       contract = loadOpenApiContract(process.env.OMADA_OPENAPI_CONTRACT_PATH);
     }
@@ -134,4 +135,28 @@ export async function getControllerAdapter(controllerId: string): Promise<{ cont
   }
   adapterCache.set(controllerId, { stamp, adapter });
   return { controller, adapter };
+}
+
+/**
+ * The controller row keeps the contract that was saved when it was registered.
+ * Routes added later (rename, forget, WiFi, adopt result) live in the shipped
+ * file. A saved adopt path without `{deviceMac}` is the pre-6.3 `/devices/adopt`
+ * route, which this controller does not serve.
+ */
+function withShippedOperations(stored: OpenApiContract): OpenApiContract {
+  let shipped: OpenApiContract;
+  try {
+    shipped = loadOpenApiContract(fileURLToPath(new URL("../../../omada/contracts/omada-v6.3.json", import.meta.url)));
+  } catch {
+    return stored;
+  }
+  const operations = { ...stored.operations };
+  for (const [name, operation] of Object.entries(shipped.operations)) {
+    if (!operations[name]) operations[name] = operation;
+  }
+  const adopt = operations.adoptDevice;
+  if (adopt && !adopt.path.includes("{deviceMac}") && shipped.operations.adoptDevice) {
+    operations.adoptDevice = shipped.operations.adoptDevice;
+  }
+  return { ...stored, operations };
 }

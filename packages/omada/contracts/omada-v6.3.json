@@ -56,13 +56,20 @@
     },
     "adoptDevice": {
       "method": "POST",
-      "path": "/openapi/v1/{omadacId}/sites/{siteId}/devices/{deviceMac}/adopt",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/devices/{deviceMac}/start-adopt",
       "bodyTemplate": {
         "username": "{{deviceUsername}}",
         "password": "{{devicePassword}}"
       },
       "verified": true,
-      "evidence": "Omada OpenAPI: adopt a pending device with its own username and password. The device must already be pending on the site; errorCode 0 means the controller accepted the adopt."
+      "evidence": "Omada 6.3.0.45 OpenAPI POST devices/{deviceMac}/start-adopt. errorCode 0 only means the controller accepted the command; GET adopt-result has the outcome."
+    },
+    "getAdoptResult": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/devices/{deviceMac}/adopt-result",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI AdoptResult.adoptErrorCode: 0 success, -39003 bad login, -39005 device not connected."
     },
     "listClients": {
       "method": "GET",
