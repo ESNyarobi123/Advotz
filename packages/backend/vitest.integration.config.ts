@@ -15,6 +15,7 @@ export default defineConfig({
     env: {
       NODE_ENV: "test",
       DATABASE_URL: testDatabaseUrl,
+      API_PUBLIC_URL: "http://localhost:4000",
       SECRETS_ENCRYPTION_KEY: "test_only_secrets_key_0123456789abcdef",
       VOUCHER_LOOKUP_HMAC_KEY: "test_only_voucher_key_0123456789abcdef",
       PAYMENT_PROVIDER: "fake",

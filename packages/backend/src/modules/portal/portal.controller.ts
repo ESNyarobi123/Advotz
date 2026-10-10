@@ -1,5 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
-import {
+import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";import {
   grantRecoverySchema,
   portalContextInputSchema,
   portalOrderInputSchema,
@@ -15,7 +14,9 @@ import {
   createPortalOrder,
   grantStatus,
   joinWithRecoveryToken,
+  portalAds,
   portalBootstrap,
+  portalConfig,
   portalOrderStatus,
   redeemVoucher,
   retryPortalPayment,
@@ -24,11 +25,12 @@ import {
 
 const slugSchema = z.string().regex(/^[a-z0-9-]{3,64}$/);
 const tokenSchema = z.string().min(20).max(200);
+/** The retry form asks for the phone only; a guest is a phone number, not an account. */
 const payerSchema = z.object({
   phone: tzPhoneSchema,
-  firstName: z.string().trim().min(1).max(60),
-  lastName: z.string().trim().min(1).max(60),
-  email: z.string().trim().email(),
+  firstName: z.string().trim().min(1).max(60).optional(),
+  lastName: z.string().trim().min(1).max(60).optional(),
+  email: z.string().trim().email().optional(),
 });
 
 /** Public guest endpoints. No internal IDs are accepted or returned; only opaque tokens. */
@@ -37,6 +39,18 @@ export class PortalController {
   @Get("sites/:slug")
   bootstrap(@Param("slug") slug: string) {
     return portalBootstrap(parse(slugSchema, slug));
+  }
+
+  /** Effective portal config, safe to cache on `configRevision`. */
+  @Get("sites/:slug/config")
+  config(@Param("slug") slug: string) {
+    return portalConfig(parse(slugSchema, slug));
+  }
+
+  /** Policy-aware ad delivery for one placement; empty when the placement is hidden. */
+  @Get("sites/:slug/ads/:placement")
+  ads(@Param("slug") slug: string, @Param("placement") placement: string) {
+    return portalAds(parse(slugSchema, slug), placement);
   }
 
   @Post("sites/:slug/context")

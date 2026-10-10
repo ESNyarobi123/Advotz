@@ -32,38 +32,57 @@ export function MarketingHeader() {
   const pathname = usePathname();
   const { t } = useI18n();
 
-  /* The header floats over the dark hero, then turns into a white glass bar
-     once the page scrolls so it stays legible over light sections. */
+  /*
+   * One scroll/resize handler drives both header behaviours:
+   *
+   *  1. `scrolled` swaps the header from charcoal-over-hero to white glass so
+   *     it stays legible once light sections slide underneath it.
+   *  2. The scroll-spy marks the in-page section sitting under the header.
+   *
+   * The spy is measured from `getBoundingClientRect()` against a probe line
+   * instead of an IntersectionObserver: the observer only receives *changed*
+   * entries, so it can never clear the highlight when no section is in range
+   * (hero, footer, or a section shorter than the observer band) and leaves a
+   * stale item highlighted. This always resolves a definitive answer, and
+   * reusing the one listener keeps the page to a single scroll subscription.
+   */
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    const sectionIds =
+      pathname === "/"
+        ? (NAV_ITEMS.map((item) => item.sectionId).filter(Boolean) as string[])
+        : [];
 
-  /* Scroll-spy: highlight the in-page section currently under the header. */
-  useEffect(() => {
-    if (pathname !== "/") {
-      setActiveSection(null);
-      return;
-    }
-    const ids = NAV_ITEMS.map((item) => item.sectionId).filter(Boolean) as string[];
-    const targets = ids
-      .map((id) => document.getElementById(id))
-      .filter((el): el is HTMLElement => Boolean(el));
-    if (targets.length === 0) return;
+    const update = () => {
+      setScrolled(window.scrollY > 24);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) setActiveSection(visible[0].target.id);
-      },
-      { rootMargin: "-40% 0px -55% 0px", threshold: [0, 0.2, 0.5, 1] },
-    );
-    targets.forEach((target) => observer.observe(target));
-    return () => observer.disconnect();
+      if (sectionIds.length === 0) {
+        setActiveSection(null);
+        return;
+      }
+
+      /* Probe sits just below the sticky header (which is ~80px tall and
+         topped by the announcement bar before the page scrolls). */
+      const probe = 140;
+      let current: string | null = null;
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const { top, bottom } = el.getBoundingClientRect();
+        if (top <= probe && bottom > probe) {
+          current = id;
+          break;
+        }
+      }
+      setActiveSection(current);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
   }, [pathname]);
 
   /* Close the mobile drawer on Escape and lock background scroll while open. */
@@ -111,8 +130,8 @@ export function MarketingHeader() {
             : "border-white/10 bg-advo-charcoal/85 backdrop-blur-md",
         )}
       >
-        <Container className="flex h-16 items-center justify-between gap-4 lg:h-20">
-          <AdvoLogo size="md" variant={onDark ? "dark" : "light"} />
+        <Container className="flex h-16 items-center justify-between gap-2 sm:gap-4 lg:h-20">
+          <AdvoLogo size="md" variant={onDark ? "dark" : "light"} responsive />
 
           {/* Desktop navigation — hidden below `lg` so Swahili labels never crowd the bar. */}
           <nav aria-label={t("marketing.nav.primary")} className="hidden items-center gap-1 lg:flex">

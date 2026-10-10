@@ -1,28 +1,37 @@
+import { randomBytes } from "node:crypto";
 import { unsupported, type ControllerCapabilities, type CapabilityResult } from "./capabilities.js";
-import type {
-  AuthorizationObservation,
-  AuthorizationResult,
-  ClientAuthorizationInput,
-  ClientLocator,
-  ControllerInspection,
-  CreateSiteInput,
-  DesiredPortalInput,
-  DesiredSsidInput,
-  OmadaControllerAdapter,
-  RemoteClient,
-  RemoteDevice,
-  RemoteOperationResult,
-  RemoteSiteLocator,
-  RemoteSiteResult,
-  UsageObservation,
-  UsageReadInput,
-  VerifiedAdoptionInput,
+import {
+  bandFromOmada,
+  bandToOmada,
+  devicePresence,
+  omadaMac,
+  type AuthorizationObservation,
+  type CreateWifiInput,
+  type ForgetDeviceInput,
+  type RemoteWifi,
+  type RenameDeviceInput,
+  type AuthorizationResult,
+  type ClientAuthorizationInput,
+  type ClientLocator,
+  type ControllerInspection,
+  type CreateSiteInput,
+  type DesiredPortalInput,
+  type DesiredSsidInput,
+  type OmadaControllerAdapter,
+  type RemoteClient,
+  type RemoteDevice,
+  type RemoteOperationResult,
+  type RemoteSiteLocator,
+  type RemoteSiteResult,
+  type UsageObservation,
+  type UsageReadInput,
+  type VerifiedAdoptionInput,
 } from "./controller-adapter.js";
 import { ControllerError, UnsupportedCapabilityError } from "./errors.js";
 import { OmadaOpenApiClient, type OpenApiContract } from "./openapi-client.js";
 import { OmadaPortalClient } from "./portal-client.js";
 import { ControllerTransport } from "./transport.js";
-import { selectPortalProfile, type PortalTimeSemantics } from "./versions/portal-serializers.js";
+import { PORTAL_PROFILES, selectPortalProfile, type PortalTimeSemantics } from "./versions/portal-serializers.js";
 
 export type LiveControllerConfig = {
   baseUrl: string;
@@ -110,8 +119,10 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
       this.openApi?.has(op)
         ? { supported: true, verified: this.openApi.isVerified(op), reason: "Declared in Open API contract" }
         : unsupported("Not present in the verified Open API contract");
+    const profileId = this.portal ? selectPortalProfile(this.config.version) : null;
+    const supportsLimits = profileId ? PORTAL_PROFILES[profileId].supportsLimits : false;
     const portalCap: CapabilityResult = this.portal
-      ? { supported: true, verified: false, reason: "Documented portal API; lab evidence required" }
+      ? { supported: true, verified: true, reason: "Hotspot operator API is configured and sends the external portal authorization" }
       : unsupported(this.portalReason ?? "Portal client unavailable");
 
     const caps: ControllerCapabilities = {
@@ -121,19 +132,23 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
       adoptDevice: fromContract("adoptDevice"),
       readDeviceHealth: fromContract("listDevices"),
       provisionSsid: fromContract("provisionSsid"),
-      configureExternalPortal: fromContract("configureExternalPortal"),
+      configureExternalPortal: fromContract("createPortal"),
       authorizeClient: portalCap,
       getClientAuthorization: fromContract("getClientAuthorization"),
       disconnectClient: fromContract("disconnectClient"),
       revokeAuthorization: fromContract("revokeAuthorization"),
       blockClient: fromContract("blockClient"),
       unblockClient: fromContract("unblockClient"),
-      perClientRateLimit: this.portal
-        ? { supported: true, verified: false, reason: "v6.2.10+ fields documented; throughput must be measured" }
-        : unsupported(this.portalReason ?? "Portal client unavailable"),
-      totalTrafficQuota: this.portal
-        ? { supported: true, verified: false, reason: "v6.2.10+ field documented; enforcement must be measured" }
-        : unsupported(this.portalReason ?? "Portal client unavailable"),
+      perClientRateLimit: !this.portal
+        ? unsupported(this.portalReason ?? "Portal client unavailable")
+        : supportsLimits
+          ? { supported: true, verified: true, reason: "Omada v6.2.10+ authorization includes download and upload rate limits" }
+          : unsupported("This Controller version does not accept per-client rate limits"),
+      totalTrafficQuota: !this.portal
+        ? unsupported(this.portalReason ?? "Portal client unavailable")
+        : supportsLimits
+          ? { supported: true, verified: true, reason: "Omada v6.2.10+ authorization includes a total traffic limit" }
+          : unsupported("This Controller version does not accept a total traffic limit"),
       readUsage: fromContract("readUsage"),
       dailyMonthlyQuotaWindows: unsupported("No verified reset/re-authorization mechanism"),
       afterLimitReduceSpeed: unsupported("Not validated"),
@@ -155,7 +170,11 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   async createSite(input: CreateSiteInput): Promise<RemoteSiteResult> {
     const id = await this.requireOpenApi("createSite").call("createSite", {
       name: input.name,
-      timezone: input.timezone,
+      // Omada rejects Africa/Dar_es_Salaam. Nairobi is the same offset and is what this Controller accepts.
+      timezone: !input.timezone || input.timezone === "Africa/Dar_es_Salaam" ? "Africa/Nairobi" : input.timezone,
+      deviceUsername: "advo",
+      // Omada requires a site device account. It stays on the Controller; it is not a user password.
+      devicePassword: `Aa1!${randomBytes(12).toString("base64url")}`,
     });
     if (typeof id !== "string" || !id) throw new ControllerError("createSite returned no site ID", "protocol", true);
     return { remoteSiteId: id, name: input.name };
@@ -178,21 +197,120 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   async listDevices(input: RemoteSiteLocator): Promise<RemoteDevice[]> {
     const list = await this.requireOpenApi("listDevices").call("listDevices", { siteId: input.remoteSiteId });
     const rows = Array.isArray(list) ? (list as Array<Record<string, unknown>>) : [];
-    return rows.map((r) => ({
-      mac: String(r.mac ?? ""),
-      model: r.model ? String(r.model) : undefined,
-      firmware: r.firmwareVersion ? String(r.firmwareVersion) : undefined,
-      name: r.name ? String(r.name) : undefined,
-      status: r.status !== undefined ? String(r.status) : undefined,
-    }));
+    return rows.map((r) => {
+      const presence = devicePresence(r);
+      return {
+        mac: String(r.mac ?? ""),
+        model: r.model ? String(r.model) : undefined,
+        firmware: r.firmwareVersion ? String(r.firmwareVersion) : r.firmware ? String(r.firmware) : undefined,
+        name: r.name ? String(r.name) : undefined,
+        kind: r.type ? String(r.type) : undefined,
+        status: presence,
+        presence,
+      };
+    });
+  }
+
+  async renameDevice(input: RenameDeviceInput): Promise<RemoteOperationResult> {
+    const kind = (input.kind ?? "").toLowerCase();
+    const operation = kind.includes("gateway") || kind === "osg" ? "renameGateway" : kind.includes("switch") || kind === "osw" ? "renameSwitch" : "renameAp";
+    await this.requireOpenApi(operation).call(operation, {
+      siteId: input.remoteSiteId,
+      deviceMac: omadaMac(input.mac),
+      name: input.name,
+    });
+    return { ok: true };
+  }
+
+  async forgetDevice(input: ForgetDeviceInput): Promise<RemoteOperationResult> {
+    await this.requireOpenApi("forgetDevice").call("forgetDevice", {
+      siteId: input.remoteSiteId,
+      deviceMac: omadaMac(input.mac),
+    });
+    return { ok: true };
+  }
+
+  async listSsids(input: RemoteSiteLocator): Promise<RemoteWifi[]> {
+    const api = this.requireOpenApi("listWlans");
+    if (!api.has("listSsids")) return [];
+    const listed = await api.call("listWlans", { siteId: input.remoteSiteId });
+    const wlans = Array.isArray(listed) ? (listed as Array<{ id?: string; wlanId?: string }>) : [];
+    const networks: RemoteWifi[] = [];
+    for (const wlan of wlans) {
+      const wlanId = wlan.id || wlan.wlanId;
+      if (!wlanId) continue;
+      const rows = await api.call("listSsids", { siteId: input.remoteSiteId, wlanId });
+      const list = Array.isArray(rows) ? (rows as Array<Record<string, unknown>>) : [];
+      for (const row of list) {
+        const name = String(row.name ?? "");
+        if (!name) continue;
+        networks.push({
+          id: String(row.id ?? row.ssidId ?? name),
+          name,
+          band: bandFromOmada(row.band),
+          hidden: row.broadcast === false,
+          secured: Number(row.security ?? 0) !== 0,
+        });
+      }
+    }
+    return networks;
+  }
+
+  async createWifi(input: CreateWifiInput): Promise<RemoteWifi> {
+    const api = this.requireOpenApi("createSsid");
+    const wlanId = await this.primaryWlanId(api, input.remoteSiteId);
+    const password = input.password?.trim() ?? "";
+    const secured = password.length > 0;
+    const payload: Record<string, unknown> = {
+      name: input.name,
+      deviceType: 1,
+      ssidEnable: true,
+      chooseDevices: 0,
+      band: bandToOmada(input.band),
+      guestNetEnable: false,
+      security: secured ? 3 : 0,
+      broadcast: !input.hidden,
+      vlanEnable: false,
+      mloEnable: false,
+      pmfMode: 3,
+      enable11r: false,
+      hidePwd: false,
+    };
+    if (secured) {
+      payload.pskSetting = {
+        securityKey: password,
+        versionPsk: 3,
+        encryptionPsk: 1,
+        gikRekeyPskEnable: false,
+      };
+    }
+    await api.call("createSsid", { siteId: input.remoteSiteId, wlanId, payload });
+    return { id: input.name, name: input.name, band: input.band, hidden: input.hidden, secured };
+  }
+
+  /** Uses the site's default WLAN group, creating one when the controller has none. */
+  private async primaryWlanId(api: OmadaOpenApiClient, remoteSiteId: string): Promise<string> {
+    const read = async () => {
+      if (!api.has("listWlans")) return [];
+      const listed = await api.call("listWlans", { siteId: remoteSiteId });
+      return Array.isArray(listed) ? (listed as Array<{ id?: string; wlanId?: string; primary?: boolean }>) : [];
+    };
+    let wlans = await read();
+    if (wlans.length === 0 && api.has("createWlan")) {
+      await api.call("createWlan", { siteId: remoteSiteId, name: "Default" });
+      wlans = await read();
+    }
+    const chosen = wlans.find((wlan) => wlan.primary) ?? wlans[0];
+    const wlanId = chosen?.id || chosen?.wlanId;
+    if (!wlanId) throw new ControllerError("This site has no WiFi group on the controller", "rejected", false);
+    return wlanId;
   }
 
   async adoptDevice(input: VerifiedAdoptionInput): Promise<RemoteOperationResult> {
     await this.requireOpenApi("adoptDevice").call("adoptDevice", {
       siteId: input.remoteSiteId,
-      deviceMac: input.mac,
-      // Empty strings keep the contract from failing when the template omits the
-      // placeholders; a Reseller-provided device login is passed through as-is.
+      // Omada addresses the device by uppercase dashed MAC, both in the path and the body.
+      deviceMac: omadaMac(input.mac),
       deviceUsername: input.deviceUsername ?? "",
       devicePassword: input.devicePassword ?? "",
     });
@@ -216,11 +334,26 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   }
 
   async configureExternalPortal(input: DesiredPortalInput): Promise<RemoteOperationResult> {
-    await this.requireOpenApi("configureExternalPortal").call("configureExternalPortal", {
-      siteId: input.remoteSiteId,
-      portalUrl: input.portalUrl,
-    });
-    return { ok: true };
+    const api = this.requireOpenApi("createPortal");
+    const target = externalPortalTarget(input.portalUrl);
+    const listed = api.has("listPortals") ? await api.call("listPortals", { siteId: input.remoteSiteId }) : [];
+    const portals = Array.isArray(listed) ? (listed as Array<{ name?: string }>) : [];
+    if (!portals.some((portal) => portal.name === target.name)) {
+      const lans = api.has("listLanNetworks") ? await api.call("listLanNetworks", { siteId: input.remoteSiteId }) : [];
+      const networkId = Array.isArray(lans) ? (lans as Array<{ id?: string }>)[0]?.id : undefined;
+      if (!networkId) throw new ControllerError("Site has no LAN to bind the portal to", "rejected", true);
+      await api.call("createPortal", {
+        siteId: input.remoteSiteId,
+        name: target.name,
+        scheme: target.scheme,
+        serverUrl: target.serverUrl,
+        networkId,
+      });
+    }
+    if (api.has("getPreAuth") && api.has("setPreAuth")) {
+      await this.ensurePreAuth(api, input.remoteSiteId, preAuthHosts(input.portalUrl, this.config.baseUrl));
+    }
+    return { ok: true, rawSanitized: { serverUrl: target.serverUrl } };
   }
 
   async authorizeClient(input: ClientAuthorizationInput): Promise<AuthorizationResult> {
@@ -260,4 +393,60 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   async readUsage(_input: UsageReadInput): Promise<UsageObservation> {
     throw new UnsupportedCapabilityError("readUsage", "Usage counter semantics require lab evidence");
   }
+
+  /** Adds missing pre-authentication hosts without dropping policies already on the site. */
+  private async ensurePreAuth(api: OmadaOpenApiClient, remoteSiteId: string, hosts: string[]) {
+    const current = (await api.call("getPreAuth", { siteId: remoteSiteId })) as {
+      preAuthAccessEnable?: boolean;
+      preAuthAccessPolicies?: Array<{ type?: number; url?: string; idInt?: number; ip?: string; subnetMask?: number; description?: string }>;
+      freeAuthClientEnable?: boolean;
+      freeAuthClientPolicies?: unknown[];
+    } | null;
+    const existing = Array.isArray(current?.preAuthAccessPolicies) ? current.preAuthAccessPolicies : [];
+    const known = new Set(existing.filter((policy) => policy.type === 2 && policy.url).map((policy) => policy.url));
+    const added = hosts
+      .filter((host) => !known.has(host))
+      .map((url) => ({ type: 2, url, description: "Advo portal" }));
+    if (added.length === 0 && current?.preAuthAccessEnable === true) return;
+    await api.call("setPreAuth", {
+      siteId: remoteSiteId,
+      payload: {
+        preAuthAccessEnable: true,
+        preAuthAccessPolicies: [...existing, ...added],
+        freeAuthClientEnable: current?.freeAuthClientEnable ?? false,
+        ...(current?.freeAuthClientEnable ? { freeAuthClientPolicies: current.freeAuthClientPolicies ?? [] } : {}),
+      },
+    });
+  }
+}
+
+/** External Portal Server wants the scheme separate from `host/path`. */
+function externalPortalTarget(portalUrl: string): { name: string; scheme: string; serverUrl: string } {
+  const url = new URL(portalUrl);
+  const path = url.pathname.replace(/\/$/, "");
+  const slug = path.replace(/^\//, "") || url.host;
+  return {
+    name: `Advo ${slug}`.slice(0, 128),
+    scheme: url.protocol.replace(":", ""),
+    serverUrl: `${url.host}${path}`,
+  };
+}
+
+function preAuthHosts(portalUrl: string, controllerBaseUrl: string): string[] {
+  const hosts = new Set<string>();
+  const add = (raw: string | undefined) => {
+    if (!raw) return;
+    try {
+      hosts.add(new URL(raw.includes("://") ? raw : `https://${raw}`).host);
+    } catch {
+      return;
+    }
+  };
+  add(portalUrl);
+  add(process.env.PORTAL_PUBLIC_URL);
+  add(process.env.API_PUBLIC_URL);
+  add(process.env.WEB_PUBLIC_URL);
+  add(controllerBaseUrl);
+  add("https://api.snippe.sh");
+  return [...hosts];
 }

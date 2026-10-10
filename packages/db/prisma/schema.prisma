@@ -94,20 +94,20 @@ model User {
 }
 
 model AuthSession {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @db.Uuid
-  tokenHash  String    @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  userAgent  String?
-  ipAddress  String?
-  mfaPassed  Boolean   @default(false)
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @db.Uuid
+  tokenHash            String    @unique
+  expiresAt            DateTime
+  revokedAt            DateTime?
+  userAgent            String?
+  ipAddress            String?
+  mfaPassed            Boolean   @default(false)
   /// Set when an Admin is acting as this user; the session is short-lived and audited.
-  impersonatedByUserId String? @db.Uuid
+  impersonatedByUserId String?   @db.Uuid
   /// Admin-supplied justification captured at impersonation start.
   impersonationReason  String?
-  createdAt  DateTime  @default(now())
-  lastSeenAt DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+  lastSeenAt           DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -144,21 +144,22 @@ model Reseller {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  owner         User                  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
-  attribution   ReferralAttribution?
-  invitation    ResellerInvitation?
-  subscription  Subscription?
-  invoices      SubscriptionInvoice[]
-  sites         Site[]
-  packages      WifiPackage[]
-  customers     Customer[]
-  orders        Order[]
-  deviceClaims  DeviceClaim[]
-  devices       Device[]
-  voucherGroups VoucherGroup[]
-  grants        AccessGrant[]
-  accruals      CommissionAccrual[]
-  promotions    PromotionRequest[]
+  owner          User                  @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  attribution    ReferralAttribution?
+  invitation     ResellerInvitation?
+  subscription   Subscription?
+  planMigrations PlanMigrationTarget[]
+  invoices       SubscriptionInvoice[]
+  sites          Site[]
+  packages       WifiPackage[]
+  customers      Customer[]
+  orders         Order[]
+  deviceClaims   DeviceClaim[]
+  devices        Device[]
+  voucherGroups  VoucherGroup[]
+  grants         AccessGrant[]
+  accruals       CommissionAccrual[]
+  promotions     PromotionRequest[]
 
   @@index([status])
 }
@@ -289,28 +290,51 @@ enum InvoiceStatus {
   VOID
 }
 
+/// Draft plans never affect live subscribers; only a published version is served.
+enum PlanLifecycle {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Public plans appear in the reseller catalog; private ones are assigned by admin.
+enum PlanVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 model PlatformPlan {
-  id            String   @id @default(uuid()) @db.Uuid
-  code          String
-  version       Int
-  name          String
-  priceTzs      BigInt
-  periodDays    Int
-  trialEligible Boolean  @default(false)
-  trialDays     Int?
-  maxSites      Int
-  maxDevices    Int
-  maxPackages   Int
-  features      Json     @default("{}")
-  active        Boolean  @default(true)
-  isDemo        Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id                String         @id @default(uuid()) @db.Uuid
+  code              String
+  version           Int
+  name              String
+  description       String         @default("")
+  priceTzs          BigInt
+  periodDays        Int
+  trialEligible     Boolean        @default(false)
+  trialDays         Int?
+  /// Legacy per-reseller caps, kept in step with `features.limits`; NULL means unlimited.
+  maxSites          Int?
+  maxDevices        Int?
+  maxPackages       Int?
+  /// The feature catalog snapshot for this version, validated by `planFeaturesSchema`.
+  features          Json           @default("{}")
+  lifecycle         PlanLifecycle  @default(DRAFT)
+  visibility        PlanVisibility @default(PUBLIC)
+  /// "standard" or "ad_free"; an ad-free promise must disable every sponsored placement.
+  commercialPromise String         @default("standard")
+  publishedAt       DateTime?
+  active            Boolean        @default(true)
+  isDemo            Boolean        @default(false)
+  createdAt         DateTime       @default(now())
 
   subscriptions Subscription[]
   invoices      SubscriptionInvoice[]
+  migrations    PlanMigration[]
 
   @@unique([code, version])
   @@index([active])
+  @@index([lifecycle, visibility])
 }
 
 model Subscription {
@@ -331,6 +355,60 @@ model Subscription {
   invoices SubscriptionInvoice[]
 
   @@index([state, currentPeriodEnd])
+}
+
+/// How a published plan version reaches the people already paying.
+enum PlanMigrationScope {
+  NEW_ONLY
+  ON_RENEWAL
+  SELECTED
+  ALL
+}
+
+/// `PARTIAL` means an `ON_RENEWAL` migration still has periods waiting to end.
+enum PlanMigrationStatus {
+  SCHEDULED
+  PARTIAL
+  APPLIED
+  CANCELLED
+}
+
+/// One subscription move per target, so old → new is on the record, not inferred.
+model PlanMigrationTarget {
+  id              String    @id @default(uuid()) @db.Uuid
+  migrationId     String    @db.Uuid
+  resellerId      String    @db.Uuid
+  fromPlanId      String?   @db.Uuid
+  fromCode        String?
+  fromVersion     Int?
+  appliedAt       DateTime?
+  appliedByUserId String?   @db.Uuid
+
+  migration PlanMigration @relation(fields: [migrationId], references: [id], onDelete: Cascade)
+  reseller  Reseller      @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+
+  @@unique([migrationId, resellerId])
+  @@index([migrationId, appliedAt])
+}
+
+/// A scheduled move of live subscriptions onto a published plan version.
+model PlanMigration {
+  id              String              @id @default(uuid()) @db.Uuid
+  planId          String              @db.Uuid
+  scope           PlanMigrationScope
+  status          PlanMigrationStatus @default(SCHEDULED)
+  /// Nothing moves before this instant.
+  effectiveAt     DateTime
+  note            String              @default("")
+  createdByUserId String              @db.Uuid
+  createdAt       DateTime            @default(now())
+  appliedAt       DateTime?
+
+  plan    PlatformPlan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  targets PlanMigrationTarget[]
+
+  @@index([status, effectiveAt])
+  @@index([planId])
 }
 
 model SubscriptionInvoice {
@@ -458,18 +536,43 @@ model Site {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  reseller    Reseller                @relation(fields: [resellerId], references: [id], onDelete: Restrict)
-  mapping     ControllerSiteMapping?
-  claims      DeviceClaim[]
-  devices     Device[]
-  assignments PackageSiteAssignment[]
-  contexts    PortalContext[]
-  grants      AccessGrant[]
-  orders      Order[]
-  promotions  PromotionRequest[]
+  reseller         Reseller                @relation(fields: [resellerId], references: [id], onDelete: Restrict)
+  mapping          ControllerSiteMapping?
+  claims           DeviceClaim[]
+  devices          Device[]
+  assignments      PackageSiteAssignment[]
+  contexts         PortalContext[]
+  grants           AccessGrant[]
+  orders           Order[]
+  promotions       PromotionRequest[]
+  portalPreference SitePortalPreference?
 
   @@unique([id, resellerId])
   @@index([resellerId, state])
+}
+
+/// Plan-governed appearance + visibility choices for one site.
+///
+/// Stored apart from the reseller's plan on purpose: a downgrade must keep the
+/// reseller's choices, narrowing only their *effect*. The shape is validated by
+/// `sitePortalPreferenceSchema` in `@advo/contracts`.
+model SitePortalPreference {
+  id           String   @id @default(uuid()) @db.Uuid
+  siteId       String   @unique @db.Uuid
+  /// `{ primary_color, accent_color, background_color, theme_preset, logo_url, background_url, show_platform_badge }`
+  branding     Json     @default("{}")
+  /// The chosen package-card look; NULL means "use the plan's default style".
+  packageStyle String?
+  /// The chosen arrangement; NULL means "use the plan's default layout".
+  packageLayout String?
+  /// Ordered package ids; ignored unless the plan allows reordering.
+  packageOrder Json     @default("[]")
+  /// `{ banner?, explore?, promote_business?, platform_link?, jobs? }`
+  visibility   Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 }
 
 model ControllerSiteMapping {
@@ -490,14 +593,14 @@ model ControllerSiteMapping {
 }
 
 model DeviceClaim {
-  id              String           @id @default(uuid()) @db.Uuid
-  resellerId      String           @db.Uuid
-  siteId          String           @db.Uuid
-  name            String?
-  mac             String
-  model           String?
-  hardwareVersion String?
-  serial          String?
+  id                String           @id @default(uuid()) @db.Uuid
+  resellerId        String           @db.Uuid
+  siteId            String           @db.Uuid
+  name              String?
+  mac               String
+  model             String?
+  hardwareVersion   String?
+  serial            String?
   /**
    * Optional local device account (the EAP/Switch login) the Controller uses to
    * adopt the device. The username is stored as-is; the password is encrypted
@@ -505,14 +608,14 @@ model DeviceClaim {
    */
   deviceUsername    String?
   devicePasswordEnc String?
-  state           DeviceClaimState @default(SUBMITTED)
-  reviewReason    String?
-  reviewedBy      String?          @db.Uuid
-  reviewedAt      DateTime?
-  lastError       String?
-  deviceId        String?          @unique @db.Uuid
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  state             DeviceClaimState @default(SUBMITTED)
+  reviewReason      String?
+  reviewedBy        String?          @db.Uuid
+  reviewedAt        DateTime?
+  lastError         String?
+  deviceId          String?          @unique @db.Uuid
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   reseller Reseller @relation(fields: [resellerId], references: [id], onDelete: Restrict)
   site     Site     @relation(fields: [siteId, resellerId], references: [id, resellerId], onDelete: Restrict)
@@ -1330,4 +1433,85 @@ model PromotionRequest {
 
   @@index([siteId, state, createdAt])
   @@index([resellerId, createdAt])
+}
+
+enum AdCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+/**
+ * An admin-created advertising campaign.
+ * A campaign is eligible for a placement only when it is `ACTIVE`, its dates
+ * allow the current instant, it carries the placement, and its targeting
+ * includes the reseller or site being served. Eligibility is decided here so a
+ * `REQUIRED` placement can collapse honestly when nothing matches, rather than
+ * rendering an empty card.
+ */
+model AdCampaign {
+  id              String           @id @default(uuid()) @db.Uuid
+  name            String
+  status          AdCampaignStatus @default(DRAFT)
+  /// Visibility keys this campaign may be served for, e.g. ["ads.banner"].
+  placements      String[]
+  /// Creative validated by `adCreativeSchema`: business, title, description, cta, theme, imageUrl.
+  creative        Json
+  /// Targeting: `{ resellerIds?: string[], siteIds?: string[] }`; empty means everyone.
+  targeting       Json             @default("{}")
+  startsAt        DateTime?
+  endsAt          DateTime?
+  createdByUserId String?          @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status, startsAt, endsAt])
+  @@index([placements])
+}
+
+/// How a stored asset is used. Kept as a plain string so a new upload surface
+/// does not need a migration; the allowed values live in `@advo/contracts`.
+enum MediaAssetKind {
+  PORTAL_LOGO
+  PORTAL_BACKGROUND
+  CAMPAIGN_CREATIVE
+
+  @@map("media_asset_kind")
+}
+
+/**
+ * An uploaded image that has already been through the optimiser.
+ *
+ * Assets live in Postgres rather than on disk on purpose: the API and worker run
+ * as four separate containers with no shared volume, so a file written by one
+ * replica would 404 from the next. A row survives every deploy and every replica
+ * reads the same bytes.
+ *
+ * `bytes` holds *only* the optimised image — the raw upload is never written, so
+ * the column cannot be used to store an un-processed payload. `originalBytes` and
+ * `width`/`height` are kept so the dashboard can show the saving it made.
+ */
+model MediaAsset {
+  id            String         @id @default(uuid()) @db.Uuid
+  kind          MediaAssetKind
+  /// Tenant that owns the asset, e.g. `RESELLER`.
+  ownerType     String
+  /// Reseller id for `PORTAL_LOGO`; not a foreign key because the column is shared
+  /// by more than one kind of owner.
+  ownerId       String
+  contentType   String
+  /// Optimised bytes. The portal serves exactly these.
+  bytes         Bytes
+  byteSize      Int
+  /// Size of the file the reseller sent, before optimisation.
+  originalBytes Int
+  originalName  String?
+  width         Int
+  height        Int
+  /// sha256 of `bytes`; used as the serve-time ETag.
+  checksum      String
+  createdAt     DateTime       @default(now())
+
+  @@index([kind, ownerType, ownerId, createdAt])
 }

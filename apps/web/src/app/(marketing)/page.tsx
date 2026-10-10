@@ -17,10 +17,12 @@ import {
   Wallet,
 } from "lucide-react";
 import { SoftIcon } from "@advo/ui";
-import { InteractivePortalSimulator } from "@/features/marketing/InteractivePortalSimulator";
+import { HeroPhoneMockup } from "@/features/marketing/HeroPhoneMockup";
 import { InteractiveRevenueCalculator } from "@/features/marketing/InteractiveRevenueCalculator";
 import { FaqSection } from "@/features/marketing/FaqSection";
+import { PlanCardGrid } from "@/features/marketing/PlanCards";
 import { getServerI18n } from "@/lib/i18n.server";
+import { fetchPublicPlans, orderPlansForDisplay, popularPlanId } from "@/lib/public-plans";
 import {
   ButtonLink,
   Card,
@@ -34,6 +36,17 @@ import {
 
 /** Payment rails and hardware the platform is wired into, in brand order. */
 const PAYMENT_BRANDS = ["M-Pesa", "Tigo Pesa", "Airtel Money", "Halopesa"];
+
+/**
+ * Faces behind the hero's social proof. Initials on a brand-coloured disc —
+ * cheap to render, no stock photography of people who do not exist.
+ */
+const AVATARS = [
+  { initials: "JM", tone: "bg-advo-blue" },
+  { initials: "FA", tone: "bg-advo-violet" },
+  { initials: "EM", tone: "bg-advo-teal" },
+  { initials: "SN", tone: "bg-advo-orange" },
+];
 
 const STEP_BADGES = [
   "bg-advo-blue-soft text-advo-blue",
@@ -129,50 +142,11 @@ export default async function MarketingHomePage() {
     },
   ];
 
-  const plans = [
-    {
-      name: t("marketing.home.pricing.starter.name"),
-      desc: t("marketing.home.pricing.starter.desc"),
-      price: "TZS 25,000",
-      features: [
-        t("marketing.home.pricing.starter.feature1"),
-        t("marketing.home.pricing.starter.feature2"),
-        t("marketing.home.pricing.starter.feature3"),
-        t("marketing.home.pricing.starter.feature4"),
-        t("marketing.home.pricing.starter.feature5"),
-      ],
-      cta: t("marketing.home.pricing.starter.cta"),
-      highlight: false,
-    },
-    {
-      name: t("marketing.home.pricing.pro.name"),
-      desc: t("marketing.home.pricing.pro.desc"),
-      price: "TZS 50,000",
-      features: [
-        t("marketing.home.pricing.pro.feature1"),
-        t("marketing.home.pricing.pro.feature2"),
-        t("marketing.home.pricing.pro.feature3"),
-        t("marketing.home.pricing.pro.feature4"),
-        t("marketing.home.pricing.pro.feature5"),
-      ],
-      cta: t("marketing.home.pricing.pro.cta"),
-      highlight: true,
-    },
-    {
-      name: t("marketing.home.pricing.enterprise.name"),
-      desc: t("marketing.home.pricing.enterprise.desc"),
-      price: "TZS 120,000",
-      features: [
-        t("marketing.home.pricing.enterprise.feature1"),
-        t("marketing.home.pricing.enterprise.feature2"),
-        t("marketing.home.pricing.enterprise.feature3"),
-        t("marketing.home.pricing.enterprise.feature4"),
-        t("marketing.home.pricing.enterprise.feature5"),
-      ],
-      cta: t("marketing.home.pricing.enterprise.cta"),
-      highlight: false,
-    },
-  ];
+  // Live catalog from Admin — see `fetchPublicPlans`. The landing page shows the
+  // same published plans as /pricing so the two pages cannot quote different
+  // prices, and a repricing in the dashboard reaches both without a deploy.
+  const plans = orderPlansForDisplay(await fetchPublicPlans());
+  const popularId = popularPlanId(plans);
 
   const testimonials = [
     { quote: t("marketing.home.testimonials.1.quote"), name: "Juma Mwakyusa", role: t("marketing.home.testimonials.1.role"), initials: "JM" },
@@ -185,7 +159,7 @@ export default async function MarketingHomePage() {
   return (
     <div className="w-full">
       {/* ═══════════════════════════════════════════════════════════════════
-          HERO + LIVE DEMO — one cohesive dark band
+          HERO — copy on the left, the live captive portal on the right
       ═══════════════════════════════════════════════════════════════════ */}
       <section className="relative w-full overflow-hidden bg-advo-charcoal text-white">
         {/* Faint technical grid */}
@@ -209,49 +183,89 @@ export default async function MarketingHomePage() {
           className="pointer-events-none absolute top-1/4 -right-40 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.3),transparent_70%)] blur-3xl"
         />
 
-        <Container className="relative z-10 pt-16 pb-20 sm:pt-20 sm:pb-24 lg:pt-24">
-          <div className="mx-auto max-w-4xl text-center">
-            <Eyebrow tone="dark">{t("marketing.home.hero.badge")}</Eyebrow>
+        <Container className="relative z-10 pt-14 pb-16 sm:pt-20 sm:pb-20 lg:pt-24 lg:pb-24">
+          <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-12 lg:gap-10 xl:gap-16">
+            {/* ── Hero copy ─────────────────────────────────────────────── */}
+            <div className="lg:col-span-6">
+              <Eyebrow tone="dark">{t("marketing.home.hero.badge")}</Eyebrow>
 
-            <h1 className="mt-6 text-4xl font-black tracking-tight text-balance sm:text-5xl lg:text-6xl">
-              {t("marketing.home.hero.titleLead")}{" "}
-              <span className={GOLD_TEXT}>{t("marketing.home.hero.titleAccent")}</span>{" "}
-              {t("marketing.home.hero.titleTrail")}
-            </h1>
+              <h1 className="mt-6 text-[2.35rem] leading-[1.05] font-black tracking-tight text-balance sm:text-5xl lg:text-[3.3rem]">
+                {t("marketing.home.hero.titleLead")}{" "}
+                <span className={GOLD_TEXT}>{t("marketing.home.hero.titleAccent")}</span>{" "}
+                {t("marketing.home.hero.titleTrail")}
+              </h1>
 
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">
-              {t("marketing.home.hero.subLead")}{" "}
-              <strong className="font-semibold text-white">{t("marketing.home.hero.subOmada")}</strong>{" "}
-              {t("marketing.home.hero.subMid")}{" "}
-              <strong className="font-semibold text-white">{t("marketing.home.hero.subMomo")}</strong>{" "}
-              {t("marketing.home.hero.subTrail")}
-            </p>
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">
+                {t("marketing.home.hero.subLead")}{" "}
+                <strong className="font-semibold text-white">{t("marketing.home.hero.subOmada")}</strong>{" "}
+                {t("marketing.home.hero.subMid")}{" "}
+                <strong className="font-semibold text-white">{t("marketing.home.hero.subMomo")}</strong>{" "}
+                {t("marketing.home.hero.subTrail")}
+              </p>
 
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <ButtonLink href="/register" size="lg" variant="gold" arrow className="w-full sm:w-auto">
-                {t("marketing.home.hero.ctaRegister")}
-              </ButtonLink>
-              <ButtonLink href="#demo" size="lg" variant="onDark" className="w-full sm:w-auto">
-                {t("marketing.home.hero.ctaSimulator")}
-              </ButtonLink>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <ButtonLink href="/register" size="lg" variant="gold" arrow className="w-full sm:w-auto">
+                  {t("marketing.home.hero.ctaRegister")}
+                </ButtonLink>
+                <ButtonLink href="#how-it-works" size="lg" variant="onDark" className="w-full sm:w-auto">
+                  {t("marketing.home.hero.ctaSecondary")}
+                </ButtonLink>
+              </div>
+
+              <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-white/65">
+                {trustPoints.map((point) => (
+                  <li key={point} className="inline-flex items-center gap-2">
+                    <CheckCircle2 aria-hidden="true" className="size-4 text-emerald-400" />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Social proof — stacked initials rather than stock photography. */}
+              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-4 border-t border-white/10 pt-7">
+                <ul className="flex items-center -space-x-2.5">
+                  {AVATARS.map((avatar) => (
+                    <li
+                      key={avatar.initials}
+                      className={cx(
+                        "flex size-10 items-center justify-center rounded-full border-2 border-advo-charcoal text-[11px] font-bold text-white",
+                        avatar.tone,
+                      )}
+                    >
+                      {avatar.initials}
+                    </li>
+                  ))}
+                  <li className="flex size-10 items-center justify-center rounded-full border-2 border-advo-charcoal bg-white/10 text-[10px] font-bold text-white/80">
+                    +120
+                  </li>
+                </ul>
+                <div>
+                  <div className="flex items-center gap-1">
+                    <span className="flex items-center gap-0.5" aria-hidden="true">
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star key={index} className="size-3.5 fill-advo-gold text-advo-gold" />
+                      ))}
+                    </span>
+                    <span className="ml-1.5 text-sm font-bold text-white">
+                      {t("marketing.home.hero.social.rating")}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-white/60">
+                    <span className="font-semibold text-white/85">{t("marketing.home.hero.social.label")}</span> ·{" "}
+                    {t("marketing.home.hero.social.reviews")}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <ul className="mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-white/65">
-              {trustPoints.map((point) => (
-                <li key={point} className="inline-flex items-center gap-2">
-                  <CheckCircle2 aria-hidden="true" className="size-4 text-emerald-400" />
-                  {point}
-                </li>
-              ))}
-            </ul>
-
-            <p className="mt-6 text-xs font-medium tracking-wide text-white/45">
-              {t("marketing.home.hero.proof")}
-            </p>
+            {/* ── The product, playing the customer journey on a loop ───── */}
+            <div className="lg:col-span-6">
+              <HeroPhoneMockup />
+            </div>
           </div>
 
           {/* Integrations strip */}
-          <div className="mt-14 border-t border-white/10 pt-8">
+          <div className="mt-16 border-t border-white/10 pt-8">
             <p className="text-center text-[11px] font-bold tracking-[0.18em] text-white/45 uppercase">
               {t("marketing.home.integrations.label")}
             </p>
@@ -269,19 +283,6 @@ export default async function MarketingHomePage() {
                 <Wifi aria-hidden="true" className="size-3.5 text-[#7FB4E6]" />
                 TP-Link Omada SDN
               </span>
-            </div>
-          </div>
-
-          {/* Live interactive demo */}
-          <div id="demo" className="mt-20 scroll-mt-24">
-            <SectionHeading
-              tone="dark"
-              eyebrow={t("marketing.home.demo.eyebrow")}
-              title={t("marketing.home.demo.title")}
-              lead={t("marketing.home.demo.lead")}
-            />
-            <div className="mt-12">
-              <InteractivePortalSimulator />
             </div>
           </div>
         </Container>
@@ -439,55 +440,25 @@ export default async function MarketingHomePage() {
           lead={t("marketing.home.pricing.subtitle")}
           titleId="pricing-title"
         />
-        <div className="mt-12 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
-          {plans.map((plan) => (
-            <Card
-              key={plan.name}
-              className={cx(
-                "relative flex h-full flex-col p-8",
-                plan.highlight && "border-advo-blue/60 shadow-[0_24px_48px_-24px_rgba(27,94,164,0.5)] lg:-translate-y-3",
-              )}
-            >
-              {plan.highlight ? (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)] px-3.5 py-1 text-[10px] font-black tracking-wider text-advo-charcoal uppercase shadow-md">
-                  {t("marketing.home.pricing.pro.popular")}
-                </span>
-              ) : null}
-
-              <h3 className="text-xl font-bold text-advo-text">{plan.name}</h3>
-              <p className="mt-1 min-h-10 text-sm text-advo-muted">{plan.desc}</p>
-
-              <div className="mt-6 flex items-baseline gap-2">
-                <span className="font-mono text-3xl font-black tracking-tight text-advo-text">{plan.price}</span>
-                <span className="text-sm font-medium text-advo-muted">/ {t("marketing.home.pricing.period")}</span>
-              </div>
-
-              <ul className="mt-6 flex-1 space-y-3 border-t border-advo-border pt-6">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-advo-text">
-                    <CheckCircle2
-                      aria-hidden="true"
-                      className={cx("mt-0.5 size-4 shrink-0", plan.highlight ? "text-advo-gold" : "text-advo-blue")}
-                    />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-8">
-                <ButtonLink
-                  href="/register"
-                  variant={plan.highlight ? "primary" : "outline"}
-                  size="lg"
-                  arrow
-                  className="w-full"
-                >
-                  {plan.cta}
-                </ButtonLink>
-              </div>
-            </Card>
-          ))}
-        </div>
+        {plans.length > 0 ? (
+          <div className="mt-12">
+            <PlanCardGrid
+              plans={plans}
+              t={t}
+              popularId={popularId}
+              ctaForPlan={(plan) => ({ href: `/register?plan=${encodeURIComponent(plan.code)}` })}
+            />
+          </div>
+        ) : (
+          <div className="mt-12 mx-auto max-w-xl rounded-card border border-advo-border bg-white p-8 text-center shadow-advo-card">
+            <p className="text-sm text-advo-muted">{t("marketing.plans.empty")}</p>
+            <div className="mt-5 flex justify-center">
+              <ButtonLink href="/contact" variant="primary" arrow>
+                {t("marketing.plans.contact")}
+              </ButtonLink>
+            </div>
+          </div>
+        )}
         <div className="mt-10 flex justify-center">
           <ButtonLink href="/pricing" variant="outline" arrow>
             {t("marketing.home.pricing.compare")}

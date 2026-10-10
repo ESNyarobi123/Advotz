@@ -85,7 +85,7 @@ export const authEn = {
   "auth.register.termsTrail": "of the Advo TZ platform.",
   "auth.register.guaranteeTitle": "Free guarantee:",
   "auth.register.guaranteeBody":
-    "No joining fee. You get a 14-day trial with no contract charges.",
+    "No joining fee. Your plan starts with a free trial and no contract charges, and you can cancel any time.",
   "auth.register.next": "Continue to the next step",
   "auth.register.submitPending": "Finishing registration…",
   "auth.register.submit": "Complete business registration",
@@ -260,7 +260,7 @@ export const authSw: Record<AuthKey, string> = {
   "auth.register.termsTrail": "ya mfumo wa Advo TZ.",
   "auth.register.guaranteeTitle": "Dhamana ya Bure:",
   "auth.register.guaranteeBody":
-    "Hakuna ada ya kujiunga. Una siku 14 za majaribio bila malipo yoyote ya mkataba.",
+    "Hakuna ada ya kujiunga. Mpango wako huanza na jaribio la bure bila gharama za mkataba, na unaweza kuacha wakati wowote.",
   "auth.register.next": "Endelea Hatua Inayofuata",
   "auth.register.submitPending": "Inakamilisha Usajili…",
   "auth.register.submit": "Kamilisha Usajili wa Biashara",

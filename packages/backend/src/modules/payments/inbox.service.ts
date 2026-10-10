@@ -14,6 +14,19 @@ import { applyPaymentOutcome } from "./payments.service.js";
 
 export const MAX_WEBHOOK_BYTES = 256 * 1024;
 
+/**
+ * The account holder's name from a payment payload, when it is there.
+ *
+ * Read defensively because it arrives as unvalidated JSON: this name is a
+ * nicety — it is the only real name we ever learn for a guest who typed just a
+ * phone number — and it must never be a reason to reject a payment.
+ */
+function payerName(customer: unknown): string | null {
+  if (!customer || typeof customer !== "object" || !("name" in customer)) return null;
+  const name = (customer as { name?: unknown }).name;
+  return typeof name === "string" && name.trim() ? name.trim() : null;
+}
+
 export type IngestResult =
   | { status: 200; body: { received: true; duplicate?: boolean } }
   | { status: 400 | 401 | 413 | 503; body: { code: string; message: string } };
@@ -139,6 +152,8 @@ export async function processInboxEvent(inboxId: string) {
         currency,
         feeTzs: !stale && data.settlement ? BigInt(data.settlement.fees.value) : null,
         source: "webhook",
+        // The only real name we ever learn for a guest who typed just a phone number.
+        customerName: payerName(data.customer),
       });
       if (outcome.kind === "unmatched") {
         await finish(inboxId, "QUARANTINED", "No local payment attempt for this provider reference");

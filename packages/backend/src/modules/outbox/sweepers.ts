@@ -3,6 +3,7 @@ import { sweepGrants } from "../access/grants.service.js";
 import { releaseDueCommissions } from "../commissions/commissions.service.js";
 import { processInboxEvent } from "../payments/inbox.service.js";
 import { reconcilePaymentAttempt } from "../payments/payments.service.js";
+import { applyDuePlanMigrations } from "../subscriptions/plan-migrations.service.js";
 import { expireSubscriptions } from "../subscriptions/subscriptions.service.js";
 import { reconcilePayoutAttempt } from "../withdrawals/payouts.service.js";
 
@@ -50,6 +51,8 @@ export async function runSweepers(now = new Date()) {
 
   report.commissionsReleased = await safe(() => releaseDueCommissions(now));
   report.subscriptionsExpired = await safe(() => expireSubscriptions(now));
+  // A scheduled plan migration must land on its date even if no admin is looking.
+  report.planMigrationsApplied = await safe(() => applyDuePlanMigrations(now));
   const grants = await safe(() => sweepGrants(now));
   if (typeof grants === "object") {
     report.grantsExpired = grants.expired;

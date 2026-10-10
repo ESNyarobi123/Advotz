@@ -74,4 +74,53 @@
   --advo-radius-lg: 16px;
   --advo-radius-field: var(--advo-radius-lg);
   --advo-radius-card: var(--advo-radius-md);
+
+  /*
+   * Guest captive-portal palette.
+   *
+   * The customer-facing portal (marketing phone mockup, the reseller portal
+   * designer preview and the guest app in `apps/portal`) speaks a warmer
+   * language than the dashboard: a deep navy ink on a near-white paper, with a
+   * single vivid orange carrying every action. These tokens are the source of
+   * truth for that surface; nothing in the portal hard-codes a hex value.
+   *
+   * They are deliberately separate from the dashboard tokens above so a plan
+   * default (`#172D43` / `#F06638`) has one obvious home.
+   */
+  --advo-portal-ink: #172d43;
+  /* Deepest navy: the connected session ticket. */
+  --advo-portal-ink-deep: #1b3349;
+  /* Hairline drawn on top of the deep navy ticket. */
+  --advo-portal-ink-line: #253f56;
+  --advo-portal-orange: #f06638;
+  --advo-portal-orange-deep: #c64920;
+  --advo-portal-orange-soft: #fff0e9;
+  --advo-portal-paper: #f8f9fb;
+  --advo-portal-line: #e3e8ee;
+  --advo-portal-muted: #617386;
+  --advo-portal-green: #137754;
+  --advo-portal-green-soft: #e9f6ef;
+  /* Larger, softer geometry than the dashboard: the portal is a shop window. */
+  --advo-portal-radius: 22px;
+  --advo-portal-radius-card: 17px;
+  --advo-portal-radius-control: 10px;
+  --advo-portal-shadow: 0 16px 50px rgba(24, 45, 67, 0.07);
+  --advo-portal-shadow-lift: 0 12px 28px rgba(36, 52, 77, 0.05);
+
+  /*
+   * Sponsored creative themes. Campaigns pick one of three reviewed looks so a
+   * banner always has a legible, on-brand background before an admin supplies
+   * an image. Names match the `cafe` / `tech` / `style` campaign values.
+   */
+  --advo-ad-cafe-bg: #e9eee2;
+  --advo-ad-cafe-ink: #344b30;
+  --advo-ad-tech-bg: #e9e5f6;
+  --advo-ad-tech-ink: #42365d;
+  --advo-ad-style-bg: #f6e6de;
+  --advo-ad-style-ink: #784339;
+
+  /* Mobile-money wordmarks, coloured to stay recognisable inside the portal. */
+  --advo-money-mpesa: #bb2534;
+  --advo-money-airtel: #d23b36;
+  --advo-money-mixx: #5e49a1;
 }

@@ -13,7 +13,7 @@ import { loadContext, portalApi, useLocale } from "@/lib/portal";
 export default function VoucherPage() {
   const { brandSlug } = useParams<{ brandSlug: string }>();
   const router = useRouter();
-  const { t, toggle } = useLocale();
+  const { t, toggle, locale, setLocale } = useLocale();
   const [contextToken, setContextToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [code, setCode] = useState("");
@@ -45,7 +45,13 @@ export default function VoucherPage() {
   }
 
   return (
-    <PortalFrame title={t("haveVoucher")} onToggleLanguage={toggle} languageLabel={t("language")}>
+    <PortalFrame
+      languageLabel={t("language")}
+      locale={locale}
+      onSelectLanguage={setLocale}
+      onToggleLanguage={toggle}
+      title={t("haveVoucher")}
+    >
       {ready && !contextToken ? <Notice tone="accent">{t("openFromWifi")}</Notice> : null}
       <Card className="mt-3">
         <form onSubmit={redeem} className="space-y-3">

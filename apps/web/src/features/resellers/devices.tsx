@@ -12,15 +12,29 @@ import {
   Check,
   Copy,
   Cpu,
+  Eye,
+  EyeOff,
+  Lock,
   MapPin,
+  Pencil,
   Plus,
+  RefreshCw,
   Router,
   Search,
+  Trash2,
   Wifi,
   WifiOff,
   X,
   type LucideIcon,
 } from "lucide-react";
+
+type DeviceWifi = {
+  id: string;
+  name: string;
+  band: "2.4" | "5" | "both";
+  hidden: boolean;
+  secured: boolean;
+};
 
 type DeviceRow = {
   id: string;
@@ -33,23 +47,13 @@ type DeviceRow = {
   lastSeenAt: string | null;
   controllerId: string | null;
   site: { id: string; name: string } | null;
+  wifi?: DeviceWifi[];
 };
 
 type SiteOption = { id: string; name: string };
 
-type Claim = {
-  id: string;
-  name: string | null;
-  mac: string;
-  model: string | null;
-  state: string;
-  reviewReason: string | null;
-  createdAt: string;
-  site: { name: string };
-};
-
-/** A device is online when the Controller currently reports it as connected. */
-const ONLINE_STATUSES = new Set(["ONLINE", "CONNECTED"]);
+/** A device is active when the Controller currently reports it as connected. */
+const ONLINE_STATUSES = new Set(["ACTIVE", "ONLINE", "CONNECTED"]);
 
 /** Common Omada models offered as suggestions; the field stays free text. */
 const OMADA_MODELS = [
@@ -72,6 +76,7 @@ function isOnline(device: DeviceRow): boolean {
  * lookup falls back to a de-underscored value so a new enum never renders raw.
  */
 const DEVICE_STATUS_KEYS: Record<string, string> = {
+  ACTIVE: "device.status.ACTIVE",
   CONNECTED: "device.status.CONNECTED",
   ONLINE: "device.status.ONLINE",
   DISCONNECTED: "device.status.DISCONNECTED",
@@ -84,31 +89,16 @@ const DEVICE_STATUS_KEYS: Record<string, string> = {
   NOT_OBSERVED: "device.status.NOT_OBSERVED",
 };
 
-const CLAIM_STATE_KEYS: Record<string, string> = {
-  SUBMITTED: "claim.state.SUBMITTED",
-  APPROVED: "claim.state.APPROVED",
-  REJECTED: "claim.state.REJECTED",
-  ADOPTION_PENDING: "claim.state.ADOPTION_PENDING",
-  ADOPTED: "claim.state.ADOPTED",
-  FAILED: "claim.state.FAILED",
-};
-
 function deviceStatusLabel(t: I18n["t"], status: string | null): string {
   if (!status) return t("device.status.UNKNOWN");
   const key = DEVICE_STATUS_KEYS[status.toUpperCase()];
   return key ? t(key as "device.status.UNKNOWN") : status.replace(/_/g, " ");
 }
 
-function claimStateLabel(t: I18n["t"], state: string): string {
-  const key = CLAIM_STATE_KEYS[state];
-  return key ? t(key as "claim.state.SUBMITTED") : state.replace(/_/g, " ").toLowerCase();
-}
-
 export function ResellerDevicesScreen() {
   const { t } = useI18n();
   const devices = useResource<DeviceRow[]>("/reseller/devices");
   const sites = useResource<SiteOption[]>("/reseller/sites");
-  const claims = useResource<Claim[]>("/reseller/device-claims");
 
   const [showForm, setShowForm] = useState(false);
   const [query, setQuery] = useState("");
@@ -129,7 +119,7 @@ export function ResellerDevicesScreen() {
       setShowForm(false);
     },
     async () => {
-      await Promise.all([claims.reload(), devices.reload()]);
+      await devices.reload();
     },
   );
 
@@ -141,8 +131,6 @@ export function ResellerDevicesScreen() {
 
   const deviceList = devices.data ?? [];
   const siteList = sites.data ?? [];
-  const claimList = claims.data ?? [];
-  const pendingClaims = claimList.filter((claim) => ["SUBMITTED", "ADOPTION_PENDING"].includes(claim.state));
 
   const onlineCount = deviceList.filter(isOnline).length;
   const offlineCount = deviceList.length - onlineCount;
@@ -159,7 +147,8 @@ export function ResellerDevicesScreen() {
           device.mac.toLowerCase().includes(term) ||
           (device.model ?? "").toLowerCase().includes(term) ||
           (device.site?.name ?? "").toLowerCase().includes(term) ||
-          (device.firmware ?? "").toLowerCase().includes(term)
+          (device.firmware ?? "").toLowerCase().includes(term) ||
+          (device.wifi ?? []).some((network) => network.name.toLowerCase().includes(term))
         );
       }),
     [deviceList, filter, term],
@@ -299,46 +288,9 @@ export function ResellerDevicesScreen() {
                     device={device}
                     key={device.id}
                     onCopy={() => copyToClipboard(device.mac, device.id)}
+                    onReload={() => devices.reload()}
                     t={t}
                   />
-                ))}
-              </div>
-            )
-          }
-        </ResourceView>
-      </section>
-
-      {/* ── Waiting for approval ── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-black tracking-tight text-advo-text">
-          {t("reseller.devices.claims.title")}
-          <span className="ml-1.5 font-bold text-advo-muted">
-            {t("reseller.devices.claims.count", { count: pendingClaims.length })}
-          </span>
-        </h2>
-        <ResourceView resource={claims}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <Notice tone="default">{t("reseller.devices.claims.empty")}</Notice>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {rows.map((claim) => (
-                  <Card className="space-y-2 p-4" key={claim.id}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-mono text-sm font-bold text-advo-text">{claim.mac}</p>
-                        <p className="truncate text-[11px] text-advo-muted">{claim.name ?? claim.model ?? "—"}</p>
-                      </div>
-                      <StatusChip tone={statusTone(claim.state)}>{claimStateLabel(t, claim.state)}</StatusChip>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-advo-border/60 pt-2 text-[11px] text-advo-muted">
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {claim.site.name}
-                      </span>
-                      <span>{formatDateTime(claim.createdAt)}</span>
-                    </div>
-                  </Card>
                 ))}
               </div>
             )
@@ -424,7 +376,6 @@ export function ResellerDevicesScreen() {
                       </datalist>
                     </div>
 
-                    {/* Optional device login the Controller uses to adopt the device. */}
                     <div className="space-y-2 rounded-2xl border border-advo-border bg-advo-page/60 p-3 sm:col-span-2">
                       <div>
                         <p className="text-xs font-bold text-advo-text">{t("reseller.devices.form.loginSection")}</p>
@@ -436,6 +387,7 @@ export function ResellerDevicesScreen() {
                           label={t("reseller.devices.form.deviceUsername")}
                           name="deviceUsername"
                           placeholder={t("reseller.devices.form.deviceUsernamePlaceholder")}
+                          required
                         />
                         <DeviceField
                           autoComplete="new-password"
@@ -443,6 +395,7 @@ export function ResellerDevicesScreen() {
                           label={t("reseller.devices.form.devicePassword")}
                           name="devicePassword"
                           placeholder={t("reseller.devices.form.devicePasswordPlaceholder")}
+                          required
                           type="password"
                         />
                       </div>
@@ -512,20 +465,63 @@ function DeviceStatCard({
   );
 }
 
-/** One device as a card with the details an operator needs at a glance. */
+type DeviceDialog = "rename" | "retry" | "remove" | "wifi";
+
+/** One device as a card, with rename, retry, remove and WiFi on the site. */
 function DeviceCard({
   device,
   t,
   copied,
   onCopy,
+  onReload,
 }: {
   device: DeviceRow;
   t: I18n["t"];
   copied: boolean;
   onCopy: () => void;
+  onReload: () => Promise<void>;
 }) {
   const online = isOnline(device);
   const status = (device.observedStatus ?? "UNKNOWN").toUpperCase();
+  const [dialog, setDialog] = useState<DeviceDialog | null>(null);
+  const [hidden, setHidden] = useState(false);
+  const [band, setBand] = useState<DeviceWifi["band"]>("both");
+  const overlay = useOverlayState({
+    isOpen: dialog !== null,
+    onOpenChange: (next) => {
+      if (!next) setDialog(null);
+    },
+  });
+  const close = () => setDialog(null);
+  const rename = useAction(async (form: HTMLFormElement) => {
+    const values = formValues(form);
+    await api.post(`/reseller/devices/${device.id}/rename`, { name: values.name, model: values.model ?? "" });
+    close();
+  }, onReload);
+  const retry = useAction(async (form: HTMLFormElement) => {
+    await api.post(`/reseller/devices/${device.id}/retry`, formValues(form));
+    close();
+  }, onReload);
+  const remove = useAction(async () => {
+    await api.del(`/reseller/devices/${device.id}`);
+    close();
+  }, onReload);
+  const addWifi = useAction(async (form: HTMLFormElement) => {
+    const values = formValues(form);
+    await api.post(`/reseller/devices/${device.id}/wifi`, {
+      name: values.name,
+      password: values.password,
+      hidden,
+      band,
+    });
+    setHidden(false);
+    setBand("both");
+    close();
+  }, onReload);
+  const pending = rename.pending || retry.pending || remove.pending || addWifi.pending;
+  const error = rename.error || retry.error || remove.error || addWifi.error;
+  const label = device.name ?? device.model ?? device.mac;
+  const networks = device.wifi ?? [];
 
   return (
     <Card className="flex flex-col p-4 transition-shadow hover:shadow-md">
@@ -573,14 +569,176 @@ function DeviceCard({
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Detail label={t("reseller.devices.card.firmware")} value={device.firmware || "—"} mono />
-        <Detail label={t("reseller.devices.card.hardware")} value={device.hardwareVersion || "—"} mono />
+        <Detail label={t("reseller.devices.card.model")} value={device.model || "—"} />
         <Detail
           label={t("reseller.devices.card.lastSeen")}
           value={device.lastSeenAt ? formatDateTime(device.lastSeenAt) : t("reseller.devices.card.never")}
         />
         <Detail label={t("reseller.devices.card.site")} value={device.site?.name ?? t("reseller.devices.card.noSite")} />
       </div>
+
+      <div className="mt-3 rounded-xl border border-advo-border/70 bg-advo-page px-2.5 py-2">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("reseller.devices.card.wifi")}</p>
+        {networks.length === 0 ? (
+          <p className="mt-1 text-[11px] font-semibold text-advo-muted">{t("reseller.devices.card.wifiEmpty")}</p>
+        ) : (
+          <ul className="mt-1.5 space-y-1">
+            {networks.map((network) => (
+              <li className="flex items-center gap-1.5 text-[11px] font-bold text-advo-text" key={network.id}>
+                <Wifi className="h-3 w-3 shrink-0 text-advo-blue" />
+                <span className="min-w-0 flex-1 truncate" title={network.name}>
+                  {network.name}
+                </span>
+                {network.secured ? <Lock className="h-3 w-3 shrink-0 text-slate-400" /> : null}
+                {network.hidden ? <EyeOff className="h-3 w-3 shrink-0 text-slate-400" /> : <Eye className="h-3 w-3 shrink-0 text-slate-400" />}
+                <span className="shrink-0 rounded-md bg-white px-1.5 py-0.5 text-[9px] font-bold text-advo-muted">
+                  {network.band === "2.4"
+                    ? t("reseller.devices.wifi.band24")
+                    : network.band === "5"
+                      ? t("reseller.devices.wifi.band5")
+                      : t("reseller.devices.wifi.bandBoth")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-1 border-t border-advo-border pt-3">
+        <CardAction icon={Pencil} label={t("reseller.devices.action.rename")} onPress={() => setDialog("rename")} />
+        <CardAction icon={RefreshCw} label={t("reseller.devices.action.retry")} onPress={() => setDialog("retry")} />
+        <CardAction icon={Trash2} label={t("reseller.devices.action.remove")} onPress={() => setDialog("remove")} tone="danger" />
+        <CardAction icon={Wifi} label={t("reseller.devices.action.wifi")} onPress={() => setDialog("wifi")} />
+      </div>
+
+      <Modal.Root state={overlay}>
+        <Modal.Backdrop>
+          <Modal.Container size="md">
+            <Modal.Dialog className="bg-white">
+              <Modal.Header>
+                <Modal.Heading>
+                  {dialog === "rename"
+                    ? t("reseller.devices.rename.title")
+                    : dialog === "retry"
+                      ? t("reseller.devices.retry.title")
+                      : dialog === "remove"
+                        ? t("reseller.devices.remove.title")
+                        : dialog === "wifi"
+                          ? t("reseller.devices.wifi.title")
+                          : ""}
+                </Modal.Heading>
+                <p className="mt-1 text-xs text-advo-muted">
+                  {dialog === "rename"
+                    ? t("reseller.devices.rename.subtitle")
+                    : dialog === "retry"
+                      ? t("reseller.devices.retry.subtitle")
+                      : dialog === "wifi"
+                        ? t("reseller.devices.wifi.subtitle", { site: device.site?.name ?? t("reseller.devices.card.noSite") })
+                        : dialog === "remove"
+                          ? t("reseller.devices.remove.body", { name: label })
+                          : ""}
+                </p>
+              </Modal.Header>
+              <Modal.Body>
+                {error ? <Notice tone="danger">{error}</Notice> : null}
+                {dialog === "rename" ? (
+                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void rename.run(event.currentTarget); }}>
+                    <DeviceField defaultValue={device.name ?? ""} id={`rename-name-${device.id}`} label={t("reseller.devices.rename.name")} name="name" required />
+                    <DeviceField defaultValue={device.model ?? ""} id={`rename-model-${device.id}`} label={t("reseller.devices.rename.model")} name="model" />
+                    <DialogActions cancel={t("reseller.devices.form.cancel")} onCancel={close} pending={pending} submit={rename.pending ? t("reseller.devices.rename.pending") : t("reseller.devices.rename.save")} />
+                  </form>
+                ) : null}
+                {dialog === "retry" ? (
+                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void retry.run(event.currentTarget); }}>
+                    <DeviceField id={`retry-user-${device.id}`} label={t("reseller.devices.retry.username")} name="deviceUsername" required />
+                    <DeviceField autoComplete="new-password" id={`retry-pass-${device.id}`} label={t("reseller.devices.retry.password")} name="devicePassword" required type="password" />
+                    <DialogActions cancel={t("reseller.devices.form.cancel")} onCancel={close} pending={pending} submit={retry.pending ? t("reseller.devices.retry.pending") : t("reseller.devices.retry.submit")} />
+                  </form>
+                ) : null}
+                {dialog === "remove" ? (
+                  <div className="flex justify-end gap-2">
+                    <Button isDisabled={pending} onPress={close} type="button" variant="outline">
+                      {t("reseller.devices.remove.no")}
+                    </Button>
+                    <Button isDisabled={pending} onPress={() => void remove.run()} type="button" variant="danger">
+                      {remove.pending ? t("reseller.devices.remove.pending") : t("reseller.devices.remove.yes")}
+                    </Button>
+                  </div>
+                ) : null}
+                {dialog === "wifi" ? (
+                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void addWifi.run(event.currentTarget); }}>
+                    <DeviceField id={`wifi-name-${device.id}`} label={t("reseller.devices.wifi.name")} name="name" required />
+                    <DeviceField autoComplete="new-password" id={`wifi-pass-${device.id}`} label={t("reseller.devices.wifi.password")} name="password" type="password" />
+                    <p className="-mt-1 text-[11px] text-advo-muted">{t("reseller.devices.wifi.passwordHint")}</p>
+                    <label className="flex items-center gap-2 text-xs font-bold text-advo-text">
+                      <input checked={hidden} className="size-4 accent-advo-blue" onChange={(event) => setHidden(event.target.checked)} type="checkbox" />
+                      {t("reseller.devices.wifi.hide")}
+                    </label>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-advo-text">{t("reseller.devices.wifi.band")}</p>
+                      <div className="grid grid-cols-3 gap-1.5" role="group">
+                        {(["2.4", "5", "both"] as const).map((choice) => (
+                          <button
+                            className={`rounded-xl border px-2 py-2 text-[11px] font-bold transition ${
+                              band === choice ? "border-advo-blue bg-advo-blue text-white" : "border-advo-border bg-advo-page text-advo-text"
+                            }`}
+                            key={choice}
+                            onClick={() => setBand(choice)}
+                            type="button"
+                          >
+                            {choice === "2.4" ? t("reseller.devices.wifi.band24") : choice === "5" ? t("reseller.devices.wifi.band5") : t("reseller.devices.wifi.bandBoth")}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <DialogActions cancel={t("reseller.devices.form.cancel")} onCancel={close} pending={pending} submit={addWifi.pending ? t("reseller.devices.wifi.pending") : t("reseller.devices.wifi.submit")} />
+                  </form>
+                ) : null}
+              </Modal.Body>
+              <Modal.CloseTrigger aria-label={t("reseller.devices.form.cancel")} />
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal.Root>
     </Card>
+  );
+}
+
+function CardAction({
+  icon: Icon,
+  label,
+  onPress,
+  tone = "default",
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <button
+      className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold transition ${
+        tone === "danger" ? "text-rose-600 hover:bg-rose-50" : "text-advo-text hover:bg-advo-page"
+      }`}
+      onClick={onPress}
+      type="button"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+function DialogActions({ cancel, submit, pending, onCancel }: { cancel: string; submit: string; pending: boolean; onCancel: () => void }) {
+  return (
+    <div className="flex justify-end gap-2 pt-1">
+      <Button isDisabled={pending} onPress={onCancel} type="button" variant="outline">
+        {cancel}
+      </Button>
+      <Button isDisabled={pending} type="submit" variant="primary">
+        {submit}
+      </Button>
+    </div>
   );
 }
 
@@ -603,6 +761,7 @@ function DeviceField({
   required,
   type = "text",
   autoComplete,
+  defaultValue,
 }: {
   id: string;
   name: string;
@@ -611,6 +770,7 @@ function DeviceField({
   required?: boolean;
   type?: "text" | "password";
   autoComplete?: string;
+  defaultValue?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -620,6 +780,7 @@ function DeviceField({
       <input
         autoComplete={autoComplete}
         className="w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2.5 text-xs font-medium text-advo-text transition placeholder:text-advo-muted focus:border-advo-blue focus:bg-white focus:outline-none"
+        defaultValue={defaultValue}
         id={id}
         name={name}
         placeholder={placeholder}

@@ -85,3 +85,25 @@ describe("promotion and listing inputs", () => {
     expect(parsed).toMatchObject({ organization: "", location: "", employmentType: "", summary: "", description: "", sortOrder: 0, active: true });
   });
 });
+
+describe("portal preview appearance schema", () => {
+  it("accepts visibility preferences in draft appearance", async () => {
+    const { portalPreviewAppearanceSchema } = await import("../src/portal-preview.js");
+    const parsed = portalPreviewAppearanceSchema.parse({
+      visibility: {
+        banner: false,
+        explore: true,
+        promote_business: false,
+        platform_link: true,
+        jobs: false,
+      },
+      cardStyle: "compact",
+      showPlatformBadge: false,
+      defaultLocale: "sw",
+    });
+    expect(parsed.visibility?.banner).toBe(false);
+    expect(parsed.visibility?.explore).toBe(true);
+    expect(parsed.visibility?.jobs).toBe(false);
+    expect(parsed.defaultLocale).toBe("sw");
+  });
+});

@@ -56,6 +56,7 @@ export function createApiClient(options: ApiClientOptions) {
     get: <T>(path: string) => request<T>(path),
     post: <T = unknown>(path: string, body?: unknown) => send<T>("POST")(path, body ?? {}),
     put: <T = unknown>(path: string, body?: unknown) => send<T>("PUT")(path, body ?? {}),
+    patch: <T = unknown>(path: string, body?: unknown) => send<T>("PATCH")(path, body ?? {}),
     del: <T = unknown>(path: string) => request<T>(path, { method: "DELETE" }),
     me: () => request<MeResponse>("/auth/me"),
     login: (email: string, password: string, mfaCode?: string) =>

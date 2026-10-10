@@ -131,10 +131,8 @@ async function main() {
   const slug = r.json.site.slug;
   const site = await poll(() => call(reseller, "GET", `/reseller/sites/${siteId}`), (x) => x.json.mapping?.state === "PROVISIONED");
   check("site provisioned on simulator", site.json.mapping?.state === "PROVISIONED", site.json);
-  r = await call(reseller, "POST", "/reseller/device-claims", { siteId, name: "Smoke AP", mac: "AC:84:C6:00:00:01", model: "EAP225" });
-  check("device claim submitted", r.status === 201, r.json);
-  r = await call(admin, "POST", `/admin/device-claims/${r.json.id}/review`, { decision: "approve", reason: "Label photo matches" });
-  check("admin approves claim", r.status === 201 && r.json.device?.mac === "ac:84:c6:00:00:01", r.json);
+  r = await call(reseller, "POST", "/reseller/device-claims", { siteId, name: "Smoke AP", mac: "AC:84:C6:00:00:01", model: "EAP225", deviceUsername: "admin", devicePassword: "admin" });
+  check("device adopted on controller", r.status === 201 && r.json.device?.mac === "ac:84:c6:00:00:01" && r.json.device?.observedStatus === "active", r.json);
   r = await call(reseller, "POST", "/reseller/packages", { name: "Saa 1", priceTzs: 1000, durationSeconds: 3600, downloadKbps: 2048, uploadKbps: 1024, maxDevices: 1, siteIds: [siteId] });
   check("package created", r.status === 201 && r.json.currentRevision?.priceTzs === "1000", r.json);
   const packageId = r.json.id;

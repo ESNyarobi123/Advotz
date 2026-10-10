@@ -68,9 +68,9 @@ export function LocaleSwitcher({
         return (
           <button
             aria-pressed={isActive}
-            className={`rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors ${
-              isActive ? active : inactive
-            } ${compact ? "min-w-7 text-center" : ""}`}
+            className={`rounded-lg py-1 text-[11px] font-semibold transition-colors ${
+              compact ? "min-w-7 px-1.5 text-center" : "px-2"
+            } ${isActive ? active : inactive}`}
             key={code}
             lang={meta.htmlLang}
             onClick={() => changeLocale(code)}

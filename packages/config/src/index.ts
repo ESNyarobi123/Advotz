@@ -65,11 +65,24 @@ export const serverEnvSchema = z
     OMADA_CLIENT_SECRET: z.string().optional().default(""),
     OMADA_HOTSPOT_OPERATOR_USERNAME: z.string().optional().default(""),
     OMADA_HOTSPOT_OPERATOR_PASSWORD: z.string().optional().default(""),
+    OMADA_ADMIN_USERNAME: z.string().optional().default(""),
+    OMADA_ADMIN_PASSWORD: z.string().optional().default(""),
+    OMADA_REGION: z.string().optional().default("Tanzania"),
+    OMADA_TIMEZONE: z.string().optional().default("Africa/Nairobi"),
     OMADA_CA_CERT_PATH: z.string().optional().default(""),
     NOTIFICATION_PROVIDER: z.enum(["fake", "sms", "email"]).default("fake"),
     PUBLIC_SUPPORT_CONTACT: z.string().optional().default(""),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     SNIPPE_ACCOUNT_ID: z.string().optional().default(""),
+    /**
+     * Domain for the placeholder email Snippe requires on a mobile-money payment.
+     *
+     * The guest portal collects no email — there is no account to attach one to —
+     * so the address is deliberately undeliverable. The default domain is reserved
+     * by RFC 2606 and accepts mail that goes nowhere, which is the point: it can
+     * never reach a stranger. Override only if the provider refuses the domain.
+     */
+    PORTAL_PAYER_EMAIL_DOMAIN: z.string().min(1).default("example.com"),
     SNIPPE_WEBHOOK_MAX_AGE_SECONDS: z.coerce.number().int().min(300).max(86400).default(3600),
     OMADA_OPENAPI_CONTRACT_PATH: z.string().optional().default(""),
     OUTBOX_INLINE: z

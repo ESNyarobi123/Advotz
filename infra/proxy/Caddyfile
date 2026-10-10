@@ -8,6 +8,13 @@
 # over the exact bytes Snippe sent. Caddy discards any client-supplied X-Forwarded-* headers
 # (no trusted_proxies configured) and sets its own, which the API trusts via TRUST_PROXY=true.
 
+{
+	email admin@advowifi.com
+	# Let's Encrypt only. The ZeroSSL fallback was holding the wifi.advowifi.com
+	# issuance lock after a failed first attempt, so HTTPS never got a certificate.
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
 (edge) {
 	request_body {
 		max_size 1MB

@@ -25,6 +25,7 @@ Sources to re-read before going live:
 - **Idempotency:** every create and send passes our own `Idempotency-Key` of 1–30 characters (compact hash of the business key). The SDK would otherwise generate one, which would break safe retries.
 - **Timeout:** 20 s per call. The adapter itself does not retry. Retries come from the outbox and sweeper, reusing the same key.
 - **Minimums** (enforced before calling): payment 500 TZS, payout 5,000 TZS.
+- **Customer block:** the mobile API refuses a payment without `customer.firstName`/`lastName`/`email`, but the guest portal collects none of them — there are no guest accounts, so a device is authorized by RADIUS and a name or email would be stored and never used. `providerCustomerDetails` therefore sends an explicit placeholder (`Advo Guest`, and `<phone digits>@$PORTAL_PAYER_EMAIL_DOMAIN`, whose default `example.com` is reserved by RFC 2606 and cannot deliver). The real name arrives with the payment and replaces it (see below), so nothing invented is ever shown to a Reseller.
 - **Error mapping:**
   - Timeout, network error, HTTP 5xx and unrecognised errors are **retryable**. For a payment create or payout send they leave the attempt `UNKNOWN`. Reconciliation looks it up by reference, or, if no reference was saved, re-sends the original body with the **original** `Idempotency-Key` so the provider returns the first result. It never uses a new key.
   - 401/403 (auth), 404, 409, 429 and other 4xx are **not retryable** and become `FAILED` with the provider message, truncated to 300 characters.
@@ -37,6 +38,7 @@ Sources to re-read before going live:
 - **Inbox:** each verified event is stored once per provider event ID before processing, so redelivery returns 200 without side effects. A redelivery with the same ID but a different body is audited as `webhook.conflicting_duplicate`.
 - **Matching:** the amount and currency must match the order, otherwise the event is `QUARANTINED` and no access is granted. Overpayment is booked as a liability.
 - **Settlement figures** (`settlement.gross/fees/net`) set the provider fee. When they are missing, the Reseller's share stays pending until an Admin settles it (see [business rules](../business-rules.md)).
+- **Payer name:** the guest portal asks for a phone number only, so the customer record starts with no name. Snippe reports the mobile-money account holder in `data.customer.name`; a completed payment fills `Customer.firstName`/`lastName` from it when they are empty, and never overwrites a name already stored. The field is read defensively (`payerName`) — a malformed `customer` must never quarantine a real payment.
 - Payout events (`payout.completed`, `payout.failed`, …) finish withdrawals the same way.
 
 ## Configuration
@@ -48,6 +50,7 @@ Sources to re-read before going live:
 | `SNIPPE_WEBHOOK_URL` | live | Sent as `webhookUrl` with each payment and payout. Defaults to `${API_PUBLIC_URL}/api/v1/webhooks/snippe` |
 | `SNIPPE_ACCOUNT_ID` | live | Scopes webhook event IDs (the inbox is unique per account and event) and is recorded on payout attempts |
 | `SNIPPE_BASE_URL`, `SNIPPE_WEBHOOK_MAX_AGE_SECONDS` | optional | Defaults above |
+| `PORTAL_PAYER_EMAIL_DOMAIN` | optional | Domain for the placeholder customer email Snippe requires (default `example.com`, reserved by RFC 2606). Change it only if Snippe refuses the domain |
 
 `pnpm verify:integrations` checks credential presence, the account ID and the webhook URL, runs a local HMAC self-test and makes a TLS reachability check of the base URL (status code only). It never creates a payment.
 

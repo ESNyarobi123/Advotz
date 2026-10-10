@@ -1,70 +1,46 @@
 import Link from "next/link";
-import { CheckCircle2, ArrowRight, Sparkles, HelpCircle, ShieldCheck } from "lucide-react";
+import { ShieldCheck, HelpCircle } from "lucide-react";
+import type { PublicPlan } from "@advo/contracts";
 import { getServerI18n } from "@/lib/i18n.server";
+import { fetchPublicPlans, orderPlansForDisplay, popularPlanId } from "@/lib/public-plans";
+import { PlanCardGrid } from "@/features/marketing/PlanCards";
 
+/**
+ * The pricing catalog, read live from Admin.
+ *
+ * Nothing about a plan is hard-coded here: names, prices, trial length and the
+ * capabilities each tier grants all come from the published plans Admin manages,
+ * so repricing is a dashboard action rather than a deploy.
+ */
 export default async function PricingPage() {
   const { t } = await getServerI18n();
+  const plans = orderPlansForDisplay(await fetchPublicPlans());
+  const popularId = popularPlanId(plans);
 
-  const plans = [
-    {
-      id: "starter",
-      name: t("marketing.pricing.starter.name"),
-      desc: t("marketing.pricing.starter.desc"),
-      priceTzs: 25000,
-      period: t("marketing.pricing.period"),
-      highlight: false,
-      features: [
-        t("marketing.pricing.starter.feature1"),
-        t("marketing.pricing.starter.feature2"),
-        t("marketing.pricing.starter.feature3"),
-        t("marketing.pricing.starter.feature4"),
-        t("marketing.pricing.starter.feature5"),
-        t("marketing.pricing.starter.feature6"),
-        t("marketing.pricing.starter.feature7"),
-      ],
-      ctaText: t("marketing.pricing.starter.cta"),
-      ctaHref: "/register?plan=starter",
-    },
-    {
-      id: "pro",
-      name: t("marketing.pricing.pro.name"),
-      desc: t("marketing.pricing.pro.desc"),
-      priceTzs: 50000,
-      period: t("marketing.pricing.period"),
-      highlight: true,
-      features: [
-        t("marketing.pricing.pro.feature1"),
-        t("marketing.pricing.pro.feature2"),
-        t("marketing.pricing.pro.feature3"),
-        t("marketing.pricing.pro.feature4"),
-        t("marketing.pricing.pro.feature5"),
-        t("marketing.pricing.pro.feature6"),
-        t("marketing.pricing.pro.feature7"),
-        t("marketing.pricing.pro.feature8"),
-      ],
-      ctaText: t("marketing.pricing.pro.cta"),
-      ctaHref: "/register?plan=pro",
-    },
-    {
-      id: "enterprise",
-      name: t("marketing.pricing.enterprise.name"),
-      desc: t("marketing.pricing.enterprise.desc"),
-      priceTzs: 120000,
-      period: t("marketing.pricing.period"),
-      highlight: false,
-      features: [
-        t("marketing.pricing.enterprise.feature1"),
-        t("marketing.pricing.enterprise.feature2"),
-        t("marketing.pricing.enterprise.feature3"),
-        t("marketing.pricing.enterprise.feature4"),
-        t("marketing.pricing.enterprise.feature5"),
-        t("marketing.pricing.enterprise.feature6"),
-        t("marketing.pricing.enterprise.feature7"),
-      ],
-      ctaText: t("marketing.pricing.enterprise.cta"),
-      ctaHref: "/contact?interest=enterprise",
-    },
-  ];
+  // The trial is a per-plan property, so the guarantee banner reads it from the
+  // live catalog instead of hard-coding a number Admin can change.
+  const trialPlan =
+    plans.find((plan): plan is PublicPlan & { trialDays: number } => (plan.trialDays ?? 0) > 0) ?? null;
+  const guaranteeTitle = trialPlan
+    ? t("marketing.pricing.guarantee.title", { days: trialPlan.trialDays, plan: trialPlan.name })
+    : t("marketing.pricing.guarantee.noTrial.title");
+  const guaranteeBody = trialPlan
+    ? t("marketing.pricing.guarantee.body", { days: trialPlan.trialDays, plan: trialPlan.name })
+    : t("marketing.pricing.guarantee.noTrial.body");
+
+  // The dearest tier is a sales conversation, not a self-serve signup — the
+  // cheapest one is where a visitor should land. Everything between is neutral.
+  const lastPlanId = plans.at(-1)?.id ?? null;
+
+  function ctaForPlan(plan: PublicPlan) {
+    if (plan.id === lastPlanId && plans.length > 1) {
+      return {
+        href: `/contact?interest=${encodeURIComponent(plan.code)}`,
+        label: t("marketing.plans.contact"),
+      };
+    }
+    return { href: `/register?plan=${encodeURIComponent(plan.code)}` };
+  }
 
   return (
     <div className="w-full bg-[#F7F9FC] py-16 lg:py-24">
@@ -84,91 +60,29 @@ export default async function PricingPage() {
           <h1 className="text-3xl sm:text-5xl font-black text-[#18212F] tracking-tight">
             {t("marketing.pricing.title")}
           </h1>
-          <p className="text-base sm:text-lg text-[#526174] mt-4">
-            {t("marketing.pricing.subtitle")}
-          </p>
+          <p className="text-base sm:text-lg text-[#526174] mt-4">{t("marketing.pricing.subtitle")}</p>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mb-20">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`rounded-3xl bg-white p-8 flex flex-col justify-between transition-all duration-300 ${
-                plan.highlight
-                  ? "border-2 border-[#1B5EA4] shadow-2xl relative scale-105 z-10"
-                  : "border border-[#DFE5EC] shadow-sm hover:shadow-xl"
-              }`}
-              style={
-                plan.highlight
-                  ? {
-                      boxShadow: "0 20px 40px -10px rgba(27, 94, 164, 0.3)",
-                    }
-                  : undefined
-              }
-            >
-              {plan.highlight && (
-                <div
-                  className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md"
-                  style={{
-                    background: "linear-gradient(135deg, #FBA102 0%, #F16304 100%)",
-                    color: "#111213",
-                  }}
-                >
-                  {t("marketing.pricing.popular")}
-                </div>
-              )}
-
-              <div>
-                <h3 className="text-2xl font-bold text-[#18212F]">{plan.name}</h3>
-                <p className="text-xs text-[#526174] mt-1 min-h-[32px]">
-                  {plan.desc}
-                </p>
-
-                <div className="my-6">
-                  <span className="text-4xl font-black text-[#18212F] font-mono">
-                    TZS {plan.priceTzs.toLocaleString()}
-                  </span>
-                  <span className="text-xs text-[#526174] ml-2 font-medium">
-                    / {plan.period}
-                  </span>
-                </div>
-
-                <div className="space-y-3 pt-6 border-t border-slate-100">
-                  <div className="text-xs font-bold text-[#526174] uppercase tracking-wider">
-                    {t("marketing.pricing.included")}
-                  </div>
-                  <ul className="space-y-2.5 text-xs text-[#18212F]">
-                    {plan.features.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <CheckCircle2
-                          className={`w-4 h-4 shrink-0 mt-0.5 ${
-                            plan.highlight ? "text-[#FBA102]" : "text-[#1B5EA4]"
-                          }`}
-                        />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              <div className="pt-8">
-                <Link
-                  href={plan.ctaHref}
-                  className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-xs shadow-md transition ${
-                    plan.highlight
-                      ? "text-white bg-[#1B5EA4] hover:bg-[#2176C2]"
-                      : "border border-[#1B5EA4] text-[#1B5EA4] hover:bg-blue-50"
-                  }`}
-                >
-                  <span>{plan.ctaText}</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
+        {/* Live plan catalog */}
+        {plans.length > 0 ? (
+          <div className="mb-20">
+            <PlanCardGrid plans={plans} t={t} popularId={popularId} ctaForPlan={ctaForPlan} />
+          </div>
+        ) : (
+          <div className="mb-20 rounded-3xl border border-[#DFE5EC] bg-white p-10 text-center max-w-xl mx-auto shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1B5EA4] mx-auto">
+              <HelpCircle className="w-7 h-7" />
             </div>
-          ))}
-        </div>
+            <p className="mt-4 text-sm text-[#526174]">{t("marketing.plans.empty")}</p>
+            <Link
+              href="/contact"
+              className="mt-5 inline-block px-6 py-3 rounded-xl font-bold text-xs text-white shadow-md"
+              style={{ backgroundColor: "#1B5EA4" }}
+            >
+              {t("marketing.plans.contact")}
+            </Link>
+          </div>
+        )}
 
         {/* Guarantee Banner */}
         <div className="rounded-3xl border border-[#DFE5EC] bg-white p-8 max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6 shadow-sm">
@@ -176,21 +90,17 @@ export default async function PricingPage() {
             <ShieldCheck className="w-8 h-8" />
           </div>
           <div>
-            <h4 className="text-lg font-bold text-[#18212F]">
-              {t("marketing.pricing.guarantee.title")}
-            </h4>
-            <p className="text-xs text-[#526174] mt-1 leading-relaxed">
-              {t("marketing.pricing.guarantee.body")}
-            </p>
+            <h4 className="text-lg font-bold text-[#18212F]">{guaranteeTitle}</h4>
+            <p className="text-xs text-[#526174] mt-1 leading-relaxed">{guaranteeBody}</p>
           </div>
           <Link
-            href="/register"
+            href={trialPlan ? `/register?plan=${encodeURIComponent(trialPlan.code)}` : "/register"}
             className="shrink-0 px-6 py-3 rounded-xl font-bold text-xs text-white shadow-md transition"
             style={{
               backgroundColor: "#1B5EA4",
             }}
           >
-            {t("marketing.pricing.guarantee.cta")}
+            {trialPlan ? t("marketing.pricing.guarantee.cta") : t("marketing.pricing.guarantee.ctaNoTrial")}
           </Link>
         </div>
       </div>

@@ -44,8 +44,20 @@ export type LocaleMeta = {
 };
 
 export const LOCALE_META: Record<Locale, LocaleMeta> = {
-  en: { code: "en", nativeName: "English", englishName: "English", htmlLang: "en", intlLocale: "en-GB" },
-  sw: { code: "sw", nativeName: "Kiswahili", englishName: "Swahili", htmlLang: "sw", intlLocale: "sw-TZ" },
+  en: {
+    code: "en",
+    nativeName: "English",
+    englishName: "English",
+    htmlLang: "en",
+    intlLocale: "en-GB",
+  },
+  sw: {
+    code: "sw",
+    nativeName: "Kiswahili",
+    englishName: "Swahili",
+    htmlLang: "sw",
+    intlLocale: "sw-TZ",
+  },
 };
 
 /**
@@ -67,7 +79,10 @@ export function isLocale(value: unknown): value is Locale {
  * like `sw-TZ`) to a supported locale, falling back when it is absent or
  * unrecognised.
  */
-export function resolveLocale(value: unknown, fallback: Locale = DEFAULT_LOCALE): Locale {
+export function resolveLocale(
+  value: unknown,
+  fallback: Locale = DEFAULT_LOCALE,
+): Locale {
   if (typeof value !== "string") return fallback;
   const base = value.trim().toLowerCase().split(/[-_]/)[0];
   return isLocale(base) ? base : fallback;
@@ -139,6 +154,7 @@ const baseEn = {
   "nav.auditLog": "Audit log",
   "nav.leadsAndInvitations": "Leads & invitations",
   "nav.listings": "Jobs & Opportunities",
+  "nav.campaigns": "Ad campaigns",
 
   // ── Session shell ────────────────────────────────────────────────────────
   "shell.sessionFailed": "Could not load your session: {reason}",
@@ -166,7 +182,8 @@ const baseEn = {
   "commission.trigger.FIRST_SUBSCRIPTION_PAYMENT": "First subscription payment",
   "commission.trigger.SUBSCRIPTION_RENEWAL": "Subscription renewal",
   "shell.mfa.required.title": "Two-step verification required",
-  "shell.mfa.required.body": "Sign out and sign in again with your authenticator code.",
+  "shell.mfa.required.body":
+    "Sign out and sign in again with your authenticator code.",
   "shell.mfa.setup.title": "Set up two-step verification",
   "shell.mfa.setup.body":
     "Admin accounts must use an authenticator app (TOTP) before any admin screen is available.",
@@ -259,11 +276,13 @@ const baseEn = {
   "reseller.customers.kpi.totalSpend": "Total spend",
   "reseller.customers.kpi.totalSpendHint": "Cumulative sales",
   "reseller.customers.guestAccess.title": "Guest access",
-  "reseller.customers.guestAccess.description": "Active and recent WiFi authorization sessions",
+  "reseller.customers.guestAccess.description":
+    "Active and recent WiFi authorization sessions",
   "reseller.customers.guestAccess.tableLabel": "Guest access grants",
   "reseller.customers.guestAccess.empty": "No guest access yet.",
   "reseller.customers.directory.title": "Customers",
-  "reseller.customers.directory.description": "Directory of registered guests and spending metrics",
+  "reseller.customers.directory.description":
+    "Directory of registered guests and spending metrics",
   "reseller.customers.directory.tableLabel": "Customers",
   "reseller.customers.directory.empty": "No paying customers yet.",
   "reseller.customers.source.mobilePayment": "Mobile payment",
@@ -284,7 +303,8 @@ const baseEn = {
   "reseller.overview.subtitle":
     "Measured on Dar es Salaam time (EAT). Sales are the guest's gross payment; net earnings land in your wallet.",
   "reseller.overview.accountStatus": "Account status: {status}.",
-  "reseller.overview.accountStatusNote": "Some services unlock once the account is verified.",
+  "reseller.overview.accountStatusNote":
+    "Some services unlock once the account is verified.",
   "reseller.overview.verifyNow": "Verify now",
   "reseller.overview.pastDue":
     "Your platform subscription payment is overdue. Pay to keep your guests online without interruption.",
@@ -309,7 +329,8 @@ const baseEn = {
   "reseller.overview.kpi.salesToday": "Sales (today)",
   "reseller.overview.kpi.salesHint": "{amount} in total sales",
   "reseller.overview.kpi.activeUsers": "Active users",
-  "reseller.overview.kpi.activeUsersHint": "{sites} sites · {devices} AP devices",
+  "reseller.overview.kpi.activeUsersHint":
+    "{sites} sites · {devices} AP devices",
   "reseller.overview.trend.title": "Sales trend",
   "reseller.overview.trend.description": "Paid transactions per day",
   "reseller.overview.trend.window": "{amount} · {days} days",
@@ -326,18 +347,21 @@ const baseEn = {
   "reseller.overview.recent.title": "Recent transactions",
   "reseller.overview.recent.empty": "No transaction matches this filter.",
   "reseller.overview.recent.tableLabel": "Recent transactions",
-  "reseller.overview.recent.showing": "Showing the {count} most recent transactions",
+  "reseller.overview.recent.showing":
+    "Showing the {count} most recent transactions",
   "reseller.overview.recent.filtered": " · {count} after filtering",
   "reseller.overview.recent.viewAll": "View all transactions",
   "reseller.overview.sites.title": "WiFi sites & hotspots",
-  "reseller.overview.sites.description": "Open the captive portal for each of your sites",
+  "reseller.overview.sites.description":
+    "Open the captive portal for each of your sites",
   "reseller.overview.sites.register": "Register a new site",
   "reseller.overview.sites.portal": "Captive portal",
   "reseller.overview.sites.empty.title": "No sites registered yet",
   "reseller.overview.sites.empty.body":
     "Register your first site to start selling WiFi packages to your guests.",
   "reseller.overview.sites.empty.cta": "Register your first site",
-  "reseller.overview.printHint": "Use the print button above to save this page as a PDF.",
+  "reseller.overview.printHint":
+    "Use the print button above to save this page as a PDF.",
 
   // ── Marketing ────────────────────────────────────────────────────────────
   "marketing.banner.new": "NEW",
@@ -357,12 +381,7 @@ const baseEn = {
   "marketing.header.registerFree": "Start using Advo TZ free",
   "marketing.nav.solutions": "Solutions",
   "marketing.nav.primary": "Primary navigation",
-  "marketing.home.hero.proof": "Trusted by cafés, hotels, hostels and WISPs across Tanzania",
   "marketing.home.integrations.label": "Works with the tools you already use",
-  "marketing.home.demo.eyebrow": "Live product demo",
-  "marketing.home.demo.title": "See the guest portal and the owner dashboard in action",
-  "marketing.home.demo.lead":
-    "Pick a package, pay with mobile money and watch the Omada controller authorize the device — then switch to the owner view to see the ledger balance.",
   "marketing.home.stats.eyebrow": "Built for trust",
   "marketing.home.stats.title": "Numbers our customers count on every day",
   "marketing.home.pricing.compare": "Compare all plans & features",
@@ -384,7 +403,8 @@ const baseEn = {
   confirmPaymentPrompt: "Confirm the payment request on your phone.",
   paymentReceivedConnecting: "Payment received. Connecting your WiFi.",
   wifiReady: "Your WiFi is ready to use.",
-  paymentReceivedActivating: "We received payment, but WiFi activation is still in progress.",
+  paymentReceivedActivating:
+    "We received payment, but WiFi activation is still in progress.",
   voucherUsedOrExpired: "This voucher has already been used or has expired.",
   price: "Price",
   duration: "Duration",
@@ -396,9 +416,6 @@ const baseEn = {
   buy: "Buy",
   pay: "Pay now",
   sending: "Sending…",
-  firstName: "First name",
-  lastName: "Last name",
-  receiptEmail: "Email for receipt",
   mobileMoneyNumber: "Mobile money number",
   haveVoucher: "Have a voucher?",
   voucherCode: "Voucher code",
@@ -406,14 +423,17 @@ const baseEn = {
   back: "Back",
   notAvailable: "WiFi sales are not available at this location right now.",
   noPackages: "No packages are available right now.",
-  openFromWifi: "Connect to this WiFi network and open the login page to buy access.",
-  contextExpired: "Your session expired. Reconnect to the WiFi to reopen the login page.",
+  openFromWifi:
+    "Connect to this WiFi network and open the login page to buy access.",
+  contextExpired:
+    "Your session expired. Reconnect to the WiFi to reopen the login page.",
   paymentPending: "Waiting for payment confirmation…",
   paymentFailed: "Payment was not completed.",
   tryAgain: "Try again",
   activationFailed:
     "We received payment but could not connect your device. Contact support with your reference.",
-  needsReview: "Your payment is being checked. Contact support with your reference if this takes long.",
+  needsReview:
+    "Your payment is being checked. Contact support with your reference if this takes long.",
   remaining: "Time remaining",
   expiresAt: "Expires",
   continueBrowsing: "Continue browsing",
@@ -425,38 +445,69 @@ const baseEn = {
   support: "Need help? Show this reference to the WiFi owner.",
   deviceLimit: "Device limit reached for this package.",
 
-  // ── Guest portal · journey (Kimara flow) ─────────────────────────────────
-  "portal.stageLabel": "Stage {stage} of {total}",
-  "portal.stage.connect": "Connect",
-  "portal.stage.choose": "Choose & pay",
-  "portal.stage.connected": "Go online",
-  "portal.stepAria": "Stage {stage}: {label}",
-  "portal.welcomeTo": "Welcome to {site}",
-  "portal.welcomeLead": "Fast, affordable and reliable WiFi — powered by {business}.",
-  "portal.benefitFast": "Fast",
-  "portal.benefitSimple": "Simple",
-  "portal.benefitLocal": "Local",
-  "portal.connectNow": "Connect now",
+  // ── Guest portal · journey (Choose → Pay → Connect) ──────────────────────
   "portal.advertBadge": "Advertisement",
+  "portal.advertSlideAria": "Slide {n}",
+  "portal.sponsoredChip": "Sponsored",
+  "portal.card.upTo": "Up to {speed}",
+  "portal.card.allowance": "{data} data",
+  "portal.card.deviceOne": "{count} device",
+  "portal.card.deviceMany": "{count} devices",
   "portal.advertPrev": "Previous advert",
   "portal.advertNext": "Next advert",
   "portal.advertPause": "Pause adverts",
   "portal.advertPlay": "Play adverts",
   "portal.advertPosition": "{current} / {total}",
+  "portal.advertTapToView": "Tap for offer & details",
+  "portal.advertShareAction": "Share offer",
+  "portal.advertShareWhatsApp": "Share on WhatsApp",
+  "portal.advertCopyInfo": "Copy details",
+  "portal.advertCopied": "Copied!",
+  "portal.advertCall": "Call",
+  "portal.advertWhatsApp": "WhatsApp",
+  "portal.advertClose": "Close",
+  "portal.advertWifiNotice": "Full internet and website browsing is unlocked as soon as you connect to WiFi.",
+  "portal.sponsoredBadge": "Sponsored advertisement",
+  "portal.sponsoredCredit": "Sponsored picks near you",
+  "portal.selectPackage": "Choose plan",
+  "portal.voucherUnavailable":
+    "Voucher login is not available at this WiFi location.",
+  "portal.voucherSectionTitle": "Have a WiFi Voucher?",
+  "portal.voucherSectionSubtitle":
+    "Enter your voucher code to connect instantly without online payment.",
+  "portal.voucherPlaceholder": "e.g. 2ABC-4DEF-6GHK",
+  "portal.voucherSubmit": "Connect with Voucher",
+  "portal.voucherOr": "Or connect using a voucher",
+  "portal.voucherSubmitting": "Verifying voucher…",
+  "portal.loadFailed":
+    "We could not load this WiFi location. This is usually temporary.",
+  "portal.retry": "Try again",
   "portal.chooseTitle": "Choose your package",
   "portal.chooseLead": "Select the access time that suits you.",
-  "portal.yourSelection": "Your selection",
+  "portal.payTitle": "Complete your payment",
+  "portal.youAreBuying": "You are buying",
+  "portal.changePackage": "Choose a different package",
   "portal.payWithMobileMoney": "Pay with mobile money",
   "portal.networkVodacom": "Vodacom",
   "portal.networkAirtel": "Airtel",
   "portal.networkYas": "Yas",
   "portal.networkDetected": "We detected {network} from your number.",
-  "portal.monthlyPlans": "Monthly and business plans →",
-  "portal.monthlyPlansHint": "Ask the WiFi owner about monthly and business plans.",
   "portal.connectedTitle": "You’re connected!",
   "portal.connectedLead": "Your WiFi session is active.",
+  "portal.previewNote": "Preview: this is the screen your guest sees after paying.",
   "portal.activePackage": "Active package",
-  "portal.browseInternet": "Browse the internet",
+  "portal.browseInternet": "Start browsing the web",
+  "portal.exploreWeb": "Explore the Web",
+  "portal.exploreWebSubtitle": "Instant access to popular apps & online services",
+  "portal.exploreLocal": "Explore Local Services & Offers",
+  "portal.exploreLocalSubtitle": "Curated spots and essentials in your area",
+  "portal.allCategories": "All",
+  "portal.foodDrinks": "Food & Cafes",
+  "portal.shopsServices": "Shops & Services",
+  "portal.techGadgets": "Tech & Phones",
+  "portal.speedTest": "Speed Test",
+  "portal.wifiActiveStatus": "High-speed internet active & ready",
+  "portal.openNow": "Open Now",
   "portal.exploreTitle": "Explore…",
   "portal.exploreSeeAll": "See all",
   "portal.exploreEmpty": "No featured businesses yet.",
@@ -475,7 +526,8 @@ const baseEn = {
   "portal.jobs": "Jobs",
   "portal.opportunities": "Opportunities",
   "portal.jobsLead": "Discover your next opportunity.",
-  "portal.jobsPreviewNote": "Live vacancies and opportunities from our partners.",
+  "portal.jobsPreviewNote":
+    "Live vacancies and opportunities from our partners.",
   "portal.jobsEmpty": "No listings are available right now.",
   "portal.jobViewApply": "View & Apply",
   "portal.jobViewOpportunity": "View opportunity",
@@ -484,8 +536,10 @@ const baseEn = {
   "portal.jobClosing": "Closing date is set by the provider.",
   "portal.jobType": "Type",
   "portal.promotionTitle": "Promote your business",
-  "portal.promotionLead": "Choose how long you want your banner promotion to run.",
-  "portal.promotionPriceNote": "Example prices for this page — final rates to be agreed.",
+  "portal.promotionLead":
+    "Choose how long you want your banner promotion to run.",
+  "portal.promotionPriceNote":
+    "Example prices for this page — final rates to be agreed.",
   "portal.promotionWeekly": "Weekly packages",
   "portal.promotionQuarterly": "Quarterly packages",
   "portal.promotionChoose": "Choose {duration}, example price {price}",
@@ -502,7 +556,8 @@ const baseEn = {
   "portal.promotionSubmit": "Submit promotion request",
   "portal.promotionSubmitting": "Sending…",
   "portal.promotionSuccessTitle": "Request received",
-  "portal.promotionSuccessBody": "The WiFi owner will contact you about your banner promotion.",
+  "portal.promotionSuccessBody":
+    "The WiFi owner will contact you about your banner promotion.",
   "portal.promotionAnother": "Send another request",
   "portal.promotionBack": "Back to the connected page",
   "portal.promotionRequired": "Please fill in this field.",
@@ -590,6 +645,7 @@ const baseSw: Record<BaseMessageKey, string> = {
   "nav.auditLog": "Kumbukumbu za ukaguzi",
   "nav.leadsAndInvitations": "Wateja tarajali & mialiko",
   "nav.listings": "Kazi & Fursa",
+  "nav.campaigns": "Kampeni za matangazo",
 
   "shell.sessionFailed": "Imeshindwa kupakia kipindi chako: {reason}",
   "shell.status.active": "Hai",
@@ -613,10 +669,12 @@ const baseSw: Record<BaseMessageKey, string> = {
   "commission.state.PAID": "Imelipwa",
   "commission.state.REVERSED": "Imerejeshwa",
   "commission.state.NEEDS_REVIEW": "Inahitaji ukaguzi",
-  "commission.trigger.FIRST_SUBSCRIPTION_PAYMENT": "Malipo ya kwanza ya kifurushi",
+  "commission.trigger.FIRST_SUBSCRIPTION_PAYMENT":
+    "Malipo ya kwanza ya kifurushi",
   "commission.trigger.SUBSCRIPTION_RENEWAL": "Uhuishaji wa kifurushi",
   "shell.mfa.required.title": "Uthibitisho wa hatua mbili unahitajika",
-  "shell.mfa.required.body": "Toka kisha ingia tena ukitumia namba yako ya kithibitishaji.",
+  "shell.mfa.required.body":
+    "Toka kisha ingia tena ukitumia namba yako ya kithibitishaji.",
   "shell.mfa.setup.title": "Sanidi uthibitisho wa hatua mbili",
   "shell.mfa.setup.body":
     "Akaunti za msimamizi lazima zitumie programu ya kithibitishaji (TOTP) kabla ya skrini yoyote ya msimamizi kufunguka.",
@@ -691,7 +749,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.orders.kpi.attempts": "Jumla ya majaribio",
   "reseller.orders.kpi.attemptsHint": "Miamala yote ya malipo",
   "reseller.orders.tableLabel": "Malipo ya wageni",
-  "reseller.orders.empty": "Hakuna malipo ya mgeni yanayolingana na kichujio chako.",
+  "reseller.orders.empty":
+    "Hakuna malipo ya mgeni yanayolingana na kichujio chako.",
 
   "reseller.customers.badge": "Ufuatiliaji wa vikao & saraka",
   "reseller.customers.sync": "Usawazishaji wa RADIUS moja kwa moja",
@@ -706,16 +765,19 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.customers.kpi.totalSpend": "Jumla ya matumizi",
   "reseller.customers.kpi.totalSpendHint": "Mauzo ya jumla",
   "reseller.customers.guestAccess.title": "Ufikiaji wa wageni",
-  "reseller.customers.guestAccess.description": "Vikao vya uidhinishaji vya WiFi vya sasa na vya hivi karibuni",
+  "reseller.customers.guestAccess.description":
+    "Vikao vya uidhinishaji vya WiFi vya sasa na vya hivi karibuni",
   "reseller.customers.guestAccess.tableLabel": "Ruhusa za ufikiaji wa wageni",
   "reseller.customers.guestAccess.empty": "Hakuna ufikiaji wa mgeni bado.",
   "reseller.customers.directory.title": "Wateja",
-  "reseller.customers.directory.description": "Saraka ya wageni waliosajiliwa na vipimo vya matumizi",
+  "reseller.customers.directory.description":
+    "Saraka ya wageni waliosajiliwa na vipimo vya matumizi",
   "reseller.customers.directory.tableLabel": "Wateja",
   "reseller.customers.directory.empty": "Hakuna mteja anayelipa bado.",
   "reseller.customers.source.mobilePayment": "Malipo ya simu",
   "reseller.customers.source.voucher": "Vocha",
-  "reseller.customers.deviceSlots": "{used} / {total} nafasi za vifaa zimetumika",
+  "reseller.customers.deviceSlots":
+    "{used} / {total} nafasi za vifaa zimetumika",
   "reseller.customers.ordersCount": "Oda {count}",
   "reseller.customers.ordersCountPlural": "Oda {count}",
   "reseller.customers.guest": "Mgeni",
@@ -730,7 +792,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.overview.subtitle":
     "Leo inapimwa kwa saa za Dar es Salaam (EAT). Mauzo ni malipo ghafi ya wateja; mapato halisi yanaingia kwenye wallet.",
   "reseller.overview.accountStatus": "Hali ya akaunti: {status}.",
-  "reseller.overview.accountStatusNote": "Baadhi ya huduma zitafunguka pindi akaunti inapothibitishwa.",
+  "reseller.overview.accountStatusNote":
+    "Baadhi ya huduma zitafunguka pindi akaunti inapothibitishwa.",
   "reseller.overview.verifyNow": "Thibitisha sasa",
   "reseller.overview.pastDue":
     "Usajili wako wa mfumo umepita muda wake wa kulipwa. Lipia ili wateja wasipate usumbufu wa mtandao.",
@@ -738,7 +801,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.overview.expired":
     "Usajili wako wa mfumo umeisha. Mauzo mapya ya WiFi yamesimamishwa kwa muda.",
   "reseller.overview.restart": "Anzisha upya usajili",
-  "reseller.overview.checklist.title": "Hatua za Kukamilisha Usanidi wa Mtandao",
+  "reseller.overview.checklist.title":
+    "Hatua za Kukamilisha Usanidi wa Mtandao",
   "reseller.overview.checklist.body":
     "Kamilisha hatua hizi ili uanze kuuza vifurushi na kupokea malipo moja kwa moja.",
   "reseller.overview.checklist.progress": "{done} kati ya {total} zimekamilika",
@@ -755,7 +819,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.overview.kpi.salesToday": "Mauzo (leo)",
   "reseller.overview.kpi.salesHint": "{amount} jumla ya mauzo yote",
   "reseller.overview.kpi.activeUsers": "Watumiaji Hai",
-  "reseller.overview.kpi.activeUsersHint": "{sites} maeneo · {devices} vifaa vya AP",
+  "reseller.overview.kpi.activeUsersHint":
+    "{sites} maeneo · {devices} vifaa vya AP",
   "reseller.overview.trend.title": "Mwenendo wa Mauzo",
   "reseller.overview.trend.description": "Malipo yaliyolipwa kwa siku",
   "reseller.overview.trend.window": "{amount} · siku {days}",
@@ -770,20 +835,24 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.overview.byPackage.description": "Vifurushi vinavyouzwa zaidi",
   "reseller.overview.rankings.empty": "Hakuna mauzo yaliyolipwa bado.",
   "reseller.overview.recent.title": "Miamala ya Hivi Karibuni",
-  "reseller.overview.recent.empty": "Hakuna muamala unaolingana na kichujio hiki.",
+  "reseller.overview.recent.empty":
+    "Hakuna muamala unaolingana na kichujio hiki.",
   "reseller.overview.recent.tableLabel": "Miamala ya hivi karibuni",
-  "reseller.overview.recent.showing": "Inaonyesha miamala {count} ya hivi karibuni",
+  "reseller.overview.recent.showing":
+    "Inaonyesha miamala {count} ya hivi karibuni",
   "reseller.overview.recent.filtered": " · {count} baada ya kuchuja",
   "reseller.overview.recent.viewAll": "Tazama miamala yote",
   "reseller.overview.sites.title": "Maeneo ya WiFi (Sites & Hotspots)",
-  "reseller.overview.sites.description": "Tazama kurasa za kuingilia za captive portal kwa kila eneo lako",
+  "reseller.overview.sites.description":
+    "Tazama kurasa za kuingilia za captive portal kwa kila eneo lako",
   "reseller.overview.sites.register": "Sajili eneo jipya",
   "reseller.overview.sites.portal": "Captive portal",
   "reseller.overview.sites.empty.title": "Hakuna eneo lililosajiliwa",
   "reseller.overview.sites.empty.body":
     "Sajili eneo lako la kwanza ili kuanza kuuza vifurushi vya WiFi kwa wateja.",
   "reseller.overview.sites.empty.cta": "Sajili eneo la kwanza",
-  "reseller.overview.printHint": "Tumia kitufe cha kuchapisha juu ili kuhifadhi ukurasa huu kama PDF.",
+  "reseller.overview.printHint":
+    "Tumia kitufe cha kuchapisha juu ili kuhifadhi ukurasa huu kama PDF.",
 
   "marketing.banner.new": "MPYA",
   "marketing.banner.body":
@@ -802,14 +871,11 @@ const baseSw: Record<BaseMessageKey, string> = {
   "marketing.header.registerFree": "Anza Kutumia Advo TZ Bure",
   "marketing.nav.solutions": "Suluhisho",
   "marketing.nav.primary": "Menyu kuu",
-  "marketing.home.hero.proof": "Inaaminiwa na mikahawa, hoteli, hosteli na WISP Tanzania nzima",
-  "marketing.home.integrations.label": "Inafanya kazi na zana unazotumia tayari",
-  "marketing.home.demo.eyebrow": "Demo ya moja kwa moja",
-  "marketing.home.demo.title": "Ona portal ya mteja na dashibodi ya mmiliki zikifanya kazi",
-  "marketing.home.demo.lead":
-    "Chagua kifurushi, lipia kwa mobile money na uone Omada controller ikiruhusu kifaa — kisha badili kwenda mtazamo wa mmiliki kuona leja ikiwa balanced.",
+  "marketing.home.integrations.label":
+    "Inafanya kazi na zana unazotumia tayari",
   "marketing.home.stats.eyebrow": "Imejengwa kwa uaminifu",
-  "marketing.home.stats.title": "Namba ambazo wateja wetu wanazitegemea kila siku",
+  "marketing.home.stats.title":
+    "Namba ambazo wateja wetu wanazitegemea kila siku",
   "marketing.home.pricing.compare": "Linganisha vifurushi vyote na vipengele",
 
   brand: "Advo TZ",
@@ -828,7 +894,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   confirmPaymentPrompt: "Thibitisha ombi la malipo kwenye simu yako.",
   paymentReceivedConnecting: "Malipo yamepokelewa. Tunaunganisha WiFi yako.",
   wifiReady: "WiFi yako iko tayari kutumika.",
-  paymentReceivedActivating: "Tumepokea malipo, lakini kuunganisha WiFi bado kunaendelea.",
+  paymentReceivedActivating:
+    "Tumepokea malipo, lakini kuunganisha WiFi bado kunaendelea.",
   voucherUsedOrExpired: "Voucher hii imeshatumika au imeisha muda.",
   price: "Bei",
   duration: "Muda",
@@ -840,9 +907,6 @@ const baseSw: Record<BaseMessageKey, string> = {
   buy: "Nunua",
   pay: "Lipa sasa",
   sending: "Inatuma…",
-  firstName: "Jina la kwanza",
-  lastName: "Jina la mwisho",
-  receiptEmail: "Barua pepe ya risiti",
   mobileMoneyNumber: "Namba ya pesa ya simu",
   haveVoucher: "Una voucher?",
   voucherCode: "Namba ya voucher",
@@ -850,8 +914,10 @@ const baseSw: Record<BaseMessageKey, string> = {
   back: "Rudi",
   notAvailable: "Huduma ya kununua WiFi haipatikani hapa kwa sasa.",
   noPackages: "Hakuna vifurushi kwa sasa.",
-  openFromWifi: "Unganisha kwenye WiFi hii kisha fungua ukurasa wa kuingia ili kununua.",
-  contextExpired: "Muda wa ukurasa umeisha. Unganisha tena kwenye WiFi ili kufungua ukurasa wa kuingia.",
+  openFromWifi:
+    "Unganisha kwenye WiFi hii kisha fungua ukurasa wa kuingia ili kununua.",
+  contextExpired:
+    "Muda wa ukurasa umeisha. Unganisha tena kwenye WiFi ili kufungua ukurasa wa kuingia.",
   paymentPending: "Tunasubiri uthibitisho wa malipo…",
   paymentFailed: "Malipo hayakukamilika.",
   tryAgain: "Jaribu tena",
@@ -863,49 +929,83 @@ const baseSw: Record<BaseMessageKey, string> = {
   expiresAt: "Inaisha",
   continueBrowsing: "Endelea kutumia intaneti",
   reference: "Kumbukumbu",
-  keepReference: "Hifadhi ukurasa huu au namba ya kumbukumbu ili kuunganisha tena baadaye.",
+  keepReference:
+    "Hifadhi ukurasa huu au namba ya kumbukumbu ili kuunganisha tena baadaye.",
   connectThisDevice: "Unganisha kifaa hiki",
   accessStatus: "Hali ya huduma",
   accessEnded: "Huduma hii imeisha.",
-  support: "Unahitaji msaada? Mwonyeshe mmiliki wa WiFi namba hii ya kumbukumbu.",
+  support:
+    "Unahitaji msaada? Mwonyeshe mmiliki wa WiFi namba hii ya kumbukumbu.",
   deviceLimit: "Idadi ya vifaa kwa kifurushi hiki imefika kikomo.",
 
-  "portal.stageLabel": "Hatua {stage} kati ya {total}",
-  "portal.stage.connect": "Unganisha",
-  "portal.stage.choose": "Chagua & lipa",
-  "portal.stage.connected": "Kuingia mtandaoni",
-  "portal.stepAria": "Hatua {stage}: {label}",
-  "portal.welcomeTo": "Karibu {site}",
-  "portal.welcomeLead": "WiFi ya haraka, nafuu na ya kuaminika — inayoendeshwa na {business}.",
-  "portal.benefitFast": "Haraka",
-  "portal.benefitSimple": "Rahisi",
-  "portal.benefitLocal": "Ya hapa",
-  "portal.connectNow": "Unganisha sasa",
   "portal.advertBadge": "Tangazo",
+  "portal.advertSlideAria": "Slaidi {n}",
+  "portal.sponsoredChip": "Imedhaminiwa",
+  "portal.card.upTo": "Hadi {speed}",
+  "portal.card.allowance": "Data {data}",
+  "portal.card.deviceOne": "Kifaa {count}",
+  "portal.card.deviceMany": "Vifaa {count}",
   "portal.advertPrev": "Tangazo lililopita",
   "portal.advertNext": "Tangazo lifuatalo",
   "portal.advertPause": "Simamisha matangazo",
   "portal.advertPlay": "Endeleza matangazo",
   "portal.advertPosition": "{current} / {total}",
+  "portal.advertTapToView": "Bofya kupata ofa & maelezo",
+  "portal.advertShareAction": "Sambaza ofa",
+  "portal.advertShareWhatsApp": "Tuma WhatsApp",
+  "portal.advertCopyInfo": "Nakili maelezo",
+  "portal.advertCopied": "Imenakiliwa!",
+  "portal.advertCall": "Piga simu",
+  "portal.advertWhatsApp": "WhatsApp",
+  "portal.advertClose": "Funga",
+  "portal.advertWifiNotice": "Ukurasa wa wavuti na intaneti vitafunguka kikamilifu mara tu utakapounganishwa na WiFi.",
+  "portal.sponsoredBadge": "Tangazo lililodhaminiwa",
+  "portal.sponsoredCredit": "Matangazo ya wadhamini karibu nawe",
+  "portal.selectPackage": "Chagua kifurushi",
+  "portal.voucherUnavailable":
+    "Kuingia kwa voucher hakupatikani kwenye eneo hili la WiFi.",
+  "portal.voucherSectionTitle": "Una Vocha ya WiFi?",
+  "portal.voucherSectionSubtitle":
+    "Weka namba ya vocha yako kujiunga na mtandao mara moja bila kulipa mtandaoni.",
+  "portal.voucherPlaceholder": "mf. 2ABC-4DEF-6GHK",
+  "portal.voucherSubmit": "Unganisha kwa Vocha",
+  "portal.voucherOr": "Au unganisha kwa kutumia vocha",
+  "portal.voucherSubmitting": "Inahakiki vocha…",
+  "portal.loadFailed":
+    "Hatukuweza kupakua eneo hili la WiFi. Kwa kawaida ni kwa muda.",
+  "portal.retry": "Jaribu tena",
   "portal.chooseTitle": "Chagua kifurushi chako",
   "portal.chooseLead": "Chagua muda wa matumizi unaokufaa.",
-  "portal.yourSelection": "Ulichochagua",
+  "portal.payTitle": "Kamilisha malipo yako",
+  "portal.youAreBuying": "Unanunua",
+  "portal.changePackage": "Chagua kifurushi kingine",
   "portal.payWithMobileMoney": "Lipa kwa pesa ya simu",
   "portal.networkVodacom": "Vodacom",
   "portal.networkAirtel": "Airtel",
   "portal.networkYas": "Yas",
   "portal.networkDetected": "Tumegundua {network} kutoka namba yako.",
-  "portal.monthlyPlans": "Vifurushi vya mwezi na biashara →",
-  "portal.monthlyPlansHint": "Muulize mmiliki wa WiFi kuhusu vifurushi vya mwezi na biashara.",
   "portal.connectedTitle": "Umeunganishwa!",
   "portal.connectedLead": "Kipindi chako cha WiFi kinaendelea.",
+  "portal.previewNote": "Onyesho: hii ni skrini ambayo mgeni wako anaona baada ya kulipa.",
   "portal.activePackage": "Kifurushi kinachoendelea",
-  "portal.browseInternet": "Endelea kutumia intaneti",
+  "portal.browseInternet": "Anza kutumia intaneti",
+  "portal.exploreWeb": "Gundua Mtandao",
+  "portal.exploreWebSubtitle": "Njia ya haraka kufungua programu na huduma maarufu",
+  "portal.exploreLocal": "Gundua Huduma & Eneo Lako",
+  "portal.exploreLocalSubtitle": "Biashara na ofa maalum zilizopo karibu nawe",
+  "portal.allCategories": "Zote",
+  "portal.foodDrinks": "Vyakula & Mikahawa",
+  "portal.shopsServices": "Maduka & Huduma",
+  "portal.techGadgets": "Teknolojia & Simu",
+  "portal.speedTest": "Pima Kasi",
+  "portal.wifiActiveStatus": "Intaneti yenye kasi ipo tayari",
+  "portal.openNow": "Funguliwa Sasa",
   "portal.exploreTitle": "Gundua…",
   "portal.exploreSeeAll": "Ona zote",
   "portal.exploreEmpty": "Hakuna biashara zilizoangaziwa bado.",
   "portal.businessExplore": "Gundua",
-  "portal.exploreSoon": "Maelezo zaidi kuhusu {business} yanakuja hivi karibuni.",
+  "portal.exploreSoon":
+    "Maelezo zaidi kuhusu {business} yanakuja hivi karibuni.",
   "portal.visitWebsite": "Tembelea {site}",
   "portal.jobsOpportunities": "Kazi & Fursa",
   "portal.promoteBusiness": "Tangaza biashara yako",
@@ -929,7 +1029,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.jobType": "Aina",
   "portal.promotionTitle": "Tangaza biashara yako",
   "portal.promotionLead": "Chagua muda unaotaka tangazo lako la bango lidumu.",
-  "portal.promotionPriceNote": "Bei za mfano kwa ukurasa huu — viwango halisi vitakubaliwa.",
+  "portal.promotionPriceNote":
+    "Bei za mfano kwa ukurasa huu — viwango halisi vitakubaliwa.",
   "portal.promotionWeekly": "Vifurushi vya wiki",
   "portal.promotionQuarterly": "Vifurushi vya robo mwaka",
   "portal.promotionChoose": "Chagua {duration}, bei ya mfano {price}",
@@ -946,7 +1047,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.promotionSubmit": "Tuma ombi la tangazo",
   "portal.promotionSubmitting": "Inatuma…",
   "portal.promotionSuccessTitle": "Ombi limepokelewa",
-  "portal.promotionSuccessBody": "Mmiliki wa WiFi atawasiliana nawe kuhusu tangazo lako la bango.",
+  "portal.promotionSuccessBody":
+    "Mmiliki wa WiFi atawasiliana nawe kuhusu tangazo lako la bango.",
   "portal.promotionAnother": "Tuma ombi lingine",
   "portal.promotionBack": "Rudi kwenye ukurasa uliounganishwa",
   "portal.promotionRequired": "Tafadhali jaza sehemu hii.",
@@ -971,8 +1073,13 @@ export type TranslateVars = Record<string, string | number>;
  * Looks a key up in `locale`, substitutes `{name}` placeholders, and falls back
  * to English when a catalog is somehow incomplete at runtime.
  */
-export function t(locale: Locale, key: MessageKey, vars?: TranslateVars): string {
-  const message = catalogs[locale]?.[key] ?? catalogs[DEFAULT_LOCALE][key] ?? key;
+export function t(
+  locale: Locale,
+  key: MessageKey,
+  vars?: TranslateVars,
+): string {
+  const message =
+    catalogs[locale]?.[key] ?? catalogs[DEFAULT_LOCALE][key] ?? key;
   if (!vars) return message;
   return message.replace(/\{(\w+)\}/g, (match, name: string) =>
     name in vars ? String(vars[name]) : match,

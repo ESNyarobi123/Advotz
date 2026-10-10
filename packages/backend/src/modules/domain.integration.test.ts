@@ -8,7 +8,7 @@ import { getWebhookSecret, setPaymentProviderForTests } from "../common/provider
 import { ingestSnippeWebhook } from "./payments/inbox.service.js";
 import { drainOutbox } from "./outbox/outbox.dispatcher.js";
 import { saveController } from "./network/controllers.service.js";
-import { createSite, getSite, provisionSite, reviewDeviceClaim, submitDeviceClaim, updateSite } from "./network/sites.service.js";
+import { createDeviceWifi, createSite, getSite, listDevices, provisionSite, renameDevice, retryDeviceAdopt, submitDeviceClaim, updateSite } from "./network/sites.service.js";
 import { createPackage } from "./catalog/packages.service.js";
 import { archiveVoucherGroup, createVoucherGroup, deleteUnusedVouchers, exportVoucherGroupCsv, listVouchers } from "./catalog/vouchers.service.js";
 import { assertCanSell, checkoutSubscription, expireSubscriptions, startTrial, upsertPlan } from "./subscriptions/subscriptions.service.js";
@@ -33,13 +33,15 @@ async function deliver(type: string, data: Record<string, unknown>, id = `evt_${
   return ingestSnippeWebhook(raw, { "x-webhook-timestamp": ts, "x-webhook-signature": computeSnippeSignature(raw, ts, getWebhookSecret()) });
 }
 
-async function payAttempt(attemptRef: string, amount: bigint, fee = 100) {
+async function payAttempt(attemptRef: string, amount: bigint, fee = 100, accountHolderName?: string) {
   const a = Number(amount);
   return deliver("payment.completed", {
     reference: attemptRef,
     status: "completed",
     amount: { value: a, currency: "TZS" },
     settlement: { gross: { value: a, currency: "TZS" }, fees: { value: fee, currency: "TZS" }, net: { value: a - fee, currency: "TZS" } },
+    // Snippe reports the mobile-money account holder; some scenarios carry a name.
+    ...(accountHolderName ? { customer: { phone: "+255712000111", name: accountHolderName } } : {}),
   });
 }
 
@@ -91,8 +93,10 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     const admin = await auth.bootstrapAdmin({ email: "admin@advo.test", password: "AdminSecurePass1", name: "Admin" });
     adminId = admin.userId;
     const plan = await upsertPlan(adminId, {
-      code: "demo-starter", name: "Demo Starter", priceTzs: 20_000n, periodDays: 30,
-      trialEligible: true, trialDays: 7, maxSites: 2, maxDevices: 5, maxPackages: 5, isDemo: true,
+      code: "demo-starter", name: "Demo Starter", description: "Integration-test plan",
+      priceTzs: 20_000n, periodDays: 30,
+      trialEligible: true, trialDays: 7, maxSites: 2, maxDevices: 5, maxPackages: 5,
+      lifecycle: "PUBLISHED", visibility: "PUBLIC", commercialPromise: "standard", isDemo: true,
     });
     planId = plan.id;
     await setSetting(SettingKey.SALE_FEE_BPS, { basisPoints: 1000 }, adminId, "test config");
@@ -150,7 +154,7 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     expect(await prisma.commissionAccrual.count({ where: { resellerId: B.resellerId } })).toBe(0);
   });
 
-  it("provisions a site, registers a claimed EAP after Admin approval, and sells a package", async () => {
+  it("provisions a site, adopts an EAP with the device login, and sells a package", async () => {
     const { site } = await createSite(A.resellerId, A.ownerUserId, { name: "Main Cafe", timezone: "Africa/Dar_es_Salaam" });
     siteA = site.id;
     slugA = site.slug;
@@ -159,9 +163,32 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     expect(provisioned.mapping?.state).toBe("PROVISIONED");
     expect(provisioned.state).toBe("AWAITING_DEVICE");
 
-    const claim = await submitDeviceClaim(A.resellerId, A.ownerUserId, { siteId: siteA, name: "Front desk AP", mac: "AA-BB-CC-00-00-01", model: "EAP225" });
-    await reviewDeviceClaim(adminId, claim.id, "approve", "Serial photo verified");
+    const adopted = await submitDeviceClaim(A.resellerId, A.ownerUserId, {
+      siteId: siteA, name: "Front desk AP", mac: "AA-BB-CC-00-00-01", model: "EAP225",
+      deviceUsername: "admin", devicePassword: "admin",
+    });
+    expect(adopted.device.mac).toBe("aa:bb:cc:00:00:01");
+    expect(adopted.device.observedStatus).toBe("active");
+    expect(adopted.claim.state).toBe("ADOPTED");
     expect((await getSite(A.resellerId, siteA)).state).toBe("READY");
+
+    const renamed = await renameDevice(A.resellerId, A.ownerUserId, adopted.device.id, { name: "Counter AP", model: "EAP650" });
+    expect(renamed.name).toBe("Counter AP");
+    expect(renamed.model).toBe("EAP650");
+    const wifi = await createDeviceWifi(A.resellerId, adopted.device.id, {
+      name: "Cafe Guest",
+      password: "cafe-wifi",
+      hidden: true,
+      band: "both",
+    });
+    expect(wifi).toMatchObject({ name: "Cafe Guest", hidden: true, secured: true, band: "both" });
+    const listed = await listDevices(A.resellerId);
+    expect(listed.find((device) => device.id === adopted.device.id)?.wifi).toEqual([
+      expect.objectContaining({ name: "Cafe Guest", band: "both", hidden: true, secured: true }),
+    ]);
+    await expect(
+      retryDeviceAdopt(A.resellerId, adopted.device.id, { deviceUsername: "admin", devicePassword: "wrong-password" }),
+    ).rejects.toThrow(/incorrect/i);
 
     const pkg = await createPackage(A.resellerId, A.ownerUserId, {
       name: "1 Hour", priceTzs: PRICE, durationSeconds: 3600, downloadKbps: 2048, uploadKbps: 1024,
@@ -277,6 +304,59 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
 
     // Ledger: 10,000 gross − 100 provider fee − 1,000 platform fee (10%) = 8,900 reseller payable.
     expect(await accountBalance(prisma, resellerAccount(A.resellerId, "RESELLER_PAYABLE"))).toBe(8_900n);
+  });
+
+  it("takes a phone number as the whole form, then learns the payer's name from the provider", async () => {
+    const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:99", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
+    const order = await createPortalOrder(
+      { contextToken: ctx.contextToken, packageId: packageA, phone: "+255712000999", idempotencyKey: "portal-order-phone-only" },
+      IP,
+    );
+
+    const dbOrder = await prisma.order.findFirstOrThrow({
+      where: { requestIdempotencyKey: "portal-order-phone-only" },
+      include: { customer: true },
+    });
+    // Nothing was asked for, so nothing is invented: a guest is a phone number.
+    expect(dbOrder.customer!.firstName).toBeNull();
+    expect(dbOrder.customer!.lastName).toBeNull();
+    expect(dbOrder.customer!.email).toBeNull();
+
+    // Snippe will not accept a payment without a customer block. It gets an
+    // explicit placeholder on a domain that cannot deliver, tagged with the
+    // number so two payers stay distinguishable in the provider's dashboard.
+    const attempt = await latestAttempt(dbOrder.id);
+    expect(attempt.requestPayload).toMatchObject({
+      phoneNumber: "+255712000999",
+      firstName: "Advo",
+      lastName: "Guest",
+      email: "255712000999@example.com",
+    });
+
+    await payAttempt(attempt.providerReference!, PRICE, 100, "Asha Juma");
+    await drainAll();
+
+    // The name the guest never had to type, straight from the mobile-money account.
+    const customer = await prisma.customer.findUniqueOrThrow({ where: { id: dbOrder.customerId! } });
+    expect(customer.firstName).toBe("Asha");
+    expect(customer.lastName).toBe("Juma");
+    expect(order.orderToken).toBeTruthy();
+  });
+
+  it("never overwrites a payer name we already hold with the provider's", async () => {
+    const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:aa", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
+    await createPortalOrder({ contextToken: ctx.contextToken, packageId: packageA, idempotencyKey: "portal-order-named", ...payer("+255712001111") }, IP);
+
+    const dbOrder = await prisma.order.findFirstOrThrow({ where: { requestIdempotencyKey: "portal-order-named" } });
+    const attempt = await latestAttempt(dbOrder.id);
+    await payAttempt(attempt.providerReference!, PRICE, 100, "Someone Else");
+    await drainAll();
+
+    // An API client that supplied a name outranks a name derived from a payment.
+    const customer = await prisma.customer.findUniqueOrThrow({ where: { id: dbOrder.customerId! } });
+    expect(customer.firstName).toBe("Asha");
+    expect(customer.lastName).toBe("Juma");
+    expect(customer.email).toBe("asha@example.com");
   });
 
   it("a second device joins the same grant without extending its expiry", async () => {

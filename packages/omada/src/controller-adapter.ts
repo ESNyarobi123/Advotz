@@ -12,13 +12,69 @@ export type CreateSiteInput = { name: string; externalId: string; timezone: stri
 export type RemoteSiteLocator = { remoteSiteId: string };
 export type RemoteSiteResult = { remoteSiteId: string; name: string };
 
+/**
+ * What a reseller is allowed to see.
+ * `pending` means the Controller has discovered the device but has not adopted it yet.
+ * After a successful adopt, the device is only shown as `active` or `offline`.
+ */
+export type DevicePresence = "active" | "offline" | "pending";
+
 export type RemoteDevice = {
   mac: string;
   model?: string;
   firmware?: string;
   name?: string;
+  /** Controller device type, such as `ap`, `gateway` or `switch`. */
+  kind?: string;
   status?: string;
+  presence?: DevicePresence;
 };
+
+/** 2.4 GHz, 5 GHz, or both. Omada stores this as a bit mask on the SSID. */
+export type WifiBand = "2.4" | "5" | "both";
+
+export type RemoteWifi = {
+  id: string;
+  name: string;
+  band: WifiBand;
+  /** True when the controller is not broadcasting the network name. */
+  hidden: boolean;
+  secured: boolean;
+};
+
+export type CreateWifiInput = {
+  remoteSiteId: string;
+  name: string;
+  password?: string;
+  hidden: boolean;
+  band: WifiBand;
+};
+
+export type RenameDeviceInput = {
+  remoteSiteId: string;
+  mac: string;
+  name: string;
+  kind?: string;
+};
+
+export type ForgetDeviceInput = { remoteSiteId: string; mac: string };
+
+/** Omada band mask: bit 0 is 2.4 GHz, bit 1 is 5 GHz. */
+export function bandToOmada(band: WifiBand): number {
+  if (band === "2.4") return 1;
+  if (band === "5") return 2;
+  return 3;
+}
+
+export function bandFromOmada(value: unknown): WifiBand {
+  const bits = Number(value);
+  const has24 = (bits & 1) === 1;
+  const has5 = (bits & 2) === 2;
+  if (has24 && has5) return "both";
+  if (has5 && !has24) return "5";
+  if (has24) return "2.4";
+  return "both";
+}
 
 export type RemoteClient = { mac: string; apMac?: string; ssidName?: string; connected: boolean };
 
@@ -108,6 +164,10 @@ export interface OmadaControllerAdapter {
   getSite(input: RemoteSiteLocator): Promise<RemoteSiteResult>;
   listDevices(input: RemoteSiteLocator): Promise<RemoteDevice[]>;
   adoptDevice(input: VerifiedAdoptionInput): Promise<RemoteOperationResult>;
+  renameDevice(input: RenameDeviceInput): Promise<RemoteOperationResult>;
+  forgetDevice(input: ForgetDeviceInput): Promise<RemoteOperationResult>;
+  listSsids(input: RemoteSiteLocator): Promise<RemoteWifi[]>;
+  createWifi(input: CreateWifiInput): Promise<RemoteWifi>;
   listClients(input: RemoteSiteLocator): Promise<RemoteClient[]>;
   provisionSsid(input: DesiredSsidInput): Promise<RemoteOperationResult>;
   configureExternalPortal(input: DesiredPortalInput): Promise<RemoteOperationResult>;
@@ -124,4 +184,43 @@ export function normalizeMac(input: string): string | null {
   const hex = input.replace(/[^0-9a-fA-F]/g, "").toLowerCase();
   if (hex.length !== 12) return null;
   return hex.match(/.{2}/g)!.join(":");
+}
+
+/** Omada OpenAPI device MACs use uppercase dashes, for example `AA-BB-CC-DD-EE-FF`. */
+export function omadaMac(input: string): string {
+  const normalized = normalizeMac(input);
+  if (!normalized) return input.trim();
+  return normalized.replaceAll(":", "-").toUpperCase();
+}
+
+function numericStatus(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) return Number(value);
+  return null;
+}
+
+/**
+ * Map an Omada device row to active, offline, or still pending.
+ *
+ * Omada's OpenAPI (and the controller device list) reports two layers:
+ * `statusCategory` is 0 pending, 1 connected, 2 disconnected, 3 heartbeat missed, 4 isolated.
+ * The detailed `status` uses 0 for disconnected, 14 or 15 for connected, and 20–24 while
+ * the device is pending, adopting, or managed by someone else.
+ */
+export function devicePresence(row: { status?: unknown; statusCategory?: unknown }): DevicePresence {
+  const category = numericStatus(row.statusCategory);
+  if (category === 1) return "active";
+  if (category === 0) return "pending";
+  if (category === 2 || category === 3 || category === 4) return "offline";
+
+  const text = String(row.status ?? "").trim().toLowerCase();
+  if (text === "connected" || text === "online" || text === "active") return "active";
+  if (text === "pending" || text === "adopting" || text === "adopt_failed" || text === "managed_by_others") return "pending";
+  if (text === "disconnected" || text === "offline" || text === "isolated" || text === "heartbeat_missed") return "offline";
+
+  const status = numericStatus(row.status);
+  if (status === 14 || status === 15) return "active";
+  if (status === 20 || status === 21 || status === 22 || status === 23 || status === 24) return "pending";
+  if (status === 0) return "offline";
+  return "offline";
 }

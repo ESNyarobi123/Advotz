@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatDateTime, formatTzs } from "@advo/api-client";
+import { planFeaturesWithDefaults } from "@advo/contracts";
 import { Card } from "@heroui/react";
 import { AdvoTable, Notice, StatusChip, statusTone } from "@advo/ui";
 import { Field, ResourceView } from "@/features/common/components";
@@ -10,24 +11,18 @@ import { api, newIdempotencyKey } from "@/lib/api";
 import { formValues, useAction, useResource } from "@/lib/hooks";
 import {
   Crown,
+  Info,
   Sparkles,
   Check,
   Smartphone,
 } from "lucide-react";
-
-type Plan = {
-  id: string;
-  code: string;
-  name: string;
-  priceTzs: string;
-  periodDays: number;
-  trialEligible: boolean;
-  trialDays: number | null;
-  maxSites: number;
-  maxDevices: number;
-  maxPackages: number;
-  isDemo: boolean;
-};
+import {
+  PlanDetailDrawer,
+  capacityOf,
+  formatCapacity,
+  planHighlights,
+  type ResellerPlan as Plan,
+} from "./subscription-plan-drawer";
 
 type SubscriptionView = {
   state: string;
@@ -86,6 +81,8 @@ export function ResellerSubscriptionScreen() {
   const sub = useResource<SubscriptionView>("/reseller/subscription");
   const plans = useResource<Plan[]>("/reseller/plans");
   const [selected, setSelected] = useState<Plan | null>(null);
+  /** The plan whose full feature breakdown is open in the side panel. */
+  const [detail, setDetail] = useState<Plan | null>(null);
   const [checkoutKey, setCheckoutKey] = useState(() => newIdempotencyKey("sub"));
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -117,6 +114,11 @@ export function ResellerSubscriptionScreen() {
 
   const [first, ...rest] = user.name.split(" ");
   const currentSub = sub.data;
+
+  // The trial is a property of one plan (Admin sets `trialEligible` + `trialDays`),
+  // never of the catalog as a whole — so find it rather than hard-coding a code.
+  const trialPlan = (plans.data ?? []).find((p) => p.trialEligible && (p.trialDays ?? 0) > 0) ?? null;
+  const showTrialBanner = trialPlan !== null && !currentSub?.plan && !currentSub?.trialUsed;
 
   return (
     <div className="space-y-6">
@@ -171,7 +173,7 @@ export function ResellerSubscriptionScreen() {
                       </div>
                       <p className="mt-1 text-xs text-slate-500">
                         {s.plan
-                          ? `${s.plan.maxSites} sites · ${s.plan.maxDevices} devices · ${s.plan.maxPackages} packages quota`
+                          ? `${formatCapacity(capacityOf(s.plan).sites)} sites · ${formatCapacity(capacityOf(s.plan).devices)} devices · ${formatCapacity(capacityOf(s.plan).wifiPackagesPerSite)} packages quota`
                           : "Select a plan below to activate your hotspot capacity"}
                       </p>
                     </div>
@@ -191,15 +193,17 @@ export function ResellerSubscriptionScreen() {
                 {s.plan && (
                   <div className="mt-6 grid grid-cols-3 gap-3 border-t border-slate-100 pt-5 text-center">
                     <div className="rounded-xl bg-advo-page p-3">
-                      <div className="text-lg font-extrabold text-advo-text">{s.plan.maxSites}</div>
+                      <div className="text-lg font-extrabold text-advo-text">{formatCapacity(capacityOf(s.plan).sites)}</div>
                       <span className="text-[11px] font-medium text-slate-500">Max Sites</span>
                     </div>
                     <div className="rounded-xl bg-advo-page p-3">
-                      <div className="text-lg font-extrabold text-advo-text">{s.plan.maxDevices}</div>
+                      <div className="text-lg font-extrabold text-advo-text">{formatCapacity(capacityOf(s.plan).devices)}</div>
                       <span className="text-[11px] font-medium text-slate-500">Max Devices</span>
                     </div>
                     <div className="rounded-xl bg-advo-page p-3">
-                      <div className="text-lg font-extrabold text-advo-text">{s.plan.maxPackages}</div>
+                      <div className="text-lg font-extrabold text-advo-text">
+                        {formatCapacity(capacityOf(s.plan).wifiPackagesPerSite)}
+                      </div>
                       <span className="text-[11px] font-medium text-slate-500">WiFi Packages</span>
                     </div>
                   </div>
@@ -209,6 +213,46 @@ export function ResellerSubscriptionScreen() {
           );
         }}
       </ResourceView>
+
+      {/*
+       * A fresh reseller lands on "No Active Plan" with a whole catalog to read, and
+       * the free trial is a secondary button on one card in the middle. Surface it
+       * here so the shortest path to a working portal is the obvious one.
+       */}
+      {showTrialBanner && trialPlan ? (
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-advo-text">
+                  Start with the {trialPlan.trialDays}-day free trial
+                </h2>
+                <p className="mt-0.5 max-w-xl text-xs text-slate-600">
+                  You are not on a plan yet, so you cannot add a site or design your captive portal.{" "}
+                  <strong className="font-semibold text-advo-text">{trialPlan.name}</strong> comes with{" "}
+                  {trialPlan.trialDays} free days — no payment, no card. Start it and the whole portal designer
+                  unlocks immediately.
+                </p>
+              </div>
+            </div>
+            <button
+              className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+              disabled={trial.pending}
+              onClick={() => void trial.run(trialPlan.id)}
+              type="button"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {trial.pending ? "Starting trial…" : `Start ${trialPlan.trialDays}-day free trial`}
+            </button>
+          </div>
+          {trial.error ? (
+            <p className="mt-3 text-xs font-semibold text-red-600">{trial.error}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Plans Section */}
       <div className="space-y-4">
@@ -225,6 +269,11 @@ export function ResellerSubscriptionScreen() {
               <div className="grid gap-6 md:grid-cols-3">
                 {rows.map((p) => {
                   const isSelected = selected?.id === p.id;
+                  // Capacities and bullets are read from the plan's feature snapshot, so
+                  // the card cannot claim a limit or capability the runtime does not grant.
+                  const features = planFeaturesWithDefaults(p.features);
+                  const capacity = capacityOf(p);
+                  const highlights = planHighlights(features).slice(0, 5);
                   return (
                     <Card
                       key={p.id}
@@ -238,13 +287,23 @@ export function ResellerSubscriptionScreen() {
                       <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-advo-blue via-advo-gold to-advo-orange" />
 
                       <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-bold text-advo-text">{p.name}</h3>
-                          {p.isDemo ? (
-                            <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-advo-gold">
-                              DEMO
-                            </span>
-                          ) : null}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-lg font-bold text-advo-text">{p.name}</h3>
+                            <p className="mt-0.5 font-mono text-[10px] text-slate-400">{p.code}</p>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            {p.isDemo ? (
+                              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-advo-gold">
+                                DEMO
+                              </span>
+                            ) : null}
+                            {p.commercialPromise === "ad_free" ? (
+                              <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">
+                                AD FREE
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         {/* Price */}
@@ -255,37 +314,58 @@ export function ResellerSubscriptionScreen() {
                           <span className="text-xs text-slate-400">/ {p.periodDays} days</span>
                         </div>
 
-                        {/* Features List */}
-                        <ul className="mt-6 space-y-3 border-t border-slate-100 pt-4 text-xs">
-                          <li className="flex items-center gap-2.5 text-slate-700">
-                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                              <Check className="h-3 w-3" />
+                        {p.trialEligible && p.trialDays ? (
+                          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            <Sparkles className="h-3 w-3" />
+                            {p.trialDays}-day free trial
+                          </p>
+                        ) : null}
+
+                        {/* Capacity — `Unlimited` is spelled out, never a blank cell. */}
+                        <div className="mt-5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-center">
+                          <div className="rounded-xl bg-advo-page px-1 py-2">
+                            <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
+                              {formatCapacity(capacity.sites)}
                             </div>
-                            <span>Up to <strong>{p.maxSites}</strong> hotspot sites</span>
-                          </li>
-                          <li className="flex items-center gap-2.5 text-slate-700">
-                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                              <Check className="h-3 w-3" />
+                            <span className="text-[10px] font-medium text-slate-500">Sites</span>
+                          </div>
+                          <div className="rounded-xl bg-advo-page px-1 py-2">
+                            <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
+                              {formatCapacity(capacity.devices)}
                             </div>
-                            <span>Up to <strong>{p.maxDevices}</strong> access points</span>
-                          </li>
-                          <li className="flex items-center gap-2.5 text-slate-700">
-                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                              <Check className="h-3 w-3" />
+                            <span className="text-[10px] font-medium text-slate-500">Access points</span>
+                          </div>
+                          <div className="rounded-xl bg-advo-page px-1 py-2">
+                            <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
+                              {formatCapacity(capacity.wifiPackagesPerSite)}
                             </div>
-                            <span>Up to <strong>{p.maxPackages}</strong> WiFi packages</span>
-                          </li>
-                          <li className="flex items-center gap-2.5 text-slate-700">
-                            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                              <Check className="h-3 w-3" />
-                            </div>
-                            <span>Real-time captive portal & Radius server</span>
-                          </li>
+                            <span className="text-[10px] font-medium text-slate-500">Packages</span>
+                          </div>
+                        </div>
+
+                        {/* What the plan actually grants */}
+                        <ul className="mt-4 space-y-2 text-xs">
+                          {highlights.map((line) => (
+                            <li className="flex items-start gap-2.5 text-slate-700" key={line}>
+                              <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                                <Check className="h-2.5 w-2.5" />
+                              </div>
+                              <span>{line}</span>
+                            </li>
+                          ))}
                         </ul>
                       </div>
 
                       {/* Action buttons */}
                       <div className="mt-6 space-y-2 border-t border-slate-100 pt-4">
+                        <button
+                          type="button"
+                          onClick={() => setDetail(p)}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                          View all features
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -324,6 +404,21 @@ export function ResellerSubscriptionScreen() {
 
         {trial.error ? <div className="mt-3"><Notice tone="danger">{trial.error}</Notice></div> : null}
       </div>
+
+      {/* The full plan, opened from a card's "View all features". */}
+      <PlanDetailDrawer
+        onChoose={(plan) => {
+          setDetail(null);
+          setSelected(plan);
+          setNotice(null);
+        }}
+        onClose={() => setDetail(null)}
+        onTrial={(plan) => void trial.run(plan.id)}
+        open={detail !== null}
+        plan={detail}
+        trialPending={trial.pending}
+        trialUsed={Boolean(currentSub?.trialUsed)}
+      />
 
       {/* Checkout Drawer / Card when a Plan is Selected */}
       {selected ? (

@@ -11,6 +11,7 @@ import {
   impersonateInputSchema,
   planActiveSchema,
   planDeleteSchema,
+  planMigrationInputSchema,
   platformListingInputSchema,
   platformPlanInputSchema,
   platformPlanUpdateSchema,
@@ -39,6 +40,7 @@ import {
   WithdrawalState,
 } from "@advo/db";
 import { z } from "zod";
+import { adCampaignInputSchema, adCampaignStatusSchema } from "@advo/contracts";
 import { badRequest, notFound } from "../../common/errors.js";
 import { CurrentUser, Roles, RolesGuard, SessionAuthGuard, type RequestActor } from "../../common/guards/session.guard.js";
 import { IMPERSONATION_COOKIE } from "../../common/guards/session.guard.js";
@@ -72,7 +74,22 @@ import {
 } from "../platform/listings.service.js";
 import { adminAgents, adminAgentDetail, adminOverview, adminResellerDetail, adminResellers, auditLog } from "../reports/reports.service.js";
 import { getSetting, setSetting, settingsOverview, SettingKey } from "../settings/settings.service.js";
-import { archivePlan, deletePlan, listPlans, setPlanActive, updatePlan, upsertPlan } from "../subscriptions/subscriptions.service.js";
+import { archivePlan, deletePlan, listPlans, previewPlan, publishPlan, setPlanActive, updatePlan, upsertPlan } from "../subscriptions/subscriptions.service.js";
+import {
+  applyPlanMigration as applyPlanMigrationNow,
+  cancelPlanMigration as cancelPlanMigrationRow,
+  listPlanMigrations,
+  migrationView as planMigrationView,
+  previewPlanMigration as previewPlanMigrationRows,
+  schedulePlanMigration as schedulePlanMigrationRow,
+} from "../subscriptions/plan-migrations.service.js";
+import {
+  createCampaign,
+  deleteCampaign,
+  listCampaigns,
+  setCampaignStatus,
+  updateCampaign,
+} from "../subscriptions/campaigns.service.js";
 import { listAllTickets, replyToTicket, setTicketState } from "../support/support.service.js";
 import { listWithdrawalsForAdmin, reviewWithdrawal as reviewWithdrawalRequest, withdrawalDetail, withdrawalsSummary as summaryWithdrawals } from "../withdrawals/withdrawals.service.js";
 import { reconcileWithdrawal as reconcilePayout } from "../withdrawals/payouts.service.js";
@@ -236,10 +253,79 @@ export class AdminController {
     return setPlanActive(a.id, id(planId), input.active, input.reason);
   }
 
+  /** Publishes the plan's current draft as an immutable version. */
+  @Post("plans/:id/publish")
+  publish(@CurrentUser() a: RequestActor, @Param("id") planId: string) {
+    return publishPlan(a.id, id(planId));
+  }
+
+  /** Read-only preview of a plan (including its draft) for the editor. */
+  @Get("plans/:id/preview")
+  preview(@Param("id") planId: string) {
+    return previewPlan(id(planId));
+  }
+
   /** Kept for the old client and smoke tests; equivalent to deactivating. */
   @Post("plans/:id/archive")
   archivePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string) {
     return archivePlan(a.id, id(planId));
+  }
+
+  // ── Plan version migrations (publish never moves a live subscriber on its own) ──
+  @Get("plans/migrations")
+  planMigrations(@Query("planId") planId?: string) {
+    return listPlanMigrations(planId ? id(planId) : undefined);
+  }
+
+  /** Old → new preview for a scope and date, before anything is recorded. */
+  @Post("plans/migrations/preview")
+  previewPlanMigration(@Body() body: unknown) {
+    return previewPlanMigrationRows(parse(planMigrationInputSchema, body));
+  }
+
+  @Post("plans/migrations")
+  schedulePlanMigration(@CurrentUser() a: RequestActor, @Body() body: unknown) {
+    return schedulePlanMigrationRow(a.id, parse(planMigrationInputSchema, body));
+  }
+
+  /** Applies a due migration now, without waiting for the sweeper. */
+  @Post("plans/migrations/:id/apply")
+  applyPlanMigration(@CurrentUser() a: RequestActor, @Param("id") migrationId: string) {
+    return applyPlanMigrationNow(id(migrationId), new Date(), a.id).then(() => planMigrationView(id(migrationId)));
+  }
+
+  @Post("plans/migrations/:id/cancel")
+  cancelPlanMigration(@CurrentUser() a: RequestActor, @Param("id") migrationId: string, @Body() body: unknown) {
+    const input = parse(z.object({ reason: z.string().trim().min(3).max(300) }), body);
+    return cancelPlanMigrationRow(a.id, id(migrationId), input.reason);
+  }
+
+  // ── Ad campaigns (policy-aware portal ads) ──
+  @Get("campaigns")
+  campaigns() {
+    return listCampaigns();
+  }
+
+  @Post("campaigns")
+  createCampaign(@CurrentUser() a: RequestActor, @Body() body: unknown) {
+    return createCampaign(a.id, parse(adCampaignInputSchema, body));
+  }
+
+  @Put("campaigns/:id")
+  updateCampaign(@CurrentUser() a: RequestActor, @Param("id") campaignId: string, @Body() body: unknown) {
+    return updateCampaign(a.id, id(campaignId), parse(adCampaignInputSchema, body));
+  }
+
+  @Post("campaigns/:id/status")
+  campaignStatus(@CurrentUser() a: RequestActor, @Param("id") campaignId: string, @Body() body: unknown) {
+    const input = parse(z.object({ status: adCampaignStatusSchema, reason: z.string().trim().min(3).max(300) }), body);
+    return setCampaignStatus(a.id, id(campaignId), input.status, input.reason);
+  }
+
+  /** Ending a campaign keeps its delivery history; the row is never hard-deleted. */
+  @Delete("campaigns/:id")
+  endCampaign(@CurrentUser() a: RequestActor, @Param("id") campaignId: string, @Body() body: unknown) {
+    return deleteCampaign(a.id, id(campaignId), parse(reasonSchema, body).reason);
   }
 
   // ── Controllers & network ──

@@ -42,11 +42,18 @@ export function loadOpenApiContract(path: string): OpenApiContract {
   return openApiContractSchema.parse(JSON.parse(readFileSync(path, "utf8")));
 }
 
-function substitute(value: unknown, vars: Record<string, string | number>): unknown {
+function substitute(value: unknown, vars: Record<string, unknown>): unknown {
   if (typeof value === "string") {
     const whole = value.match(/^\{\{(\w+)\}\}$/);
-    if (whole) return vars[whole[1]!] ?? value;
-    return value.replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(vars[k] ?? ""));
+    if (whole) {
+      const found = vars[whole[1]!];
+      // A placeholder that is the entire value may be an object (a request body).
+      return found === undefined ? value : found;
+    }
+    return value.replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
+      const found = vars[k];
+      return found === undefined || typeof found === "object" ? "" : String(found);
+    });
   }
   if (Array.isArray(value)) return value.map((v) => substitute(v, vars));
   if (value && typeof value === "object") {
@@ -107,7 +114,7 @@ export class OmadaOpenApiClient {
     return this.refreshing;
   }
 
-  async call(operation: string, vars: Record<string, string | number>): Promise<unknown> {
+  async call(operation: string, vars: Record<string, unknown>): Promise<unknown> {
     const op = this.contract?.operations[operation];
     if (!op) throw new UnsupportedCapabilityError(operation, `Operation ${operation} is not in the verified Open API contract`);
     const allVars = { omadacId: this.creds.omadacId, ...vars };

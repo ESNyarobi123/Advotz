@@ -22,7 +22,7 @@ type Access = {
 
 export default function StatusPage() {
   const { brandSlug } = useParams<{ brandSlug: string }>();
-  const { locale, t, toggle } = useLocale();
+  const { locale, t, toggle, setLocale } = useLocale();
   const [token, setToken] = useState<string | null>(null);
   const [access, setAccess] = useState<Access | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,15 +31,19 @@ export default function StatusPage() {
   const [contextToken, setContextToken] = useState<string | null>(null);
   const [extras, setExtras] = useState<PortalBootstrap | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  /** `?preview=1` — the reseller's designer is showing this screen in a frame. */
+  const [preview, setPreview] = useState(false);
 
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get("token");
+    const params = new URLSearchParams(window.location.search);
+    setPreview(params.get("preview") === "1");
+    const fromUrl = params.get("token");
     setToken(fromUrl ?? localStorage.getItem(`advo:last-order:${brandSlug}`));
     setContextToken(loadContext(brandSlug));
   }, [brandSlug]);
 
   // The connected-page extras (businesses, jobs, promotion packages) come from
-  // the same bootstrap the welcome screen uses; a failure is non-fatal.
+  // the same bootstrap the landing screen uses; a failure is non-fatal.
   useEffect(() => {
     portalApi
       .get<PortalBootstrap>(`/portal/sites/${encodeURIComponent(brandSlug)}`)
@@ -50,7 +54,11 @@ export default function StatusPage() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      setAccess(await portalApi.get<Access>(`/portal/access/${encodeURIComponent(token)}`));
+      setAccess(
+        await portalApi.get<Access>(
+          `/portal/access/${encodeURIComponent(token)}`,
+        ),
+      );
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -72,39 +80,61 @@ export default function StatusPage() {
     setJoining(true);
     setJoinError(null);
     try {
-      await portalApi.post("/portal/access/join", { contextToken, recoveryToken: token });
+      await portalApi.post("/portal/access/join", {
+        contextToken,
+        recoveryToken: token,
+      });
       await load();
     } catch (err) {
-      if (err instanceof ApiError && err.code === "DEVICE_LIMIT_REACHED") setJoinError(t("deviceLimit"));
-      else if (err instanceof ApiError && err.code === "PORTAL_CONTEXT_EXPIRED") setJoinError(t("contextExpired"));
+      if (err instanceof ApiError && err.code === "DEVICE_LIMIT_REACHED")
+        setJoinError(t("deviceLimit"));
+      else if (err instanceof ApiError && err.code === "PORTAL_CONTEXT_EXPIRED")
+        setJoinError(t("contextExpired"));
       else setJoinError(err instanceof Error ? err.message : String(err));
     } finally {
       setJoining(false);
     }
   }
 
-  const active = access?.state === "ACTIVE" || access?.state === "PENDING_ACTIVATION";
+  const active =
+    access?.state === "ACTIVE" || access?.state === "PENDING_ACTIVATION";
 
   return (
-    <PortalFrame title={t("accessStatus")} onToggleLanguage={toggle} languageLabel={t("language")}>
-      {!token ? <Notice tone="accent">{t("openFromWifi")}</Notice> : null}
+    <PortalFrame
+      backgroundUrl={extras?.site.backgroundUrl}
+      languageLabel={t("language")}
+      locale={locale}
+      onSelectLanguage={setLocale}
+      onToggleLanguage={toggle}
+      theme={extras?.site.theme}
+      title={t("accessStatus")}
+    >
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {access ? (
         <Card>
           <p className="font-semibold">{access.package.name}</p>
           {access.package.durationSeconds ? (
             <p className="text-sm text-[var(--advo-muted)]">
-              {t("duration")}: {formatDuration(access.package.durationSeconds, locale)}
+              {t("duration")}:{" "}
+              {formatDuration(access.package.durationSeconds, locale)}
             </p>
           ) : null}
           <div className="mt-3 space-y-2">
             {access.state === "ACTIVE" ? (
               <>
                 <Notice tone="success">{t("wifiReady")}</Notice>
-                <p className="text-sm text-[var(--advo-muted)]">{t("remaining")}</p>
-                <p className="text-3xl font-bold">{remainingText(access.expiresAt, now)}</p>
                 <p className="text-sm text-[var(--advo-muted)]">
-                  {t("expiresAt")}: {formatDateTime(access.expiresAt, locale === "sw" ? "sw-TZ" : "en-GB")}
+                  {t("remaining")}
+                </p>
+                <p className="text-3xl font-bold">
+                  {remainingText(access.expiresAt, now)}
+                </p>
+                <p className="text-sm text-[var(--advo-muted)]">
+                  {t("expiresAt")}:{" "}
+                  {formatDateTime(
+                    access.expiresAt,
+                    locale === "sw" ? "sw-TZ" : "en-GB",
+                  )}
                 </p>
               </>
             ) : access.state === "PENDING_ACTIVATION" ? (
@@ -128,7 +158,13 @@ export default function StatusPage() {
           {active && contextToken ? (
             <div className="mt-4 space-y-2">
               {joinError ? <Notice tone="danger">{joinError}</Notice> : null}
-              <Button fullWidth isDisabled={joining} onPress={() => void join()} size="lg" variant="outline">
+              <Button
+                fullWidth
+                isDisabled={joining}
+                onPress={() => void join()}
+                size="lg"
+                variant="outline"
+              >
                 {joining ? t("sending") : t("connectThisDevice")}
               </Button>
             </div>
@@ -140,11 +176,45 @@ export default function StatusPage() {
           <ConnectedStage
             business={extras.site.business}
             businesses={extras.site.content?.businesses ?? []}
-            experienceOnly
+            config={extras.config}
+            experienceOnly={false}
+            landingUrl="https://www.google.com"
             listings={extras.listings}
             promotionPackages={extras.promotionPackages}
             sessionLabel={access.package.name ?? null}
-            showHeader={false}
+            showHeader
+            siteTitle={extras.site.title}
+            slug={brandSlug}
+            theme={extras.site.theme}
+          />
+        </div>
+      ) : null}
+      {/*
+        The designer's "Connected" frame. Without a paid order there is no access
+        row to read, so the screen used to render as a bare "Access status"
+        heading and the reseller had no way to see the connected experience they
+        were designing. This shows the same `ConnectedStage` a paying guest gets,
+        drawn from this site's real businesses, jobs and promotion packages, and
+        says plainly that it is a preview so it is never mistaken for a live
+        session.
+      */}
+      {!access && preview && extras ? (
+        <div className="mt-4 space-y-3">
+          <Notice tone="accent">{t("portal.previewNote")}</Notice>
+          <ConnectedStage
+            business={extras.site.business}
+            businesses={extras.site.content?.businesses ?? []}
+            config={extras.config}
+            experienceOnly={false}
+            landingUrl="https://www.google.com"
+            listings={extras.listings}
+            promotionPackages={extras.promotionPackages}
+            sessionLabel={
+              extras.packages[0]?.name
+                ? `${extras.packages[0].name} (Preview)`
+                : "3 Hours Unlimited (Preview)"
+            }
+            showHeader
             siteTitle={extras.site.title}
             slug={brandSlug}
             theme={extras.site.theme}
@@ -153,11 +223,16 @@ export default function StatusPage() {
       ) : null}
       {token ? (
         <p className="mt-4 text-center text-xs text-[var(--advo-muted)]">
-          {t("reference")}: <span className="font-mono">{token.slice(0, 10).toUpperCase()}</span> · {t("keepReference")}
+          {t("reference")}:{" "}
+          <span className="font-mono">{token.slice(0, 10).toUpperCase()}</span>{" "}
+          · {t("keepReference")}
         </p>
       ) : null}
       <p className="mt-6 text-center text-sm">
-        <Link href={`/${brandSlug}`} className="text-[var(--advo-blue)] underline">
+        <Link
+          href={`/${brandSlug}`}
+          className="text-[var(--advo-blue)] underline"
+        >
           {t("back")}
         </Link>
       </p>

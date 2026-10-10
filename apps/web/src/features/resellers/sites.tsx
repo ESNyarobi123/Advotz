@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card } from "@heroui/react";
 import { StatusChip, statusTone } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
 import { ResourceView } from "@/features/common/components";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { formValues, useAction, useResource } from "@/lib/hooks";
 import {
@@ -21,6 +22,12 @@ import {
   Search,
   X,
   Activity,
+  Pencil,
+  Trash2,
+  Palette,
+  Sparkles,
+  CheckCircle2,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -77,6 +84,8 @@ export function ResellerSitesScreen() {
   const businessName = overview.data?.reseller.businessName ?? "";
 
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingSite, setEditingSite] = useState<SiteRow | null>(null);
+  const [deletingSite, setDeletingSite] = useState<SiteRow | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "attention">("all");
@@ -97,6 +106,8 @@ export function ResellerSitesScreen() {
 
   const attentionCount = siteList.filter(needsAttention).length;
   const readyCount = siteList.filter((site) => site.state === "READY").length;
+  const totalDevicesCount = siteList.reduce((acc, site) => acc + (site._count?.devices ?? 0), 0);
+
   const term = query.trim().toLowerCase();
   const visibleSites = siteList.filter((site) => {
     if (filter === "attention" && !needsAttention(site)) return false;
@@ -109,37 +120,37 @@ export function ResellerSitesScreen() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="mx-auto max-w-7xl space-y-6">
       {/* ── Header ── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-advo-blue to-advo-blue-hover text-white shadow-sm">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-advo-blue to-advo-blue-hover text-white shadow-sm ring-4 ring-advo-blue/10">
             <Wifi className="h-5 w-5" />
           </span>
           <div className="min-w-0">
             <h1 className="truncate text-lg font-black tracking-tight text-advo-text sm:text-xl">
               {t("nav.sites")}
             </h1>
-            <p className="truncate text-[11px] text-advo-muted">{t("reseller.sites.subtitle")}</p>
+            <p className="truncate text-xs font-medium text-advo-muted">{t("reseller.sites.subtitle")}</p>
           </div>
           <HealthPill attentionCount={attentionCount} t={t} />
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           <button
-            className="inline-flex items-center gap-1.5 rounded-xl bg-advo-blue px-3.5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-advo-blue-hover active:scale-[0.98]"
+            className="inline-flex items-center gap-2 rounded-xl bg-advo-blue px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-advo-blue-hover active:scale-[0.98]"
             onClick={() => setShowCreateForm((open) => !open)}
-            style={{ boxShadow: "0 2px 8px rgba(27, 94, 164, 0.3)" }}
+            style={{ boxShadow: "0 2px 10px rgba(27, 94, 164, 0.28)" }}
             type="button"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
             <span>{t("reseller.sites.action.register")}</span>
           </button>
         </div>
       </div>
 
-      {/* ── KPI tiles ── */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* ── Rich KPI Metrics strip (4 tiles) ── */}
+      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <StatTile
           hint={t("reseller.sites.kpi.sitesHint")}
           icon={Wifi}
@@ -150,14 +161,23 @@ export function ResellerSitesScreen() {
         />
         <StatTile
           hint={t("reseller.sites.kpi.readyHint")}
-          icon={Activity}
+          icon={CheckCircle2}
+          isLive
           label={t("reseller.sites.kpi.ready")}
           testId="kpi-ready"
           tone="emerald"
           value={readyCount}
         />
         <StatTile
-          hint={t("reseller.sites.kpi.attentionHint")}
+          hint={t("reseller.sites.kpi.totalDevicesHint")}
+          icon={Radio}
+          label={t("reseller.sites.kpi.totalDevices")}
+          testId="kpi-devices"
+          tone="indigo"
+          value={totalDevicesCount}
+        />
+        <StatTile
+          hint={attentionCount === 0 ? t("reseller.sites.health.healthy") : t("reseller.sites.kpi.attentionHint")}
           icon={AlertTriangle}
           label={t("reseller.sites.kpi.attention")}
           testId="kpi-attention"
@@ -167,7 +187,7 @@ export function ResellerSitesScreen() {
       </div>
 
       {showCreateForm ? (
-        <Card className="border-advo-blue/30 p-5">
+        <Card className="border-advo-blue/30 p-5 shadow-md">
           <FormHeading
             icon={Plus}
             onClose={() => setShowCreateForm(false)}
@@ -225,9 +245,9 @@ export function ResellerSitesScreen() {
         </Card>
       ) : null}
 
-      {/* ── Sites ── */}
-      <section className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      {/* ── Sites Grid ── */}
+      <section className="space-y-3.5">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-black tracking-tight text-advo-text">
             {t("reseller.sites.registered.title")}
             <span className="ml-1.5 font-bold text-advo-muted">
@@ -298,16 +318,18 @@ export function ResellerSitesScreen() {
                 title={t("reseller.sites.empty.title")}
               />
             ) : visibleSites.length === 0 ? (
-              <Card className="p-6 text-center text-xs text-advo-muted">
+              <Card className="p-8 text-center text-xs text-advo-muted">
                 {t("reseller.sites.search.noMatch", { query })}
               </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {visibleSites.map((site) => (
                   <SiteCard
                     copied={copiedId === site.id}
                     key={site.id}
                     onCopy={() => copyToClipboard(`${PORTAL_URL}/${site.slug}`, site.id)}
+                    onDelete={() => setDeletingSite(site)}
+                    onEdit={() => setEditingSite(site)}
                     onReload={sites.reload}
                     site={site}
                     t={t}
@@ -318,6 +340,26 @@ export function ResellerSitesScreen() {
           }
         </ResourceView>
       </section>
+
+      {/* ── Edit Site Modal ── */}
+      {editingSite ? (
+        <EditSiteModal
+          onClose={() => setEditingSite(null)}
+          onSaved={sites.reload}
+          site={editingSite}
+          t={t}
+        />
+      ) : null}
+
+      {/* ── Delete Site Modal ── */}
+      {deletingSite ? (
+        <DeleteSiteModal
+          onClose={() => setDeletingSite(null)}
+          onDeleted={sites.reload}
+          site={deletingSite}
+          t={t}
+        />
+      ) : null}
     </div>
   );
 }
@@ -328,23 +370,25 @@ export function ResellerSitesScreen() {
 
 const TILE_TONES = {
   blue: {
-    bar: "from-advo-blue to-advo-blue-hover",
-    icon: "bg-advo-blue/10 text-advo-blue",
+    bar: "from-advo-blue to-cyan-500",
+    icon: "bg-advo-blue/10 text-advo-blue ring-1 ring-advo-blue/20",
   },
   emerald: {
-    bar: "from-emerald-500 to-emerald-400",
-    icon: "bg-emerald-50 text-emerald-600",
+    bar: "from-emerald-500 to-teal-400",
+    icon: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20",
+  },
+  indigo: {
+    bar: "from-indigo-600 to-violet-500",
+    icon: "bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20",
   },
   amber: {
-    bar: "from-advo-gold to-advo-orange",
-    icon: "bg-amber-50 text-advo-gold",
+    bar: "from-amber-500 to-orange-400",
+    icon: "bg-amber-50 text-amber-600 ring-1 ring-amber-500/20",
   },
 } as const;
 
 /**
- * KPI tile. The number is the hero and the hint is one short line — the long
- * explanatory sentence this used to carry is gone, because the tile next to it
- * already implied it.
+ * KPI tile. High visual polish with status bar and optional live pulse indicator.
  */
 function StatTile({
   label,
@@ -353,6 +397,7 @@ function StatTile({
   icon: Icon,
   tone,
   testId,
+  isLive,
 }: {
   label: string;
   value: number;
@@ -360,21 +405,30 @@ function StatTile({
   icon: LucideIcon;
   tone: keyof typeof TILE_TONES;
   testId: string;
+  isLive?: boolean;
 }) {
   const palette = TILE_TONES[tone];
   return (
-    <Card className="relative overflow-hidden p-4" data-testid={testId}>
-      <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${palette.bar}`} />
+    <Card className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-2xs transition-all hover:shadow-md" data-testid={testId}>
+      <span aria-hidden="true" className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${palette.bar}`} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[10px] font-bold uppercase tracking-wider text-advo-muted">{label}</p>
-          <p className="mt-1 text-3xl font-black leading-none tracking-tight text-advo-text">{value}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-[10.5px] font-bold uppercase tracking-wider text-advo-muted">{label}</p>
+            {isLive ? (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1.5 text-3xl font-black leading-none tracking-tight text-advo-text">{value}</p>
         </div>
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${palette.icon}`}>
-          <Icon className="h-4 w-4" />
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${palette.icon}`}>
+          <Icon className="h-5 w-5" />
         </span>
       </div>
-      <p className="mt-2 truncate text-[11px] font-semibold text-advo-muted">{hint}</p>
+      <p className="mt-2.5 truncate text-[11px] font-semibold text-advo-muted">{hint}</p>
     </Card>
   );
 }
@@ -386,8 +440,8 @@ function HealthPill({ attentionCount, t }: { attentionCount: number; t: I18n["t"
     <span
       className={`hidden shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold sm:inline-flex ${
         healthy
-          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border-amber-200 bg-amber-50 text-amber-700"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-2xs"
+          : "border-amber-200 bg-amber-50 text-amber-700 shadow-2xs"
       }`}
     >
       {healthy ? (
@@ -403,9 +457,8 @@ function HealthPill({ attentionCount, t }: { attentionCount: number; t: I18n["t"
 }
 
 /**
- * A site card. The status help line only appears when the site is *not* ready —
- * "Ready to use" under a chip that already says "Ready" was pure noise — so a
- * healthy grid stays quiet and only the sites needing action speak up.
+ * A site card with rich details, live pulse indicators, captive portal preview,
+ * and high-UX action buttons: Edit (pencil), Portal (palette), Delete (trash).
  */
 function SiteCard({
   site,
@@ -413,77 +466,114 @@ function SiteCard({
   copied,
   onCopy,
   onReload,
+  onEdit,
+  onDelete,
 }: {
   site: SiteRow;
   t: I18n["t"];
   copied: boolean;
   onCopy: () => void;
   onReload: () => void | Promise<void>;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const attention = needsAttention(site);
   const ready = site.state === "READY";
   const portalUrl = `${PORTAL_URL}/${site.slug}`;
 
   return (
-    <Card className="flex flex-col p-4 transition-shadow hover:shadow-md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2.5">
-          <span
-            className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
-              ready ? "bg-emerald-50 text-emerald-600" : attention ? "bg-red-50 text-red-600" : "bg-advo-blue/10 text-advo-blue"
-            }`}
-          >
-            <Wifi className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-advo-text" title={site.name}>
-              {site.name}
-            </h3>
-            <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-advo-muted">
-              <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
-              <span className="truncate">{site.location || t("reseller.sites.noLocation")}</span>
+    <Card className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4.5 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg">
+      {/* Top status accent gradient strip */}
+      <span
+        aria-hidden="true"
+        className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${
+          ready
+            ? "from-emerald-500 via-teal-500 to-emerald-400"
+            : attention
+            ? "from-amber-500 via-red-500 to-rose-500"
+            : "from-advo-blue via-indigo-500 to-blue-400"
+        }`}
+      />
+
+      <div className="space-y-3.5">
+        {/* Header: Icon + Name + Location + Status */}
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <span
+              className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-2xl shadow-2xs transition-transform group-hover:scale-105 ${
+                ready
+                  ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20"
+                  : attention
+                  ? "bg-amber-50 text-amber-600 ring-1 ring-amber-500/20"
+                  : "bg-advo-blue/10 text-advo-blue ring-1 ring-advo-blue/20"
+              }`}
+            >
+              <Wifi className="h-5 w-5" />
+              {ready ? (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+              ) : null}
+            </span>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-black text-advo-text" title={site.name}>
+                {site.name}
+              </h3>
+              <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-advo-muted">
+                <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate">{site.location || t("reseller.sites.noLocation")}</span>
+              </p>
+            </div>
+          </div>
+          <StatusChip tone={statusTone(site.state)}>{siteStateLabel(t, site.state)}</StatusChip>
+        </div>
+
+        {/* Mini stats grid: Controller & Devices */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-advo-border/60 bg-slate-50/70 p-2.5 transition hover:bg-slate-50">
+            <p className="flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+              <Cpu className="h-2.5 w-2.5 text-slate-500" />
+              {t("reseller.sites.controller")}
+            </p>
+            <p className="mt-0.5 truncate text-[11.5px] font-bold text-advo-text" title={site.mapping?.controller.name ?? "Default"}>
+              {site.mapping?.controller.name || "Default"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-advo-border/60 bg-slate-50/70 p-2.5 transition hover:bg-slate-50">
+            <p className="flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+              <Radio className="h-2.5 w-2.5 text-slate-500" />
+              {t("reseller.sites.devicesConnected")}
+            </p>
+            <p className="mt-0.5 text-[11.5px] font-bold text-advo-text">
+              {t("reseller.sites.devicesCount", { count: site._count.devices })}
             </p>
           </div>
         </div>
-        <StatusChip tone={statusTone(site.state)}>{siteStateLabel(t, site.state)}</StatusChip>
-      </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-advo-border/60 bg-advo-page px-2.5 py-2">
-          <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-            <Cpu className="h-2.5 w-2.5" />
-            {t("reseller.sites.controller")}
-          </p>
-          <p className="mt-0.5 truncate text-[11px] font-bold text-advo-text" title={site.mapping?.controller.name ?? "Default"}>
-            {site.mapping?.controller.name || "Default"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-advo-border/60 bg-advo-page px-2.5 py-2">
-          <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-            <Radio className="h-2.5 w-2.5" />
-            {t("reseller.sites.devicesConnected")}
-          </p>
-          <p className="mt-0.5 text-[11px] font-bold text-advo-text">
-            {t("reseller.sites.devicesCount", { count: site._count.devices })}
-          </p>
-        </div>
-      </div>
+        {/* Captive Portal title highlight if set */}
+        {site.portalTitle ? (
+          <div className="flex items-center gap-1.5 rounded-xl border border-indigo-100 bg-indigo-50/60 px-2.5 py-1.5 text-[11px] text-indigo-900">
+            <Sparkles className="h-3 w-3 shrink-0 text-indigo-500" />
+            <span className="truncate font-semibold italic">“{site.portalTitle}”</span>
+          </div>
+        ) : null}
 
-      {/* Progressive disclosure: only alert the operator when there is something to do. */}
-      {!ready ? (
-        <p
-          className={`mt-2 flex items-start gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium ${
-            attention ? "bg-red-50 text-red-700" : "bg-advo-page text-advo-muted"
-          }`}
-        >
-          {attention ? <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> : null}
-          <span>{siteStateHelp(t, site.state)}</span>
-        </p>
-      ) : null}
+        {/* Status notice when attention needed */}
+        {!ready ? (
+          <p
+            className={`flex items-start gap-1.5 rounded-xl px-2.5 py-2 text-[11px] font-medium ${
+              attention ? "border border-red-200 bg-red-50 text-red-700" : "bg-advo-page text-advo-muted"
+            }`}
+          >
+            {attention ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" /> : null}
+            <span>{siteStateHelp(t, site.state)}</span>
+          </p>
+        ) : null}
 
-      <div className="mt-3 flex items-center gap-1.5 border-t border-advo-border/60 pt-3">
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl border border-advo-border bg-slate-50 px-2.5 py-1.5">
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-advo-text select-all" title={portalUrl}>
+        {/* Portal slug pill with copy & open link */}
+        <div className="flex items-center gap-1.5 rounded-xl border border-advo-border bg-slate-50/80 px-2.5 py-1.5 transition hover:border-slate-300">
+          <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-semibold text-advo-text select-all" title={portalUrl}>
             /{site.slug}
           </span>
           <button
@@ -497,7 +587,7 @@ function SiteCard({
           </button>
           <a
             aria-label={t("reseller.sites.copy.openLabel")}
-            className="shrink-0 rounded-lg p-1 text-advo-blue transition hover:bg-white"
+            className="shrink-0 rounded-lg p-1 text-advo-blue transition hover:bg-white hover:text-advo-blue-hover"
             href={portalUrl}
             rel="noreferrer"
             target="_blank"
@@ -506,14 +596,290 @@ function SiteCard({
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
+      </div>
 
-        {attention ? (
-          <ActionButton onDone={onReload} onRun={() => api.post(`/reseller/sites/${site.id}/reprovision`)} variant="secondary">
-            {t("reseller.sites.reprovision")}
-          </ActionButton>
-        ) : null}
+      {/* Action buttons footer */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-1.5 border-t border-advo-border/70 pt-3">
+        <div className="flex items-center gap-1.5">
+          {/* Edit Button */}
+          <button
+            className="inline-flex items-center gap-1.5 rounded-xl border border-advo-border bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-700 shadow-2xs transition hover:border-advo-blue/40 hover:bg-slate-50 hover:text-advo-blue active:scale-95"
+            onClick={onEdit}
+            title={t("reseller.sites.action.edit")}
+            type="button"
+          >
+            <Pencil className="h-3.5 w-3.5 text-slate-500" />
+            <span>{t("reseller.sites.action.edit")}</span>
+          </button>
+
+          {/* Portal Customization Button */}
+          <Link
+            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/80 bg-indigo-50/70 px-2.5 py-1.5 text-[11px] font-bold text-indigo-700 shadow-2xs transition hover:bg-indigo-100 hover:text-indigo-900 active:scale-95"
+            href={`/reseller/captive-portal?siteId=${site.id}`}
+            title={t("reseller.sites.action.portal")}
+          >
+            <Palette className="h-3.5 w-3.5 text-indigo-600" />
+            <span>{t("reseller.sites.action.portal")}</span>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {attention ? (
+            <ActionButton onDone={onReload} onRun={() => api.post(`/reseller/sites/${site.id}/reprovision`)} variant="secondary">
+              {t("reseller.sites.reprovision")}
+            </ActionButton>
+          ) : null}
+
+          {/* Delete Button */}
+          <button
+            className="inline-flex items-center gap-1.5 rounded-xl border border-transparent px-2.5 py-1.5 text-[11px] font-bold text-red-600 transition hover:border-red-200 hover:bg-red-50 active:scale-95"
+            onClick={onDelete}
+            title={t("reseller.sites.action.delete")}
+            type="button"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+            <span>{t("reseller.sites.action.delete")}</span>
+          </button>
+        </div>
       </div>
     </Card>
+  );
+}
+
+/**
+ * Edit Site Modal for editing name, location, portal headline and welcome message.
+ */
+function EditSiteModal({
+  site,
+  onClose,
+  onSaved,
+  t,
+}: {
+  site: SiteRow;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+  t: I18n["t"];
+}) {
+  const [name, setName] = useState(site.name);
+  const [location, setLocation] = useState(site.location ?? "");
+  const [portalTitle, setPortalTitle] = useState(site.portalTitle ?? "");
+  const [portalMessage, setPortalMessage] = useState(site.portalMessage ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+    try {
+      await api.put(`/reseller/sites/${site.id}`, {
+        name: name.trim() || undefined,
+        location: location.trim() || undefined,
+        portalTitle: portalTitle.trim() || undefined,
+        portalMessage: portalMessage.trim() || undefined,
+      });
+      await onSaved();
+      onClose();
+    } catch (err: unknown) {
+      setError(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in">
+      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-advo-border pb-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-advo-blue/10 text-advo-blue">
+              <Pencil className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-advo-text">{t("reseller.sites.edit.title")}</h3>
+              <p className="text-[11px] font-medium text-advo-muted">{site.name}</p>
+            </div>
+          </div>
+          <button
+            className="rounded-lg p-1.5 text-advo-muted transition hover:bg-slate-100 hover:text-advo-text"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+          {error ? <InlineAlert>{error}</InlineAlert> : null}
+          <div className="space-y-3.5">
+            <div>
+              <label className="text-xs font-bold text-advo-text" htmlFor="edit-site-name">
+                {t("reseller.sites.field.name")}
+              </label>
+              <input
+                className="mt-1 w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2 text-xs font-medium text-advo-text transition focus:border-advo-blue focus:bg-white focus:outline-none"
+                id="edit-site-name"
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("reseller.sites.field.namePlaceholder")}
+                required
+                value={name}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-advo-text" htmlFor="edit-site-location">
+                {t("reseller.sites.field.location")}
+              </label>
+              <input
+                className="mt-1 w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2 text-xs font-medium text-advo-text transition focus:border-advo-blue focus:bg-white focus:outline-none"
+                id="edit-site-location"
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder={t("reseller.sites.field.locationPlaceholder")}
+                value={location}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-advo-text" htmlFor="edit-site-portal-title">
+                {t("reseller.sites.field.portalTitle")}
+              </label>
+              <input
+                className="mt-1 w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2 text-xs font-medium text-advo-text transition focus:border-advo-blue focus:bg-white focus:outline-none"
+                id="edit-site-portal-title"
+                onChange={(e) => setPortalTitle(e.target.value)}
+                placeholder={t("reseller.sites.field.portalTitlePlaceholder")}
+                value={portalTitle}
+              />
+              <p className="mt-1 text-[10px] text-advo-muted">{t("reseller.sites.field.portalTitleHint")}</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-advo-text" htmlFor="edit-site-portal-message">
+                {t("reseller.sites.field.portalMessage")}
+              </label>
+              <textarea
+                className="mt-1 w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2 text-xs font-medium text-advo-text transition focus:border-advo-blue focus:bg-white focus:outline-none"
+                id="edit-site-portal-message"
+                onChange={(e) => setPortalMessage(e.target.value)}
+                placeholder={t("reseller.sites.field.portalMessagePlaceholder")}
+                rows={2}
+                value={portalMessage}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-advo-border/60 pt-3.5">
+            <button
+              className="rounded-xl border border-advo-border px-4 py-2 text-xs font-bold text-advo-muted transition hover:bg-slate-50"
+              disabled={pending}
+              onClick={onClose}
+              type="button"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              className="inline-flex items-center gap-1.5 rounded-xl bg-advo-blue px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-advo-blue-hover disabled:opacity-60"
+              disabled={pending}
+              type="submit"
+            >
+              {pending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>{t("reseller.sites.edit.pending")}</span>
+                </>
+              ) : (
+                <span>{t("reseller.sites.edit.submit")}</span>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Delete Site Modal with warning and confirmation.
+ */
+function DeleteSiteModal({
+  site,
+  onClose,
+  onDeleted,
+  t,
+}: {
+  site: SiteRow;
+  onClose: () => void;
+  onDeleted: () => void | Promise<void>;
+  t: I18n["t"];
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleDelete() {
+    setPending(true);
+    setError(null);
+    try {
+      await api.del(`/reseller/sites/${site.id}`);
+      await onDeleted();
+      onClose();
+    } catch (err: unknown) {
+      setError(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in">
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-start gap-3.5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-red-50 text-red-600 ring-4 ring-red-50/50">
+            <Trash2 className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-base font-black text-advo-text">{t("reseller.sites.delete.title")}</h3>
+            <p className="mt-1 text-xs text-advo-muted">
+              {t("reseller.sites.delete.confirm", { name: site.name })}
+            </p>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mt-3">
+            <InlineAlert>{error}</InlineAlert>
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2 border-t border-advo-border/60 pt-4">
+          <button
+            className="rounded-xl border border-advo-border px-4 py-2 text-xs font-bold text-advo-muted transition hover:bg-slate-50"
+            disabled={pending}
+            onClick={onClose}
+            type="button"
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-red-700 active:scale-95 disabled:opacity-60"
+            disabled={pending}
+            onClick={handleDelete}
+            type="button"
+          >
+            {pending ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>{t("reseller.sites.delete.pending")}</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{t("reseller.sites.delete.submit")}</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

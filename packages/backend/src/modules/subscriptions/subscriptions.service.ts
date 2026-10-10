@@ -1,20 +1,102 @@
 import { prisma, type PlatformPlan, type Prisma } from "@advo/db";
-import type { PlatformPlanInput } from "@advo/contracts";
+import {
+  planFeaturesWithDefaults,
+  validatePlanFeatures,
+  type CommercialPromise,
+  type PlanFeatures,
+  type PlatformPlanInput,
+} from "@advo/contracts";
 import { badRequest, conflict, forbidden, notFound } from "../../common/errors.js";
 import { audit, emitOutbox, OutboxEventType } from "../../common/events.js";
+import { invalidatePortalCacheForPlanChange } from "./portal-cache.js";
 import { ensurePaymentAttempt, type Payer } from "../payments/payments.service.js";
 
 type Tx = Prisma.TransactionClient;
 
+/**
+ * The caps a subscription is currently bound by.
+ *
+ * `null` means unlimited — never `0`, which would read as "none allowed" to
+ * anyone not holding the convention in their head.
+ */
 export type Entitlements = {
   planCode: string;
-  maxSites: number;
-  maxDevices: number;
-  maxPackages: number;
+  planVersion: number;
+  maxSites: number | null;
+  maxDevices: number | null;
+  /** Legacy reseller-wide package cap, kept for plans written before the catalog. */
+  maxPackages: number | null;
+  /** The catalog's per-site active-package cap. */
+  maxPackagesPerSite: number | null;
 };
 
-function entitlementsOf(plan: PlatformPlan): Entitlements {
-  return { planCode: plan.code, maxSites: plan.maxSites, maxDevices: plan.maxDevices, maxPackages: plan.maxPackages };
+/** Whether the stored JSON carries its own limits, so a legacy row can still be read. */
+function hasStoredLimits(raw: unknown): boolean {
+  return Boolean(raw && typeof raw === "object" && "limits" in (raw as Record<string, unknown>));
+}
+
+/**
+ * The caps a plan version grants.
+ *
+ * A plan written by the feature editor owns its limits outright — including an
+ * explicit "unlimited", which is why the presence of the `limits` key is what
+ * decides, rather than the value being `null`. Rows predating the feature catalog
+ * keep falling back to the legacy reseller-wide columns.
+ */
+export function planLimitsOf(plan: Pick<PlatformPlan, "features" | "maxSites" | "maxDevices" | "maxPackages">) {
+  const features = planFeaturesWithDefaults(plan.features);
+  const stored = hasStoredLimits(plan.features);
+  return {
+    sites: stored ? features.limits.sites : (plan.maxSites ?? null),
+    devices: stored ? features.limits.devices : (plan.maxDevices ?? null),
+    packagesPerSite: stored ? features.limits.wifi_packages_per_site : null,
+    packagesTotal: stored ? null : (plan.maxPackages ?? null),
+  };
+}
+
+/** The entitlement snapshot stored on a subscription when it moves to a plan. */
+export function entitlementsOf(plan: PlatformPlan): Entitlements {  const limits = planLimitsOf(plan);
+  return {
+    planCode: plan.code,
+    planVersion: plan.version,
+    maxSites: limits.sites,
+    maxDevices: limits.devices,
+    maxPackages: limits.packagesTotal,
+    maxPackagesPerSite: limits.packagesPerSite,
+  };
+}
+
+/**
+ * The feature set a plan version will store.
+ *
+ * Feature limits win; the legacy columns only fill in limits that were not part
+ * of the feature payload, so both representations stay in step.
+ */
+export function resolvePlanFeatures(input: PlatformPlanInput): PlanFeatures {
+  const features = planFeaturesWithDefaults(input.features);
+  if (hasStoredLimits(input.features)) return features;
+  return {
+    ...features,
+    limits: {
+      sites: input.maxSites ?? null,
+      devices: input.maxDevices ?? null,
+      wifi_packages_per_site: input.maxPackages ?? null,
+    },
+  };
+}
+
+/**
+ * Rejects a plan whose feature configuration would not behave as written.
+ *
+ * Validation runs against the **raw** payload, not the normalized one: the
+ * normalizer strips unknown keys, so validating only what it returns would let
+ * a typo'd feature key look saved while doing nothing.
+ */
+function assertPublishable(features: unknown, commercialPromise: CommercialPromise) {
+  const issues = validatePlanFeatures(features, { commercialPromise });
+  if (issues.length > 0) {
+    badRequest(`This plan cannot be published: ${issues.map((issue) => `${issue.key} — ${issue.message}`).join("; ")}`);
+  }
 }
 
 export function planSnapshot(plan: PlatformPlan) {
@@ -23,11 +105,16 @@ export function planSnapshot(plan: PlatformPlan) {
     code: plan.code,
     version: plan.version,
     name: plan.name,
+    description: plan.description,
     priceTzs: plan.priceTzs.toString(),
     periodDays: plan.periodDays,
-    maxSites: plan.maxSites,
-    maxDevices: plan.maxDevices,
-    maxPackages: plan.maxPackages,
+    maxSites: planLimitsOf(plan).sites,
+    maxDevices: planLimitsOf(plan).devices,
+    maxPackages: planLimitsOf(plan).packagesPerSite ?? planLimitsOf(plan).packagesTotal,
+    maxPackagesPerSite: planLimitsOf(plan).packagesPerSite,
+    commercialPromise: plan.commercialPromise,
+    lifecycle: plan.lifecycle,
+    features: planFeaturesWithDefaults(plan.features),
     isDemo: plan.isDemo,
   };
 }
@@ -36,15 +123,23 @@ export function planSnapshot(plan: PlatformPlan) {
 
 /** The mutable columns of a plan, shared by create and update so the two cannot drift. */
 function planFields(input: PlatformPlanInput) {
+  const features = resolvePlanFeatures(input);
   return {
     name: input.name,
+    description: input.description,
     priceTzs: input.priceTzs,
     periodDays: input.periodDays,
     trialEligible: input.trialEligible,
     trialDays: input.trialEligible ? (input.trialDays ?? null) : null,
-    maxSites: input.maxSites,
-    maxDevices: input.maxDevices,
-    maxPackages: input.maxPackages,
+    maxSites: features.limits.sites,
+    maxDevices: features.limits.devices,
+    maxPackages: features.limits.wifi_packages_per_site,
+    features: features as unknown as Prisma.InputJsonValue,
+    lifecycle: input.lifecycle,
+    visibility: input.visibility,
+    commercialPromise: input.commercialPromise,
+    // A published version is sellable; a draft never is.
+    active: input.lifecycle === "PUBLISHED",
     isDemo: input.isDemo,
   };
 }
@@ -53,11 +148,15 @@ function planFields(input: PlatformPlanInput) {
 export async function upsertPlan(adminUserId: string, input: PlatformPlanInput) {
   return prisma.$transaction(async (tx) => {
     const latest = await tx.platformPlan.findFirst({ where: { code: input.code }, orderBy: { version: "desc" } });
+    if (input.lifecycle === "PUBLISHED") {
+      assertPublishable(input.features, input.commercialPromise);
+    }
     if (latest) await tx.platformPlan.updateMany({ where: { code: input.code, active: true }, data: { active: false } });
     const plan = await tx.platformPlan.create({
       data: {
         code: input.code,
         version: (latest?.version ?? 0) + 1,
+        publishedAt: input.lifecycle === "PUBLISHED" ? new Date() : null,
         ...planFields(input),
       },
     });
@@ -85,6 +184,7 @@ export async function updatePlan(adminUserId: string, planId: string, input: Pla
   if (!existing) notFound("Plan not found");
 
   const referenced = existing._count.subscriptions > 0 || existing._count.invoices > 0;
+  if (input.lifecycle === "PUBLISHED") assertPublishable(input.features, input.commercialPromise);
 
   if (!referenced) {
     if (input.code !== existing.code) {
@@ -95,16 +195,29 @@ export async function updatePlan(adminUserId: string, planId: string, input: Pla
       if (clash) conflict(`Version ${existing.version} of "${input.code}" already exists`);
     }
     return prisma.$transaction(async (tx) => {
+      const fields = planFields(input);
+      if (fields.active) {
+        await tx.platformPlan.updateMany({ where: { code: input.code, active: true, NOT: { id: planId } }, data: { active: false } });
+      }
       const updated = await tx.platformPlan.update({
         where: { id: planId },
-        data: { code: input.code, ...planFields(input) },
+        data: {
+          code: input.code,
+          ...fields,
+          publishedAt: fields.active ? (existing.publishedAt ?? new Date()) : null,
+        },
       });
       await audit(tx, {
         actorUserId: adminUserId,
         action: "plan.updated",
         targetType: "PlatformPlan",
         targetId: planId,
-        metadata: { code: updated.code, version: updated.version, before: { code: existing.code, name: existing.name, priceTzs: existing.priceTzs.toString() } },
+        metadata: {
+          code: updated.code,
+          version: updated.version,
+          lifecycle: updated.lifecycle,
+          before: { code: existing.code, name: existing.name, priceTzs: existing.priceTzs.toString(), lifecycle: existing.lifecycle },
+        },
       });
       return updated;
     });
@@ -112,9 +225,15 @@ export async function updatePlan(adminUserId: string, planId: string, input: Pla
 
   return prisma.$transaction(async (tx) => {
     const latest = await tx.platformPlan.findFirst({ where: { code: input.code }, orderBy: { version: "desc" } });
+    const fields = planFields(input);
     await tx.platformPlan.updateMany({ where: { code: input.code, active: true }, data: { active: false } });
     const created = await tx.platformPlan.create({
-      data: { code: input.code, version: (latest?.version ?? 0) + 1, ...planFields(input) },
+      data: {
+        code: input.code,
+        version: (latest?.version ?? 0) + 1,
+        publishedAt: fields.active ? new Date() : null,
+        ...fields,
+      },
     });
     // The edited row can live under a different code, in which case the sweep above missed it.
     if (existing.active && existing.id !== created.id) {
@@ -179,15 +298,24 @@ export async function deletePlan(adminUserId: string, planId: string, reason: st
 export async function setPlanActive(adminUserId: string, planId: string, active: boolean, reason: string) {
   const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
   if (!plan) notFound("Plan not found");
+  if (active) assertPublishable(plan.features, plan.commercialPromise as CommercialPromise);
 
   return prisma.$transaction(async (tx) => {
     if (active) {
       await tx.platformPlan.updateMany({
         where: { code: plan.code, active: true, NOT: { id: planId } },
-        data: { active: false },
+        data: { active: false, lifecycle: "ARCHIVED" },
       });
     }
-    const updated = await tx.platformPlan.update({ where: { id: planId }, data: { active } });
+    const updated = await tx.platformPlan.update({
+      where: { id: planId },
+      // Activating is publishing; deactivating is retiring. Both move the lifecycle.
+      data: {
+        active,
+        lifecycle: active ? "PUBLISHED" : "ARCHIVED",
+        publishedAt: active ? (plan.publishedAt ?? new Date()) : plan.publishedAt,
+      },
+    });
     await audit(tx, {
       actorUserId: adminUserId,
       action: active ? "plan.activated" : "plan.archived",
@@ -198,6 +326,64 @@ export async function setPlanActive(adminUserId: string, planId: string, active:
     });
     return updated;
   });
+}
+
+/**
+ * Publishes a draft version.
+ *
+ * Validates the feature configuration and the commercial promise, then makes the
+ * version the one sellable plan for its code. Nothing about live subscribers
+ * changes until a migration is run against them — publishing a price or feature
+ * change is not silently applied to people already paying.
+ */
+export async function publishPlan(adminUserId: string, planId: string) {
+  const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
+  if (!plan) notFound("Plan not found");
+  if (plan.lifecycle === "ARCHIVED") conflict("An archived version cannot be published; create a new version instead");
+  assertPublishable(plan.features, plan.commercialPromise as CommercialPromise);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.platformPlan.updateMany({
+      where: { code: plan.code, active: true, NOT: { id: planId } },
+      data: { active: false, lifecycle: "ARCHIVED" },
+    });
+    const published = await tx.platformPlan.update({
+      where: { id: planId },
+      data: { lifecycle: "PUBLISHED", active: true, publishedAt: new Date() },
+    });
+    await audit(tx, {
+      actorUserId: adminUserId,
+      action: "plan.published",
+      targetType: "PlatformPlan",
+      targetId: planId,
+      metadata: { code: published.code, version: published.version, commercialPromise: published.commercialPromise },
+    });
+    return published;
+  });
+}
+
+/**
+ * A read-only preview of what a plan version would mean.
+ *
+ * Runs the same validation as publishing — without persisting anything — so the
+ * admin sees the conflict *before* it can reach a subscriber.
+ */
+export async function previewPlan(planId: string) {
+  const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
+  if (!plan) notFound("Plan not found");
+  const features = planFeaturesWithDefaults(plan.features);
+  const promise = plan.commercialPromise as CommercialPromise;
+  return {
+    planId: plan.id,
+    code: plan.code,
+    version: plan.version,
+    lifecycle: plan.lifecycle,
+    commercialPromise: promise,
+    features,
+    limits: planLimitsOf(plan),
+    // Preview validates the raw stored payload so a typo'd key is visible here too.
+    issues: validatePlanFeatures(plan.features, { commercialPromise: promise }),
+  };
 }
 
 /**
@@ -231,8 +417,9 @@ export async function listPlans() {
   }));
 }
 
+/** Only published, sellable versions reach the reseller catalog. */
 export function listActivePlans() {
-  return prisma.platformPlan.findMany({ where: { active: true }, orderBy: { priceTzs: "asc" } });
+  return prisma.platformPlan.findMany({ where: { active: true, lifecycle: "PUBLISHED" }, orderBy: { priceTzs: "asc" } });
 }
 
 // ───────────────────────────── Subscription (Reseller) ───────────────────

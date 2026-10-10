@@ -5,6 +5,13 @@ interface AdvoLogoProps {
   variant?: "dark" | "light";
   size?: "sm" | "md" | "lg";
   withLink?: boolean;
+  /**
+   * Shrinks the mark by one step below the `sm` breakpoint. The mobile header
+   * shares a single row with the language switch and menu button, so on very
+   * narrow devices (≤320px) the full-size wordmark is what pushes the row past
+   * the viewport and creates a horizontal scrollbar.
+   */
+  responsive?: boolean;
 }
 
 export function AdvoLogo({
@@ -12,19 +19,20 @@ export function AdvoLogo({
   variant = "dark",
   size = "md",
   withLink = true,
+  responsive = false,
 }: AdvoLogoProps) {
   const isLight = variant === "light";
-  
+
   const iconSizes = {
     sm: "w-8 h-8",
-    md: "w-10 h-10",
-    lg: "w-12 h-12",
+    md: responsive ? "w-9 h-9 sm:w-10 sm:h-10" : "w-10 h-10",
+    lg: responsive ? "w-10 h-10 sm:w-12 sm:h-12" : "w-12 h-12",
   };
 
   const textSizes = {
     sm: "text-lg",
-    md: "text-2xl",
-    lg: "text-3xl",
+    md: responsive ? "text-xl sm:text-2xl" : "text-2xl",
+    lg: responsive ? "text-2xl sm:text-3xl" : "text-3xl",
   };
 
   const badgeSizes = {
@@ -33,8 +41,10 @@ export function AdvoLogo({
     lg: "text-sm px-2.5 py-1",
   };
 
+  const gapClass = responsive ? "gap-2 sm:gap-3" : "gap-3";
+
   const content = (
-    <div className={`inline-flex items-center gap-3 select-none ${className}`}>
+    <div className={`inline-flex items-center ${gapClass} select-none ${className}`}>
       {/* Brand Icon Badge */}
       <div
         className={`${iconSizes[size]} relative flex items-center justify-center rounded-xl overflow-hidden shadow-lg border border-white/15 transition-transform duration-300 hover:scale-105`}

@@ -1,225 +1,375 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button, Card } from "@heroui/react";
-import type { PortalTheme } from "@advo/contracts";
-import { formatBytes, formatDuration, formatSpeed, formatTzs } from "@advo/api-client";
-import { Notice } from "@advo/ui";
-import { FieldInput } from "@/components/FieldInput";
-import { primaryButton } from "@/lib/theme";
+import {
+  type DeliveredAdCampaign,
+  type EffectivePortalConfig,
+  type PortalContent,
+  type PortalTheme,
+} from "@advo/contracts";
+import {
+  ApiError,
+  formatBytes,
+  formatDuration,
+  formatSpeed,
+  formatTzs,
+} from "@advo/api-client";
+import {
+  Notice,
+  PortalPackageCard,
+  PortalPackageList,
+  type PortalCardLayout,
+  type PortalCardStyle,
+  type PortalIconName,
+  type PortalPackageView,
+} from "@advo/ui";
+import { PaymentModal, type PayBlock, type PayerForm } from "@/components/PaymentModal";
+import { usePortalPreviewAppearance } from "@/lib/portal-preview";
 import type { PortalPackage } from "@/lib/portal-types";
-import { useLocale } from "@/lib/portal";
+import { portalApi, useLocale } from "@/lib/portal";
+import { primaryButton } from "@/lib/theme";
 
-const MONEY_OPTIONS = [
-  { id: "mpesa", name: "M-Pesa", network: "Vodacom", tint: "#e60000" },
-  { id: "airtel", name: "Airtel Money", network: "Airtel", tint: "#e30613" },
-  { id: "mixx", name: "Mixx by Yas", network: "Yas", tint: "#0a4ea2" },
-] as const;
-
-/**
- * Best-effort mobile-network guess from a Tanzanian number's prefix.
- *
- * The payment provider only takes a phone number (there is no network field on
- * a mobile payment), so this highlights the matching button as a visual guide
- * rather than driving the payment itself.
- */
-function detectNetwork(raw: string): (typeof MONEY_OPTIONS)[number] | null {
-  const digits = raw.replace(/[^\d]/g, "").replace(/^255/, "0");
-  const prefix = digits.startsWith("0") ? digits.slice(1, 3) : digits.slice(0, 2);
-  if (!/^\d{2}$/.test(prefix)) return null;
-  if (["75", "76", "74"].includes(prefix)) return MONEY_OPTIONS[0];
-  if (["78", "68", "69", "67"].includes(prefix)) return MONEY_OPTIONS[1];
-  if (["65", "71", "77"].includes(prefix)) return MONEY_OPTIONS[2];
-  return null;
+/** The portal icon that best reads as this access length. */
+function durationIcon(durationSeconds: number): PortalIconName {
+  if (durationSeconds <= 24 * 3600) return "clock";
+  if (durationSeconds <= 7 * 86_400) return "sun";
+  if (durationSeconds <= 31 * 86_400) return "calendar";
+  return "bolt";
 }
 
 /**
- * Stage 2 — choose a package, see the selection summary and pay with mobile
- * money. The three money buttons mirror the simulator; the phone field is what
- * actually starts the payment.
+ * Stage 1 — the guest's landing screen.
+ *
+ * This screen sells, and nothing on it is a form. Tapping a package opens the
+ * mobile-money dialog from `PaymentModal`; the fields to pay live there, so the
+ * package list is the whole screen and the second row of cards is never pushed
+ * below the fold by a checkout the guest has not chosen yet.
+ *
+ * Package cards come from the portal design system so the guest sees exactly
+ * the look the reseller's plan allows: the `style` on each card is
+ * plan-resolved server-side and never changes what the guest pays.
  */
 export function PackagesStage({
   packages,
   theme,
-  disabled,
+  packageCardStyle,
+  packageCardLayout = "grid-2",
+  campaigns = [],
+  content,
+  message,
+  payBlock,
   pending,
   error,
-  onBack,
   onSubmit,
+  config,
+  slug,
+  contextToken,
+  isPreview,
 }: {
   packages: PortalPackage[];
   theme?: PortalTheme;
-  disabled: boolean;
+  /** Plan default, used for a package that arrives without a stamped style. */
+  packageCardStyle: PortalCardStyle;
+  /** Plan-resolved arrangement: one column, or two or three per row. */
+  packageCardLayout?: PortalCardLayout;
+  /** Campaigns already filtered for this site and the banner placement. */
+  campaigns?: DeliveredAdCampaign[];
+  /** The site's portal content, for the reseller's own advert banners. */
+  content?: PortalContent;
+  /** The site's one-line description, shown under the promotional surfaces. */
+  message?: string | null;
+  /** Why an order cannot be started; `none` means the guest can pay. */
+  payBlock: PayBlock;
   pending: boolean;
   error: string | null;
-  onBack: () => void;
-  onSubmit: (packageId: string, form: { phone: string; firstName: string; lastName: string; email: string }) => void;
+  onSubmit: (packageId: string, form: PayerForm) => void;
+  config?: EffectivePortalConfig | null;
+  slug?: string;
+  contextToken?: string | null;
+  isPreview?: boolean;
 }) {
   const { locale, t } = useLocale();
-  const buy = primaryButton(theme);
-  const [selectedId, setSelectedId] = useState(packages[0]?.packageId ?? "");
-  const [phone, setPhone] = useState("");
-  const [showPlans, setShowPlans] = useState(false);
+  const previewAppearance = usePortalPreviewAppearance();
+  const cardLayout = previewAppearance?.cardLayout ?? packageCardLayout;
 
-  const selected = packages.find((p) => p.packageId === selectedId) ?? packages[0] ?? null;
-  const detected = detectNetwork(phone);
+  /** The package whose payment dialog is open, if any. */
+  const [payingId, setPayingId] = useState<string | null>(null);
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selected) return;
-    const form = new FormData(event.currentTarget);
-    onSubmit(selected.packageId, {
-      phone: String(form.get("phone") ?? ""),
-      firstName: String(form.get("firstName") ?? ""),
-      lastName: String(form.get("lastName") ?? ""),
-      email: String(form.get("email") ?? ""),
-    });
+  const paying = packages.find((pkg) => pkg.packageId === payingId) ?? null;
+
+  function packageView(pkg: PortalPackage): PortalPackageView {
+    const unlimited = pkg.quotaType === "UNLIMITED";
+    return {
+      id: pkg.packageId,
+      name: pkg.name,
+      duration: formatDuration(pkg.durationSeconds, locale),
+      price: formatTzs(pkg.priceTzs).replace(/^[^\d]*/, ""),
+      // No measured speed means no speed line: "Up to —" reads as a defect.
+      speed: pkg.downloadKbps ? formatSpeed(pkg.downloadKbps) : "",
+      // The whole allowance line is composed here, in the guest's language,
+      // because the unit belongs to the language and not to the card.
+      data: unlimited
+        ? t("unlimitedData")
+        : t("portal.card.allowance", { data: formatBytes(pkg.quotaBytes) }),
+      devices: pkg.maxDevices,
+      icon: unlimited ? "infinity" : durationIcon(pkg.durationSeconds),
+    };
   }
 
   return (
-    <section aria-label={t("portal.chooseTitle")} className="flex flex-1 flex-col">
-      <p className="text-center text-[11px] font-black uppercase tracking-[0.13em]" style={{ color: "var(--advo-blue)" }}>
-        {t("portal.stageLabel", { stage: 2, total: 3 })}
-      </p>
-      <h2 className="mt-1 text-center text-[1.75rem] font-black leading-tight tracking-tight" style={{ color: "var(--advo-text)" }}>
+    <section
+      aria-label={t("portal.chooseTitle")}
+      className="flex flex-1 flex-col"
+    >
+      {message ? (
+        <p
+          className="mx-auto mb-3 mt-0 max-w-[340px] text-center text-sm font-medium leading-snug"
+          style={{ color: "var(--advo-muted)" }}
+        >
+          {message}
+        </p>
+      ) : null}
+      <h2
+        className="mt-1 text-center text-[1.75rem] font-black leading-tight tracking-tight"
+        style={{ color: "var(--advo-text)" }}
+      >
         {t("portal.chooseTitle")}
       </h2>
-      <p className="mb-3 mt-1 text-center text-sm" style={{ color: "var(--advo-muted)" }}>
+      <p
+        className="mb-3 mt-1 text-center text-sm"
+        style={{ color: "var(--advo-muted)" }}
+      >
         {t("portal.chooseLead")}
       </p>
 
-      {packages.length === 0 ? <Notice tone="accent">{t("noPackages")}</Notice> : null}
+      {packages.length === 0 ? (
+        <Notice tone="accent">{t("noPackages")}</Notice>
+      ) : null}
 
-      <div className="space-y-2" role="radiogroup" aria-label={t("portal.chooseTitle")}>
-        {packages.map((pkg) => {
-          const active = selected?.packageId === pkg.packageId;
-          return (
-            <button
-              aria-checked={active}
-              className="flex w-full items-center justify-between gap-3 border-2 p-3 text-start transition"
+      {/* Not a radiogroup: tapping a card does not select an option in place, it
+          opens the payment dialog for that package. The cards carry their own
+          full text as each button's accessible name. */}
+      <div>
+        <PortalPackageList layout={cardLayout}>
+          {packages.map((pkg, index) => (
+            <PortalPackageCard
+              isFirst={index === 0}
               key={pkg.packageId}
-              onClick={() => setSelectedId(pkg.packageId)}
-              role="radio"
-              style={{
-                borderColor: active ? "var(--advo-blue)" : "transparent",
-                background: "var(--advo-card)",
-                borderRadius: theme?.radius ?? 16,
-                boxShadow: active ? "0 6px 18px -12px var(--advo-blue)" : "0 1px 2px rgba(15,23,42,.06)",
+              labels={{
+                upTo: t("portal.card.upTo"),
+                deviceOne: t("portal.card.deviceOne"),
+                deviceMany: t("portal.card.deviceMany"),
               }}
-              type="button"
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-bold" style={{ color: "var(--advo-text)" }}>
-                  {pkg.name}
-                </span>
-                <span className="mt-0.5 block text-[11px]" style={{ color: "var(--advo-muted)" }}>
-                  {formatDuration(pkg.durationSeconds, locale)} ·{" "}
-                  {pkg.quotaType === "UNLIMITED" ? t("unlimitedData") : formatBytes(pkg.quotaBytes)}
-                  {pkg.downloadKbps ? ` · ${t("upTo")} ${formatSpeed(pkg.downloadKbps)}` : ""}
-                </span>
-              </span>
-              <span
-                className="shrink-0 whitespace-nowrap px-2 py-1 text-sm font-black text-white"
-                style={{ background: "var(--advo-brand-gradient)", borderRadius: Math.min(theme?.radius ?? 12, 12) }}
-              >
-                {formatTzs(pkg.priceTzs)}
-              </span>
-            </button>
-          );
-        })}
+              layout={cardLayout}
+              onSelect={setPayingId}
+              package={packageView(pkg)}
+              selectLabel={t("portal.selectPackage")}
+              selected={pkg.packageId === payingId}
+              style={previewAppearance?.cardStyle ?? pkg.cardStyle ?? packageCardStyle}
+            />
+          ))}
+        </PortalPackageList>
       </div>
 
-      {selected ? (
-        <div
-          className="mt-3 flex items-center justify-between gap-2 px-3 py-2 text-xs"
-          style={{ background: "color-mix(in srgb, var(--advo-blue) 8%, transparent)", borderRadius: theme?.radius ?? 12 }}
-        >
-          <span style={{ color: "var(--advo-muted)" }}>{t("portal.yourSelection")}</span>
-          <strong className="truncate" style={{ color: "var(--advo-text)" }}>
-            {formatDuration(selected.durationSeconds, locale)} · {formatTzs(selected.priceTzs)}
-          </strong>
-        </div>
-      ) : null}
-
-      <button
-        className="mt-2 self-start text-[11px] font-bold underline"
-        onClick={() => setShowPlans((prev) => !prev)}
-        style={{ color: "var(--advo-blue)" }}
-        type="button"
-      >
-        {t("portal.monthlyPlans")}
-      </button>
-      {showPlans ? (
-        <p className="mt-1 text-[11px]" style={{ color: "var(--advo-muted)" }}>
-          {t("portal.monthlyPlansHint")}
-        </p>
-      ) : null}
-
-      <h3 className="mb-2 mt-4 text-sm font-bold" style={{ color: "var(--advo-text)" }}>
-        {t("portal.payWithMobileMoney")}
-      </h3>
-      <div className="grid grid-cols-3 gap-1.5">
-        {MONEY_OPTIONS.map((option) => {
-          const active = detected?.id === option.id;
-          return (
-            <div
-              className="grid place-items-center gap-0.5 rounded-xl border p-2 text-center transition"
-              key={option.id}
-              style={{
-                borderColor: active ? option.tint : "transparent",
-                background: active ? `color-mix(in srgb, ${option.tint} 10%, transparent)` : "var(--advo-card)",
-                boxShadow: active ? "0 4px 12px -8px rgba(0,0,0,.4)" : "0 1px 2px rgba(15,23,42,.06)",
-              }}
-            >
-              <span className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-black text-white" style={{ background: option.tint }}>
-                {option.name.charAt(0)}
-              </span>
-              <span className="text-[10px] font-bold leading-tight" style={{ color: "var(--advo-text)" }}>
-                {option.name}
-              </span>
-              <span className="text-[9px]" style={{ color: "var(--advo-muted)" }}>
-                {option.network}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {detected ? (
-        <p className="mt-1.5 text-[11px]" style={{ color: "var(--advo-muted)" }}>
-          {t("portal.networkDetected", { network: detected.network })}
-        </p>
-      ) : null}
-
-      <form className="mt-4 space-y-3" onSubmit={submit}>
-        <FieldInput
-          autoComplete="tel"
-          id="phone"
-          inputMode="tel"
-          label={t("mobileMoneyNumber")}
-          name="phone"
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder="07XX XXX XXX"
-          required
-          value={phone}
+      {/* ── Voucher Redemption Option (At bottom of packages) ── */}
+      {config?.voucherEnabled !== false ? (
+        <VoucherSection
+          contextToken={contextToken}
+          isPreview={isPreview}
+          slug={slug}
+          theme={theme}
         />
-        <FieldInput autoComplete="given-name" id="firstName" label={t("firstName")} name="firstName" required />
-        <FieldInput autoComplete="family-name" id="lastName" label={t("lastName")} name="lastName" required />
-        <FieldInput autoComplete="email" id="email" label={t("receiptEmail")} name="email" required type="email" />
-        {error ? <Notice tone="danger">{error}</Notice> : null}
-        <Button
-          fullWidth
-          isDisabled={pending || disabled || !selected}
-          size="lg"
-          style={{ ...buy.style, borderRadius: theme?.radius }}
-          type="submit"
-          variant={buy.variant}
-        >
-          {pending ? t("sending") : selected ? `${t("pay")} ${formatTzs(selected.priceTzs)}` : t("pay")}
-        </Button>
-        <Button fullWidth onPress={onBack} size="lg" type="button" variant="outline">
-          {t("back")}
-        </Button>
-      </form>
+      ) : null}
+
+      {/* An order cannot be started without a WiFi context, and the designer's
+          preview cannot start one by design. `PaymentModal` states the reason
+          inside the dialog rather than the stage carrying a banner above it, so
+          the landing screen is the price list the guest came for and the
+          explanation appears exactly where someone tries to pay. */}
+
+      {/* Remounted per package so a cancelled dialog never reopens holding the
+          previous guest's number. */}
+      {paying ? (
+        <PaymentModal
+          blocked={payBlock}
+          error={error}
+          key={paying.packageId}
+          onClose={() => setPayingId(null)}
+          onSubmit={onSubmit}
+          pending={pending}
+          pkg={paying}
+          theme={theme}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * Voucher redemption block rendered at the bottom of the packages list.
+ * Allows guests with printed or electronic vouchers to authenticate
+ * their device via TP-Link Omada / RADIUS without online payment.
+ */
+function VoucherSection({
+  slug,
+  contextToken,
+  isPreview,
+  theme,
+}: {
+  slug?: string;
+  contextToken?: string | null;
+  isPreview?: boolean;
+  theme?: PortalTheme;
+}) {
+  const router = useRouter();
+  const { t } = useLocale();
+  const previewAppearance = usePortalPreviewAppearance();
+  const [code, setCode] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Dynamically adopt reseller's theme / customization (live & preview)
+  const primaryColor = previewAppearance?.colors?.primary ?? theme?.primary ?? "#2563eb";
+  const accentColor = previewAppearance?.colors?.accent ?? theme?.accent ?? primaryColor;
+  const radiusVal = theme?.radius ?? 12;
+  const buttonStyle = theme?.buttonStyle ?? "gradient";
+
+  const buttonBg =
+    buttonStyle === "gradient"
+      ? `linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%)`
+      : primaryColor;
+
+  async function handleRedeem(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) return;
+
+    if (isPreview) {
+      setError(
+        t("openFromWifi") ||
+          "Hali ya uhakiki: Huwezi kutumia vocha bila kuunganishwa kwenye mtandao halisi wa WiFi."
+      );
+      return;
+    }
+
+    if (!contextToken) {
+      setError(t("openFromWifi"));
+      return;
+    }
+
+    setPending(true);
+    setError(null);
+    try {
+      const res = await portalApi.post<{ recoveryToken: string; grantDeviceState: string }>(
+        "/portal/vouchers/redeem",
+        { contextToken, code: cleanCode }
+      );
+      if (slug) {
+        localStorage.setItem(`advo:last-order:${slug}`, res.recoveryToken);
+        router.push(`/${slug}/status?token=${encodeURIComponent(res.recoveryToken)}`);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "DEVICE_LIMIT_REACHED") {
+        setError(t("deviceLimit"));
+      } else if (err instanceof ApiError && err.code === "PORTAL_CONTEXT_EXPIRED") {
+        setError(t("contextExpired"));
+      } else if (err instanceof ApiError && err.code === "FEATURE_LOCKED_BY_PLAN") {
+        setError(t("portal.voucherUnavailable"));
+      } else if (err instanceof ApiError && err.status === 400) {
+        setError(t("voucherUsedOrExpired"));
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="mt-8 border-t border-[var(--advo-border)]/70 pt-6">
+      {/* Sleek divider badge */}
+      <div className="relative mb-5 text-center">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-slate-200/80 dark:border-white/10" />
+        </div>
+        <div className="relative flex justify-center">
+          <span
+            className="rounded-full border px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider shadow-2xs transition-colors"
+            style={{
+              borderColor: `color-mix(in srgb, ${primaryColor} 22%, rgba(148, 163, 184, 0.25))`,
+              backgroundColor: "var(--advo-portal-card, var(--surface, #ffffff))",
+              color: "var(--advo-text, #475569)",
+            }}
+          >
+            🎫 {t("portal.voucherOr")}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Voucher Card adopting reseller customization */}
+      <div
+        className="overflow-hidden border p-3.5 shadow-xs backdrop-blur-sm transition-all"
+        style={{
+          borderRadius: radiusVal,
+          borderColor: `color-mix(in srgb, ${primaryColor} 24%, var(--advo-border, rgba(148, 163, 184, 0.2)))`,
+          background: `color-mix(in srgb, ${primaryColor} 4%, var(--advo-portal-card, var(--surface, #ffffff)))`,
+        }}
+      >
+        {error ? (
+          <div className="mb-3">
+            <Notice tone="danger">{error}</Notice>
+          </div>
+        ) : null}
+
+        <form className="space-y-2.5" onSubmit={handleRedeem}>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <input
+                autoCapitalize="characters"
+                autoComplete="off"
+                className="w-full border bg-white px-3.5 py-2.5 font-mono text-sm font-bold uppercase tracking-wider text-slate-900 placeholder:normal-case placeholder:font-sans placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:outline-none dark:border-slate-700/80 dark:bg-slate-900 dark:text-white"
+                onBlur={() => setIsFocused(false)}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onFocus={() => setIsFocused(true)}
+                placeholder={t("portal.voucherPlaceholder")}
+                required
+                spellCheck={false}
+                style={{
+                  borderRadius: Math.max(8, radiusVal - 2),
+                  borderColor: isFocused ? primaryColor : undefined,
+                  boxShadow: isFocused ? `0 0 0 3px color-mix(in srgb, ${primaryColor} 20%, transparent)` : undefined,
+                }}
+                type="text"
+                value={code}
+              />
+            </div>
+            <button
+              className="inline-flex shrink-0 items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+              disabled={pending || !code.trim()}
+              style={{
+                borderRadius: Math.max(8, radiusVal - 2),
+                background: buttonBg,
+              }}
+              type="submit"
+            >
+              {pending ? (
+                <>
+                  <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>{t("portal.voucherSubmitting")}</span>
+                </>
+              ) : (
+                <>
+                  <span>⚡</span>
+                  <span>{t("portal.voucherSubmit")}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

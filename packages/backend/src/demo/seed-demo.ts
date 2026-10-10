@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import * as argon2 from "argon2";
+import { planPreset } from "@advo/contracts";
 import { prisma } from "@advo/db";
 import { AuthService } from "../modules/auth/auth.service.js";
 import { createPolicy } from "../modules/commissions/commissions.service.js";
@@ -61,13 +62,25 @@ export async function seedDemo(): Promise<DemoSeedResult> {
     result.created.push("FAKE Omada controller (simulator)");
   }
 
-  let plan = await prisma.platformPlan.findFirst({ where: { code: "demo-starter", active: true } });
+  // The demo reseller should land on the plan a real signup would, and the catalog
+  // should stay at the five starter plans — so reuse an existing trial plan first
+  // and only mint the standalone demo plan on a database that has none.
+  const starterTrialPlan = await prisma.platformPlan.findFirst({
+    where: { active: true, lifecycle: "PUBLISHED", trialEligible: true },
+    orderBy: { priceTzs: "asc" },
+  });
+  const existingDemoPlan = starterTrialPlan
+    ? null
+    : await prisma.platformPlan.findFirst({ where: { code: "demo-starter", active: true } });
+
+  let plan = starterTrialPlan ?? existingDemoPlan;
   if (plan) {
-    result.skipped.push("plan demo-starter");
+    result.skipped.push(`plan ${plan.code} (reused for the demo trial)`);
   } else {
     plan = await upsertPlan(admin.id, {
       code: "demo-starter",
       name: "Demo Starter (demo price)",
+      description: "Demo plan with the Brand Control feature set.",
       priceTzs: 15000n,
       periodDays: 30,
       trialEligible: true,
@@ -75,6 +88,10 @@ export async function seedDemo(): Promise<DemoSeedResult> {
       maxSites: 2,
       maxDevices: 4,
       maxPackages: 6,
+      lifecycle: "PUBLISHED",
+      visibility: "PUBLIC",
+      commercialPromise: "standard",
+      features: planPreset("brand-control")!.features,
       isDemo: true,
     });
     result.created.push("plan demo-starter (isDemo)");

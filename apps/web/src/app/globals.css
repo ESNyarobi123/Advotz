@@ -44,6 +44,41 @@
   --color-advo-teal: var(--advo-teal);
   --color-advo-teal-soft: var(--advo-teal-soft);
 
+  /*
+   * Guest captive-portal palette (mirrors packages/ui/src/tokens.css).
+   * Prefixed `portal-` so these never collide with the dashboard's
+   * `advo-orange` and read unambiguously at the call site:
+   * `bg-portal-ink`, `text-portal-orange-deep`, `border-portal-line`.
+   */
+  --color-portal-ink: var(--advo-portal-ink);
+  --color-portal-ink-deep: var(--advo-portal-ink-deep);
+  --color-portal-ink-line: var(--advo-portal-ink-line);
+  --color-portal-orange: var(--advo-portal-orange);
+  --color-portal-orange-deep: var(--advo-portal-orange-deep);
+  --color-portal-orange-soft: var(--advo-portal-orange-soft);
+  --color-portal-paper: var(--advo-portal-paper);
+  --color-portal-line: var(--advo-portal-line);
+  --color-portal-muted: var(--advo-portal-muted);
+  --color-portal-green: var(--advo-portal-green);
+  --color-portal-green-soft: var(--advo-portal-green-soft);
+
+  /* Sponsored creative themes (cafe / tech / style). */
+  --color-ad-cafe-bg: var(--advo-ad-cafe-bg);
+  --color-ad-cafe-ink: var(--advo-ad-cafe-ink);
+  --color-ad-tech-bg: var(--advo-ad-tech-bg);
+  --color-ad-tech-ink: var(--advo-ad-tech-ink);
+  --color-ad-style-bg: var(--advo-ad-style-bg);
+  --color-ad-style-ink: var(--advo-ad-style-ink);
+
+  /* Payment wordmarks. */
+  --color-money-mpesa: var(--advo-money-mpesa);
+  --color-money-airtel: var(--advo-money-airtel);
+  --color-money-mixx: var(--advo-money-mixx);
+
+  /* Portal elevation. */
+  --shadow-portal: var(--advo-portal-shadow);
+  --shadow-portal-lift: var(--advo-portal-shadow-lift);
+
   /* Soft elevation steps. */
   --shadow-advo-field: var(--advo-shadow-field);
   --shadow-advo-card: var(--advo-shadow-card);
@@ -65,6 +100,14 @@
   --radius-3xl: var(--advo-radius-md);
   --radius-card: var(--advo-radius-card);
   --radius-field: var(--advo-radius-field);
+
+  /*
+   * Portal geometry. The guest portal is a shop window, not a dashboard, so it
+   * keeps its own larger radii instead of the product-wide medium step.
+   */
+  --radius-portal: var(--advo-portal-radius);
+  --radius-portal-card: var(--advo-portal-radius-card);
+  --radius-portal-control: var(--advo-portal-radius-control);
 }
 
 /*
@@ -144,7 +187,55 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/*
+ * Keep this reset inside `@layer base`. Unlayered CSS always outranks layered
+ * CSS, so an unlayered `a { color: inherit }` would silently beat Tailwind
+ * utilities such as `text-advo-charcoal` on links (gold CTA buttons) and force
+ * the inherited colour instead.
+ */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/*
+ * Hero device mockup (`HeroPhoneMockup`).
+ *
+ * The mockup swaps an entire screen when the captive-portal flow advances, and
+ * remounts its content with `key={phase}`. A plain CSS animation is therefore
+ * all that is needed to give each swap a direction of travel — no animation
+ * library. The component does not apply any of these when the reader has
+ * `prefers-reduced-motion: reduce`, so they never run against their wishes.
+ */
+@keyframes advo-portal-screen {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes advo-portal-toast {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes advo-portal-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }

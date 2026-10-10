@@ -1,14 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatBytes, formatDuration, formatSpeed, formatTzs } from "@advo/api-client";
-import { Button, Card } from "@heroui/react";
-import { AdvoTable, Notice } from "@advo/ui";
+import { Card } from "@heroui/react";
+import { AdvoTable } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
-import { Field, Mono, ResourceView, SelectField } from "@/features/common/components";
+import { Mono, ResourceView } from "@/features/common/components";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
+import { useAction, useResource } from "@/lib/hooks";
+import {
+  packageBodyFromDraft,
+  draftFromRevision,
+  PackageFormDrawer,
+  type PackageDraft,
+} from "./package-form-drawer";
 import {
   Package,
   Wifi,
@@ -46,61 +52,63 @@ type PackageRow = {
 };
 type SiteOption = { id: string; name: string; state: string };
 
-/**
- * Standard durations. Keys rather than labels, so the option text is resolved
- * in the active language at render time.
- */
-const DURATION_OPTIONS = [
-  { value: "3600", key: "reseller.packages.duration.1h" },
-  { value: "10800", key: "reseller.packages.duration.3h" },
-  { value: "21600", key: "reseller.packages.duration.6h" },
-  { value: "86400", key: "reseller.packages.duration.1d" },
-  { value: "604800", key: "reseller.packages.duration.7d" },
-  { value: "2592000", key: "reseller.packages.duration.30d" },
-] as const;
-
 export function ResellerPackagesScreen() {
   const { t } = useI18n();
-  const durations = DURATION_OPTIONS.map((option) => ({ value: option.value, label: t(option.key) }));
   const packages = useResource<PackageRow[]>("/reseller/packages");
   const sites = useResource<SiteOption[]>("/reseller/sites");
   const [editing, setEditing] = useState<PackageRow | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const save = useAction(async (form: HTMLFormElement) => {
-    const v = formValues(form);
-    const siteIds = new FormData(form).getAll("siteIds").map(String);
-    const quotaGb = v.quotaGb ? Number(v.quotaGb) : undefined;
-    const body = {
-      name: v.name,
-      priceTzs: v.priceTzs,
-      durationSeconds: toInt(v.customMinutes) ? toInt(v.customMinutes)! * 60 : toInt(v.durationSeconds),
-      downloadKbps: v.downloadMbps ? Math.round(Number(v.downloadMbps) * 1024) : undefined,
-      uploadKbps: v.uploadMbps ? Math.round(Number(v.uploadMbps) * 1024) : undefined,
-      quotaType: v.quotaType ?? "UNLIMITED",
-      quotaBytes: quotaGb ? String(Math.round(quotaGb * 1024 ** 3)) : undefined,
-      maxDevices: toInt(v.maxDevices) ?? 1,
-      siteIds,
-    };
+  const save = useAction(async (draft: PackageDraft) => {
+    const body = packageBodyFromDraft(draft);
     if (editing) await api.put(`/reseller/packages/${editing.id}`, body);
     else await api.post("/reseller/packages", body);
-    form.reset();
     setEditing(null);
     setIsFormOpen(false);
   }, packages.reload);
 
-  const rev = editing?.currentRevision;
-  const assigned = new Set(editing?.assignments.map((a) => a.site.id) ?? []);
+  /**
+   * The drawer seeds itself from this on open, so it must keep one identity for
+   * as long as the drawer is open — otherwise every keystroke would be reset by
+   * the seeding effect.
+   */
+  const initialDraft = useMemo(
+    () =>
+      draftFromRevision(
+        editing?.currentRevision ?? null,
+        editing?.assignments.map((a) => a.site.id) ?? [],
+      ),
+    [editing],
+  );
+
+  const openCreate = () => {
+    save.setError(null);
+    setEditing(null);
+    setIsFormOpen(true);
+  };
+
+  const openEdit = (row: PackageRow) => {
+    save.setError(null);
+    setEditing(row);
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setEditing(null);
+    setIsFormOpen(false);
+  };
+
   const packageList = packages.data ?? [];
 
   // Summary Metrics
   const totalPackages = packageList.length;
-  const avgPrice = totalPackages > 0
-    ? Math.round(
-        packageList.reduce((acc, p) => acc + (Number(p.currentRevision?.priceTzs) || 0), 0) / totalPackages
-      )
-    : 0;
+  const avgPrice =
+    totalPackages > 0
+      ? Math.round(
+          packageList.reduce((acc, p) => acc + (Number(p.currentRevision?.priceTzs) || 0), 0) / totalPackages,
+        )
+      : 0;
   const maxDownloadMbps = packageList.reduce((max, p) => {
     const kbps = p.currentRevision?.downloadKbps ?? 0;
     return Math.max(max, Math.round(kbps / 1024));
@@ -128,14 +136,11 @@ export function ResellerPackagesScreen() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              setEditing(null);
-              setIsFormOpen(!isFormOpen);
-            }}
+            onClick={openCreate}
             className="inline-flex items-center gap-2 rounded-xl bg-advo-blue px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-advo-blue-hover active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            {isFormOpen && !editing ? t("reseller.packages.action.closeCreator") : t("reseller.packages.action.new")}
+            {t("reseller.packages.action.new")}
           </button>
         </div>
       </div>
@@ -183,8 +188,8 @@ export function ResellerPackagesScreen() {
             {totalPackages === 0
               ? "—"
               : maxDownloadMbps > 0
-              ? `${maxDownloadMbps} Mbps`
-              : t("reseller.packages.kpi.uncapped")}
+                ? `${maxDownloadMbps} Mbps`
+                : t("reseller.packages.kpi.uncapped")}
           </div>
           <p className="mt-1 text-xs text-slate-500">
             {totalPackages === 0
@@ -207,196 +212,20 @@ export function ResellerPackagesScreen() {
         </Card>
       </div>
 
-      {/* Package form */}
-      {(isFormOpen || editing) && (
-        <Card className="p-6 ring-4 ring-advo-blue/5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-advo-blue/10 text-advo-blue">
-                {editing ? <Edit3 className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
-              </div>
-              <div>
-                <h3 className="font-bold text-advo-text">
-                  {editing
-                    ? t("reseller.packages.form.editTitle", {
-                        name: editing.name,
-                        revision: (rev?.revision ?? 0) + 1,
-                      })
-                    : t("reseller.packages.form.createTitle")}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  {editing
-                    ? t("reseller.packages.form.editHint")
-                    : t("reseller.packages.form.createHint")}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setEditing(null);
-                setIsFormOpen(false);
-              }}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-            >
-              {t("reseller.packages.form.cancel")}
-            </button>
-          </div>
-
-          <form
-            key={editing?.id ?? "new"}
-            className="mt-6 space-y-6"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save.run(e.currentTarget);
-            }}
-          >
-            <div className="grid gap-5 md:grid-cols-3">
-              <Field
-                name="name"
-                label={t("reseller.packages.form.name")}
-                defaultValue={rev?.name}
-                placeholder={t("reseller.packages.form.namePlaceholder")}
-                required
-              />
-              <Field
-                name="priceTzs"
-                label={t("reseller.packages.form.price")}
-                type="number"
-                min={500}
-                defaultValue={rev?.priceTzs}
-                hint={t("reseller.packages.form.priceHint")}
-                required
-              />
-              <SelectField
-                name="durationSeconds"
-                label={t("reseller.packages.form.duration")}
-                required
-                defaultValue={String(rev?.durationSeconds ?? 3600)}
-                options={durations}
-              />
-              <Field
-                name="customMinutes"
-                label={t("reseller.packages.form.customMinutes")}
-                type="number"
-                min={1}
-                placeholder={t("reseller.packages.form.customMinutesPlaceholder")}
-              />
-              <Field
-                name="downloadMbps"
-                label={t("reseller.packages.form.download")}
-                type="number"
-                step={0.1}
-                min={0.1}
-                placeholder={t("reseller.packages.form.downloadPlaceholder")}
-                defaultValue={rev?.downloadKbps ? rev.downloadKbps / 1024 : undefined}
-                hint={t("reseller.packages.form.speedHint")}
-              />
-              <Field
-                name="uploadMbps"
-                label={t("reseller.packages.form.upload")}
-                type="number"
-                step={0.1}
-                min={0.1}
-                placeholder={t("reseller.packages.form.uploadPlaceholder")}
-                defaultValue={rev?.uploadKbps ? rev.uploadKbps / 1024 : undefined}
-                hint={t("reseller.packages.form.speedHint")}
-              />
-              <SelectField
-                name="quotaType"
-                label={t("reseller.packages.form.quotaType")}
-                required
-                defaultValue={rev?.quotaType ?? "UNLIMITED"}
-                options={[
-                  { value: "UNLIMITED", label: t("reseller.packages.form.quotaType.unlimited") },
-                  { value: "TOTAL", label: t("reseller.packages.form.quotaType.total") },
-                  { value: "DAILY", label: t("reseller.packages.form.quotaType.daily") },
-                  { value: "MONTHLY", label: t("reseller.packages.form.quotaType.monthly") },
-                ]}
-              />
-              <Field
-                name="quotaGb"
-                label={t("reseller.packages.form.quotaGb")}
-                type="number"
-                step={0.1}
-                min={0.1}
-                placeholder={t("reseller.packages.form.quotaGbPlaceholder")}
-                defaultValue={
-                  rev?.quotaBytes ? Math.round((Number(rev.quotaBytes) / (1024 ** 3)) * 10) / 10 : undefined
-                }
-              />
-              <Field
-                name="maxDevices"
-                label={t("reseller.packages.form.maxDevices")}
-                type="number"
-                min={1}
-                max={10}
-                defaultValue={rev?.maxDevices ?? 1}
-                required
-              />
-            </div>
-
-            {/* Sites Checklist with Modern Badges */}
-            <div className="rounded-xl border border-slate-100 bg-advo-page p-4">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-advo-text">{t("reseller.packages.form.sites")}</label>
-                <span className="text-xs text-slate-500">{t("reseller.packages.form.sitesHint")}</span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-3">
-                {(sites.data ?? []).map((s) => (
-                  <label
-                    key={s.id}
-                    className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-advo-text shadow-sm transition hover:border-advo-blue hover:bg-blue-50/30"
-                  >
-                    <input
-                      type="checkbox"
-                      name="siteIds"
-                      value={s.id}
-                      defaultChecked={assigned.has(s.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-advo-blue focus:ring-advo-blue"
-                    />
-                    <span>{s.name}</span>
-                    <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                      {s.state}
-                    </span>
-                  </label>
-                ))}
-                {sites.error ? (
-                  <span role="alert" className="text-sm text-[var(--advo-danger)]">
-                    {t("reseller.packages.form.sitesLoadError", { reason: sites.error.message })}
-                  </span>
-                ) : sites.loading && sites.data === undefined ? (
-                  <span className="text-sm text-slate-400">{t("reseller.packages.form.sitesLoading")}</span>
-                ) : sites.data?.length === 0 ? (
-                  <span className="text-sm text-slate-400">{t("reseller.packages.form.sitesEmpty")}</span>
-                ) : null}
-              </div>
-            </div>
-
-            {save.error ? <Notice tone="danger">{save.error}</Notice> : null}
-
-            <div className="flex items-center gap-3">
-              <Button variant="primary" type="submit" isDisabled={save.pending}>
-                {save.pending
-                  ? t("reseller.packages.form.save")
-                  : editing
-                  ? t("reseller.packages.form.saveRevision")
-                  : t("reseller.packages.form.create")}
-              </Button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(null);
-                  setIsFormOpen(false);
-                }}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                {t("reseller.packages.form.cancel")}
-              </button>
-            </div>
-          </form>
-        </Card>
-      )}
+      {/* The create/edit form, as a popup rather than a block on the page. */}
+      <PackageFormDrawer
+        editingName={editing?.name ?? null}
+        editingRevision={editing?.currentRevision ?? null}
+        error={save.error}
+        initialDraft={initialDraft}
+        onClose={closeForm}
+        onSubmit={(draft) => void save.run(draft)}
+        open={isFormOpen}
+        pending={save.pending}
+        sites={(sites.data ?? []).map((site) => ({ id: site.id, name: site.name, state: site.state }))}
+        sitesError={sites.error?.message ?? null}
+        sitesLoading={sites.loading}
+      />
 
       {/* Package Display Header with View Switcher */}
       <div className="flex items-center justify-between">
@@ -441,7 +270,7 @@ export function ResellerPackagesScreen() {
                 <p className="mt-1 text-sm text-slate-500">{t("reseller.packages.empty.body")}</p>
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(true)}
+                  onClick={openCreate}
                   className="mt-5 inline-flex items-center gap-2 rounded-xl bg-advo-blue px-4 py-2 text-sm font-semibold text-white shadow hover:bg-advo-blue-hover"
                 >
                   <Plus className="h-4 w-4" />
@@ -549,11 +378,7 @@ export function ResellerPackagesScreen() {
                       <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditing(p);
-                            setIsFormOpen(true);
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
+                          onClick={() => openEdit(p)}
                           className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-advo-blue hover:text-advo-blue"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
@@ -578,7 +403,8 @@ export function ResellerPackagesScreen() {
           // Table View fallback
           return (
             <Card className="overflow-hidden">
-              <AdvoTable label={t("reseller.packages.tableLabel")}
+              <AdvoTable
+                label={t("reseller.packages.tableLabel")}
                 rows={rows}
                 rowKey={(p) => p.id}
                 empty={t("reseller.packages.table.empty")}
@@ -622,8 +448,7 @@ export function ResellerPackagesScreen() {
                             {p.currentRevision.quotaType === "UNLIMITED"
                               ? t("reseller.packages.card.unlimitedData")
                               : `${formatBytes(p.currentRevision.quotaBytes)} ${p.currentRevision.quotaType.toLowerCase()}`}{" "}
-                            ·{" "}
-                            {t("reseller.packages.col.devices", { count: p.currentRevision.maxDevices })}
+                            · {t("reseller.packages.col.devices", { count: p.currentRevision.maxDevices })}
                           </div>
                         </div>
                       ) : null,
@@ -641,13 +466,7 @@ export function ResellerPackagesScreen() {
                     header: "",
                     render: (p) => (
                       <div className="flex gap-2">
-                        <ActionButton
-                          onRun={async () => {
-                            setEditing(p);
-                            setIsFormOpen(true);
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                        >
+                        <ActionButton onRun={async () => openEdit(p)}>
                           {t("reseller.packages.card.edit")}
                         </ActionButton>
                         <ActionButton
@@ -670,3 +489,4 @@ export function ResellerPackagesScreen() {
     </div>
   );
 }
+

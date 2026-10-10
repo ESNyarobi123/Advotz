@@ -6,10 +6,33 @@ import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppExceptionFilter, loadServerEnvSafe } from "./bootstrap-helpers.js";
+import { MAX_MEDIA_UPLOAD_BYTES } from "@advo/backend";
 import { HttpAppModule } from "./http-app.module.js";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const CSRF_EXEMPT_PREFIXES = ["/api/v1/webhooks/"];
+
+/**
+ * Content types accepted for a raw image upload, each given the media body limit.
+ *
+ * Listed explicitly rather than opened up with a `'*'` catch-all parser on
+ * purpose: a catch-all would also raise the ceiling for `application/json`, and
+ * the 1 MB cap on ordinary writes is worth keeping. `image/svg+xml` is absent, so
+ * Fastify answers 415 before a handler runs — the media service also refuses SVG,
+ * and this is the outer of the two guards.
+ */
+const IMAGE_UPLOAD_CONTENT_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/tiff",
+  "image/bmp",
+  "image/heic",
+  "image/heif",
+];
 
 async function bootstrap() {
   const env = loadServerEnvSafe();
@@ -25,6 +48,15 @@ async function bootstrap() {
   const fastify = app.getHttpAdapter().getInstance();
   await fastify.register(cookie);
   await fastify.register(helmet, { contentSecurityPolicy: false });
+
+  // Uploaded images arrive as the raw request body. Per-parser limits keep the
+  // default 1 MB ceiling on every other route while letting a reseller send the
+  // heavy logo the optimiser exists to shrink.
+  for (const contentType of IMAGE_UPLOAD_CONTENT_TYPES) {
+    fastify.addContentTypeParser(contentType, { bodyLimit: MAX_MEDIA_UPLOAD_BYTES, parseAs: "buffer" }, (_request, body, done) =>
+      done(null, body),
+    );
+  }
 
   const trusted = new Set(env.CSRF_TRUSTED_ORIGINS.split(",").map((s) => s.trim().replace(/\/$/, "")));
 

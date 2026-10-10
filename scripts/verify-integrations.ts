@@ -107,6 +107,14 @@ async function checkOmada() {
     version: process.env.OMADA_CONTROLLER_VERSION ?? "",
     caCertPath: process.env.OMADA_CA_CERT_PATH || undefined,
     openApi: clientId && clientSecret ? { clientId, clientSecret, contract } : undefined,
+    portal:
+      process.env.OMADA_HOTSPOT_OPERATOR_USERNAME && process.env.OMADA_HOTSPOT_OPERATOR_PASSWORD
+        ? {
+            operatorUsername: process.env.OMADA_HOTSPOT_OPERATOR_USERNAME,
+            operatorPassword: process.env.OMADA_HOTSPOT_OPERATOR_PASSWORD,
+            timeSemantics: "duration",
+          }
+        : undefined,
     verifiedCapabilities: {},
   });
   const inspection = await adapter.inspectController();

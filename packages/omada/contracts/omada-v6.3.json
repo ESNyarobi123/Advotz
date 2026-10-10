@@ -1,0 +1,178 @@
+{
+  "controllerVersion": "6.3.0.45",
+  "documentSource": "Omada v6.3.0.45 Server B OpenAPI",
+  "token": {
+    "method": "POST",
+    "path": "/openapi/authorize/token",
+    "query": {
+      "grant_type": "client_credentials"
+    },
+    "bodyTemplate": {
+      "omadacId": "{{omadacId}}",
+      "client_id": "{{clientId}}",
+      "client_secret": "{{clientSecret}}"
+    },
+    "accessTokenPath": "result.accessToken",
+    "expiresInPath": "result.expiresIn"
+  },
+  "operations": {
+    "listSites": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites?page=1&pageSize=100",
+      "resultPath": "result.data",
+      "verified": true,
+      "evidence": "Verified live query against Server B Omada v6.3.0.45"
+    },
+    "getSite": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Verified live query against Server B Omada v6.3.0.45"
+    },
+    "createSite": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites",
+      "bodyTemplate": {
+        "name": "{{name}}",
+        "region": "Tanzania",
+        "timeZone": "{{timezone}}",
+        "scenario": "General",
+        "deviceAccountSetting": {
+          "username": "{{deviceUsername}}",
+          "password": "{{devicePassword}}"
+        }
+      },
+      "resultPath": "result.siteId",
+      "verified": true,
+      "evidence": "Verified OpenAPI site creation route"
+    },
+    "listDevices": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/devices?page=1&pageSize=100",
+      "resultPath": "result.data",
+      "verified": true,
+      "evidence": "Verified live query on site Server B showing AP 60-15-6F-5C-45-FE"
+    },
+    "adoptDevice": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/devices/{deviceMac}/adopt",
+      "bodyTemplate": {
+        "username": "{{deviceUsername}}",
+        "password": "{{devicePassword}}"
+      },
+      "verified": true,
+      "evidence": "Omada OpenAPI: adopt a pending device with its own username and password. The device must already be pending on the site; errorCode 0 means the controller accepted the adopt."
+    },
+    "listClients": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/clients?page=1&pageSize=100",
+      "resultPath": "result.data",
+      "verified": true,
+      "evidence": "Verified live query against Server B clients"
+    },
+    "listLanNetworks": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/lan-networks?page=1&pageSize=20",
+      "resultPath": "result.data",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 creates a Default LAN on a new site; a portal must bind that LAN or an SSID"
+    },
+    "listPortals": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/portals",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI on Server B: GET portals returns the site portal list"
+    },
+    "createPortal": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/portal",
+      "bodyTemplate": {
+        "name": "{{name}}",
+        "enable": true,
+        "authType": 4,
+        "authTimeout": { "customTimeout": 24, "customTimeoutUnit": 2 },
+        "httpsRedirectEnable": false,
+        "landingPage": 1,
+        "networkList": ["{{networkId}}"],
+        "externalPortal": {
+          "hostType": 2,
+          "serverUrlScheme": "{{scheme}}",
+          "serverUrl": "{{serverUrl}}"
+        }
+      },
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI: authType 4 is External Portal Server; serverUrl is host plus path without a scheme"
+    },
+    "getPreAuth": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/setting/access-control",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI access-control; type 2 policies are pre-authentication URLs"
+    },
+    "renameAp": {
+      "method": "PATCH",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/aps/{deviceMac}/general-config",
+      "bodyTemplate": { "name": "{{name}}" },
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI ApGeneralConfig.name (1-128). Model is hardware and is not writable."
+    },
+    "renameGateway": {
+      "method": "PATCH",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/gateways/{deviceMac}/general-config",
+      "bodyTemplate": { "name": "{{name}}" },
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI gateway general-config name"
+    },
+    "renameSwitch": {
+      "method": "PATCH",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/switches/{deviceMac}/general-config",
+      "bodyTemplate": { "name": "{{name}}" },
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI switch general-config name"
+    },
+    "forgetDevice": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/devices/{deviceMac}/forget",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI POST devices/{deviceMac}/forget"
+    },
+    "listWlans": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/wireless-network/wlans",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI Get WLAN Group list"
+    },
+    "createWlan": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/wireless-network/wlans",
+      "bodyTemplate": { "name": "{{name}}", "clone": false },
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI Create WLAN Group when a site has none"
+    },
+    "listSsids": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/wireless-network/wlans/{wlanId}/ssids?page=1&pageSize=100",
+      "resultPath": "result.data",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI Get SSID list; band is a bitmask and broadcast false hides the name"
+    },
+    "createSsid": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/wireless-network/wlans/{wlanId}/ssids",
+      "bodyTemplate": "{{payload}}",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI CreateSsidOpenApiVO: name, band bitmask, broadcast, security 0 or 3 with pskSetting.securityKey"
+    },
+    "setPreAuth": {
+      "method": "PATCH",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/setting/access-control",
+      "bodyTemplate": "{{payload}}",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI: PATCH access-control keeps existing policy ids and adds missing URL entries"
+    }
+  }
+}

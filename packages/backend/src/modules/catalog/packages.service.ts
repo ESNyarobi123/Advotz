@@ -77,7 +77,23 @@ export async function createPackage(resellerId: string, actorUserId: string, inp
     // requests both count the same packages and both pass the plan limit.
     await tx.$queryRaw`SELECT id FROM "Reseller" WHERE id = ${resellerId}::uuid FOR UPDATE`;
     const count = await tx.wifiPackage.count({ where: { resellerId, status: "ACTIVE" } });
-    if (count >= ent.maxPackages) forbidden(`Your plan allows ${ent.maxPackages} package(s)`);
+    if (ent.maxPackages !== null && count >= ent.maxPackages) forbidden(`Your plan allows ${ent.maxPackages} package(s)`);
+    // New plans cap packages per site. A package assigned to several sites counts
+    // in each, because that is what the guest sees at each location.
+    if (ent.maxPackagesPerSite !== null) {
+      const sites = [...new Set(input.siteIds)];
+      if (sites.length > 0) {
+        const assigned = await tx.packageSiteAssignment.findMany({
+          where: { siteId: { in: sites }, package: { status: "ACTIVE" } },
+          select: { siteId: true },
+        });
+        const counts = new Map<string, number>();
+        for (const row of assigned) counts.set(row.siteId, (counts.get(row.siteId) ?? 0) + 1);
+        if ([...counts.values()].some((n) => n >= (ent.maxPackagesPerSite as number))) {
+          forbidden(`Your plan allows ${ent.maxPackagesPerSite} package(s) per site`);
+        }
+      }
+    }
     const pkg = await tx.wifiPackage.create({ data: { resellerId, name: input.name } });
     const rev = await tx.packageRevision.create({ data: revisionData(pkg.id, resellerId, 1, input) });
     await tx.wifiPackage.update({ where: { id: pkg.id }, data: { currentRevisionId: rev.id } });

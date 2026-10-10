@@ -9,6 +9,9 @@ PostgreSQL 16 with Prisma 6.19. The schema is `packages/db/prisma/schema.prisma`
 | `20260930041313_ledger_account_types` | Account types `PLATFORM_WITHDRAWAL_FEE_REVENUE` and `RESELLER_PENDING_SETTLEMENT` |
 | `20260930041619_payout_destination_verification` | Payout destination verification fields |
 | `20260930120000_totp_replay_guard` | `User.mfaLastStep`, the last accepted TOTP time step |
+| `20261005082648_plan_feature_control` | `PlatformPlan.features`, draft and publish columns, `SitePortalPreference` |
+| `20261005090128_plan_version_migrations` | Plan version migrations for subscriptions already running |
+| `20261005212225_add_media_asset` | `MediaAsset`: uploaded portal images held as `bytea`, with checksum, dimensions and byte counts |
 
 Apply them with `pnpm db:migrate:deploy`. In Docker, the one-shot `migrate` service runs this before the API starts. `GET /health/ready` reports `database: "unmigrated"` (HTTP 503) when no finished migration is recorded.
 
@@ -27,7 +30,7 @@ Network: `Controller`, `ControllerCapability`, `Site`, `ControllerSiteMapping`, 
 Catalog and sales: `WifiPackage`, `PackageRevision` (immutable price and limit snapshot), `PackageSiteAssignment`, `Customer`, `PortalContext`, `Order`, `PaymentAttempt`, `WebhookInboxEvent`, `VoucherGroup`, `Voucher`.
 Access: `AccessGrant` (the entitlement), `AccessGrantDevice` (the authorization of one MAC under it).
 Money: `CommissionPolicy`, `CommissionAccrual`, `LedgerAccount`, `Journal`, `JournalLine`, `PayoutDestination`, `Withdrawal`, `WithdrawalAllocation`, `PayoutAttempt`.
-Other: `OutboxEvent`, `Notification`, `SupportTicket`, `SupportMessage`.
+Other: `OutboxEvent`, `Notification`, `SupportTicket`, `SupportMessage`, `MediaAsset` (uploaded portal images: optimised `bytea` bytes, sha256 checksum, dimensions, original and stored byte counts).
 
 ## Ledger
 

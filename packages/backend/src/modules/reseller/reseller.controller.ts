@@ -1,9 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, Res, UseGuards } from "@nestjs/common";
 import {
   deviceClaimInputSchema,
+  deviceRenameSchema,
+  deviceRetrySchema,
+  deviceWifiSchema,
+  FEATURE_LOCKED_BY_PLAN,
   payoutDestinationInputSchema,
   renameSchema,
   siteInputSchema,
+  sitePortalPreferenceInputSchema,
   startTrialSchema,
   subscriptionCheckoutSchema,
   supportMessageInputSchema,
@@ -32,11 +37,17 @@ import {
   renameVoucherGroup,
 } from "../catalog/vouchers.service.js";
 import { accountHistory, walletSummary } from "../ledger/ledger.service.js";
-import { createSite, getSite, listDeviceClaims, listDevices, listSites, requestReprovision, submitDeviceClaim, updateSite } from "../network/sites.service.js";
+import { archiveSite, createDeviceWifi, createSite, getSite, listDeviceClaims, listDevices, listSites, removeDevice as forgetResellerDevice, renameDevice as renameResellerDevice, requestReprovision, retryDeviceAdopt, submitDeviceClaim, updateSite } from "../network/sites.service.js";
 import { kickOutbox } from "../outbox/outbox.dispatcher.js";
 import { listPromotionRequests, updatePromotionRequestState } from "../platform/listings.service.js";
 import { resellerCustomers, resellerOrders, resellerOverview } from "../reports/reports.service.js";
 import { checkoutSubscription, getSubscriptionView, listActivePlans, startTrial } from "../subscriptions/subscriptions.service.js";
+import {
+  PreferenceRejected,
+  resolveResellerEntitlements,
+  sitePortalState,
+  updateSitePortalPreferences,
+} from "../subscriptions/entitlements.service.js";
 import { createTicket, listOwnTickets, replyToTicket } from "../support/support.service.js";
 import {
   archiveDestination,
@@ -56,6 +67,19 @@ const promotionStateSchema = z.object({ state: z.enum(["NEW", "CONTACTED", "WON"
 
 function beneficiary(actor: RequestActor): Beneficiary {
   return { type: "RESELLER", id: requireResellerId(actor), userId: actor.id };
+}
+
+/** Turns a policy rejection into the documented 403 with every violated key. */
+function preferenceViolation(error: unknown): never {
+  if (error instanceof PreferenceRejected) {
+    throw new ForbiddenException({
+      code: FEATURE_LOCKED_BY_PLAN,
+      message: error.violations.map((violation) => violation.message).join("; "),
+      // `details` is what the API client surfaces on ApiError.details.
+      details: error.violations,
+    });
+  }
+  throw error;
 }
 
 @Controller("reseller")
@@ -81,6 +105,29 @@ export class ResellerController {
   @Post("subscription/trial")
   trial(@CurrentUser() a: RequestActor, @Body() body: unknown) {
     return startTrial(requireResellerId(a), parse(startTrialSchema, body).planId, a.id);
+  }
+
+  // ── Plan entitlements & portal appearance ──
+  /** Everything the dashboard needs to render controls, locks and their reasons. */
+  @Get("entitlements")
+  entitlements(@CurrentUser() a: RequestActor) {
+    return resolveResellerEntitlements(requireResellerId(a));
+  }
+
+  /** The Captive Portal designer's read model for one site. */
+  @Get("sites/:id/portal-preferences")
+  portalPreferences(@CurrentUser() a: RequestActor, @Param("id") siteId: string) {
+    return sitePortalState(requireResellerId(a), id(siteId));
+  }
+
+  @Patch("sites/:id/portal-preferences")
+  async updatePortalPreferences(@CurrentUser() a: RequestActor, @Param("id") siteId: string, @Body() body: unknown) {
+    const input = parse(sitePortalPreferenceInputSchema, body);
+    try {
+      return await updateSitePortalPreferences(requireResellerId(a), a.id, id(siteId), input);
+    } catch (error) {
+      preferenceViolation(error);
+    }
   }
 
   @Post("subscription/checkout")
@@ -116,6 +163,11 @@ export class ResellerController {
     return updateSite(requireResellerId(a), id(siteId), parse(siteInputSchema.partial(), body));
   }
 
+  @Delete("sites/:id")
+  deleteSite(@CurrentUser() a: RequestActor, @Param("id") siteId: string) {
+    return archiveSite(requireResellerId(a), a.id, id(siteId));
+  }
+
   @Post("sites/:id/reprovision")
   async reprovision(@CurrentUser() a: RequestActor, @Param("id") siteId: string) {
     const op = await requestReprovision(requireResellerId(a), id(siteId));
@@ -126,6 +178,26 @@ export class ResellerController {
   @Get("devices")
   devices(@CurrentUser() a: RequestActor) {
     return listDevices(requireResellerId(a));
+  }
+
+  @Post("devices/:id/rename")
+  renameDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string, @Body() body: unknown) {
+    return renameResellerDevice(requireResellerId(a), a.id, id(deviceId), parse(deviceRenameSchema, body));
+  }
+
+  @Post("devices/:id/retry")
+  retryAdopt(@CurrentUser() a: RequestActor, @Param("id") deviceId: string, @Body() body: unknown) {
+    return retryDeviceAdopt(requireResellerId(a), id(deviceId), parse(deviceRetrySchema, body));
+  }
+
+  @Delete("devices/:id")
+  removeDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string) {
+    return forgetResellerDevice(requireResellerId(a), a.id, id(deviceId));
+  }
+
+  @Post("devices/:id/wifi")
+  addWifi(@CurrentUser() a: RequestActor, @Param("id") deviceId: string, @Body() body: unknown) {
+    return createDeviceWifi(requireResellerId(a), id(deviceId), parse(deviceWifiSchema, body));
   }
 
   @Get("device-claims")

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ChangeEventHandler, ReactNode } from "react";
 import { Button, Card, Input, Label, Skeleton, TextArea } from "@heroui/react";
 import { AdvoSelect, Notice, SoftIcon, type IconTone } from "@advo/ui";
 import { ApiError } from "@/lib/api";
@@ -169,6 +169,11 @@ type FieldProps = {
   max?: number;
   step?: number;
   pattern?: string;
+  /** Caps typed length; the backend still validates the value itself. */
+  maxLength?: number;
+  /** Controlled value/change pair for fields that live in React state. */
+  value?: string | number;
+  onChange?: ChangeEventHandler<HTMLInputElement>;
   /** Id of a `<datalist>` rendered next to the field for suggestions. */
   list?: string;
 };

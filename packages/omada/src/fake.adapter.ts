@@ -1,19 +1,26 @@
 import { CAPABILITY_OPERATIONS, unsupported, type CapabilityResult, type ControllerCapabilities } from "./capabilities.js";
 import {
   normalizeMac,
+  omadaMac,
   type AuthorizationObservation,
   type AuthorizationResult,
   type ClientAuthorizationInput,
   type ClientLocator,
+  type CreateWifiInput,
+  type DesiredPortalInput,
   type ControllerInspection,
   type CreateSiteInput,
+  type ForgetDeviceInput,
   type OmadaControllerAdapter,
   type RemoteClient,
   type RemoteDevice,
   type RemoteOperationResult,
+  type RemoteWifi,
+  type RenameDeviceInput,
   type RemoteSiteLocator,
   type RemoteSiteResult,
   type UsageObservation,
+  type VerifiedAdoptionInput,
 } from "./controller-adapter.js";
 import { ControllerError, UnsupportedCapabilityError } from "./errors.js";
 
@@ -31,9 +38,12 @@ function simulated(): CapabilityResult {
 type FakeState = {
   sites: Map<string, RemoteSiteResult>;
   auth: Map<string, AuthorizationObservation>;
+  portals: Map<string, string>;
+  devices: Map<string, RemoteDevice & { remoteSiteId: string }>;
+  wifi: Map<string, RemoteWifi[]>;
 };
 
-const sharedState: FakeState = { sites: new Map(), auth: new Map() };
+const sharedState: FakeState = { sites: new Map(), auth: new Map(), portals: new Map(), devices: new Map(), wifi: new Map() };
 
 /**
  * Development simulation. It never touches hardware and cannot prove Controller behaviour.
@@ -47,6 +57,9 @@ export class FakeOmadaAdapter implements OmadaControllerAdapter {
   static resetSharedState() {
     sharedState.sites.clear();
     sharedState.auth.clear();
+    sharedState.portals.clear();
+    sharedState.devices.clear();
+    sharedState.wifi.clear();
   }
 
   async inspectController(): Promise<ControllerInspection> {
@@ -55,9 +68,9 @@ export class FakeOmadaAdapter implements OmadaControllerAdapter {
 
   async getCapabilities(): Promise<ControllerCapabilities> {
     const caps = Object.fromEntries(CAPABILITY_OPERATIONS.map((op) => [op, simulated()])) as ControllerCapabilities;
-    caps.adoptDevice = unsupported("Adoption requires a real Controller and EAP");
+    caps.adoptDevice = simulated();
     caps.provisionSsid = unsupported("SSID provisioning requires the Controller's verified API");
-    caps.configureExternalPortal = unsupported("Portal assignment requires the Controller's verified API");
+    caps.configureExternalPortal = simulated();
     caps.readUsage = unsupported("Usage counters require lab evidence");
     caps.totalTrafficQuota = unsupported("Quota enforcement requires lab evidence");
     caps.dailyMonthlyQuotaWindows = unsupported("No verified reset mechanism");
@@ -85,12 +98,69 @@ export class FakeOmadaAdapter implements OmadaControllerAdapter {
     return site;
   }
 
-  async listDevices(): Promise<RemoteDevice[]> {
-    return [];
+  async listDevices(input: RemoteSiteLocator): Promise<RemoteDevice[]> {
+    return [...this.state.devices.values()]
+      .filter((device) => device.remoteSiteId === input.remoteSiteId)
+      .map(({ remoteSiteId: _remoteSiteId, ...device }) => device);
   }
 
-  async adoptDevice(): Promise<RemoteOperationResult> {
-    return { ok: false, unsupported: true, reason: "Adoption requires a real Controller and EAP" };
+  async adoptDevice(input: VerifiedAdoptionInput): Promise<RemoteOperationResult> {
+    const username = input.deviceUsername?.trim();
+    const password = input.devicePassword ?? "";
+    if (!username || !password) {
+      return { ok: false, reason: "Failed to adopt the device because the username or password is incorrect" };
+    }
+    if (password === "wrong-password") {
+      return { ok: false, reason: "Failed to adopt the device because the username or password is incorrect" };
+    }
+    const mac = normalizeMac(input.mac);
+    if (!mac) return { ok: false, reason: "Invalid MAC address" };
+    this.state.devices.set(`${input.remoteSiteId}|${mac}`, {
+      remoteSiteId: input.remoteSiteId,
+      mac: omadaMac(mac),
+      presence: "active",
+      status: "active",
+      model: "EAP225",
+      kind: "ap",
+    });
+    return { ok: true };
+  }
+
+  async renameDevice(input: RenameDeviceInput): Promise<RemoteOperationResult> {
+    const mac = normalizeMac(input.mac);
+    if (!mac) return { ok: false, reason: "Invalid MAC address" };
+    const key = `${input.remoteSiteId}|${mac}`;
+    const device = this.state.devices.get(key);
+    if (device) this.state.devices.set(key, { ...device, name: input.name });
+    return { ok: true };
+  }
+
+  async forgetDevice(input: ForgetDeviceInput): Promise<RemoteOperationResult> {
+    const mac = normalizeMac(input.mac);
+    if (!mac) return { ok: false, reason: "Invalid MAC address" };
+    this.state.devices.delete(`${input.remoteSiteId}|${mac}`);
+    return { ok: true };
+  }
+
+  async listSsids(input: RemoteSiteLocator): Promise<RemoteWifi[]> {
+    return [...(this.state.wifi.get(input.remoteSiteId) ?? [])];
+  }
+
+  async createWifi(input: CreateWifiInput): Promise<RemoteWifi> {
+    const password = input.password?.trim() ?? "";
+    if (password && (password.length < 8 || password.length > 63)) {
+      throw new ControllerError("WiFi password must be 8 to 63 characters", "rejected", false);
+    }
+    const network: RemoteWifi = {
+      id: `fake-ssid-${this.state.wifi.get(input.remoteSiteId)?.length ?? 0}`,
+      name: input.name,
+      band: input.band,
+      hidden: input.hidden,
+      secured: password.length > 0,
+    };
+    const current = this.state.wifi.get(input.remoteSiteId) ?? [];
+    this.state.wifi.set(input.remoteSiteId, [...current, network]);
+    return network;
   }
 
   async listClients(): Promise<RemoteClient[]> {
@@ -101,8 +171,9 @@ export class FakeOmadaAdapter implements OmadaControllerAdapter {
     return { ok: false, unsupported: true, reason: "SSID provisioning unverified" };
   }
 
-  async configureExternalPortal(): Promise<RemoteOperationResult> {
-    return { ok: false, unsupported: true, reason: "External portal assignment unverified" };
+  async configureExternalPortal(input: DesiredPortalInput): Promise<RemoteOperationResult> {
+    this.state.portals.set(input.remoteSiteId, input.portalUrl);
+    return { ok: true, rawSanitized: { serverUrl: input.portalUrl } };
   }
 
   async authorizeClient(input: ClientAuthorizationInput): Promise<AuthorizationResult> {

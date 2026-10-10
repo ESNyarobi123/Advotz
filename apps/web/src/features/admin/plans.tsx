@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatDateTime, formatTzs } from "@advo/api-client";
+import type { PlanFeatures, PlanLifecycle, CommercialPromise } from "@advo/contracts";
 import { useOverlayState } from "@heroui/react";
 import { Button, Card, Input, Label, Modal } from "@heroui/react";
 import { AdvoKpi, Notice, SoftIcon, StatusChip } from "@advo/ui";
@@ -17,7 +18,9 @@ import {
   Pencil,
   Plus,
   Receipt,
+  Rocket,
   Search,
+  ShieldCheck,
   Sparkles,
   Tag,
   Trash2,
@@ -27,6 +30,8 @@ import {
 } from "lucide-react";
 import { Field, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { ReasonDialog } from "@/features/common/reason-dialog";
+import { PlanFeatureEditor, planDraftFrom, planIssues, type PlanDraft } from "@/features/admin/plan-features";
+import { PlanMigrationList, PlanMigrationModal } from "@/features/admin/plan-migrations";
 import { api } from "@/lib/api";
 import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
@@ -43,6 +48,7 @@ export type PlanRow = {
   code: string;
   version: number;
   name: string;
+  description: string;
   priceTzs: string;
   periodDays: number;
   trialEligible: boolean;
@@ -53,6 +59,11 @@ export type PlanRow = {
   active: boolean;
   isDemo: boolean;
   createdAt: string;
+  /** The feature catalog values this version grants. */
+  features: PlanFeatures;
+  /** Draft versions exist but are never served to a guest. */
+  lifecycle: PlanLifecycle;
+  commercialPromise: CommercialPromise;
   subscriptions: number;
   paidInvoiceCount: number;
   paidRevenueTzs: string;
@@ -97,7 +108,9 @@ export function AdminPlansScreen() {
   const [filter, setFilter] = useState<FilterKey>("all");
   /** `undefined` = closed, `null` = creating, a row = editing that row. */
   const [formTarget, setFormTarget] = useState<PlanRow | null | undefined>(undefined);
-  const [reasonTarget, setReasonTarget] = useState<{ kind: "archive" | "reactivate" | "delete"; plan: PlanRow } | null>(null);
+  const [reasonTarget, setReasonTarget] = useState<{ kind: "archive" | "reactivate" | "delete" | "publish"; plan: PlanRow } | null>(null);
+  /** The published version a migration would move subscribers onto. */
+  const [migrationTarget, setMigrationTarget] = useState<PlanRow | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
 
   const rows = plans.data ?? [];
@@ -310,6 +323,7 @@ export function AdminPlansScreen() {
                   family={family}
                   key={family.code}
                   onEdit={setFormTarget}
+                  onMigrate={setMigrationTarget}
                   onReason={(kind, plan) => setReasonTarget({ kind, plan })}
                 />
               ))}
@@ -330,6 +344,14 @@ export function AdminPlansScreen() {
         onDone={afterChange}
         target={reasonTarget}
       />
+
+      <PlanMigrationModal
+        onClose={() => setMigrationTarget(null)}
+        onScheduled={(message) => void afterChange(message)}
+        open={migrationTarget !== null}
+        planId={migrationTarget?.id ?? null}
+        planLabel={migrationTarget ? `${migrationTarget.name} v${migrationTarget.version}` : ""}
+      />
     </div>
   );
 }
@@ -340,17 +362,23 @@ export function AdminPlansScreen() {
 function PlanFamilyCard({
   family,
   onEdit,
+  onMigrate,
   onReason,
 }: {
   family: PlanFamily;
   onEdit: (plan: PlanRow) => void;
-  onReason: (kind: "archive" | "reactivate" | "delete", plan: PlanRow) => void;
+  onMigrate: (plan: PlanRow) => void;
+  onReason: (kind: "archive" | "reactivate" | "delete" | "publish", plan: PlanRow) => void;
 }) {
   const { t } = useI18n();
   const [historyOpen, setHistoryOpen] = useState(false);
   const plan = family.current;
   const older = family.older;
   const blocked = references(plan) > 0;
+  // A draft is not on sale yet, so publishing is the only action that matters and
+  // the same feature validator the backend runs decides whether it may go live.
+  const isDraft = plan.lifecycle === "DRAFT";
+  const issues = planIssues(plan.features, plan.commercialPromise);
 
   return (
     <Card className="group gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-advo-lift">
@@ -363,6 +391,9 @@ function PlanFamilyCard({
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="truncate text-base font-black tracking-tight text-advo-text">{plan.name}</h3>
               {plan.isDemo ? <StatusChip tone="warning">{t("admin.plans.badge.demo")}</StatusChip> : null}
+              {plan.commercialPromise === "ad_free" ? (
+                <StatusChip tone="accent">{t("admin.plans.promise.ad_free")}</StatusChip>
+              ) : null}
             </div>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-advo-muted">
               <span className="font-mono font-bold">{plan.code}</span>
@@ -377,8 +408,12 @@ function PlanFamilyCard({
             </p>
           </div>
         </div>
-        <StatusChip tone={plan.active ? "success" : "default"} size="md">
-          {plan.active ? t("admin.plans.badge.active") : t("admin.plans.badge.archived")}
+        <StatusChip tone={isDraft ? "warning" : plan.active ? "success" : "default"} size="md">
+          {isDraft
+            ? t("admin.plans.badge.draft")
+            : plan.active
+              ? t("admin.plans.badge.published")
+              : t("admin.plans.badge.archived")}
         </StatusChip>
       </div>
 
@@ -423,10 +458,31 @@ function PlanFamilyCard({
 
       {/* ── Actions ── */}
       <div className="flex flex-wrap items-center gap-2 border-t border-[var(--advo-border)] pt-3.5">
-        <Button onPress={() => onEdit(plan)} size="sm" type="button" variant="primary">
+        {isDraft ? (
+          <Button
+            isDisabled={issues.length > 0}
+            onPress={() => onReason("publish", plan)}
+            size="sm"
+            type="button"
+            variant="primary"
+          >
+            <Rocket className="size-3.5" />
+            {t("admin.plans.action.publish")}
+          </Button>
+        ) : null}
+        <Button onPress={() => onEdit(plan)} size="sm" type="button" variant={isDraft ? "outline" : "primary"}>
           <Pencil className="size-3.5" />
           {t("admin.plans.action.edit")}
         </Button>
+        {/* Publishing is not enough on its own: existing subscribers only move
+            through a scoped, dated migration. Only a published version can be
+            a migration target, so a draft gets no such button. */}
+        {!isDraft ? (
+          <Button onPress={() => onMigrate(plan)} size="sm" type="button" variant="outline">
+            <CalendarClock className="size-3.5" />
+            {t("admin.plans.migration.action")}
+          </Button>
+        ) : null}
         <Button
           onPress={() => onReason(plan.active ? "archive" : "reactivate", plan)}
           size="sm"
@@ -453,6 +509,24 @@ function PlanFamilyCard({
         <p className="flex items-start gap-1.5 rounded-lg bg-advo-warning-soft px-3 py-2 text-[11px] font-semibold text-[#b45309]">
           <TriangleAlert className="mt-0.5 size-3 shrink-0" />
           {t("admin.plans.deleteBlocked", { count: references(plan) })}
+        </p>
+      ) : null}
+
+      {/* A draft that cannot be published says why, before the admin tries. */}
+      {isDraft && issues.length > 0 ? (
+        <p className="flex items-start gap-1.5 rounded-lg bg-advo-danger-soft px-3 py-2 text-[11px] font-semibold text-[#b91c1c]">
+          <TriangleAlert className="mt-0.5 size-3 shrink-0" />
+          <span>
+            {t("admin.plans.issues.title", { count: issues.length })}: {issues.map((issue) => issue.key).join(", ")}
+          </span>
+        </p>
+      ) : null}
+
+      {/* The promise is a contract, so the card states whether it currently holds. */}
+      {plan.commercialPromise === "ad_free" && issues.length === 0 ? (
+        <p className="flex items-start gap-1.5 rounded-lg bg-advo-success-soft px-3 py-2 text-[11px] font-semibold text-emerald-700">
+          <ShieldCheck className="mt-0.5 size-3 shrink-0" />
+          {t("admin.plans.adFreeOk")}
         </p>
       ) : null}
 
@@ -488,6 +562,9 @@ function PlanFamilyCard({
           ) : null}
         </div>
       ) : null}
+
+      {/* ── Migrations recorded for this code ── */}
+      {!isDraft ? <PlanMigrationList planId={plan.id} /> : null}
     </Card>
   );
 }
@@ -498,7 +575,7 @@ function VersionRow({
   onReason,
 }: {
   version: PlanRow;
-  onReason: (kind: "archive" | "reactivate" | "delete", plan: PlanRow) => void;
+  onReason: (kind: "archive" | "reactivate" | "delete" | "publish", plan: PlanRow) => void;
 }) {
   const { t } = useI18n();
   const blocked = references(version) > 0;
@@ -526,11 +603,20 @@ function VersionRow({
           ) : null}
         </p>
       </div>
-      <StatusChip tone={version.active ? "success" : "default"}>
-        {version.active ? t("admin.plans.badge.active") : t("admin.plans.badge.archived")}
+      <StatusChip tone={version.lifecycle === "DRAFT" ? "warning" : version.active ? "success" : "default"}>
+        {version.lifecycle === "DRAFT"
+          ? t("admin.plans.badge.draft")
+          : version.active
+            ? t("admin.plans.badge.published")
+            : t("admin.plans.badge.archived")}
       </StatusChip>
       <div className="flex items-center gap-1.5">
-        {!version.active ? (
+        {version.lifecycle === "DRAFT" ? (
+          <Button onPress={() => onReason("publish", version)} size="sm" type="button" variant="ghost">
+            <Rocket className="size-3.5" />
+            {t("admin.plans.action.publish")}
+          </Button>
+        ) : !version.active ? (
           <Button onPress={() => onReason("reactivate", version)} size="sm" type="button" variant="ghost">
             <Sparkles className="size-3.5" />
             {t("admin.plans.action.reactivate")}
@@ -601,20 +687,30 @@ function PlanFormModal({
   const { t } = useI18n();
   const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
   const [done, setDone] = useState(false);
+  /**
+   * The plan version's feature configuration, held as one draft.
+   *
+   * It is state rather than form fields because it is nested JSON: the feature
+   * editor writes whole objects (`setPlacement`), which `FormData` cannot express.
+   */
+  const [draft, setDraft] = useState<PlanDraft>(() => planDraftFrom(plan));
 
   const save = useAction(async (form: HTMLFormElement) => {
     const v = formValues(form);
     const payload = {
       code: v.code.toLowerCase(),
       name: v.name,
+      description: v.description ?? "",
       priceTzs: v.priceTzs,
       periodDays: toInt(v.periodDays),
       trialEligible: v.trialEligible === "true",
       trialDays: toInt(v.trialDays),
-      maxSites: toInt(v.maxSites),
-      maxDevices: toInt(v.maxDevices),
-      maxPackages: toInt(v.maxPackages),
       isDemo: v.isDemo === "true",
+      // The feature payload owns the limits, so the legacy columns are left out
+      // and cannot drift away from what the portal actually enforces.
+      features: draft.features,
+      commercialPromise: draft.commercialPromise,
+      lifecycle: draft.lifecycle,
     };
     if (plan) {
       await api.put(`/admin/plans/${plan.id}`, payload);
@@ -628,13 +724,17 @@ function PlanFormModal({
   });
 
   const resetError = save.setError;
-  // Reopening must not show the previous run's result or error.
+  const planId = plan?.id;
+  // Reopening (or switching plan) must not show the previous run's result, error
+  // or feature draft. Keyed on the id so a background reload cannot clobber an edit.
   useEffect(() => {
     if (open) {
       setDone(false);
       resetError(null);
+      setDraft(planDraftFrom(plan));
     }
-  }, [open, resetError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, planId, resetError]);
 
   function close() {
     setDone(false);
@@ -701,6 +801,15 @@ function PlanFormModal({
                         placeholder={t("admin.plans.form.namePlaceholder")}
                         required
                       />
+                      <div className="sm:col-span-2">
+                        <Field
+                          defaultValue={plan?.description ?? ""}
+                          hint={t("admin.plans.form.descriptionHint")}
+                          label={t("admin.plans.form.descriptionLabel")}
+                          maxLength={200}
+                          name="description"
+                        />
+                      </div>
                     </div>
                   </FormSection>
 
@@ -729,14 +838,17 @@ function PlanFormModal({
                     </div>
                   </FormSection>
 
-                  {/* Limits */}
-                  <FormSection icon={<Gauge />} title={t("admin.plans.form.section.limits")}>
-                    <div className="grid gap-4 sm:grid-cols-3">
-                      <Field defaultValue={plan?.maxSites} label={t("admin.plans.form.maxSites")} min={1} name="maxSites" required type="number" />
-                      <Field defaultValue={plan?.maxDevices} label={t("admin.plans.form.maxDevices")} min={1} name="maxDevices" required type="number" />
-                      <Field defaultValue={plan?.maxPackages} label={t("admin.plans.form.maxPackages")} min={1} name="maxPackages" required type="number" />
-                    </div>
-                  </FormSection>
+                  {/* Features & policy — the keys the portal actually obeys. The editor
+                      brings its own titled groups, so it is not nested in another. */}
+                  <div className="space-y-3 border-t border-[var(--advo-border)] pt-5">
+                    <h3 className="flex items-center gap-2 text-sm font-black tracking-tight text-advo-text">
+                      <span className="grid size-6 place-items-center rounded-lg bg-advo-blue-soft text-advo-blue [&_svg]:size-3.5">
+                        <Gauge />
+                      </span>
+                      {t("admin.plans.form.section.features")}
+                    </h3>
+                    <PlanFeatureEditor draft={draft} onChange={setDraft} />
+                  </div>
 
                   {/* Trial & classification */}
                   <FormSection icon={<Sparkles />} title={t("admin.plans.form.section.trial")}>
@@ -824,7 +936,7 @@ function PlanReasonDialog({
   onClose,
   onDone,
 }: {
-  target: { kind: "archive" | "reactivate" | "delete"; plan: PlanRow } | null;
+  target: { kind: "archive" | "reactivate" | "delete" | "publish"; plan: PlanRow } | null;
   onClose: () => void;
   onDone: (message: string) => Promise<void> | void;
 }) {
@@ -832,13 +944,15 @@ function PlanReasonDialog({
   const plan = target?.plan;
   const name = plan?.name ?? "";
 
-  // The verb doubles as the flash message, so the three actions cannot drift apart.
+  // The verb doubles as the flash message, so the four actions cannot drift apart.
   const verb =
     target?.kind === "delete"
       ? t("admin.plans.action.delete")
       : target?.kind === "reactivate"
         ? t("admin.plans.action.reactivate")
-        : t("admin.plans.action.archive");
+        : target?.kind === "publish"
+          ? t("admin.plans.action.publish")
+          : t("admin.plans.action.archive");
 
   return (
     <ReasonDialog
@@ -848,13 +962,17 @@ function PlanReasonDialog({
             ? t("admin.plans.dialog.deleteTitle", { name })
             : target?.kind === "reactivate"
               ? t("admin.plans.dialog.reactivateTitle", { name })
-              : t("admin.plans.dialog.archiveTitle", { name }),
+              : target?.kind === "publish"
+                ? t("admin.plans.dialog.publishTitle", { name })
+                : t("admin.plans.dialog.archiveTitle", { name }),
         note:
           target?.kind === "delete"
             ? t("admin.plans.dialog.deleteNote")
             : target?.kind === "reactivate"
               ? t("admin.plans.dialog.reactivateNote")
-              : t("admin.plans.dialog.archiveNote"),
+              : target?.kind === "publish"
+                ? t("admin.plans.dialog.publishNote")
+                : t("admin.plans.dialog.archiveNote"),
         reasonLabel: t("admin.plans.dialog.reason"),
         reasonPlaceholder: t("admin.plans.dialog.reasonPlaceholder"),
         reasonHint: t("admin.plans.dialog.reasonHint"),
@@ -871,6 +989,12 @@ function PlanReasonDialog({
             method: "DELETE",
             body: JSON.stringify({ reason }),
           });
+        } else if (target.kind === "publish") {
+          // Publishing runs the same feature validator server-side; a refused publish
+          // throws before anything becomes sellable.
+          await api.post(`/admin/plans/${plan.id}/publish`, { reason });
+          await onDone(t("admin.plans.publishSuccess", { name: plan.name, version: plan.version }));
+          return;
         } else {
           await api.post(`/admin/plans/${plan.id}/active`, {
             active: target.kind === "reactivate",

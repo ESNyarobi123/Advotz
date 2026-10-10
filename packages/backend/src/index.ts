@@ -4,13 +4,16 @@ import { AuthModule } from "./modules/auth/auth.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { AdminController } from "./modules/admin/admin.controller.js";
 import { AgentController } from "./modules/agent/agent.controller.js";
+import { MarketingController } from "./modules/marketing/marketing.controller.js";
 import { DevSimulationController, WebhookController } from "./modules/payments/webhook.controller.js";
+import { MediaController } from "./modules/media/media.controller.js";
+import { ResellerMediaController } from "./modules/media/reseller-media.controller.js";
 import { PortalController } from "./modules/portal/portal.controller.js";
 import { ResellerController } from "./modules/reseller/reseller.controller.js";
 
 @Module({
   imports: [AuthModule],
-  controllers: [AdminController, ResellerController, AgentController, PortalController, WebhookController, DevSimulationController],
+  controllers: [AdminController, ResellerController, ResellerMediaController, AgentController, PortalController, MarketingController, MediaController, WebhookController, DevSimulationController],
 })
 export class DomainHttpModule {}
 
@@ -48,3 +51,5 @@ export { runSweepers } from "./modules/outbox/sweepers.js";
 export { closeRateLimiter } from "./common/rate-limit.js";
 export { isProduction } from "./common/providers.js";
 export { seedDemo } from "./demo/seed-demo.js";
+export { refreshStarterPlans, seedPlans } from "./demo/seed-plans.js";
+export { MAX_UPLOAD_BYTES as MAX_MEDIA_UPLOAD_BYTES } from "./modules/media/media.service.js";

@@ -21,6 +21,14 @@ export const snippeWebhookEnvelopeSchema = z.object({
         .object({ gross: money, fees: money, net: money })
         .optional(),
       fees: money.optional(),
+      /**
+       * The paying account holder, as the mobile-money provider reports them.
+       *
+       * Deliberately `unknown`: the portal collects no name, so this is the only
+       * real name we ever learn for a guest, but it is a nicety. A stricter shape
+       * here could fail validation and quarantine a genuine payment event.
+       */
+      customer: z.unknown().optional(),
       failure_reason: z.string().optional(),
       metadata: z.record(z.string(), z.unknown()).optional(),
       completed_at: z.string().optional(),

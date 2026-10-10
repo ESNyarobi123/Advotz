@@ -1,8 +1,14 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import type { PortalTheme } from "@advo/contracts";
-import type { CSSProperties, ReactNode } from "react";
+import { portalBackgroundStyle, portalThemeStyle } from "@advo/ui";
+import { LOCALE_META, type Locale } from "@advo/i18n";
+import { DEFAULT_PORTAL_THEME, type PortalPreviewAppearance, type PortalTheme } from "@advo/contracts";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  PortalPreviewProvider,
+  usePortalPreviewAppearance,
+} from "@/lib/portal-preview";
 
 /**
  * Guest-portal shell: mobile-first container, header with the business name
@@ -11,7 +17,10 @@ import type { CSSProperties, ReactNode } from "react";
  * from `@advo/ui`'s `Notice`.
  *
  * The Reseller's Captive Portal theme (colors, radius) is applied here as CSS
- * variables so both our classes and HeroUI components pick it up.
+ * variables so both our classes and HeroUI components pick it up. The portal's
+ * own design tokens are themed by `portalThemeStyle` from `@advo/ui`, which is
+ * the same function the reseller designer's preview uses — so the preview and
+ * the live portal cannot drift apart.
  */
 export function portalThemeVars(theme?: PortalTheme): CSSProperties {
   if (!theme) return {};
@@ -20,13 +29,9 @@ export function portalThemeVars(theme?: PortalTheme): CSSProperties {
       ? `linear-gradient(135deg, ${theme.primary} 0%, ${theme.accent} 100%)`
       : theme.primary;
   return {
-    // Advo tokens used directly by portal classes.
-    ["--advo-blue" as string]: theme.primary,
+    ...portalThemeStyle(theme),
     ["--advo-blue-hover" as string]: theme.primary,
-    ["--advo-page" as string]: theme.background,
     ["--advo-card" as string]: theme.surface,
-    ["--advo-text" as string]: theme.text,
-    ["--advo-brand-gradient" as string]: gradient,
     // HeroUI tokens so its inputs, cards and primary buttons follow the theme.
     ["--accent" as string]: theme.primary,
     ["--accent-foreground" as string]: "#ffffff",
@@ -40,44 +45,180 @@ export function portalThemeVars(theme?: PortalTheme): CSSProperties {
     ["--field-foreground" as string]: theme.text,
     ["--radius" as string]: `${theme.radius}px`,
     ["--field-radius" as string]: `${theme.radius}px`,
+    ["--advo-brand-gradient" as string]: gradient,
     background: theme.background,
     color: theme.text,
   };
 }
 
-export function PortalFrame({
-  title,
-  business,
-  theme,
-  onToggleLanguage,
-  languageLabel,
-  children,
-}: {
+type PortalFrameProps = {
   title: string;
   business?: string;
+  /** Plan-resolved brand logo; the reseller's icon mark is used when absent. */
+  logoUrl?: string | null;
+  /** Plan-resolved background photo; the page colour is used when absent. */
+  backgroundUrl?: string | null;
   theme?: PortalTheme;
+  /** `false` on a plan whose badge may be removed and whose reseller removed it. */
+  showPlatformBadge?: boolean;
+  /** `true` to render the guest's language control. Defaults to false (reseller-managed). */
+  showLanguageSwitcher?: boolean;
+  /** The language in force. Provided, the header renders the two-way switcher. */
+  locale?: Locale;
   onToggleLanguage: () => void;
+  /** Preferred over `onToggleLanguage`: lets the guest pick either language. */
+  onSelectLanguage?: (next: Locale) => void;
   languageLabel: string;
+  banner?: ReactNode;
   children: ReactNode;
-}) {
+};
+
+/**
+ * The guest-portal shell, and the one place the designer's draft appearance is
+ * applied.
+ *
+ * The frame hosts `PortalPreviewProvider`, so both its own colours and the
+ * package cards below it read the same override — a reseller dragging a colour
+ * and a reseller dragging a card style see them change together.
+ */
+export function PortalFrame(props: PortalFrameProps) {
+  // `?preview=1` is the designer's own marker. Read after mount because the
+  // search string does not exist while this renders on the server.
+  const [preview, setPreview] = useState(false);
+  useEffect(() => {
+    setPreview(new URLSearchParams(window.location.search).get("preview") === "1");
+  }, []);
+
   return (
-    <main
-      className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-6"
-      style={portalThemeVars(theme)}
+    <PortalPreviewProvider enabled={preview}>
+      <PortalFrameShell {...props} />
+    </PortalPreviewProvider>
+  );
+}
+
+/** Layers the designer's draft colours, photo, logo and badge over the saved ones. */
+function mergePreviewTheme(
+  theme: PortalTheme | undefined,
+  appearance: PortalPreviewAppearance | null,
+): PortalTheme | undefined {
+  const colors = appearance?.colors;
+  if (!colors) return theme;
+  const base = theme ?? DEFAULT_PORTAL_THEME;
+  return {
+    ...base,
+    ...(colors.primary ? { primary: colors.primary } : {}),
+    ...(colors.accent ? { accent: colors.accent } : {}),
+    ...(colors.background ? { background: colors.background } : {}),
+    ...(colors.preset ? { preset: colors.preset } : {}),
+  };
+}
+
+function PortalFrameShell({
+  title,
+  business,
+  logoUrl,
+  backgroundUrl,
+  theme,
+  showPlatformBadge = true,
+  showLanguageSwitcher = false,
+  locale,
+  onToggleLanguage,
+  onSelectLanguage,
+  languageLabel,
+  banner,
+  children,
+}: PortalFrameProps) {
+  const appearance = usePortalPreviewAppearance();
+  const themed = useMemo(() => mergePreviewTheme(theme, appearance), [theme, appearance]);
+  // `undefined` means the designer did not send this field, which is not the same
+  // as sending `null`: absent leaves the saved value, `null` clears it.
+  const photo = appearance?.backgroundUrl === undefined ? backgroundUrl : appearance.backgroundUrl;
+  const mark = appearance?.logoUrl === undefined ? logoUrl : appearance.logoUrl;
+  const badge = appearance?.showPlatformBadge ?? showPlatformBadge;
+
+  const bgStyle = portalBackgroundStyle(photo);
+  const themeVars = portalThemeVars(themed);
+
+  return (
+    // `@container` lets the shared portal components (`PortalPackageCard`,
+    // `PortalBanner`, `PortalDiscoverLinks`) respond to the portal's own width
+    // instead of the viewport, exactly as they do inside the marketing mockup.
+    <div
+      className="relative min-h-screen w-full transition-all duration-300"
+      style={{ ...themeVars, ...bgStyle }}
     >
-      <header className="mb-5 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground" style={{ color: "var(--advo-text)" }}>
+      <main
+        className={`@container mx-auto flex min-h-screen max-w-md flex-col px-4 py-5 ${
+          photo ? "backdrop-blur-[1px]" : ""
+        }`}
+      >
+        {banner ? <div className="mb-4">{banner}</div> : null}
+
+        <header className="mb-2 flex flex-col items-center justify-center text-center">
+          {mark ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt=""
+              className="mb-2 size-12 shrink-0 rounded-2xl object-cover shadow-sm ring-1 ring-black/5"
+              src={mark}
+            />
+          ) : null}
+          <h1
+            className="text-2xl font-black tracking-tight text-foreground"
+            style={{ color: "var(--advo-text)" }}
+          >
             {title}
           </h1>
-          {business ? <p className="text-sm text-muted">{business}</p> : null}
-        </div>
-        <Button size="sm" variant="outline" onPress={onToggleLanguage}>
-          {languageLabel}
-        </Button>
-      </header>
-      {children}
-      <footer className="mt-auto pt-8 text-center text-xs text-muted">Advo TZ</footer>
-    </main>
+          {showLanguageSwitcher ? (
+            <div className="mt-2">
+              {locale && onSelectLanguage ? (
+                <LanguageSwitcher locale={locale} onSelect={onSelectLanguage} />
+              ) : (
+                <Button size="sm" variant="outline" onPress={onToggleLanguage}>
+                  {languageLabel}
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </header>
+        {children}
+        {badge ? <footer className="mt-auto pt-8 text-center text-xs font-semibold text-muted">Advo TZ</footer> : null}
+      </main>
+    </div>
+  );
+}
+
+/**
+ * The guest's language control: two named options, never a single mystery toggle.
+ *
+ * A lone "Lugha" button asks a guest to guess what pressing it does and gives no
+ * sign of what they will get. Naming both languages — and highlighting the one in
+ * force — turns it into a choice they can read at a glance, which matters most on
+ * the one screen a first-time visitor has never seen before.
+ */
+function LanguageSwitcher({ locale, onSelect }: { locale: Locale; onSelect: (next: Locale) => void }) {
+  return (
+    <div
+      aria-label={LOCALE_META[locale].englishName}
+      className="flex shrink-0 items-center gap-0.5 rounded-full border border-[var(--advo-portal-line)] bg-white/90 p-0.5"
+      role="group"
+    >
+      {(Object.keys(LOCALE_META) as Locale[]).map((code) => {
+        const active = code === locale;
+        return (
+          <button
+            aria-pressed={active}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+              active ? "bg-[var(--advo-blue)] text-white" : "text-[var(--advo-portal-muted)] hover:text-[var(--advo-blue)]"
+            }`}
+            key={code}
+            onClick={() => onSelect(code)}
+            type="button"
+          >
+            {code.toUpperCase()}
+          </button>
+        );
+      })}
+    </div>
   );
 }

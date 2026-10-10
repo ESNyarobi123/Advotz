@@ -12,7 +12,8 @@
     "test": "vitest run --passWithNoTests",
     "admin:bootstrap": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/admin-bootstrap.ts",
     "smoke": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/smoke-e2e.ts",
-    "seed:demo": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/seed-demo.ts"
+    "seed:demo": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/seed-demo.ts",
+    "seed:plans": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/seed-plans.ts"
   },
   "dependencies": {
     "@advo/backend": "workspace:*",

@@ -19,7 +19,48 @@ const OPEN_ATTEMPT_STATES = ["CREATED", "DISPATCHING", "PENDING", "UNKNOWN"] as 
 /** Snippe keeps Idempotency-Key results for 24h; re-dispatch with the same key only inside that window. */
 const PROVIDER_KEY_WINDOW_MS = 23 * 60 * 60 * 1000;
 
-export type Payer = { phone: string; firstName: string; lastName: string; email: string };
+/**
+ * What the portal knows about the payer.
+ *
+ * Only the phone is required. The guest portal has no accounts — a device is
+ * authorized by RADIUS — so a guest is a phone number and nothing else, and the
+ * order screen stopped asking for more. The name and email stay accepted for API
+ * clients that do know them; see `providerCustomerDetails` for what Snippe is
+ * sent when they are absent.
+ */
+export type Payer = { phone: string; firstName?: string; lastName?: string; email?: string };
+
+/** Digits only, so a placeholder address stays unique per payer. */
+function phoneDigits(phone: string) {
+  return phone.replace(/\D/g, "");
+}
+
+/**
+ * The `customer` block Snippe requires, built from what we actually know.
+ *
+ * Snippe's mobile-money API will not accept a payment without a name and an
+ * email, but this portal deliberately collects neither: there is no account to
+ * attach them to (devices are authorized by RADIUS) and nothing was ever emailed
+ * to the address. Both are therefore filled with an explicit placeholder rather
+ * than invented facts about a person:
+ *
+ *  - The name is replaced by the mobile-money account holder's real name as soon
+ *    as Snippe reports the payment (`fillCustomerName`), so the reseller's
+ *    customer list shows a real name the guest never had to type.
+ *  - The email sits on a reserved domain that can never deliver, tagged with the
+ *    phone number so two payers are still distinguishable in the provider's
+ *    dashboard. `PORTAL_PAYER_EMAIL_DOMAIN` overrides the domain if Snippe ever
+ *    needs a routable one.
+ */
+function providerCustomerDetails(payer: Payer) {
+  return {
+    firstName: payer.firstName ?? "Advo",
+    lastName: payer.lastName ?? "Guest",
+    email:
+      payer.email ??
+      `${phoneDigits(payer.phone)}@${process.env.PORTAL_PAYER_EMAIL_DOMAIN ?? "example.com"}`,
+  };
+}
 
 /**
  * Returns the order's open attempt if one exists (repeated submits/clicks), otherwise creates
@@ -44,9 +85,7 @@ export async function ensurePaymentAttempt(orderId: string, payer: Payer): Promi
     const request: MobilePaymentRequest = {
       amountTzs: safeAmount(order.amountTzs),
       phoneNumber: payer.phone,
-      firstName: payer.firstName,
-      lastName: payer.lastName,
-      email: payer.email,
+      ...providerCustomerDetails(payer),
       webhookUrl: webhookUrl(),
       metadata: { orderId: order.id, purpose: order.purpose },
     };
@@ -185,6 +224,12 @@ export async function applyPaymentOutcome(input: {
   currency: string;
   feeTzs?: bigint | null;
   source: "webhook" | "lookup";
+  /**
+   * The payer's name as the mobile-money provider reports it. For a guest who
+   * only typed a phone number this is the first real name we ever see, so it
+   * fills the customer record.
+   */
+  customerName?: string | null;
 }): Promise<PaymentOutcome> {
   return prisma.$transaction(async (tx) => {
     const found = await tx.paymentAttempt.findUnique({
@@ -230,6 +275,8 @@ export async function applyPaymentOutcome(input: {
 
     if (attempt.state === "COMPLETED") return { kind: "duplicate", orderId: order.id } as const;
 
+    await fillCustomerName(tx, order.customerId, input.customerName);
+
     await tx.paymentAttempt.update({
       where: { id: attempt.id },
       data: {
@@ -265,6 +312,29 @@ export async function applyPaymentOutcome(input: {
       ],
     });
     return { kind: "overpaid", orderId: order.id } as const;
+  });
+}
+
+/**
+ * Records the payer's real name, as the mobile-money provider reported it.
+ *
+ * A guest who typed only a phone number has no name on file, so this is the first
+ * true one we get. Split on the first space to keep the two columns the rest of
+ * the product reads, and never overwrite a name already stored — a name the guest
+ * or an API client supplied outranks a derived one.
+ */
+async function fillCustomerName(tx: Tx, customerId: string | null, name: string | null | undefined) {
+  const trimmed = name?.trim();
+  if (!customerId || !trimmed) return;
+  const customer = await tx.customer.findUnique({
+    where: { id: customerId },
+    select: { firstName: true, lastName: true },
+  });
+  if (!customer || customer.firstName || customer.lastName) return;
+  const [firstName, ...rest] = trimmed.split(/\s+/);
+  await tx.customer.update({
+    where: { id: customerId },
+    data: { firstName: firstName ?? null, lastName: rest.join(" ") || null },
   });
 }
 

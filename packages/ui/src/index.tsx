@@ -389,3 +389,6 @@ export function AdvoTable<T>({
     </Table>
   );
 }
+
+/* Guest captive-portal design system (see portal.tsx). */
+export * from "./portal";

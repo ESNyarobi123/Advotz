@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { commercialPromiseSchema, planLifecycleSchema, planVisibilitySchema } from "./features.js";
+
+export * from "./features.js";
+export * from "./ads.js";
+export * from "./marketing.js";
+export * from "./portal-preview.js";
 
 export const UserRole = {
   ADMIN: "ADMIN",
@@ -74,6 +80,10 @@ export const ErrorCode = {
   INSUFFICIENT_BALANCE: "INSUFFICIENT_BALANCE",
   PAYOUT_NEEDS_REVIEW: "PAYOUT_NEEDS_REVIEW",
   MFA_REQUIRED: "MFA_REQUIRED",
+  /** The plan does not include the requested capability; the request is refused, nothing is deleted. */
+  FEATURE_LOCKED_BY_PLAN: "FEATURE_LOCKED_BY_PLAN",
+  /** The placement is hidden by policy at this site, so there is nothing to render. */
+  PLACEMENT_HIDDEN: "PLACEMENT_HIDDEN",
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -241,16 +251,33 @@ export const paginationSchema = z.object({
 
 // ───────────────────────────── Platform plans ────────────────────────────
 
+/**
+ * A plan's price, which may legitimately be zero for a free plan.
+ *
+ * Distinct from {@link tzsAmountSchema}, which rejects zero because a *payment*
+ * of nothing is never valid. Here zero is a commercial decision.
+ */
+export const planPriceTzsSchema = z
+  .union([z.number().int().min(0), z.string().regex(/^\d{1,15}$/)])
+  .transform((v) => BigInt(v));
+
 export const platformPlanInputSchema = z.object({
   code: z.string().trim().min(2).max(40).regex(/^[a-z0-9-]+$/),
   name: z.string().trim().min(2).max(80),
-  priceTzs: tzsAmountSchema,
+  description: z.string().trim().max(200).default(""),
+  priceTzs: planPriceTzsSchema,
   periodDays: z.number().int().min(1).max(366),
   trialEligible: z.boolean().default(false),
   trialDays: z.number().int().min(1).max(90).optional(),
-  maxSites: z.number().int().min(1).max(1000),
-  maxDevices: z.number().int().min(1).max(10000),
-  maxPackages: z.number().int().min(1).max(1000),
+  /** Legacy per-reseller caps; derived from `features.limits` when that is supplied. */
+  maxSites: z.number().int().min(1).max(1000).optional(),
+  maxDevices: z.number().int().min(1).max(10000).optional(),
+  maxPackages: z.number().int().min(1).max(1000).optional(),
+  lifecycle: planLifecycleSchema.default("DRAFT"),
+  visibility: planVisibilitySchema.default("PUBLIC"),
+  commercialPromise: commercialPromiseSchema.default("standard"),
+  /** The feature catalog values. Absent means "start from the presets' defaults". */
+  features: z.unknown().optional(),
   isDemo: z.boolean().default(false),
 });
 export type PlatformPlanInput = z.infer<typeof platformPlanInputSchema>;
@@ -331,7 +358,15 @@ export const portalAdvertSchema = z.object({
   /** Slide background colour. */
   color: hexColorSchema.default("#117dcc"),
   /** Optional external image (no upload pipeline exists yet). */
-  imageUrl: z.string().url().max(500).optional(),
+  imageUrl: z.union([z.string().trim().url().max(500), z.literal("")]).optional(),
+  /** Business or advertiser name. */
+  business: z.string().trim().max(80).optional(),
+  /** Contact phone or WhatsApp number. */
+  phone: z.string().trim().max(40).optional(),
+  /** Destination or promo link. */
+  url: z.union([z.string().trim().url().max(500), z.literal("")]).optional(),
+  /** Call to action label. */
+  cta: z.string().trim().max(60).optional(),
 });
 
 export const portalBusinessSchema = z.object({
@@ -457,17 +492,34 @@ export const deviceClaimInputSchema = z
     hardwareVersion: z.string().trim().max(20).optional(),
     serial: z.string().trim().max(60).optional(),
     /**
-     * Optional local device account. The Controller uses this username/password
-     * to log in to the device and adopt it (LubFy does the same). Leave both
-     * blank to let the Controller use its own default device account.
+     * The device's own login. The Controller uses it to adopt the device
+     * immediately; there is no admin approval step.
      */
-    deviceUsername: z.string().trim().min(1).max(64).optional(),
-    devicePassword: z.string().min(1).max(128).optional(),
-  })
-  .refine((value) => Boolean(value.deviceUsername) === Boolean(value.devicePassword), {
-    message: "Enter both the device username and password, or leave both blank",
-    path: ["deviceUsername"],
+    deviceUsername: z.string().trim().min(1).max(64),
+    devicePassword: z.string().min(1).max(128),
   });
+
+export const deviceRenameSchema = z.object({
+  name: z.string().trim().min(1).max(128),
+  model: z.string().trim().max(60).optional(),
+});
+
+export const deviceRetrySchema = z.object({
+  deviceUsername: z.string().trim().min(1).max(64),
+  devicePassword: z.string().min(1).max(128),
+});
+
+export const deviceWifiSchema = z.object({
+  name: z.string().trim().min(1).max(32),
+  password: z
+    .string()
+    .trim()
+    .max(63)
+    .optional()
+    .refine((value) => !value || value.length >= 8, "WiFi password must be 8 to 63 characters"),
+  hidden: z.boolean(),
+  band: z.enum(["2.4", "5", "both"]),
+});
 
 export const reviewDecisionSchema = z.object({
   decision: z.enum(["approve", "reject"]),
@@ -564,9 +616,22 @@ export const portalOrderInputSchema = z.object({
   contextToken: z.string().min(20).max(200),
   packageId: uuidSchema,
   phone: tzPhoneSchema,
-  firstName: z.string().trim().min(1).max(60),
-  lastName: z.string().trim().min(1).max(60),
-  email: z.string().trim().email(),
+  /**
+   * Optional, and normally absent.
+   *
+   * The guest portal has no accounts — devices are authorized by RADIUS, so a
+   * guest is a phone number and nothing more. Asking for a name and an email was
+   * friction on the screen that has to convert, and the email was never sent
+   * anything, so the portal stopped asking.
+   *
+   * The payer's real name is not lost: Snippe returns the mobile-money account
+   * holder's name with the payment, and that is what fills the reseller's
+   * customer list. These stay accepted so an API client that does know them, or
+   * an older portal build, can still supply them.
+   */
+  firstName: z.string().trim().min(1).max(60).optional(),
+  lastName: z.string().trim().min(1).max(60).optional(),
+  email: z.string().trim().email().optional(),
   idempotencyKey: z.string().min(8).max(64),
 });
 
