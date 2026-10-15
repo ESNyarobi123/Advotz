@@ -7,7 +7,6 @@ import { JobsModal } from "@/components/JobsModal";
 import { PortalModal } from "@/components/PortalModal";
 import { PromotionModal } from "@/components/PromotionModal";
 import { SupportModal } from "@/components/SupportModal";
-import { primaryButton } from "@/lib/theme";
 import { usePortalPreviewAppearance } from "@/lib/portal-preview";
 import type {
   PortalBusiness,
@@ -149,7 +148,6 @@ export function ConnectedStage({
   config?: EffectivePortalConfig | null;
 }) {
   const { locale, t } = useLocale();
-  const buy = primaryButton(theme);
   const previewAppearance = usePortalPreviewAppearance();
   const isPreview = previewAppearance !== null;
 
@@ -208,12 +206,8 @@ export function ConnectedStage({
 
   return (
     <section
-      className="relative overflow-hidden rounded-3xl p-4 sm:p-5 text-white shadow-2xl backdrop-blur-xl border border-white/15"
+      className="relative overflow-hidden rounded-3xl border border-white/10 bg-advo-charcoal p-4 text-white shadow-2xl sm:p-5"
       aria-label={t("portal.connectedTitle")}
-      style={{
-        backgroundImage:
-          "linear-gradient(165deg, color-mix(in srgb, var(--advo-blue, #0d59f2) 45%, rgba(15, 23, 42, 0.90)) 0%, rgba(3, 7, 18, 0.95) 100%)",
-      }}
     >
       {/* Decorative ambient background orb */}
       <span
@@ -224,17 +218,17 @@ export function ConnectedStage({
       {/* Header & Status Confirmation */}
       {showHeader ? (
         <div className="relative mb-3 text-center">
-          <div className="relative mx-auto mb-2.5 grid h-14 w-14 place-items-center rounded-2xl border border-emerald-400/40 bg-emerald-500/20 text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.35)] backdrop-blur-md">
+          <div className="relative mx-auto mb-2.5 grid h-14 w-14 place-items-center rounded-2xl border border-advo-gold/40 bg-advo-gold/15 text-advo-gold">
             <span className="text-2xl font-black">✓</span>
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-advo-gold opacity-75"></span>
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-advo-gold"></span>
             </span>
           </div>
-          <h2 className="text-2xl font-black leading-tight tracking-tight text-white drop-shadow-sm">
+          <h2 className="text-2xl font-black leading-tight tracking-tight text-white">
             {t("portal.connectedTitle")}
           </h2>
-          <p className="mt-1 text-xs text-emerald-300/90 font-medium">
+          <p className="mt-1 text-xs font-medium text-advo-gold">
             ● {t("portal.wifiActiveStatus")}
           </p>
         </div>
@@ -243,7 +237,7 @@ export function ConnectedStage({
       {/* Active Package Banner & Instant Start Browsing CTA */}
       {!experienceOnly ? (
         <div className="relative mb-4 space-y-2.5">
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-xs backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2 text-xs">
             <span className="text-white/70 font-medium">{t("portal.activePackage")}:</span>
             <strong className="truncate text-white font-bold">
               {sessionLabel ?? t("portal.connectedLead")}
@@ -254,151 +248,41 @@ export function ConnectedStage({
             href={targetBrowseUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full transition-transform active:scale-[0.98]"
+            className="flex w-full items-center justify-center rounded-full py-3.5 text-sm font-bold text-advo-charcoal transition hover:brightness-105 active:scale-[0.98]"
+            style={{ background: "var(--advo-gradient-gold)" }}
           >
-            <Button
-              fullWidth
-              size="lg"
-              className="font-bold text-sm tracking-wide shadow-lg shadow-blue-500/25 transition-all hover:brightness-110"
-              style={{ ...buy.style, borderRadius: theme?.radius ?? 14 }}
-              type="button"
-              variant={buy.variant}
-            >
-              🚀 {t("portal.browseInternet")} ›
-            </Button>
+            {t("portal.browseInternet")} ›
           </a>
         </div>
       ) : null}
 
-      {/* ── Section 2: Explore Local Services & Offers ─────────────── */}
-      {exploreVisible ? (
-        <div className="relative mt-5 border-t border-white/10 pt-4">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <h3 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
-                <span>📍</span> {t("portal.exploreLocal")}
-              </h3>
-              <p className="text-[11px] text-white/70">
-                {t("portal.exploreLocalSubtitle")}
-              </p>
-            </div>
-            {(businesses.length > 3 || curatedSpots.length > 3) ? (
-              <button
-                className="text-[11px] font-bold text-amber-300 hover:underline"
-                onClick={() => setSeeAllOpen(true)}
-                type="button"
-              >
-                {t("portal.exploreSeeAll")}
-              </button>
-            ) : null}
-          </div>
-
-          {/* Category Pills */}
-          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
-            {(
-              [
-                { key: "all", label: t("portal.allCategories") },
-                { key: "food", label: t("portal.foodDrinks") },
-                { key: "shops", label: t("portal.shopsServices") },
-                { key: "tech", label: t("portal.techGadgets") },
-              ] as const
-            ).map((cat) => (
-              <button
-                key={cat.key}
-                onClick={() => setSelectedCategory(cat.key)}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-bold whitespace-nowrap transition-all ${
-                  selectedCategory === cat.key
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
-                }`}
-                type="button"
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Local Services Carousel / Grid */}
-          <div className="mt-2.5 flex snap-x gap-2.5 overflow-x-auto pb-2 [scrollbar-width:none]">
-            {displayedBusinesses.map((item) => (
-              <article
-                key={item.id}
-                className="w-[48%] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md transition-all hover:border-white/30 hover:bg-white/15 flex flex-col justify-between"
-              >
-                <div>
-                  <div
-                    className="relative grid h-16 place-items-center text-3xl shadow-inner"
-                    style={{
-                      background: `linear-gradient(135deg, ${item.color}, color-mix(in srgb, ${item.color} 40%, #000))`,
-                    }}
-                    aria-hidden
-                  >
-                    <span>{item.glyph}</span>
-                    <span className="absolute bottom-1 right-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-300 backdrop-blur-sm">
-                      ● {t("portal.openNow")}
-                    </span>
-                  </div>
-                  <div className="p-2">
-                    <p className="truncate text-xs font-bold text-white">
-                      {item.name}
-                    </p>
-                    <p className="truncate text-[10px] text-white/70">
-                      {item.category}
-                    </p>
-                    {"description" in item && typeof item.description === "string" ? (
-                      <p className="mt-1 line-clamp-2 text-[9px] text-white/60 leading-tight">
-                        {item.description}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="p-2 pt-0">
-                  <button
-                    className="w-full rounded-lg border border-white/20 bg-white/5 py-1 text-[10px] font-bold text-white transition hover:bg-white/20 active:scale-95"
-                    onClick={() => setExplored(item)}
-                    type="button"
-                  >
-                    {t("portal.businessExplore")}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* ── Section 3: Community Actions (Jobs, Promotion, Support) ── */}
-      {jobsVisible || promoVisible ? (
-        <div className={`relative mt-3 grid ${jobsVisible && promoVisible ? "grid-cols-2" : "grid-cols-1"} gap-2`}>
+      {/* Explore menu. Businesses, jobs, promotion and help already open their
+          own screens. Advotz, events and holidays stay as rows until their flow
+          is specified. */}
+      <div className="relative mt-5">
+        <h3 className="mb-3 text-xl font-black tracking-tight text-white">{t("portal.exploreTitle")}</h3>
+        <div className="flex flex-col gap-2.5 pb-3 [&_button:last-of-type]:pe-16">
+          {exploreVisible ? (
+            <ExploreRow icon="📍" label={t("portal.exploreBusinesses")} onClick={() => { setSelectedCategory("all"); setSeeAllOpen(true); }} />
+          ) : null}
+          <ExploreRow icon="🌐" label={t("portal.visitAdvotz")} onClick={() => undefined} />
+          <ExploreRow icon="🎟️" label={t("portal.localEvents")} onClick={() => undefined} />
+          <ExploreRow icon="🌴" label={t("portal.holidays")} onClick={() => undefined} />
           {jobsVisible ? (
-            <button
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2 py-2 text-[11px] font-bold text-white transition hover:bg-white/20 active:scale-95 shadow-sm"
-              onClick={() => setJobsOpen(true)}
-              type="button"
-            >
-              <span>💼</span> {t("portal.jobsOpportunities")}
-            </button>
+            <ExploreRow icon="💼" label={t("portal.jobsOpportunities")} onClick={() => setJobsOpen(true)} />
           ) : null}
           {promoVisible ? (
-            <button
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2 py-2 text-[11px] font-bold text-white transition hover:bg-white/20 active:scale-95 shadow-sm"
-              onClick={() => setPromoOpen(true)}
-              type="button"
-            >
-              <span>📢</span> {t("portal.promoteBusiness")}
-            </button>
+            <ExploreRow icon="📣" label={t("portal.promoteBusiness")} onClick={() => setPromoOpen(true)} />
           ) : null}
         </div>
-      ) : null}
-
-      {/* WhatsApp Help / Support */}
-      <button
-        className="relative mt-2.5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-500 active:scale-98 shadow-md"
-        onClick={() => setSupportOpen(true)}
-        type="button"
-      >
-        <span>💬</span> {t("portal.helpWhatsapp")}
-      </button>
+        <button
+          className="absolute -bottom-1 -right-1 z-10 grid size-16 place-items-center rounded-full bg-advo-blue text-sm font-black text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--advo-blue)_45%,transparent)] transition hover:brightness-110 active:scale-95"
+          onClick={() => setSupportOpen(true)}
+          type="button"
+        >
+          {t("portal.help")}
+        </button>
+      </div>
 
       {/* Modals */}
       <JobsModal
@@ -523,5 +407,29 @@ export function ConnectedStage({
         {t("portal.poweredBy", { brand: siteTitle })}
       </p>
     </section>
+  );
+}
+
+/** One full-width Explore row: the system gold gradient on the charcoal panel. */
+function ExploreRow({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="flex w-full items-center justify-center gap-2 rounded-full px-4 py-3.5 text-[15px] font-bold text-advo-charcoal transition hover:brightness-105 active:scale-[0.99]"
+      onClick={onClick}
+      style={{ background: "var(--advo-gradient-gold)" }}
+      type="button"
+    >
+      <span aria-hidden="true">{icon}</span>
+      <span>{label}</span>
+      <span aria-hidden="true">›</span>
+    </button>
   );
 }

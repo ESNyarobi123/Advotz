@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
+import { createPortal } from "react-dom";
 import type { SessionUser } from "@advo/contracts";
 import {
   Avatar,
@@ -22,15 +23,18 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Sparkles,
   X,
 } from "lucide-react";
 import { HOME, HELP_HREF, NAV, SECTIONS, isActive, type NavItem, type Role } from "./navigation";
+import { AdvoLogo } from "@/features/marketing/AdvoLogo";
 import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
 import { useI18n } from "@/lib/i18n";
 
 const BRAND_MARK = "linear-gradient(135deg, #1B5EA4 0%, #2176C2 50%, #FBA102 100%)";
 const BRAND_BAR = "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)";
+/** Admin, Reseller and Agent sidebars: black falling into white. */
+const RESELLER_MARK = "#f4f6f8";
+const RESELLER_BAR = "linear-gradient(90deg, #111213 0%, #8b919a 46%, #f4f6f8 100%)";
 const COLLAPSE_KEY = "advo.sidebar.collapsed";
 
 type SidebarCommon = {
@@ -64,25 +68,21 @@ function SidebarBody({
   const sections = SECTIONS[role];
   const supportHref = HELP_HREF[role];
   const { t } = useI18n();
+  const system = role === "ADMIN" || role === "RESELLER" || role === "AGENT";
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       {/* Top brand gradient accent line, clipped by the panel's rounded corners. */}
-      <div className="h-1 shrink-0" style={{ background: BRAND_BAR }} />
+      <div className="h-1 shrink-0" style={{ background: system ? RESELLER_BAR : BRAND_BAR }} />
 
       <div className={`flex items-center gap-2.5 pt-3.5 ${collapsed ? "justify-center px-2" : "px-3.5"}`}>
-        <Link href={home} className="group flex min-w-0 items-center gap-2.5" onClick={onNavigate}>
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white shadow-md" style={{ background: BRAND_MARK }}>
-            <Sparkles className="h-4 w-4" />
-          </span>
-          {!collapsed ? (
-            <span className="min-w-0">
-              <span className="block truncate text-base font-black tracking-tight text-white">Advo TZ</span>
-              <span className="-mt-1 block truncate text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                Smart WiFi OS
-              </span>
-            </span>
-          ) : null}
+        <Link href={home} className="group flex min-w-0 items-center" onClick={onNavigate}>
+          {collapsed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="Advowifi" className="h-9 w-9" draggable={false} src="/brand/advo-mark.png" />
+          ) : (
+            <AdvoLogo size="md" variant="dark" withLink={false} />
+          )}
         </Link>
 
         {!collapsed ? (
@@ -92,30 +92,6 @@ function SidebarBody({
         ) : null}
         {trailing}
       </div>
-
-      {/* Signed-in identity. Hidden on the icon rail, where there is no room. */}
-      {user && !collapsed ? (
-        <div className="mx-3 mt-3 flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5">
-          <Avatar aria-label={user.name} className="shrink-0 ring-2 ring-white/10" color="default" size="sm">
-            <Avatar.Fallback className="text-xs font-black text-white" style={{ background: BRAND_MARK }}>
-              {user.name ? user.name.charAt(0).toUpperCase() : "A"}
-            </Avatar.Fallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold leading-tight text-white">{user.name}</p>
-            <p className="mt-0.5 truncate text-[10px] leading-tight text-slate-400">{user.email}</p>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <Chip color="accent" size="sm" variant="soft">
-                {role}
-              </Chip>
-              <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                {t("shell.status.active")}
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Navigation. ScrollShadow keeps a long menu readable on short viewports. */}
       <ScrollShadow className={`mt-3 min-h-0 flex-1 ${collapsed ? "px-2" : "px-2.5"}`} hideScrollBar size={28}>
@@ -166,6 +142,7 @@ function SidebarBody({
         <div className={`mb-2 flex ${collapsed ? "justify-center" : "justify-start"}`}>
           <LocaleSwitcher compact={collapsed} showIcon={!collapsed} variant="dark" />
         </div>
+        {user ? <AccountButton collapsed={collapsed} role={role} system={system} user={user} /> : null}
         <Link
           className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white ${
             collapsed ? "justify-center" : ""
@@ -187,6 +164,111 @@ function SidebarBody({
           {!collapsed ? <span>{t("nav.logout")}</span> : null}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Account control under the language switch.
+ *
+ * The sidebar used to print the signed-in name, email and role as a card under
+ * the logo. That card now stays closed until the avatar is pressed, and the
+ * same details open beneath the language control.
+ */
+function AccountButton({
+  user,
+  role,
+  collapsed,
+  system,
+}: {
+  user: SessionUser;
+  role: Role;
+  collapsed: boolean;
+  system: boolean;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [flyout, setFlyout] = useState<{ top: number; left: number } | null>(null);
+  const initial = user.name ? user.name.charAt(0).toUpperCase() : "A";
+  const mark = system ? RESELLER_MARK : BRAND_MARK;
+  const active = user.status === "ACTIVE";
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: MouseEvent) {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-account-details]")) return;
+      setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function toggle() {
+    setOpen((value) => {
+      const next = !value;
+      if (next && collapsed && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        setFlyout({ top: Math.max(12, rect.bottom - 148), left: rect.right + 10 });
+      }
+      return next;
+    });
+  }
+
+  const details = (
+    <div
+      className="rounded-xl border border-white/[0.08] bg-black/25 p-2.5 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.8)]"
+      data-account-details=""
+    >
+      <p className="truncate text-xs font-bold leading-tight text-white">{user.name}</p>
+      <p className="mt-0.5 truncate text-[10px] leading-tight text-slate-400">{user.email}</p>
+      <div className="mt-1.5 flex items-center gap-1.5">
+        <Chip color="accent" size="sm" variant="soft">
+          {role}
+        </Chip>
+        <span className={`inline-flex items-center gap-1 text-[9px] font-semibold ${active ? "text-emerald-400" : "text-slate-400"}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${active ? "animate-pulse bg-emerald-400" : "bg-slate-500"}`} />
+          {active ? t("shell.status.active") : user.status}
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`relative mb-1 ${collapsed ? "flex justify-center" : ""}`} ref={rootRef}>
+      <button
+        aria-expanded={open}
+        aria-label={user.name}
+        className="rounded-full ring-2 ring-white/15 transition hover:ring-white/40"
+        onClick={toggle}
+        ref={buttonRef}
+        type="button"
+      >
+        <Avatar aria-hidden="true" className="shrink-0" color="default" size="sm">
+          <Avatar.Fallback className={`text-xs font-black ${system ? "text-advo-charcoal" : "text-white"}`} style={{ background: mark }}>
+            {initial}
+          </Avatar.Fallback>
+        </Avatar>
+      </button>
+      {open && !collapsed ? <div className="mt-2">{details}</div> : null}
+      {open && collapsed && flyout
+        ? createPortal(
+            <div className="fixed z-50 w-56" style={{ top: flyout.top, left: flyout.left }}>
+              {details}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -307,11 +389,8 @@ export function FloatingSidebar({ role, user, version, onLogout }: SidebarCommon
         <Button aria-label={t("nav.openMenu")} isIconOnly onPress={mobileNav.open} size="sm" variant="ghost">
           <Menu className="h-5 w-5" />
         </Button>
-        <Link className="flex min-w-0 items-center gap-2" href={home}>
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-white" style={{ background: BRAND_MARK }}>
-            <Sparkles className="h-3.5 w-3.5" />
-          </span>
-          <span className="truncate text-sm font-black tracking-tight text-[var(--advo-text)]">Advo TZ</span>
+        <Link className="flex min-w-0 items-center" href={home}>
+          <AdvoLogo size="sm" variant="dark" withLink={false} />
         </Link>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <LocaleSwitcher compact showIcon={false} />
@@ -321,7 +400,7 @@ export function FloatingSidebar({ role, user, version, onLogout }: SidebarCommon
 
       {/* Desktop: floating panel, detached from the viewport edge. */}
       <aside
-        className={`sticky top-3 m-3 hidden shrink-0 flex-col overflow-hidden rounded-xl bg-advo-charcoal text-white shadow-[0_12px_40px_-12px_rgba(17,18,19,0.55)] ring-1 ring-black/5 transition-[width] duration-200 lg:flex ${
+        className={`advo-sidebar sticky top-3 m-3 hidden shrink-0 flex-col overflow-hidden rounded-xl bg-advo-charcoal text-white shadow-[0_12px_40px_-12px_rgba(17,18,19,0.55)] ring-1 ring-black/5 transition-[width] duration-200 lg:flex ${
           collapsed ? "w-[76px]" : "w-64"
         }`}
         style={{ height: "calc(100svh - 1.5rem)" }}
@@ -364,7 +443,7 @@ export function FloatingSidebar({ role, user, version, onLogout }: SidebarCommon
       <Drawer.Root state={mobileNav}>
         <Drawer.Backdrop>
           <Drawer.Content placement="left" className="w-[80vw] max-w-xs">
-            <Drawer.Dialog className="bg-advo-charcoal text-white">
+            <Drawer.Dialog className="advo-sidebar bg-advo-charcoal text-white">
               <Drawer.Header className="sr-only">
                 <Drawer.Heading>{t("nav.mainMenu")}</Drawer.Heading>
               </Drawer.Header>

@@ -1,25 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { BatteryFull, CheckCircle2, Signal, Wifi } from "lucide-react";
 import type { MessageKey } from "@advo/i18n";
 import {
-  PortalBanner,
-  PortalBannerControls,
-  PortalBusinessCard,
-  PortalDiscoverLinks,
-  PortalIcon,
-  PortalJourney,
-  PortalMoneyMethods,
   PortalPackageCard,
-  PortalPackageGrid,
-  PortalResellerHeader,
-  PortalSegmented,
-  PortalServiceStrip,
-  PortalSessionTicket,
-  PortalSuccessMark,
+  PortalPackageList,
   type PortalPackageView,
-  type PortalShortcut,
 } from "@advo/ui";
 import { useI18n } from "@/lib/i18n";
 import { cx } from "./ui";
@@ -52,7 +39,6 @@ import { cx } from "./ui";
 
 type Phase = "portal" | "checkout" | "connected";
 type PackageFilter = "daily" | "long";
-type PayStage = "entry" | "waiting" | "connecting";
 
 /** How long each stage holds before the loop advances, in milliseconds. */
 const PHASE_DURATION: Record<Phase, number> = {
@@ -61,12 +47,26 @@ const PHASE_DURATION: Record<Phase, number> = {
   connected: 7200,
 };
 
-/** Dwell times for the three honest checkout sub-steps. */
-const PAY_DURATION: Record<PayStage, number> = {
-  entry: 2000,
-  waiting: 2600,
-  connecting: 1200,
-};
+/**
+ * The wallets on the captive-portal payment dialog, in the same order and
+ * colours the guest sees. The sample number starts 0754, so M-Pesa is the one
+ * that lights up.
+ */
+const PAYMENT_WALLETS = [
+  { id: "mpesa", name: "M-Pesa", networkKey: "portal.networkVodacom" as MessageKey, tint: "#e60000", active: true },
+  { id: "airtel", name: "Airtel Money", networkKey: "portal.networkAirtel" as MessageKey, tint: "#e30613", active: false },
+  { id: "mixx", name: "Mixx by Yas", networkKey: "portal.networkYas" as MessageKey, tint: "#0a4ea2", active: false },
+] as const;
+
+/** The Explore rows under the connected screen, in the portal's own order. */
+const CONNECTED_ROWS: Array<{ icon: string; labelKey: MessageKey }> = [
+  { icon: "📍", labelKey: "portal.exploreBusinesses" },
+  { icon: "🌐", labelKey: "portal.visitAdvotz" },
+  { icon: "🎟️", labelKey: "portal.localEvents" },
+  { icon: "🌴", labelKey: "portal.holidays" },
+  { icon: "💼", labelKey: "portal.jobsOpportunities" },
+  { icon: "📣", labelKey: "portal.promoteBusiness" },
+];
 
 const PHASES: Array<{ id: Phase; labelKey: MessageKey }> = [
   { id: "portal", labelKey: "marketing.home.hero.portal.step.pick" },
@@ -147,24 +147,48 @@ const PACKAGES: Array<Omit<PortalPackageView, "data"> & { group: PackageFilter; 
 const DEFAULT_PACKAGE = PACKAGES[1];
 const GOLD_GRADIENT = "bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)]";
 
-/** The sponsoring business shown in the banner carousel. */
-const DEMO_BANNER_AD = {
-  id: "cafe",
-  business: "Ubungo Fresh Café",
-  title: "A small break. A very good coffee.",
-  description: "Fresh brews, warm bites and a little time for yourself.",
-  cta: "Take a little break",
-  theme: "cafe" as const,
-};
+/**
+ * The three passes the phone shows, stacked in one column — the portal's `list`
+ * layout — with the popular 3-hour pass first.
+ */
+const SHOWCASE = [PACKAGES[1], PACKAGES[0], PACKAGES[2]];
 
-/** HH:MM:SS, tolerating hour counts above 24 (the 30-day pass is 720h). */
-function formatDuration(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-}
+/**
+ * Brand colours painted onto the shared portal tokens, so the phone uses the
+ * same gold-to-orange combination as the rest of Advo and not the navy default.
+ */
+const BRAND_PORTAL_STYLE = {
+  "--advo-portal-orange": "#F16304",
+  "--advo-portal-orange-deep": "#c2410c",
+  "--advo-portal-orange-soft": "#2a2118",
+  "--advo-portal-ink": "#f6f1ea",
+  "--advo-portal-ink-deep": "#1c140e",
+  "--advo-portal-ink-line": "rgba(251,161,2,0.35)",
+  "--advo-portal-paper": "#111213",
+  "--advo-portal-line": "rgba(255,255,255,0.12)",
+  "--advo-portal-muted": "#b7aea4",
+  "--advo-blue": "#F16304",
+  "--color-portal-orange": "#F16304",
+  "--color-portal-orange-deep": "#c2410c",
+  "--color-portal-orange-soft": "#2a2118",
+  "--color-portal-ink": "#f6f1ea",
+  "--color-portal-ink-deep": "#1c140e",
+  "--color-portal-ink-line": "rgba(251,161,2,0.35)",
+  "--color-portal-paper": "#111213",
+  "--color-portal-line": "rgba(255,255,255,0.12)",
+  "--color-portal-muted": "#b7aea4",
+} as CSSProperties;
+
+/**
+ * White surfaces inside the dark phone (the connected header, explore cards)
+ * keep charcoal ink. The screen itself uses the light ink above.
+ */
+const ON_LIGHT_INK = {
+  "--advo-portal-ink": "#111213",
+  "--color-portal-ink": "#111213",
+  "--advo-portal-muted": "#617386",
+  "--color-portal-muted": "#617386",
+} as CSSProperties;
 
 /**
  * Reads the motion preference as state so the phone can stop auto-advancing for
@@ -190,13 +214,9 @@ export function HeroPhoneMockup({ className }: { className?: string }) {
   const reduced = usePrefersReducedMotion();
 
   const [phase, setPhase] = useState<Phase>("portal");
-  const [filter, setFilter] = useState<PackageFilter>("daily");
   const [selectedId, setSelectedId] = useState(DEFAULT_PACKAGE.id);
-  const [payStage, setPayStage] = useState<PayStage>("entry");
-  const [countdown, setCountdown] = useState(DEFAULT_PACKAGE.seconds);
 
-  const selected = PACKAGES.find((pkg) => pkg.id === selectedId && pkg.group === filter) ?? PACKAGES.find((pkg) => pkg.id === selectedId) ?? DEFAULT_PACKAGE;
-  const visiblePackages = PACKAGES.filter((pkg) => pkg.group === filter);
+  const selected = PACKAGES.find((pkg) => pkg.id === selectedId) ?? DEFAULT_PACKAGE;
 
   /* The loop. Each stage sets its own dwell time, which also drives the progress
      bar underneath the rail, so the two can never disagree. */
@@ -208,61 +228,14 @@ export function HeroPhoneMockup({ className }: { className?: string }) {
     return () => window.clearTimeout(timer);
   }, [phase, reduced]);
 
-  /* The checkout walks the same three sub-steps a real Snippe flow does: the
-     operator's request going out, the guest approving on their handset, then the
-     portal authorising the device. */
-  useEffect(() => {
-    if (phase !== "checkout") return;
-    setPayStage("entry");
-    const toWaiting = window.setTimeout(() => setPayStage("waiting"), PAY_DURATION.entry);
-    const toConnecting = window.setTimeout(() => setPayStage("connecting"), PAY_DURATION.entry + PAY_DURATION.waiting);
-    return () => {
-      window.clearTimeout(toWaiting);
-      window.clearTimeout(toConnecting);
-    };
-  }, [phase, selectedId]);
-
-  /* Restart the countdown from the purchased package every time we land on the
-     connected stage. */
-  useEffect(() => {
-    if (phase !== "connected") return;
-    setCountdown(selected.seconds);
-    const interval = window.setInterval(() => {
-      setCountdown((remaining) => (remaining > 0 ? remaining - 1 : 0));
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [phase, selected]);
-
   const enterAnimation = reduced ? undefined : { animation: "advo-portal-screen 320ms ease-out both" };
-
-  const shortcuts: PortalShortcut[] = [
-    {
-      id: "website",
-      title: t("marketing.home.hero.portal.shortcut.website"),
-      subtitle: t("marketing.home.hero.portal.shortcut.websiteSub"),
-      icon: "globe",
-      href: "https://advotz.com",
-    },
-    {
-      id: "jobs",
-      title: t("marketing.home.hero.portal.shortcut.jobs"),
-      subtitle: t("marketing.home.hero.portal.shortcut.jobsSub"),
-      icon: "briefcase",
-    },
-    {
-      id: "promote",
-      title: t("marketing.home.hero.portal.shortcut.promote"),
-      subtitle: t("marketing.home.hero.portal.shortcut.promoteSub"),
-      icon: "megaphone",
-    },
-  ];
 
   return (
     <div className={cx("relative mx-auto w-full max-w-[320px] lg:ml-auto lg:mr-0", className)}>
       {/* Brand glow behind the device */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-[radial-gradient(circle,rgba(27,94,164,0.5),transparent_66%)] blur-3xl"
+        className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-[radial-gradient(circle,rgba(241,99,4,0.45),transparent_66%)] blur-3xl"
       />
 
       {/* Floating chip — the "this is live" cue, mirroring the reference layout */}
@@ -325,7 +298,8 @@ export function HeroPhoneMockup({ className }: { className?: string }) {
               proportions instead of at the page's own breakpoints. */}
           <div
             aria-hidden="true"
-            className="@container relative flex aspect-[393/852] select-none flex-col overflow-hidden rounded-[2.7rem] bg-portal-paper text-portal-ink"
+            className="@container relative flex aspect-[393/852] select-none flex-col overflow-hidden rounded-[2.7rem] bg-[#111213] text-portal-ink"
+            style={BRAND_PORTAL_STYLE}
           >
             {/* Dynamic Island */}
             <div className="absolute left-1/2 top-2.5 z-30 flex h-[26px] w-[86px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-2.5">
@@ -333,7 +307,7 @@ export function HeroPhoneMockup({ className }: { className?: string }) {
             </div>
 
             {/* Status bar */}
-            <div className="relative z-20 flex h-11 shrink-0 items-center justify-between px-7 pt-1 text-[11px] font-semibold">
+            <div className="relative z-20 flex h-11 shrink-0 items-center justify-between px-7 pt-1 text-[11px] font-semibold text-white">
               <span className="tabular-nums">9:41</span>
               <span className="flex items-center gap-1">
                 <Signal className="size-3.5" />
@@ -344,331 +318,249 @@ export function HeroPhoneMockup({ className }: { className?: string }) {
 
             {/* ── Portal body ─────────────────────────────────────────────── */}
             <div className="min-h-0 flex-1 overflow-y-auto">
-              {phase === "portal" ? (
-                <div key="portal" style={enterAnimation}>
-                  <PortalResellerHeader
-                    active={false}
-                    location={t("marketing.home.hero.portal.location")}
-                    name={t("marketing.home.hero.portal.name")}
-                    status={t("marketing.home.hero.portal.status.ready")}
-                    supportLabel={t("marketing.home.hero.portal.help")}
-                  />
-
-                  <div className="px-4 pb-5 pt-4">
-                    {/* Sponsored banner — a plan-controlled placement, collapsed
-                        here because this demo site is an ad-free plan. */}
-                    <div className="mb-5">
-                      <PortalBanner ad={DEMO_BANNER_AD} onCta={() => undefined} sponsoredLabel={t("portal.sponsoredChip")} />
-                      <PortalBannerControls
-                        count={3}
-                        credit={t("marketing.home.hero.portal.banner.credit")}
-                        index={0}
-                        labels={{
-                          slideAria: t("portal.advertSlideAria"),
-                          previous: t("portal.advertPrev"),
-                          next: t("portal.advertNext"),
-                          play: t("portal.advertPlay"),
-                          pause: t("portal.advertPause"),
-                        }}
-                        onMove={() => undefined}
-                        onSelect={() => undefined}
-                      />
-                    </div>
-
-                    {/* Welcome */}
-                    <div className="mb-6">
-                      <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.12em] text-portal-orange-deep">
-                        {t("marketing.home.hero.portal.welcome.eyebrow")}
+              {phase === "portal" || phase === "checkout" ? (
+                <div key="portal" className={phase === "checkout" ? "pointer-events-none" : undefined} style={enterAnimation}>
+                  {/* The same landing a guest gets: a short advert, the business
+                      name, then the packages. No extra welcome screen. */}
+                  <div className="px-3 pt-1">
+                    <div className={`relative overflow-hidden rounded-2xl px-3.5 py-3 text-advo-charcoal ${GOLD_GRADIENT}`}>
+                      <span className="absolute -right-6 -top-8 size-20 rounded-full border-[10px] border-white/25" />
+                      <span className="relative mb-1 inline-flex rounded-full bg-black/15 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider">
+                        {t("portal.sponsoredChip")}
+                      </span>
+                      <strong className="relative block text-[13px] leading-tight font-black">
+                        {t("marketing.home.hero.portal.banner.title")}
+                      </strong>
+                      <p className="relative mt-0.5 text-[10px] leading-snug text-advo-charcoal/80">
+                        {t("marketing.home.hero.portal.banner.body")}
                       </p>
-                      <h2 className="max-w-[360px] text-[29px] leading-[1.07] tracking-[-0.04em]">
-                        {t("marketing.home.hero.portal.welcome.title", { name: t("marketing.home.hero.portal.name") })}
-                      </h2>
-                      <p className="mt-2.5 max-w-[440px] text-xs leading-relaxed text-portal-muted">
-                        {t("marketing.home.hero.portal.welcome.body")}
-                      </p>
-                      <PortalJourney
-                        className="mt-4"
-                        steps={[
-                          t("marketing.home.hero.portal.journey.choose"),
-                          t("marketing.home.hero.portal.journey.pay"),
-                          t("marketing.home.hero.portal.journey.connect"),
-                        ]}
-                      />
                     </div>
+                  </div>
 
-                    {/* Packages */}
-                    <div className="mb-4 flex flex-col items-start gap-2.5">
-                      <div>
-                        <h3 className="text-xl tracking-[-0.025em]">{t("marketing.home.hero.portal.packages.title")}</h3>
-                        <p className="mt-1 text-[10px] text-portal-muted">{t("marketing.home.hero.portal.packages.subtitle")}</p>
-                      </div>
-                      <PortalSegmented
-                        ariaLabel={t("marketing.home.hero.portal.packages.title")}
-                        onChange={setFilter}
-                        options={[
-                          { id: "daily" as PackageFilter, label: t("marketing.home.hero.portal.filter.daily") },
-                          { id: "long" as PackageFilter, label: t("marketing.home.hero.portal.filter.long") },
-                        ]}
-                        value={filter}
-                      />
-                    </div>
-
-                    <PortalPackageGrid>
-                      {visiblePackages.map((pkg) => (
-                        <PortalPackageCard
-                          key={pkg.id}
-                          labels={{
-                            upTo: t("portal.card.upTo"),
-                            deviceOne: t("portal.card.deviceOne"),
-                            deviceMany: t("portal.card.deviceMany"),
-                          }}
-                          onSelect={(id) => {
-                            setSelectedId(id);
-                            setPhase("checkout");
-                          }}
-                          package={{
-                            id: pkg.id,
-                            name: t(pkg.nameKey),
-                            duration: t(pkg.durationKey),
-                            price: pkg.price,
-                            speed: pkg.speed,
-                            data: t(pkg.dataKey),
-                            devices: pkg.devices,
-                            icon: pkg.icon,
-                            featured: pkg.featured,
-                            ribbon: t(pkg.group === "daily" ? "marketing.home.hero.portal.popular" : "marketing.home.hero.portal.bestValue"),
-                          }}
-                          selectLabel={t("marketing.home.hero.portal.select")}
-                          selected={pkg.id === selectedId}
-                        />
-                      ))}
-                    </PortalPackageGrid>
-
-                    {/* Voucher + mobile money */}
-                    <div className="mt-5 flex flex-col gap-2.5">
-                      <button className="flex items-center gap-2 text-[11px] text-portal-muted" type="button">
-                        <PortalIcon className="size-4" name="ticket" />
-                        {t("marketing.home.hero.portal.voucher")}{" "}
-                        <strong className="text-[11px] font-semibold text-portal-orange-deep">
-                          {t("marketing.home.hero.portal.voucherCode")} →
-                        </strong>
-                      </button>
-                      <PortalMoneyMethods ariaLabel={t("portal.payWithMobileMoney")} prefix={t("marketing.home.hero.portal.payWith")} />
-                    </div>
-
-                    <PortalServiceStrip
-                      className="mt-5"
-                      items={[
-                        { icon: "bolt", label: t("marketing.home.hero.portal.service.instant") },
-                        { icon: "shield", label: t("marketing.home.hero.portal.service.noAccount") },
-                        { icon: "help", label: t("marketing.home.hero.portal.service.support") },
-                      ]}
+                  <header className="px-4 pt-3 text-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      alt=""
+                      className="mx-auto mb-1.5 h-10 w-auto"
+                      src="/brand/advo-logo.png"
                     />
+                    <h2 className="text-[20px] leading-none font-black tracking-tight text-white">
+                      {t("marketing.home.hero.portal.name")}
+                    </h2>
+                    <p className="mt-1 text-[10px] text-white/55">{t("marketing.home.hero.portal.location")}</p>
+                  </header>
+
+                  <div className="px-3.5 pt-3 pb-5">
+                    <h3 className="text-center text-[15px] font-black tracking-tight text-white">
+                      {t("marketing.home.hero.portal.packages.title")}
+                    </h3>
+                    <p className="mt-0.5 mb-2.5 text-center text-[10px] text-white/50">
+                      {t("marketing.home.hero.portal.packages.subtitle")}
+                    </p>
+
+                    <div style={ON_LIGHT_INK}>
+                      <PortalPackageList className="pt-1" layout="list">
+                        {SHOWCASE.map((pkg) => (
+                          <PortalPackageCard
+                            key={pkg.id}
+                            labels={{
+                              upTo: t("portal.card.upTo"),
+                              deviceOne: t("portal.card.deviceOne"),
+                              deviceMany: t("portal.card.deviceMany"),
+                            }}
+                            layout="list"
+                            onSelect={(id) => {
+                              setSelectedId(id);
+                              setPhase("checkout");
+                            }}
+                            package={{
+                              id: pkg.id,
+                              name: t(pkg.nameKey),
+                              duration: t(pkg.durationKey),
+                              price: pkg.price,
+                              speed: pkg.speed,
+                              data: t(pkg.dataKey),
+                              devices: pkg.devices,
+                            }}
+                            selectLabel={t("portal.selectPackage")}
+                            selected={pkg.id === selectedId}
+                            style="classic"
+                          />
+                        ))}
+                      </PortalPackageList>
+                    </div>
+
+                    <div className="mt-3.5 border-t border-white/10 pt-3">
+                      <p className="mb-2 text-center text-[9px] font-bold tracking-wider text-white/45 uppercase">
+                        {t("portal.voucherOr")}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/8 px-2.5 py-2 font-mono text-[10px] font-bold tracking-wider text-white/45">
+                          {t("portal.voucherPlaceholder")}
+                        </div>
+                        <div className={`shrink-0 rounded-xl px-2.5 py-2 text-[10px] font-bold text-advo-charcoal ${GOLD_GRADIENT}`}>
+                          {t("portal.voucherSubmit")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-center text-[9px] font-semibold text-portal-muted">Advo TZ</p>
                   </div>
                 </div>
               ) : null}
 
               {phase === "checkout" ? (
-                <div className="flex min-h-full flex-col justify-center px-4 py-6" key="checkout" style={enterAnimation}>
-                  {payStage === "entry" ? (
-                    <>
-                      <span className="mb-4 grid size-11 place-items-center rounded-[14px] bg-portal-orange-soft text-portal-orange-deep">
-                        <PortalIcon className="size-6" name="wallet" />
-                      </span>
-                      <h2 className="pr-3 text-[26px] tracking-[-0.04em]">{t("marketing.home.hero.portal.checkout.title")}</h2>
-                      <p className="mt-2 text-xs leading-relaxed text-portal-muted">
-                        {t("marketing.home.hero.portal.checkout.subtitle")}
-                      </p>
+                <div
+                  className="absolute inset-0 z-20 grid place-items-center bg-[#010c21]/70 p-2.5 backdrop-blur-sm"
+                  key="checkout"
+                  style={enterAnimation}
+                >
+                  {/* The same dialog a guest gets after tapping a package. */}
+                  <div className="relative w-full rounded-[20px] bg-white p-3 text-[#111213] shadow-2xl">
+                    <span className="absolute top-1.5 right-2 grid size-6 place-items-center text-lg leading-none font-bold text-slate-500">
+                      ×
+                    </span>
+                    <h2 className="mb-2 pe-5 text-center text-[15px] leading-tight font-black tracking-tight">
+                      {t("portal.payTitle")}
+                    </h2>
 
-                      <div className="my-5 rounded-[14px] bg-[#f3f6f8] p-4">
-                        <div className="flex items-center justify-between gap-3 text-[15px] font-bold">
-                          <span>{t(selected.nameKey)}</span>
-                          <span>{t(selected.durationKey)}</span>
+                    <div
+                      className="rounded-2xl border p-2.5"
+                      style={{
+                        borderColor: "color-mix(in srgb, #F16304 28%, transparent)",
+                        background: "color-mix(in srgb, #F16304 8%, white)",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[8px] font-bold tracking-[0.1em] text-[#617386] uppercase">
+                            {t("portal.youAreBuying")}
+                          </p>
+                          <p className="truncate text-[13px] leading-tight font-black">{t(selected.nameKey)}</p>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-portal-muted">
-                          <span>{selected.speed}</span>
-                          <span>·</span>
-                          <span>{t(selected.dataKey)}</span>
-                          <span>·</span>
-                          <span>
-                            {t(selected.devices === 1 ? "portal.card.deviceOne" : "portal.card.deviceMany", {
-                              count: selected.devices,
-                            })}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-[10px] text-portal-muted">
-                          {t("marketing.home.hero.portal.checkout.providedBy", { name: t("marketing.home.hero.portal.name") })}
-                        </p>
+                        <strong className="shrink-0 text-[14px] font-black text-[#F16304] tabular-nums">
+                          TZS {selected.price}
+                        </strong>
                       </div>
+                      <ul className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[9px] text-[#617386]">
+                        <li>{t(selected.durationKey)}</li>
+                        <li>{selected.speed}</li>
+                        <li>{t(selected.dataKey)}</li>
+                        <li>
+                          {t(selected.devices === 1 ? "portal.card.deviceOne" : "portal.card.deviceMany", {
+                            count: selected.devices,
+                          })}
+                        </li>
+                      </ul>
+                    </div>
 
-                      <span className="mb-1.5 block text-[11px] font-bold">
-                        {t("marketing.home.hero.portal.checkout.phone")}
-                      </span>
-                      <div className="flex items-center overflow-hidden rounded-[11px] border border-[#d8e0e7] bg-white">
-                        <span className="flex items-center gap-1.5 border-e border-portal-line bg-[#f8fafb] px-2.5 py-3 text-xs text-[#556a7c]">
+                    <div className="mt-2.5">
+                      <p className="mb-1 text-[10px] font-semibold">{t("mobileMoneyNumber")}</p>
+                      <div className="rounded-2xl border border-[#e3e8ee] bg-[#f8f9fb] px-3 py-2 text-[13px] font-semibold tracking-wide text-[#111213]">
+                        0754 382 119
+                      </div>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-3 gap-1">
+                      {PAYMENT_WALLETS.map((wallet) => (
+                        <div
+                          className="grid place-items-center gap-0.5 rounded-xl border p-1.5 text-center"
+                          key={wallet.id}
+                          style={{
+                            borderColor: wallet.active ? wallet.tint : "transparent",
+                            background: wallet.active ? `color-mix(in srgb, ${wallet.tint} 10%, white)` : "#ffffff",
+                            boxShadow: wallet.active
+                              ? "0 4px 12px -8px rgba(0,0,0,.4)"
+                              : "0 1px 2px rgba(15,23,42,.06)",
+                          }}
+                        >
                           <span
-                            aria-hidden="true"
-                            className="inline-block h-3.5 w-5 rounded-[2px] bg-[linear-gradient(145deg,#259653_0_35%,#f1d530_35%_40%,#131e25_40%_60%,#f1d530_60%_65%,#3299d4_65%)]"
-                          />
-                          +255
-                        </span>
-                        <span className="flex-1 px-3 py-3 text-[15px] text-[#9ba8b5]">712 345 678</span>
-                      </div>
-                      <p className="mt-1.5 text-[10px] leading-relaxed text-portal-muted">
-                        {t("marketing.home.hero.portal.checkout.phoneHelp")}
-                      </p>
-
-                      <PortalMoneyMethods ariaLabel={t("portal.payWithMobileMoney")} className="my-4" />
-
-                      <div className="flex items-center justify-between border-t border-portal-line py-4 text-xs">
-                        <span>{t("marketing.home.hero.portal.checkout.total")}</span>
-                        <strong className="text-xl tracking-[-0.03em]">TSh {selected.price}</strong>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-2 rounded-xl bg-portal-orange py-3.5 text-[13px] font-semibold text-white">
-                        {t("marketing.home.hero.portal.pay", { amount: selected.price })}
-                        <PortalIcon className="size-4" name="arrow" />
-                      </div>
-                      <p className="mt-3 text-center text-[10px] text-portal-muted">
-                        {t("marketing.home.hero.portal.checkout.terms")}
-                      </p>
-                    </>
-                  ) : null}
-
-                  {payStage === "waiting" ? (
-                    <div className="text-center">
-                      <span className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-portal-orange-soft text-portal-orange-deep">
-                        <PortalIcon className="size-6" name="phone" />
-                      </span>
-                      <h2 className="text-[26px]">{t("marketing.home.hero.portal.waiting.title")}</h2>
-                      <p className="mt-3 text-xs leading-relaxed text-portal-muted">
-                        {t("marketing.home.hero.portal.waiting.body")}
-                      </p>
-                      <p className="my-4 rounded-[11px] border border-portal-line bg-[#f8fafb] py-3 font-mono text-base font-semibold tracking-[0.07em]">
-                        +255 712 345 678
-                      </p>
-                      <p className="text-xs font-semibold">
-                        TSh {selected.price}
-                        <br />
-                        <span className="font-normal text-portal-muted">{t("marketing.home.hero.portal.name")}</span>
-                      </p>
+                            className="grid size-5 place-items-center rounded-full text-[9px] font-black text-white"
+                            style={{ background: wallet.tint }}
+                          >
+                            {wallet.name.charAt(0)}
+                          </span>
+                          <span className="text-[8px] leading-tight font-bold">{wallet.name}</span>
+                          <span className="text-[8px] text-[#617386]">{t(wallet.networkKey)}</span>
+                        </div>
+                      ))}
                     </div>
-                  ) : null}
+                    <p className="mt-1.5 text-[9px] text-[#617386]">
+                      {t("portal.networkDetected", { network: t("portal.networkVodacom") })}
+                    </p>
 
-                  {payStage === "connecting" ? (
-                    <div className="text-center">
-                      <span className="mx-auto mb-5 block size-14 animate-spin rounded-full border-4 border-[#e9eff3] border-t-portal-orange" />
-                      <h2 className="text-[26px]">{t("marketing.home.hero.portal.connecting.title")}</h2>
-                      <p className="mt-3 text-xs leading-relaxed text-portal-muted">
-                        {t("marketing.home.hero.portal.connecting.body", { name: t("marketing.home.hero.portal.name") })}
-                      </p>
-                      <p className="mt-4 text-[10px] text-portal-muted">{t("marketing.home.hero.portal.authorizing")}</p>
+                    <div
+                      className={`mt-2.5 flex items-center justify-center rounded-xl py-2.5 text-[12px] font-bold text-advo-charcoal ${GOLD_GRADIENT}`}
+                    >
+                      {t("pay")} TZS {selected.price}
                     </div>
-                  ) : null}
+                    <p className="mt-2 text-center text-[10px] font-bold text-[#617386] underline">
+                      {t("portal.changePackage")}
+                    </p>
+                  </div>
                 </div>
               ) : null}
 
               {phase === "connected" ? (
-                <div key="connected" style={enterAnimation}>
-                  <PortalResellerHeader
-                    active
-                    location={t("marketing.home.hero.portal.location")}
-                    name={t("marketing.home.hero.portal.name")}
-                    status={t("marketing.home.hero.portal.status.online")}
-                    supportLabel={t("marketing.home.hero.portal.help")}
+                <div className="relative px-3 pt-2 pb-6 text-white" key="connected" style={enterAnimation}>
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -bottom-16 left-1/2 size-44 -translate-x-1/2 rounded-full border-[20px] border-white/5"
                   />
 
-                  <div className="px-4 pb-6 pt-5">
-                    {/* Connected confirmation */}
-                    <PortalSuccessMark />
-                    <p className="mb-2 mt-3 text-[9px] font-bold uppercase tracking-[0.12em] text-portal-green">
-                      {t("marketing.home.hero.portal.connected.eyebrow")}
-                    </p>
-                    <h2 className="text-[30px] tracking-[-0.05em]">{t("marketing.home.hero.portal.connected")}</h2>
-                    <p className="mt-2 text-xs leading-relaxed text-portal-muted">
-                      {t("marketing.home.hero.portal.connectedBody")}
-                    </p>
-
-                    <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-portal-orange py-3.5 text-[13px] font-semibold text-white">
-                      {t("marketing.home.hero.portal.browse")}
-                      <PortalIcon className="size-4" name="arrow" />
+                  <div className="relative mb-2.5 text-center">
+                    <div className="relative mx-auto mb-2 grid size-11 place-items-center rounded-2xl border border-[#FBA102]/40 bg-[#FBA102]/15 text-xl font-black text-[#FBA102]">
+                      ✓
+                      <span className="absolute -top-0.5 -right-0.5 flex size-2.5">
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#FBA102] opacity-75" />
+                        <span className="relative inline-flex size-2.5 rounded-full bg-[#FBA102]" />
+                      </span>
                     </div>
-
-                    {/* Session ticket — the purchased service always comes first */}
-                    <PortalSessionTicket
-                      accessLabel={t("marketing.home.hero.portal.ticket.access")}
-                      activePassLabel={t("marketing.home.hero.portal.ticket.activePass")}
-                      connectedLabel={t("marketing.home.hero.portal.ticket.connected")}
-                      dataLabel={t("marketing.home.hero.portal.ticket.data")}
-                      endedLabel={t("marketing.home.hero.portal.ticket.ended")}
-                      passLabel={t("marketing.home.hero.portal.ticket.activePass")}
-                      session={{
-                        packageName: t(selected.nameKey),
-                        duration: t(selected.durationKey),
-                        speed: selected.speed,
-                        data: t(selected.dataKey),
-                        devices: selected.devices,
-                        deviceUnit: t("marketing.home.hero.portal.ticket.device"),
-                        resellerName: t("marketing.home.hero.portal.name"),
-                        location: t("marketing.home.hero.portal.location").split(",")[0],
-                        validUntil: "Today · 14:41 EAT",
-                        paidLabel: t("marketing.home.hero.portal.ticket.paid", { amount: `TSh ${selected.price}` }),
-                        remaining: formatDuration(countdown),
-                        method: "mobile-money",
-                      }}
-                      upToLabel={t("marketing.home.hero.portal.ticket.upTo")}
-                      validityLabel={t("marketing.home.hero.portal.ticket.validity")}
-                      validUntilLabel={t("marketing.home.hero.portal.ticket.validUntil")}
-                      voucherLabel={t("marketing.home.hero.portal.ticket.voucherPass")}
-                    />
-
-                    {/* Explore — discovery sits below the service, on every plan */}
-                    <div className="mt-6 border-t border-portal-line pt-5">
-                      <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-portal-orange-deep">
-                        {t("marketing.home.hero.portal.explore.eyebrow")}
-                      </p>
-                      <h3 className="text-xl tracking-[-0.025em]">{t("marketing.home.hero.portal.explore.title")}</h3>
-                      <p className="mt-1.5 text-[11px] text-portal-muted">{t("marketing.home.hero.portal.explore.body")}</p>
-
-                      <div className="mb-4 mt-4 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        <PortalBusinessCard
-                          business={{
-                            id: "tech",
-                            name: t("marketing.home.hero.portal.biz1.name"),
-                            category: t("marketing.home.hero.portal.biz1.category"),
-                            description: t("marketing.home.hero.portal.biz1.body"),
-                            location: t("marketing.home.hero.portal.biz1.location"),
-                            theme: "tech",
-                          }}
-                          className="w-[215px] shrink-0"
-                          offerLabel={t("marketing.home.hero.portal.explore.offer")}
-                          sponsoredLabel={t("portal.sponsoredChip")}
-                        />
-                        <PortalBusinessCard
-                          business={{
-                            id: "style",
-                            name: t("marketing.home.hero.portal.biz2.name"),
-                            category: t("marketing.home.hero.portal.biz2.category"),
-                            description: t("marketing.home.hero.portal.biz2.body"),
-                            location: t("marketing.home.hero.portal.biz2.location"),
-                            theme: "style",
-                          }}
-                          className="w-[215px] shrink-0"
-                          offerLabel={t("marketing.home.hero.portal.explore.offer")}
-                          sponsoredLabel={t("portal.sponsoredChip")}
-                        />
-                      </div>
-
-                      <p className="mb-4 text-[9px] text-portal-muted">{t("marketing.home.hero.portal.explore.note")}</p>
-
-                      <PortalDiscoverLinks ariaLabel={t("marketing.home.hero.portal.explore.title")} shortcuts={shortcuts} />
-                    </div>
-
-                    <p className="mt-6 flex items-center gap-1.5 rounded-xl border border-portal-line bg-white p-2.5 text-[9px] font-bold">
-                      <PortalIcon className="size-3" name="shield" />
-                      {t("marketing.home.hero.portal.recovery")}
-                    </p>
+                    <h2 className="text-[20px] leading-tight font-black tracking-tight text-white">
+                      {t("portal.connectedTitle")}
+                    </h2>
+                    <p className="mt-1 text-[10px] font-medium text-[#FBA102]">● {t("portal.wifiActiveStatus")}</p>
                   </div>
+
+                  <div className="relative mb-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-[10px]">
+                      <span className="font-medium text-white/70">{t("portal.activePackage")}:</span>
+                      <strong className="truncate font-bold text-white">{t(selected.nameKey)}</strong>
+                    </div>
+                    <div
+                      className="flex w-full items-center justify-center rounded-full py-2.5 text-[12px] font-bold text-advo-charcoal"
+                      style={{ background: "var(--advo-gradient-gold)" }}
+                    >
+                      {t("portal.browseInternet")} ›
+                    </div>
+                  </div>
+
+                  <div className="relative mt-3">
+                    <h3 className="mb-2 text-[16px] font-black tracking-tight text-white">{t("portal.exploreTitle")}</h3>
+                    <div className="flex flex-col gap-1.5 pb-2">
+                      {CONNECTED_ROWS.map((row, index) => (
+                        <div
+                          className={cx(
+                            "flex w-full items-center justify-center gap-1.5 rounded-full px-3 py-2.5 text-[11px] font-bold text-advo-charcoal",
+                            index === CONNECTED_ROWS.length - 1 && "pe-14",
+                          )}
+                          key={row.labelKey}
+                          style={{ background: "var(--advo-gradient-gold)" }}
+                        >
+                          <span aria-hidden="true">{row.icon}</span>
+                          <span className="truncate">{t(row.labelKey)}</span>
+                          <span aria-hidden="true">›</span>
+                        </div>
+                      ))}
+                    </div>
+                    <span className="absolute -right-0.5 -bottom-1 grid size-12 place-items-center rounded-full bg-[var(--advo-blue-brand)] text-[9px] font-black text-white shadow-[0_8px_18px_rgba(27,94,164,0.45)]">
+                      {t("portal.help")}
+                    </span>
+                  </div>
+
+                  <p className="relative mt-4 text-center text-[9px] text-white/50">
+                    {t("portal.poweredBy", { brand: "Advo TZ" })}
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -676,7 +568,7 @@ export function HeroPhoneMockup({ className }: { className?: string }) {
             {/* Glass reflection — a single diagonal sheen sells the screen */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-40 rounded-[2.7rem] bg-[linear-gradient(128deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.08)_26%,transparent_46%)]"
+              className="pointer-events-none absolute inset-0 z-40 rounded-[2.7rem] bg-[linear-gradient(128deg,rgba(255,255,255,0.14)_0%,transparent_28%)]"
             />
           </div>
         </div>

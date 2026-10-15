@@ -804,9 +804,17 @@ export class AuthService extends AuthLookup {
     });
 
     const user = await this.toSessionUser(session.userId);
+    // Local development convenience: when Admin MFA is switched off, an Admin
+    // session counts as MFA-passed even if it was created while the challenge
+    // was still on. Without this, an existing Admin session keeps dead-ending
+    // on the dashboard's MFA wall until the browser cookie is cleared.
+    // `adminMfaRequired()` is hard-wired to `true` in production, so this can
+    // never open a production Admin session.
+    const mfaPassed =
+      session.mfaPassed || (user.role === UserRole.ADMIN && !adminMfaRequired());
     return {
       ...user,
-      mfaPassed: session.mfaPassed,
+      mfaPassed,
       sessionId: session.id,
       impersonation: await this.impersonationOf(session.impersonatedByUserId, session.impersonationReason, session.createdAt),
     };

@@ -15,7 +15,7 @@ Hii ni specification ya kujenga mfumo. Majina ya plans ni mifano na bei zitawekw
 | **Reseller plan** | Subscription ya reseller ya kutumia AdvoWiFi; inaamua features na limits zake | Admin | Sponsored, Brand Control, Ad Free |
 | **WiFi package** | Kifurushi cha internet kinachonunuliwa na mteja kwenye captive portal | Reseller | Saa 3, TSh 2,000, hadi 3 Mbps |
 
-Kubadilisha reseller plan hakubadilishi moja kwa moja bei, muda au speed za WiFi packages zake. Plan inaamua uwezo wake wa kusimamia mfumo na kubadili muonekano.
+Kubadilisha reseller plan hakubadilishi moja kwa moja bei, muda au speed za WiFi packages zake. Plan inaamuyesa uwezo wake wa kusimamia mfumo na kubadili muonekano.
 
 **Scope ya mwanzo:** reseller mmoja ana subscription moja inayotumika kwenye sites zake zote. Kila site inaweza kuwa na branding na portal preferences zake, lakini haiwezi kuvuka ruhusa za plan ya reseller.
 

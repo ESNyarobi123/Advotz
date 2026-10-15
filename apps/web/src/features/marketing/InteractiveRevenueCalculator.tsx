@@ -38,9 +38,7 @@ export function InteractiveRevenueCalculator() {
   const netMonthlyProfit = Math.max(0, monthlyGross - estimatedMomoFee - platformFee);
 
   return (
-    <div
-      className="w-full rounded-3xl border border-[#DFE5EC] bg-white p-6 sm:p-10 shadow-xl overflow-hidden relative"
-    >
+    <div className="relative w-full overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-10">
       {/* Decorative gradient orb */}
       <div
         className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-10 pointer-events-none blur-3xl"
@@ -54,16 +52,16 @@ export function InteractiveRevenueCalculator() {
           className="inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3"
           style={{
             background: "linear-gradient(135deg, rgba(251, 161, 2, 0.15) 0%, rgba(241, 99, 4, 0.15) 100%)",
-            color: "#F16304",
+            color: "#FBA102",
             border: "1px solid rgba(241, 99, 4, 0.3)",
           }}
         >
           {t("marketing.calculator.badge")}
         </span>
-        <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black text-[#18212F] tracking-tight">
+        <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
           {t("marketing.calculator.title")}
         </h2>
-        <p className="text-base text-[#526174] mt-3">
+        <p className="mt-3 text-base text-white/65">
           {t("marketing.calculator.subtitle")}
         </p>
 
@@ -76,8 +74,8 @@ export function InteractiveRevenueCalculator() {
               onClick={() => handleVenueChange(v.id as any)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition border ${
                 venueType === v.id
-                  ? "bg-[#1B5EA4] text-white border-[#1B5EA4] shadow-sm"
-                  : "bg-[#F7F9FC] text-[#526174] border-[#DFE5EC] hover:border-slate-400"
+                  ? "bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)] text-[#111213] border-[#F16304] shadow-sm"
+                  : "border-white/10 bg-white/5 text-white/70 hover:border-[#FBA102]/40"
               }`}
             >
               {v.name}
@@ -90,12 +88,12 @@ export function InteractiveRevenueCalculator() {
         {/* Sliders Input Column */}
         <div className="lg:col-span-6 space-y-6">
           {/* Slider 1: Daily Users */}
-          <div className="bg-[#F7F9FC] border border-[#DFE5EC] rounded-2xl p-5">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[#18212F] uppercase tracking-wide">
+              <label className="text-xs font-bold tracking-wide text-white/80 uppercase">
                 {t("marketing.calculator.dailyUsers.label")}
               </label>
-              <span className="text-lg font-black text-[#1B5EA4] font-mono">
+              <span className="text-lg font-black text-[#F16304] font-mono">
                 {t("marketing.calculator.guestsValue", { count: dailyUsers })}
               </span>
             </div>
@@ -106,9 +104,9 @@ export function InteractiveRevenueCalculator() {
               step={5}
               value={dailyUsers}
               onChange={(e) => setDailyUsers(Number(e.target.value))}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#1B5EA4]"
+              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-white/15 accent-[#F16304]"
             />
-            <div className="flex justify-between text-[10px] text-[#526174] mt-1 font-mono">
+            <div className="mt-1 flex justify-between font-mono text-[10px] text-white/45">
               <span>{t("marketing.calculator.guestsTick", { count: 10 })}</span>
               <span>{t("marketing.calculator.guestsTick", { count: 250 })}</span>
               <span>{t("marketing.calculator.guestsTick", { count: 500 })}</span>
@@ -116,9 +114,9 @@ export function InteractiveRevenueCalculator() {
           </div>
 
           {/* Slider 2: Average Package Price */}
-          <div className="bg-[#F7F9FC] border border-[#DFE5EC] rounded-2xl p-5">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-[#18212F] uppercase tracking-wide">
+              <label className="text-xs font-bold tracking-wide text-white/80 uppercase">
                 {t("marketing.calculator.avgPrice.label")}
               </label>
               <span className="text-lg font-black text-[#F16304] font-mono">
@@ -132,17 +130,17 @@ export function InteractiveRevenueCalculator() {
               step={100}
               value={avgPrice}
               onChange={(e) => setAvgPrice(Number(e.target.value))}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#F16304]"
+              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-white/15 accent-[#F16304]"
             />
-            <div className="flex justify-between text-[10px] text-[#526174] mt-1 font-mono">
+            <div className="mt-1 flex justify-between font-mono text-[10px] text-white/45">
               <span>TZS 500</span>
               <span>TZS 2,500</span>
               <span>TZS 5,000</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-[#526174]">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div className="flex items-center gap-2 text-xs text-white/55">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-[#03ac77]" />
             <span>
               {t("marketing.calculator.note")}
             </span>
@@ -154,8 +152,8 @@ export function InteractiveRevenueCalculator() {
           <div
             className="rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl"
             style={{
-              background: "linear-gradient(145deg, #111213 0%, #18212F 100%)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
+              background: "linear-gradient(145deg, #111213 0%, #24180c 100%)",
+              border: "1px solid rgba(251, 161, 2, 0.35)",
             }}
           >
             <div className="space-y-4">
@@ -198,9 +196,9 @@ export function InteractiveRevenueCalculator() {
               <div className="pt-4">
                 <Link
                   href="/register"
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white shadow-lg transition bg-[#1B5EA4] hover:bg-[#2176C2]"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-[#111213] shadow-lg transition bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)] hover:brightness-105"
                   style={{
-                    boxShadow: "0 4px 15px rgba(27, 94, 164, 0.4)",
+                    boxShadow: "0 12px 28px -14px rgba(241, 99, 4, 0.85)",
                   }}
                 >
                   <span>{t("marketing.calculator.cta")}</span>

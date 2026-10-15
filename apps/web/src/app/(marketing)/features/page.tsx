@@ -27,9 +27,9 @@ export default async function FeaturesPage() {
           <span
             className="inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3"
             style={{
-              background: "linear-gradient(135deg, rgba(27, 94, 164, 0.15) 0%, rgba(33, 118, 194, 0.15) 100%)",
-              color: "#1B5EA4",
-              border: "1px solid rgba(27, 94, 164, 0.25)",
+              background: "linear-gradient(135deg, rgba(251, 161, 2, 0.15) 0%, rgba(241, 99, 4, 0.15) 100%)",
+              color: "#b15f00",
+              border: "1px solid rgba(251, 161, 2, 0.35)",
             }}
           >
             {t("marketing.features.badge")}
@@ -49,7 +49,7 @@ export default async function FeaturesPage() {
             id="captive-portal"
             className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
           >
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1B5EA4]">
+            <div className="w-12 h-12 rounded-2xl bg-[#fff4e0] border border-[#FBA102]/30 flex items-center justify-center text-[#b15f00]">
               <Smartphone className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-[#18212F]">
@@ -114,13 +114,13 @@ export default async function FeaturesPage() {
             </p>
             <ul className="space-y-2 text-xs text-[#18212F] pt-2">
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1B5EA4]" /> {t("marketing.features.vouchers.feature1")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.vouchers.feature1")}
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1B5EA4]" /> {t("marketing.features.vouchers.feature2")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.vouchers.feature2")}
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1B5EA4]" /> {t("marketing.features.vouchers.feature3")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.vouchers.feature3")}
               </li>
             </ul>
           </div>
@@ -154,7 +154,7 @@ export default async function FeaturesPage() {
 
           {/* 5. Device Limit & Roaming */}
           <div className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+            <div className="w-12 h-12 rounded-2xl bg-[#fff0e9] border border-[#F16304]/25 flex items-center justify-center text-[#F16304]">
               <Layers className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-[#18212F]">
@@ -165,13 +165,13 @@ export default async function FeaturesPage() {
             </p>
             <ul className="space-y-2 text-xs text-[#18212F] pt-2">
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-600" /> {t("marketing.features.devices.feature1")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.devices.feature1")}
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-600" /> {t("marketing.features.devices.feature2")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.devices.feature2")}
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-600" /> {t("marketing.features.devices.feature3")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.devices.feature3")}
               </li>
             </ul>
           </div>
@@ -181,7 +181,7 @@ export default async function FeaturesPage() {
             id="agents"
             className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
           >
-            <div className="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center text-[#1B5EA4]">
+            <div className="w-12 h-12 rounded-2xl bg-[#fff4e0] border border-[#FBA102]/30 flex items-center justify-center text-[#b15f00]">
               <Users className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-[#18212F]">
@@ -192,13 +192,13 @@ export default async function FeaturesPage() {
             </p>
             <ul className="space-y-2 text-xs text-[#18212F] pt-2">
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1B5EA4]" /> {t("marketing.features.agents.feature1")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.agents.feature1")}
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1B5EA4]" /> {t("marketing.features.agents.feature2")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.agents.feature2")}
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1B5EA4]" /> {t("marketing.features.agents.feature3")}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.agents.feature3")}
               </li>
             </ul>
           </div>
@@ -215,7 +215,7 @@ export default async function FeaturesPage() {
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 text-sm font-bold text-white px-7 py-3.5 rounded-xl shadow-lg transition bg-[#1B5EA4] hover:bg-[#2176C2]"
+              className="inline-flex items-center gap-2 text-sm font-bold text-[#111213] px-7 py-3.5 rounded-xl shadow-lg transition bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)] hover:brightness-105"
             >
               <span>{t("marketing.features.cta.register")}</span>
               <ArrowRight className="w-4 h-4" />

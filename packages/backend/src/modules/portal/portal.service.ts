@@ -161,7 +161,7 @@ async function buildPortalBootstrapPayload(
       config,
       packages: styledPackages,
       packageCardStyle: resolution?.config.packageCards.style ?? "classic",
-      packageCardLayout: resolution?.config.packageCards.layout ?? "grid-2",
+      packageCardLayout: resolution?.config.packageCards.layout ?? "list",
       listings: listings.map((l) => ({
         id: l.id,
         kind: l.kind,

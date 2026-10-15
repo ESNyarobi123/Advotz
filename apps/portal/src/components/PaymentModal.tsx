@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@heroui/react";
 import {
   formatBytes,
   formatDuration,
@@ -13,7 +12,7 @@ import { FieldInput } from "@/components/FieldInput";
 import { PortalModal } from "@/components/PortalModal";
 import { MONEY_OPTIONS, detectNetwork } from "@/lib/money";
 import { useLocale } from "@/lib/portal";
-import { primaryButton } from "@/lib/theme";
+import { systemActionClass, systemActionStyle } from "@/lib/theme";
 import type { PortalPackage, PortalTheme } from "@/lib/portal-types";
 
 /**
@@ -70,6 +69,7 @@ export function PaymentModal({
   error,
   onClose,
   onSubmit,
+  contained = false,
 }: {
   /** The package being bought. The caller mounts this only while one is chosen. */
   pkg: PortalPackage;
@@ -80,9 +80,10 @@ export function PaymentModal({
   error: string | null;
   onClose: () => void;
   onSubmit: (packageId: string, form: PayerForm) => void;
+  /** Keep the dialog inside a design-board phone instead of the browser window. */
+  contained?: boolean;
 }) {
   const { locale, t } = useLocale();
-  const buy = primaryButton(theme);
   const [phone, setPhone] = useState("");
 
   const detected = detectNetwork(phone);
@@ -117,8 +118,10 @@ export function PaymentModal({
 
   return (
     <PortalModal
+      contained={contained}
       onClose={onClose}
       open
+      system
       theme={theme}
       title={t("portal.payTitle")}
     >
@@ -126,9 +129,8 @@ export function PaymentModal({
         <div
           className="rounded-2xl border p-3"
           style={{
-            borderColor:
-              "color-mix(in srgb, var(--advo-blue) 25%, transparent)",
-            background: "color-mix(in srgb, var(--advo-blue) 6%, transparent)",
+            borderColor: "color-mix(in srgb, var(--advo-orange) 28%, transparent)",
+            background: "color-mix(in srgb, var(--advo-gold) 12%, white)",
           }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -148,7 +150,7 @@ export function PaymentModal({
             </div>
             <strong
               className="shrink-0 text-lg font-black tabular-nums"
-              style={{ color: "var(--advo-blue)" }}
+              style={{ color: "var(--advo-orange)" }}
             >
               {formatTzs(pkg.priceTzs)}
             </strong>
@@ -236,16 +238,14 @@ export function PaymentModal({
 
         {error ? <Notice tone="danger">{error}</Notice> : null}
 
-        <Button
-          fullWidth
-          isDisabled={pending || blocked !== "none"}
-          size="lg"
-          style={{ ...buy.style, borderRadius: theme?.radius }}
+        <button
+          className={systemActionClass}
+          disabled={pending || blocked !== "none"}
+          style={systemActionStyle}
           type="submit"
-          variant={buy.variant}
         >
           {pending ? t("sending") : `${t("pay")} ${formatTzs(pkg.priceTzs)}`}
-        </Button>
+        </button>
 
         <button
           className="w-full text-center text-[11px] font-bold underline"

@@ -46,7 +46,7 @@ export function MarketingFooter() {
 
   const pills = [
     { icon: <CheckCircle2 className="size-3.5 text-[#FBA102]" aria-hidden="true" />, label: t("marketing.footer.pill.ledger") },
-    { icon: <Radio className="size-3.5 text-[#7FB4E6]" aria-hidden="true" />, label: t("marketing.footer.pill.omada") },
+                { icon: <Radio className="size-3.5 text-[#FBA102]" aria-hidden="true" />, label: t("marketing.footer.pill.omada") },
     { icon: <ShieldCheck className="size-3.5 text-emerald-400" aria-hidden="true" />, label: t("marketing.footer.pill.noTheft") },
   ];
 

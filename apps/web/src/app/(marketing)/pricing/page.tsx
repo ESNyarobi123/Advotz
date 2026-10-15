@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { ShieldCheck, HelpCircle } from "lucide-react";
 import type { PublicPlan } from "@advo/contracts";
 import { getServerI18n } from "@/lib/i18n.server";
 import { fetchPublicPlans, orderPlansForDisplay, popularPlanId } from "@/lib/public-plans";
 import { PlanCardGrid } from "@/features/marketing/PlanCards";
+import { ButtonLink, Section, SectionHeading } from "@/features/marketing/ui";
 
 /**
  * The pricing catalog, read live from Admin.
@@ -11,6 +11,10 @@ import { PlanCardGrid } from "@/features/marketing/PlanCards";
  * Nothing about a plan is hard-coded here: names, prices, trial length and the
  * capabilities each tier grants all come from the published plans Admin manages,
  * so repricing is a dashboard action rather than a deploy.
+ *
+ * The page uses the same charcoal band and showcase cards as the home pricing
+ * section, so a visitor who follows "compare plans" does not land on a
+ * different design.
  */
 export default async function PricingPage() {
   const { t } = await getServerI18n();
@@ -43,67 +47,46 @@ export default async function PricingPage() {
   }
 
   return (
-    <div className="w-full bg-[#F7F9FC] py-16 lg:py-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span
-            className="inline-block text-xs font-bold uppercase tracking-wider px-3.5 py-1 rounded-full mb-3"
-            style={{
-              background: "linear-gradient(135deg, rgba(251, 161, 2, 0.15) 0%, rgba(241, 99, 4, 0.15) 100%)",
-              color: "#F16304",
-              border: "1px solid rgba(241, 99, 4, 0.3)",
-            }}
-          >
-            {t("marketing.pricing.badge")}
-          </span>
-          <h1 className="text-3xl sm:text-5xl font-black text-[#18212F] tracking-tight">
-            {t("marketing.pricing.title")}
-          </h1>
-          <p className="text-base sm:text-lg text-[#526174] mt-4">{t("marketing.pricing.subtitle")}</p>
-        </div>
+    <Section tone="dark" aria-labelledby="pricing-page-title">
+      <SectionHeading
+        tone="dark"
+        eyebrow={t("marketing.pricing.badge")}
+        title={t("marketing.pricing.title")}
+        lead={t("marketing.pricing.subtitle")}
+        titleId="pricing-page-title"
+      />
 
-        {/* Live plan catalog */}
-        {plans.length > 0 ? (
-          <div className="mb-20">
-            <PlanCardGrid plans={plans} t={t} popularId={popularId} ctaForPlan={ctaForPlan} />
-          </div>
-        ) : (
-          <div className="mb-20 rounded-3xl border border-[#DFE5EC] bg-white p-10 text-center max-w-xl mx-auto shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1B5EA4] mx-auto">
-              <HelpCircle className="w-7 h-7" />
-            </div>
-            <p className="mt-4 text-sm text-[#526174]">{t("marketing.plans.empty")}</p>
-            <Link
-              href="/contact"
-              className="mt-5 inline-block px-6 py-3 rounded-xl font-bold text-xs text-white shadow-md"
-              style={{ backgroundColor: "#1B5EA4" }}
-            >
-              {t("marketing.plans.contact")}
-            </Link>
-          </div>
-        )}
-
-        {/* Guarantee Banner */}
-        <div className="rounded-3xl border border-[#DFE5EC] bg-white p-8 max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-6 shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <div>
-            <h4 className="text-lg font-bold text-[#18212F]">{guaranteeTitle}</h4>
-            <p className="text-xs text-[#526174] mt-1 leading-relaxed">{guaranteeBody}</p>
-          </div>
-          <Link
-            href={trialPlan ? `/register?plan=${encodeURIComponent(trialPlan.code)}` : "/register"}
-            className="shrink-0 px-6 py-3 rounded-xl font-bold text-xs text-white shadow-md transition"
-            style={{
-              backgroundColor: "#1B5EA4",
-            }}
-          >
-            {trialPlan ? t("marketing.pricing.guarantee.cta") : t("marketing.pricing.guarantee.ctaNoTrial")}
-          </Link>
+      {plans.length > 0 ? (
+        <div className="mt-12">
+          <PlanCardGrid dark plans={plans} t={t} popularId={popularId} ctaForPlan={ctaForPlan} />
         </div>
+      ) : (
+        <div className="mx-auto mt-12 max-w-xl rounded-[28px] border border-white/10 bg-white/[0.04] p-10 text-center">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#FBA102]/30 bg-[#FBA102]/10 text-[#FBA102]">
+            <HelpCircle className="size-7" />
+          </div>
+          <p className="mt-4 text-sm text-white/65">{t("marketing.plans.empty")}</p>
+          <div className="mt-5 flex justify-center">
+            <ButtonLink href="/contact">{t("marketing.plans.contact")}</ButtonLink>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto mt-16 flex max-w-4xl flex-col items-center gap-6 rounded-[28px] border border-[#FBA102]/25 bg-white/[0.04] p-8 sm:flex-row">
+        <div className="grid size-16 shrink-0 place-items-center rounded-2xl border border-[#FBA102]/30 bg-[#FBA102]/10 text-[#FBA102]">
+          <ShieldCheck className="size-8" />
+        </div>
+        <div className="min-w-0 text-center sm:text-left">
+          <h2 className="text-lg font-bold text-white">{guaranteeTitle}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-white/65">{guaranteeBody}</p>
+        </div>
+        <ButtonLink
+          href={trialPlan ? `/register?plan=${encodeURIComponent(trialPlan.code)}` : "/register"}
+          className="shrink-0"
+        >
+          {trialPlan ? t("marketing.pricing.guarantee.cta") : t("marketing.pricing.guarantee.ctaNoTrial")}
+        </ButtonLink>
       </div>
-    </div>
+    </Section>
   );
 }

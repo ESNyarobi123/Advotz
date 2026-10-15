@@ -663,7 +663,7 @@ export function PortalPackageCard({
           </div>
           <div className="text-right shrink-0">
             <span className={`text-[9.5px] font-medium block ${tokens.muted}`}>{pkg.currency ?? "TSh"}</span>
-            <span className="text-2xl font-black tracking-tight text-portal-ink">{pkg.price}</span>
+            <span className="text-2xl font-black tracking-tight text-portal-orange-deep">{pkg.price}</span>
           </div>
         </div>
 
@@ -683,7 +683,7 @@ export function PortalPackageCard({
         </div>
 
         <div className={`mt-3.5 flex items-center justify-between rounded-xl px-3.5 py-2 font-bold text-xs shadow-sm transition group-hover:opacity-95 ${
-          bold ? "bg-white text-[var(--advo-blue)]" : "bg-portal-ink text-white"
+          bold ? "bg-white text-[var(--advo-blue)]" : "bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)] text-[#111213]"
         }`}>
           <span>{selectLabel}</span>
           <PortalIcon className="size-3.5 transition group-hover:translate-x-1" name="arrow" />
@@ -814,33 +814,30 @@ export function PortalPackageCard({
           </span>
         ) : null}
 
-        <div className="flex items-center gap-3 min-w-0">
-          <span className={`grid place-items-center rounded-lg size-8 shrink-0 ${pkg.featured && !bold ? "bg-portal-orange-soft text-portal-orange-deep" : tokens.icon}`}>
-            <PortalIcon className="size-4" name={pkg.icon ?? "clock"} />
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold truncate">{pkg.name}</span>
-              <span className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold ${bold ? "bg-white/20 text-white" : "bg-black/5 text-portal-muted"}`}>
-                {pkg.duration}
-              </span>
-            </div>
-            <div className={`mt-0.5 flex items-center gap-2 text-[9.5px] ${tokens.muted} truncate`}>
-              {pkg.data ? <span className="font-medium">{pkg.data}</span> : null}
-              {speedText ? <span>• {speedText}</span> : null}
-              {deviceText ? <span>• {deviceText}</span> : null}
-            </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span className="text-xs font-bold leading-tight">{pkg.name}</span>
+            <span className={`rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold ${bold ? "bg-white/20 text-white" : "bg-black/5 text-portal-muted"}`}>
+              {pkg.duration}
+            </span>
+          </div>
+          <div className={`mt-0.5 text-[9.5px] leading-tight ${tokens.muted}`}>
+            {pkg.data ? <span className="font-medium">{pkg.data}</span> : null}
+            {speedText ? <span> · {speedText}</span> : null}
+            {deviceText ? <span> · {deviceText}</span> : null}
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0 pl-1">
+        <div className="flex items-center gap-2 shrink-0 pl-1">
           <div className="text-right">
             <span className={`text-[9px] font-medium block leading-none ${tokens.muted}`}>{pkg.currency ?? "TSh"}</span>
             <span className="text-sm font-extrabold tracking-tight">{pkg.price}</span>
           </div>
-          <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[9.5px] font-bold transition group-hover:opacity-90 ${bold ? "bg-white text-[var(--advo-blue)]" : "bg-portal-ink text-white shadow-sm"}`}>
+          <span
+            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[9px] font-bold leading-none transition group-hover:opacity-90 ${bold ? "bg-white text-[var(--advo-blue)]" : "text-advo-charcoal"}`}
+            style={bold ? undefined : { background: "var(--advo-gradient-gold)" }}
+          >
             {selectLabel}
-            <PortalIcon className="size-3 transition group-hover:translate-x-0.5" name="arrow" />
           </span>
         </div>
       </button>
@@ -1568,12 +1565,14 @@ function PortalCarouselButton({ label, onClick, children }: { label: string; onC
 /**
  * The reseller's own identity bar. Always shown, on every plan.
  *
- * `logoUrl` is the plan-resolved logo: when a plan has no logo upload, or the
- * reseller has none set, the platform's wifi mark is drawn instead. The logo is a
- * `<img>` rather than a background so a slow or failed load degrades to nothing
- * rather than leaving a hole — and `object-contain` keeps a wordmark legible
+ * `logoUrl` is the plan-resolved logo. When a plan has no logo upload, or the
+ * reseller has none set, the platform lockup is shown instead — the same
+ * transparent Advowifi mark used as the product logo. The logo is an `<img>`
+ * rather than a background so a slow or failed load degrades to nothing
+ * rather than leaving a hole, and `object-contain` keeps a wordmark legible
  * instead of cropping it.
  */
+const PLATFORM_PORTAL_LOGO = "/brand/advo-logo-on-light.png";
 export function PortalResellerHeader({
   name,
   location,
@@ -1592,24 +1591,17 @@ export function PortalResellerHeader({
   logoUrl?: string | null;
 }) {
   return (
-    <header className="border-b border-portal-line bg-white">
+    <header className="border-b border-portal-line bg-white text-portal-ink">
       <div className="flex min-h-[72px] items-center justify-between gap-4 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt=""
-              className="size-10 shrink-0 rounded-xl bg-portal-paper object-contain p-1"
-              decoding="async"
-              height={40}
-              src={logoUrl}
-              width={40}
-            />
-          ) : (
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-portal-orange-soft text-portal-orange">
-              <PortalIcon className="size-6" name="wifi" />
-            </span>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt=""
+            className="h-12 w-auto max-w-[9.5rem] shrink-0 object-contain"
+            decoding="async"
+            height={48}
+            src={logoUrl || PLATFORM_PORTAL_LOGO}
+          />
           <span className="min-w-0">
             <strong className="block truncate text-[17px] font-bold tracking-[-0.045em]">{name}</strong>
             <small className="mt-px flex items-center gap-1 truncate text-[11px] text-portal-muted">
@@ -1774,7 +1766,7 @@ export function PortalBusinessCard({
   className?: string;
 }) {
   return (
-    <article className={`min-w-0 overflow-hidden rounded-portal-card border border-portal-line bg-white transition duration-200 hover:-translate-y-0.5 ${className ?? ""}`}>
+    <article className={`min-w-0 overflow-hidden rounded-portal-card border border-portal-line bg-white text-portal-ink transition duration-200 hover:-translate-y-0.5 ${className ?? ""}`}>
       <div className={`relative h-[130px] overflow-hidden @md:h-[155px] ${adThemeClass(business.theme)}`}>
         {business.imageUrl ? (
           <>
@@ -1827,7 +1819,7 @@ export type PortalShortcut = {
 export function PortalDiscoverLinks({ shortcuts, ariaLabel }: { shortcuts: PortalShortcut[]; ariaLabel: string }) {
   if (shortcuts.length === 0) return null;
   return (
-    <nav aria-label={ariaLabel} className="grid overflow-hidden rounded-[14px] border border-portal-line bg-white @md:grid-cols-3">
+    <nav aria-label={ariaLabel} className="grid overflow-hidden rounded-[14px] border border-portal-line bg-white text-portal-ink @md:grid-cols-3">
       {shortcuts.map((shortcut) => {
         const inner = (
           <>

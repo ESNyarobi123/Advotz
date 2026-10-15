@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, HelpCircle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export function FaqSection() {
@@ -36,22 +36,15 @@ export function FaqSection() {
   ];
 
   return (
-    <div id="faq" className="w-full max-w-4xl mx-auto space-y-4">
+    <div id="faq" className="mx-auto w-full max-w-4xl scroll-mt-28 space-y-4">
       <div className="text-center mb-8">
-        <span
-          className="inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3"
-          style={{
-            background: "linear-gradient(135deg, rgba(27, 94, 164, 0.15) 0%, rgba(33, 118, 194, 0.15) 100%)",
-            color: "#1B5EA4",
-            border: "1px solid rgba(27, 94, 164, 0.25)",
-          }}
-        >
+        <span className="mb-3 inline-block rounded-full border border-[#FBA102]/45 bg-[#FBA102]/10 px-3 py-1 text-xs font-bold tracking-wider text-[#FBA102] uppercase">
           {t("marketing.faq.badge")}
         </span>
-        <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black text-[#18212F] tracking-tight">
+        <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-[2.75rem]">
           {t("marketing.faq.title")}
         </h2>
-        <p className="text-base text-[#526174] mt-3">
+        <p className="mt-3 text-base text-white/65">
           {t("marketing.faq.subtitle")}
         </p>
       </div>
@@ -62,10 +55,10 @@ export function FaqSection() {
           return (
             <div
               key={idx}
-              className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+              className={`overflow-hidden rounded-2xl border transition-all duration-200 ${
                 isOpen
-                  ? "border-[#1B5EA4] bg-white shadow-md"
-                  : "border-[#DFE5EC] bg-white hover:border-slate-300"
+                  ? "border-[#FBA102] bg-white/[0.06]"
+                  : "border-white/10 bg-white/[0.03] hover:border-[#FBA102]/40"
               }`}
             >
               <button
@@ -73,18 +66,18 @@ export function FaqSection() {
                 onClick={() => setOpenIndex(isOpen ? null : idx)}
                 className="w-full px-6 py-4.5 flex items-center justify-between text-left gap-4"
               >
-                <span className="font-bold text-sm sm:text-base text-[#18212F]">
+                <span className="text-sm font-bold text-white sm:text-base">
                   {faq.q}
                 </span>
                 <ChevronDown
-                  className={`w-5 h-5 text-[#1B5EA4] transition-transform duration-300 shrink-0 ${
+                  className={`w-5 h-5 text-[#F16304] transition-transform duration-300 shrink-0 ${
                     isOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
               {isOpen && (
-                <div className="px-6 pb-5 pt-1 text-sm text-[#526174] leading-relaxed border-t border-slate-100 animate-in fade-in duration-200">
+                <div className="border-t border-white/10 px-6 pt-1 pb-5 text-sm leading-relaxed text-white/70">
                   {faq.a}
                 </div>
               )}

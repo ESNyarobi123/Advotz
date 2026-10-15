@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
+import * as argon2 from "argon2";
 import { AuthService } from "./auth.service.js";
 import { prisma } from "@advo/db";
 import { agentFactory, resellerFactory } from "@advo/test-kit";
@@ -184,6 +185,46 @@ describe("auth registration flows", () => {
     } finally {
       if (previous === undefined) delete process.env.DEV_FIXED_OTP;
       else process.env.DEV_FIXED_OTP = previous;
+    }
+  });
+
+  it("treats an Admin session as MFA-passed while the Admin challenge is off", async () => {
+    const previous = process.env.ADMIN_MFA_REQUIRED;
+    const restore = () => {
+      if (previous === undefined) delete process.env.ADMIN_MFA_REQUIRED;
+      else process.env.ADMIN_MFA_REQUIRED = previous;
+    };
+
+    const creds = { email: "admin-mfa-toggle@advo.test", password: "AdminSecurePass1" };
+    let session!: Awaited<ReturnType<typeof auth.login>>;
+    process.env.ADMIN_MFA_REQUIRED = "true";
+    try {
+      await prisma.user.create({
+        data: {
+          email: creds.email,
+          name: "Toggle Admin",
+          role: "ADMIN",
+          status: "ACTIVE",
+          emailVerifiedAt: new Date(),
+          passwordHash: await argon2.hash(creds.password),
+        },
+      });
+      // Created while the challenge was on: the Admin has no authenticator enrolled,
+      // so the password alone signs them in but the session is not MFA-passed.
+      session = await auth.login(creds, {}, 3600);
+      expect(session.user.mfaPassed).toBe(false);
+    } finally {
+      restore();
+    }
+
+    process.env.ADMIN_MFA_REQUIRED = "false";
+    try {
+      // Switching the challenge off must unblock that existing session, not just new logins.
+      const actor = await auth.resolveSession(session.token);
+      expect(actor?.role).toBe("ADMIN");
+      expect(actor?.mfaPassed).toBe(true);
+    } finally {
+      restore();
     }
   });
 

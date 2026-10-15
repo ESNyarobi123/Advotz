@@ -35,8 +35,9 @@ export function MarketingHeader() {
   /*
    * One scroll/resize handler drives both header behaviours:
    *
-   *  1. `scrolled` swaps the header from charcoal-over-hero to white glass so
-   *     it stays legible once light sections slide underneath it.
+   *  1. `scrolled` swaps the header from charcoal to white glass on pages that
+   *     still have light bands. Home and pricing are charcoal end to end, so
+   *     their bar stays on the brand background.
    *  2. The scroll-spy marks the in-page section sitting under the header.
    *
    * The spy is measured from `getBoundingClientRect()` against a probe line
@@ -103,7 +104,8 @@ export function MarketingHeader() {
   const isActive = (item: NavItem) =>
     item.sectionId ? pathname === "/" && activeSection === item.sectionId : pathname === item.href;
 
-  const onDark = !scrolled && !mobileMenuOpen;
+  const darkPage = pathname === "/" || pathname === "/pricing";
+  const onDark = darkPage || (!scrolled && !mobileMenuOpen);
 
   return (
     <>
@@ -125,9 +127,9 @@ export function MarketingHeader() {
       <header
         className={cx(
           "sticky top-0 z-40 w-full border-b transition-colors duration-300",
-          scrolled
+          scrolled && !darkPage
             ? "border-advo-border bg-white/85 shadow-[0_1px_0_rgba(16,24,40,0.04)] backdrop-blur-xl"
-            : "border-white/10 bg-advo-charcoal/85 backdrop-blur-md",
+            : "border-white/10 bg-advo-charcoal/90 backdrop-blur-md",
         )}
       >
         <Container className="flex h-16 items-center justify-between gap-2 sm:gap-4 lg:h-20">
@@ -147,7 +149,7 @@ export function MarketingHeader() {
                     active
                       ? onDark
                         ? "bg-white/10 text-white"
-                        : "bg-advo-blue-soft text-advo-blue"
+                        : "bg-advo-gold-soft text-[#b15f00]"
                       : onDark
                         ? "text-white/75 hover:bg-white/5 hover:text-white"
                         : "text-advo-muted hover:bg-advo-page hover:text-advo-text",

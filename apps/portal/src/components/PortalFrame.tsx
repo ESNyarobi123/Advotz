@@ -2,6 +2,7 @@
 
 import { Button } from "@heroui/react";
 import { portalBackgroundStyle, portalThemeStyle } from "@advo/ui";
+import { systemBrandStyle } from "@/lib/theme";
 import { LOCALE_META, type Locale } from "@advo/i18n";
 import { DEFAULT_PORTAL_THEME, type PortalPreviewAppearance, type PortalTheme } from "@advo/contracts";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
@@ -16,11 +17,9 @@ import {
  * come from HeroUI (`@heroui/react`), and the one-line status messages come
  * from `@advo/ui`'s `Notice`.
  *
- * The Reseller's Captive Portal theme (colors, radius) is applied here as CSS
- * variables so both our classes and HeroUI components pick it up. The portal's
- * own design tokens are themed by `portalThemeStyle` from `@advo/ui`, which is
- * the same function the reseller designer's preview uses — so the preview and
- * the live portal cannot drift apart.
+ * The guest journey is pinned to the platform colour combo. A reseller theme is
+ * still read, then `systemBrandStyle` paints over it, so changing brand colours
+ * does not recolour package selection, payment or the waiting page.
  */
 export function portalThemeVars(theme?: PortalTheme): CSSProperties {
   if (!theme) return {};
@@ -54,7 +53,10 @@ export function portalThemeVars(theme?: PortalTheme): CSSProperties {
 type PortalFrameProps = {
   title: string;
   business?: string;
-  /** Plan-resolved brand logo; the reseller's icon mark is used when absent. */
+  /**
+   * Plan-resolved brand logo. Absent (the reseller has not uploaded one, or
+   * their plan cannot) falls back to the platform Advowifi lockup.
+   */
   logoUrl?: string | null;
   /** Plan-resolved background photo; the page colour is used when absent. */
   backgroundUrl?: string | null;
@@ -135,6 +137,8 @@ function PortalFrameShell({
   const photo = appearance?.backgroundUrl === undefined ? backgroundUrl : appearance.backgroundUrl;
   const mark = appearance?.logoUrl === undefined ? logoUrl : appearance.logoUrl;
   const badge = appearance?.showPlatformBadge ?? showPlatformBadge;
+  // White wordmark on the charcoal page. A reseller logo replaces it as-is.
+  const logoSrc = mark || "/brand/advo-logo.png";
 
   const bgStyle = portalBackgroundStyle(photo);
   const themeVars = portalThemeVars(themed);
@@ -145,7 +149,7 @@ function PortalFrameShell({
     // instead of the viewport, exactly as they do inside the marketing mockup.
     <div
       className="relative min-h-screen w-full transition-all duration-300"
-      style={{ ...themeVars, ...bgStyle }}
+      style={{ ...themeVars, ...systemBrandStyle, ...bgStyle }}
     >
       <main
         className={`@container mx-auto flex min-h-screen max-w-md flex-col px-4 py-5 ${
@@ -155,17 +159,14 @@ function PortalFrameShell({
         {banner ? <div className="mb-4">{banner}</div> : null}
 
         <header className="mb-2 flex flex-col items-center justify-center text-center">
-          {mark ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt=""
-              className="mb-2 size-12 shrink-0 rounded-2xl object-cover shadow-sm ring-1 ring-black/5"
-              src={mark}
-            />
-          ) : null}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt=""
+            className={`mb-2 h-14 w-auto object-contain ${mark ? "max-w-[11rem]" : "max-w-[9.5rem]"}`}
+            src={logoSrc}
+          />
           <h1
-            className="text-2xl font-black tracking-tight text-foreground"
-            style={{ color: "var(--advo-text)" }}
+            className="text-2xl font-black tracking-tight text-white"
           >
             {title}
           </h1>
@@ -182,7 +183,7 @@ function PortalFrameShell({
           ) : null}
         </header>
         {children}
-        {badge ? <footer className="mt-auto pt-8 text-center text-xs font-semibold text-muted">Advo TZ</footer> : null}
+        {badge ? <footer className="mt-6 text-center text-xs font-semibold text-white/45">Advo TZ</footer> : null}
       </main>
     </div>
   );

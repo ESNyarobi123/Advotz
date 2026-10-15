@@ -251,14 +251,14 @@ export const planFeaturesSchema = z
         allowed_styles: z.array(packageCardStyleSchema).min(1).max(PACKAGE_CARD_STYLES.length).default([...PACKAGE_CARD_STYLES]),
         default_style: packageCardStyleSchema.default("classic"),
         allowed_layouts: z.array(packageCardLayoutSchema).min(1).max(PACKAGE_LAYOUTS.length).default([...PACKAGE_LAYOUTS]),
-        default_layout: packageCardLayoutSchema.default("grid-2"),
+        default_layout: packageCardLayoutSchema.default("list"),
       })
       .strict()
       .default({
         allowed_styles: [...PACKAGE_CARD_STYLES],
         default_style: "classic",
         allowed_layouts: [...PACKAGE_LAYOUTS],
-        default_layout: "grid-2",
+        default_layout: "list",
       }),
     packages: z
       .object({

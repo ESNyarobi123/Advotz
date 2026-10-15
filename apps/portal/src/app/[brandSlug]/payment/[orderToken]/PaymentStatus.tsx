@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Card } from "@heroui/react";
+import { Card } from "@heroui/react";
+import { PaymentWaitingStage } from "@/components/PaymentWaitingStage";
+import { systemActionClass, systemActionStyle } from "@/lib/theme";
 import { formatDateTime, formatDuration, formatTzs } from "@advo/api-client";
 import { Notice } from "@advo/ui";
 import { FieldInput } from "@/components/FieldInput";
@@ -136,7 +138,19 @@ export function PaymentStatus({
       title={t("accessStatus")}
     >
       {error && !status ? <Notice tone="danger">{error}</Notice> : null}
-      {status ? (
+      {status && unpaid && !paymentFailed ? (
+        <PaymentWaitingStage
+          amount={formatTzs(status.amountTzs)}
+          duration={
+            status.package.durationSeconds
+              ? formatDuration(status.package.durationSeconds, locale)
+              : null
+          }
+          packageName={status.package.name ?? t("accessStatus")}
+          reference={reference}
+        />
+      ) : null}
+      {status && !(unpaid && !paymentFailed) ? (
         <Card>
           <p className="font-semibold">
             {status.package.name} · {formatTzs(status.amountTzs)}
@@ -148,18 +162,6 @@ export function PaymentStatus({
             </p>
           ) : null}
           <div className="mt-4 space-y-3">
-            {unpaid && !paymentFailed ? (
-              <>
-                <Notice tone="accent">{t("confirmPaymentPrompt")}</Notice>
-                <p className="flex items-center gap-2 text-sm text-[var(--advo-muted)]">
-                  <span
-                    className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[var(--advo-blue)] border-t-transparent"
-                    aria-hidden
-                  />
-                  {t("paymentPending")}
-                </p>
-              </>
-            ) : null}
             {paymentFailed ? (
               <>
                 <Notice tone="danger">
@@ -180,15 +182,9 @@ export function PaymentStatus({
                   {retryError ? (
                     <Notice tone="danger">{retryError}</Notice>
                   ) : null}
-                  <Button
-                    fullWidth
-                    isDisabled={retrying}
-                    size="lg"
-                    type="submit"
-                    variant="primary"
-                  >
+                  <button className={systemActionClass} disabled={retrying} style={systemActionStyle} type="submit">
                     {retrying ? t("sending") : t("tryAgain")}
-                  </Button>
+                  </button>
                 </form>
               </>
             ) : null}
@@ -213,10 +209,8 @@ export function PaymentStatus({
                   )}
                 </p>
                 {status.landingUrl ? (
-                  <a href={status.landingUrl} className="block">
-                    <Button fullWidth size="lg" variant="primary">
-                      {t("continueBrowsing")}
-                    </Button>
+                  <a className={`${systemActionClass} no-underline`} href={status.landingUrl} style={systemActionStyle}>
+                    {t("continueBrowsing")}
                   </a>
                 ) : null}
               </>
@@ -237,9 +231,8 @@ export function PaymentStatus({
             ) : null}
           </div>
         </Card>
-      ) : !error ? (
-        <Notice tone="accent">{t("paymentPending")}</Notice>
       ) : null}
+      {!status && !error ? <Notice tone="accent">{t("paymentPending")}</Notice> : null}
 
       {status?.access?.state === "ACTIVE" && extras ? (
         <div className="mt-4">
@@ -260,6 +253,7 @@ export function PaymentStatus({
         </div>
       ) : null}
 
+      {status && unpaid && !paymentFailed ? null : (
       <Card className="mt-4">
         <p className="text-sm">
           {t("reference")}: <strong className="font-mono">{reference}</strong>
@@ -279,6 +273,7 @@ export function PaymentStatus({
           </p>
         ) : null}
       </Card>
+      )}
     </PortalFrame>
   );
 }

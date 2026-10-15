@@ -28,7 +28,7 @@ import { PaymentModal, type PayBlock, type PayerForm } from "@/components/Paymen
 import { usePortalPreviewAppearance } from "@/lib/portal-preview";
 import type { PortalPackage } from "@/lib/portal-types";
 import { portalApi, useLocale } from "@/lib/portal";
-import { primaryButton } from "@/lib/theme";
+import { systemActionStyle } from "@/lib/theme";
 
 /** The portal icon that best reads as this access length. */
 function durationIcon(durationSeconds: number): PortalIconName {
@@ -54,7 +54,7 @@ export function PackagesStage({
   packages,
   theme,
   packageCardStyle,
-  packageCardLayout = "grid-2",
+  packageCardLayout = "list",
   campaigns = [],
   content,
   message,
@@ -66,6 +66,7 @@ export function PackagesStage({
   slug,
   contextToken,
   isPreview,
+  paymentContained = false,
 }: {
   packages: PortalPackage[];
   theme?: PortalTheme;
@@ -88,6 +89,8 @@ export function PackagesStage({
   slug?: string;
   contextToken?: string | null;
   isPreview?: boolean;
+  /** Keep the payment dialog inside the surrounding phone frame. */
+  paymentContained?: boolean;
 }) {
   const { locale, t } = useLocale();
   const previewAppearance = usePortalPreviewAppearance();
@@ -124,21 +127,18 @@ export function PackagesStage({
     >
       {message ? (
         <p
-          className="mx-auto mb-3 mt-0 max-w-[340px] text-center text-sm font-medium leading-snug"
-          style={{ color: "var(--advo-muted)" }}
+          className="mx-auto mb-3 mt-0 max-w-[340px] text-center text-sm font-medium leading-snug text-white/70"
         >
           {message}
         </p>
       ) : null}
       <h2
-        className="mt-1 text-center text-[1.75rem] font-black leading-tight tracking-tight"
-        style={{ color: "var(--advo-text)" }}
+        className="mt-1 text-center text-[1.75rem] font-black leading-tight tracking-tight text-white"
       >
         {t("portal.chooseTitle")}
       </h2>
       <p
-        className="mb-3 mt-1 text-center text-sm"
-        style={{ color: "var(--advo-muted)" }}
+        className="mb-3 mt-1 text-center text-sm text-white/60"
       >
         {t("portal.chooseLead")}
       </p>
@@ -178,7 +178,6 @@ export function PackagesStage({
           contextToken={contextToken}
           isPreview={isPreview}
           slug={slug}
-          theme={theme}
         />
       ) : null}
 
@@ -193,6 +192,7 @@ export function PackagesStage({
       {paying ? (
         <PaymentModal
           blocked={payBlock}
+          contained={paymentContained}
           error={error}
           key={paying.packageId}
           onClose={() => setPayingId(null)}
@@ -215,31 +215,19 @@ function VoucherSection({
   slug,
   contextToken,
   isPreview,
-  theme,
 }: {
   slug?: string;
   contextToken?: string | null;
   isPreview?: boolean;
-  theme?: PortalTheme;
 }) {
   const router = useRouter();
   const { t } = useLocale();
-  const previewAppearance = usePortalPreviewAppearance();
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  // Dynamically adopt reseller's theme / customization (live & preview)
-  const primaryColor = previewAppearance?.colors?.primary ?? theme?.primary ?? "#2563eb";
-  const accentColor = previewAppearance?.colors?.accent ?? theme?.accent ?? primaryColor;
-  const radiusVal = theme?.radius ?? 12;
-  const buttonStyle = theme?.buttonStyle ?? "gradient";
-
-  const buttonBg =
-    buttonStyle === "gradient"
-      ? `linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%)`
-      : primaryColor;
+  const radiusVal = 16;
 
   async function handleRedeem(e: React.FormEvent) {
     e.preventDefault();
@@ -299,9 +287,9 @@ function VoucherSection({
           <span
             className="rounded-full border px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider shadow-2xs transition-colors"
             style={{
-              borderColor: `color-mix(in srgb, ${primaryColor} 22%, rgba(148, 163, 184, 0.25))`,
-              backgroundColor: "var(--advo-portal-card, var(--surface, #ffffff))",
-              color: "var(--advo-text, #475569)",
+              borderColor: "color-mix(in srgb, var(--advo-gold) 45%, var(--advo-border))",
+              backgroundColor: "var(--advo-card-brand)",
+              color: "var(--advo-text-brand)",
             }}
           >
             🎫 {t("portal.voucherOr")}
@@ -314,8 +302,8 @@ function VoucherSection({
         className="overflow-hidden border p-3.5 shadow-xs backdrop-blur-sm transition-all"
         style={{
           borderRadius: radiusVal,
-          borderColor: `color-mix(in srgb, ${primaryColor} 24%, var(--advo-border, rgba(148, 163, 184, 0.2)))`,
-          background: `color-mix(in srgb, ${primaryColor} 4%, var(--advo-portal-card, var(--surface, #ffffff)))`,
+          borderColor: "color-mix(in srgb, var(--advo-gold) 35%, var(--advo-border))",
+          background: "color-mix(in srgb, var(--advo-gold) 8%, var(--advo-card-brand))",
         }}
       >
         {error ? (
@@ -339,25 +327,22 @@ function VoucherSection({
                 spellCheck={false}
                 style={{
                   borderRadius: Math.max(8, radiusVal - 2),
-                  borderColor: isFocused ? primaryColor : undefined,
-                  boxShadow: isFocused ? `0 0 0 3px color-mix(in srgb, ${primaryColor} 20%, transparent)` : undefined,
+                  borderColor: isFocused ? "var(--advo-gold)" : "var(--advo-border)",
+                  boxShadow: isFocused ? "0 0 0 3px color-mix(in srgb, var(--advo-gold) 28%, transparent)" : undefined,
                 }}
                 type="text"
                 value={code}
               />
             </div>
             <button
-              className="inline-flex shrink-0 items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold text-white shadow-xs transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold text-advo-charcoal shadow-xs transition hover:brightness-105 active:scale-[0.98] disabled:opacity-60"
               disabled={pending || !code.trim()}
-              style={{
-                borderRadius: Math.max(8, radiusVal - 2),
-                background: buttonBg,
-              }}
+              style={systemActionStyle}
               type="submit"
             >
               {pending ? (
                 <>
-                  <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-advo-charcoal border-t-transparent" />
                   <span>{t("portal.voucherSubmitting")}</span>
                 </>
               ) : (

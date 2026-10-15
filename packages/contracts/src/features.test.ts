@@ -103,7 +103,7 @@ describe("starter presets", () => {
   it("gives Brand Control every style and every layout, plus reordering and hideable placements", () => {
     expect(brandControl.features.package_cards.allowed_styles).toEqual([...PACKAGE_CARD_STYLES]);
     expect(brandControl.features.package_cards.allowed_layouts).toEqual([...PACKAGE_LAYOUTS]);
-    expect(brandControl.features.package_cards.default_layout).toBe("grid-2");
+    expect(brandControl.features.package_cards.default_layout).toBe("list");
     expect(brandControl.features.packages.order_edit).toBe(true);
     expect(canHideAllSponsored(brandControl.features)).toBe(true);
   });

@@ -1,15 +1,20 @@
 :root {
   --advo-charcoal: #111213;
-  --advo-blue: #1b5ea4;
+  /* Aliases a reseller theme never overwrites, so the guest pages can pin the platform combo. */
+  --advo-blue-brand: #1b5ea4;
+  --advo-text-brand: #18212f;
+  --advo-page-brand: #f6f8fc;
+  --advo-card-brand: #ffffff;
+  --advo-blue: var(--advo-blue-brand);
   --advo-blue-hover: #2176c2;
   --advo-gold: #fba102;
   --advo-gold-hover: #e08f02;
   --advo-orange: #f16304;
-  --advo-page: #f6f8fc;
+  --advo-page: var(--advo-page-brand);
   /* Neutral track behind progress bars and meters. */
   --advo-track: #ebeff5;
-  --advo-card: #ffffff;
-  --advo-text: #18212f;
+  --advo-card: var(--advo-card-brand);
+  --advo-text: var(--advo-text-brand);
   --advo-muted: #526174;
   --advo-border: #e6ebf2;
   --advo-success: #166534;

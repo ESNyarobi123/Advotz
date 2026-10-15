@@ -201,6 +201,212 @@ body {
 }
 
 /*
+ * Admin, Reseller and Agent dashboards.
+ *
+ * The guest product is charcoal, gold and blue. These pages were still the
+ * light canvas, so every card, field and primary button read as a large white
+ * surface. This scope remaps those tokens for all three shells.
+ */
+.reseller-system {
+  --advo-text: #f4f6f8;
+  --advo-muted: #a8b3c0;
+  --advo-border: rgba(255, 255, 255, 0.12);
+  --advo-page: #141618;
+  --advo-card: #1c1e22;
+  --advo-surface: #1c1e22;
+  --advo-surface-soft: #24262b;
+  --advo-surface-sunken: #101113;
+  --advo-track: rgba(255, 255, 255, 0.08);
+  --advo-blue-soft: rgba(27, 94, 164, 0.28);
+  --advo-gold-soft: rgba(251, 161, 2, 0.16);
+  /* Tailwind utilities read these, and they do not follow the tokens above. */
+  --color-advo-text: #f4f6f8;
+  --color-advo-muted: #a8b3c0;
+  --color-advo-border: rgba(255, 255, 255, 0.12);
+  --color-advo-page: #141618;
+  --color-advo-card: #1c1e22;
+  --color-advo-surface: #1c1e22;
+  --color-advo-surface-soft: #24262b;
+  --color-advo-surface-sunken: #101113;
+  --color-advo-track: rgba(255, 255, 255, 0.08);
+  --color-advo-blue-soft: rgba(27, 94, 164, 0.28);
+  --color-advo-gold-soft: rgba(251, 161, 2, 0.16);
+  --background: #111213;
+  --surface: #1c1e22;
+  --surface-foreground: #f4f6f8;
+  --overlay: #1c1e22;
+  --overlay-foreground: #f4f6f8;
+  --foreground: #f4f6f8;
+  --muted: #a8b3c0;
+  --border: rgba(255, 255, 255, 0.12);
+  --separator: rgba(255, 255, 255, 0.12);
+  --default: #24262b;
+  --default-foreground: #f4f6f8;
+  --field-background: #101113;
+  --field-foreground: #f4f6f8;
+  --field-placeholder: #8b939e;
+  --accent: var(--advo-gold);
+  --accent-foreground: var(--advo-charcoal);
+  background-color: #111213;
+  color: #f4f6f8;
+}
+
+.reseller-system .bg-white,
+.reseller-system .bg-slate-50 {
+  background-color: #1c1e22;
+}
+
+.reseller-system .hover\:bg-white:hover,
+.reseller-system .hover\:bg-slate-50:hover,
+.reseller-system .focus\:bg-white:focus {
+  background-color: #2a2d33;
+}
+
+.reseller-system .from-white {
+  --tw-gradient-from: #1c1e22;
+}
+
+.reseller-system .via-white {
+  --tw-gradient-via: #1c1e22;
+}
+
+.reseller-system .text-slate-700,
+.reseller-system .text-slate-600,
+.reseller-system .text-slate-900 {
+  color: #e8eaee;
+}
+
+.reseller-system .button--primary {
+  background-color: transparent;
+  background-image: var(--advo-gradient-gold);
+  --button-bg: transparent;
+  --button-fg: var(--advo-charcoal);
+  color: var(--advo-charcoal);
+}
+
+.reseller-system .button--primary:hover {
+  filter: brightness(1.06);
+}
+
+/* Primary actions written as a solid blue fill become the gold action. */
+.reseller-system .bg-advo-blue,
+.reseller-system .hover\:bg-advo-blue:hover,
+.reseller-system .hover\:bg-advo-blue-hover:hover {
+  background-color: transparent;
+  background-image: var(--advo-gradient-gold);
+  color: var(--advo-charcoal);
+}
+
+.reseller-system .hover\:bg-advo-blue:hover,
+.reseller-system .hover\:bg-advo-blue-hover:hover,
+.reseller-system .bg-advo-blue:hover {
+  filter: brightness(1.06);
+}
+
+.reseller-system .focus\:border-advo-blue:focus {
+  border-color: var(--advo-gold);
+}
+
+.reseller-system .hover\:bg-slate-100:hover,
+.reseller-system .hover\:bg-slate-50:hover,
+.reseller-system .hover\:bg-slate-50\/50:hover {
+  background-color: #2a2d33;
+}
+
+.reseller-system .bg-slate-50\/70,
+.reseller-system .bg-slate-50\/50,
+.reseller-system .bg-slate-100 {
+  background-color: #24262b;
+}
+
+.reseller-system .border-slate-200,
+.reseller-system .border-slate-200\/80,
+.reseller-system .border-slate-200\/90,
+.reseller-system .border-slate-300 {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.reseller-system input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+.reseller-system textarea,
+.reseller-system select {
+  background-color: #101113;
+  color: #f4f6f8;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.reseller-system input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+.reseller-system textarea:focus,
+.reseller-system select:focus {
+  border-color: #fba102;
+  background-color: #101113;
+  box-shadow: 0 0 0 3px rgba(251, 161, 2, 0.22);
+}
+
+.reseller-system input::placeholder,
+.reseller-system textarea::placeholder {
+  color: #8b939e;
+}
+
+/*
+ * Admin, Reseller and Agent sidebars: black mixed with white across the whole panel.
+ * Page buttons keep the gold action; this panel does not.
+ */
+.reseller-system .advo-sidebar {
+  --accent: #f4f6f8;
+  --accent-foreground: #111213;
+  background-color: #111213;
+  background-image:
+    radial-gradient(130% 70% at 0% 0%, rgba(255, 255, 255, 0.2) 0%, transparent 58%),
+    radial-gradient(120% 65% at 100% 100%, rgba(255, 255, 255, 0.14) 0%, transparent 55%),
+    linear-gradient(180deg, #2c3036 0%, #16181c 40%, #0e0f11 68%, #1c1f24 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 3px 0 0 #f4f6f8;
+}
+
+.reseller-system .advo-sidebar .text-slate-300,
+.reseller-system .advo-sidebar .text-slate-400 {
+  color: #d7dbe2;
+}
+
+.reseller-system .advo-sidebar .border-white\/10,
+.reseller-system .advo-sidebar .border-white\/\[0\.08\] {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.reseller-system .advo-sidebar .bg-white\/\[0\.03\],
+.reseller-system .advo-sidebar .bg-white\/\[0\.06\],
+.reseller-system .advo-sidebar .bg-white\/15 {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.reseller-system .advo-sidebar .hover\:bg-white\/\[0\.06\]:hover,
+.reseller-system .advo-sidebar .hover\:bg-white\/\[0\.07\]:hover,
+.reseller-system .advo-sidebar .hover\:bg-white\/10:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.reseller-system .advo-sidebar a.bg-advo-blue {
+  background-color: transparent;
+  background-image: linear-gradient(135deg, #ffffff 0%, #d7dbe2 100%);
+  color: #111213;
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.16);
+  filter: none;
+}
+
+.reseller-system .advo-sidebar a.bg-advo-blue span {
+  background-color: rgba(17, 18, 19, 0.1);
+  color: #111213;
+}
+
+.reseller-system header.sticky {
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(17, 18, 19, 0.92);
+  color: #f4f6f8;
+}
+
+/*
  * Hero device mockup (`HeroPhoneMockup`).
  *
  * The mockup swaps an entire screen when the captive-portal flow advances, and

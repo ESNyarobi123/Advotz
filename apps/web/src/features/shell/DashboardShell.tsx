@@ -55,11 +55,22 @@ export function DashboardShell({ role, children }: { role: Role; children: React
   }
 
   const needsMfa = user?.role === "ADMIN" && !user.mfaPassed;
+  // Admin, Reseller and Agent share one dashboard: charcoal pages, gold actions,
+  // and the black-and-white sidebar.
+  const system = role === "ADMIN" || role === "RESELLER" || role === "AGENT";
+
+  // Drawers and dialogs render outside this shell, so the theme has to live on
+  // the body as well or those panels stay on the light palette.
+  useEffect(() => {
+    if (!system) return;
+    document.body.classList.add("reseller-system");
+    return () => document.body.classList.remove("reseller-system");
+  }, [system]);
 
   return (
-    <div className="flex min-h-svh flex-col lg:flex-row">
+    <div className={`flex min-h-svh flex-col lg:flex-row ${system ? "reseller-system" : ""}`}>
       <FloatingSidebar onLogout={() => void logout()} role={role} user={user} version={appVersion} />
-      <main className="min-w-0 flex-1 p-4 text-advo-text sm:p-6 lg:p-8">
+      <main className={`min-w-0 flex-1 p-4 sm:p-6 lg:p-8 ${system ? "text-white" : "text-advo-text"}`}>
         {failure ? (
           <Notice tone="danger">{t("shell.sessionFailed", { reason: failure })}</Notice>
         ) : !user ? (

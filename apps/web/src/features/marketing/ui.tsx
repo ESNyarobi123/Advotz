@@ -35,12 +35,13 @@ export function Container({
   );
 }
 
-type SectionTone = "light" | "soft" | "dark";
+type SectionTone = "light" | "soft" | "dark" | "raised";
 
 const SECTION_TONES: Record<SectionTone, string> = {
   light: "bg-white text-advo-text",
   soft: "bg-advo-page text-advo-text",
   dark: "bg-advo-charcoal text-white",
+  raised: "bg-[#1a1c1f] text-white",
 };
 
 /**
@@ -90,9 +91,9 @@ export function Eyebrow({
   className?: string;
 }) {
   const tones = {
-    blue: "border-advo-blue/20 bg-advo-blue-soft text-advo-blue",
+    blue: "border-advo-gold/30 bg-advo-gold-soft text-[#b15f00]",
     gold: "border-advo-gold/30 bg-advo-gold-soft text-[#b15f00]",
-    dark: "border-white/15 bg-white/10 text-[#FBA102]",
+    dark: "border-[#FBA102]/45 bg-[#FBA102]/10 text-[#FBA102]",
   } as const;
   return (
     <span
@@ -168,20 +169,21 @@ type ButtonVariant = "primary" | "gold" | "outline" | "onDark";
 type ButtonSize = "md" | "lg";
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-field font-bold transition duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-advo-blue/70 disabled:pointer-events-none disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-field font-bold transition duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-advo-gold/70 disabled:pointer-events-none disabled:opacity-60";
 
 const BUTTON_SIZES: Record<ButtonSize, string> = {
   md: "px-5 py-2.5 text-sm",
   lg: "px-7 py-3.5 text-base",
 };
 
+const BRAND_BUTTON = `${GOLD_GRADIENT} text-advo-charcoal shadow-[0_16px_36px_-14px_rgba(251,161,2,0.75)] hover:-translate-y-0.5 hover:brightness-105`;
+
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    "bg-advo-blue text-white shadow-[0_12px_28px_-14px_rgba(27,94,164,0.85)] hover:-translate-y-0.5 hover:bg-advo-blue-hover",
-  gold: `${GOLD_GRADIENT} text-advo-charcoal shadow-[0_12px_28px_-14px_rgba(241,99,4,0.85)] hover:-translate-y-0.5 hover:brightness-105`,
+  primary: BRAND_BUTTON,
+  gold: BRAND_BUTTON,
   outline:
-    "border border-advo-border bg-white text-advo-text hover:border-advo-blue/40 hover:bg-advo-blue-soft",
-  onDark: "border border-white/20 bg-white/5 text-white hover:border-white/40 hover:bg-white/10",
+    "border border-advo-border bg-white text-advo-text hover:border-advo-gold/50 hover:bg-advo-gold-soft",
+  onDark: "border border-white/15 bg-white/[0.06] text-white hover:border-white/30 hover:bg-white/10",
 };
 
 export function buttonClasses({
@@ -243,7 +245,7 @@ export function Card({
         "rounded-card border",
         CARD_TONES[tone],
         interactive && "transition duration-300 hover:-translate-y-1",
-        interactive && tone === "light" && "hover:border-advo-blue/25 hover:shadow-advo-lift",
+        interactive && tone === "light" && "hover:border-advo-gold/40 hover:shadow-advo-lift",
         interactive && tone === "dark" && "hover:border-white/25 hover:bg-white/[0.07]",
         className,
       )}

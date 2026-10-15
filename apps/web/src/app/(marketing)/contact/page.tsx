@@ -28,9 +28,9 @@ export default function ContactPage() {
           <span
             className="inline-block text-xs font-bold uppercase tracking-wider px-3.5 py-1 rounded-full mb-3"
             style={{
-              background: "linear-gradient(135deg, rgba(27, 94, 164, 0.15) 0%, rgba(33, 118, 194, 0.15) 100%)",
-              color: "#1B5EA4",
-              border: "1px solid rgba(27, 94, 164, 0.25)",
+              background: "linear-gradient(135deg, rgba(251, 161, 2, 0.15) 0%, rgba(241, 99, 4, 0.15) 100%)",
+              color: "#b15f00",
+              border: "1px solid rgba(251, 161, 2, 0.35)",
             }}
           >
             {t("marketing.contact.badge")}
@@ -53,7 +53,7 @@ export default function ContactPage() {
 
               <div className="space-y-4 text-sm text-[#18212F]">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1B5EA4] shrink-0 mt-0.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#fff4e0] border border-[#FBA102]/30 flex items-center justify-center text-[#b15f00] shrink-0 mt-0.5">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <div>
@@ -112,7 +112,7 @@ export default function ContactPage() {
                   <button
                     type="button"
                     onClick={() => setSubmitted(false)}
-                    className="text-xs font-bold text-[#1B5EA4] underline pt-4"
+                    className="text-xs font-bold text-[#FBA102] underline pt-4"
                   >
                     {t("marketing.contact.success.again")}
                   </button>
@@ -134,7 +134,7 @@ export default function ContactPage() {
                         placeholder={t("marketing.contact.form.namePlaceholder")}
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#1B5EA4]"
+                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#FBA102]"
                       />
                     </div>
 
@@ -147,7 +147,7 @@ export default function ContactPage() {
                         placeholder={t("marketing.contact.form.businessPlaceholder")}
                         value={formData.businessName}
                         onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#1B5EA4]"
+                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#FBA102]"
                       />
                     </div>
                   </div>
@@ -163,7 +163,7 @@ export default function ContactPage() {
                         placeholder={t("marketing.contact.form.phonePlaceholder")}
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#1B5EA4]"
+                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#FBA102]"
                       />
                     </div>
 
@@ -174,7 +174,7 @@ export default function ContactPage() {
                       <select
                         value={formData.venueType}
                         onChange={(e) => setFormData({ ...formData, venueType: e.target.value })}
-                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#1B5EA4]"
+                        className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#FBA102]"
                       >
                         <option value="cafe">{t("marketing.contact.form.venue.cafe")}</option>
                         <option value="hotel">{t("marketing.contact.form.venue.hotel")}</option>
@@ -194,14 +194,14 @@ export default function ContactPage() {
                       placeholder={t("marketing.contact.form.messagePlaceholder")}
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#1B5EA4]"
+                      className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-2.5 text-xs text-[#18212F] outline-none focus:border-[#FBA102]"
                     />
                   </div>
 
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-xs text-white shadow-md transition bg-[#1B5EA4] hover:bg-[#2176C2]"
+                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-xs text-[#111213] shadow-md transition bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)] hover:brightness-105"
                     >
                       <span>{t("marketing.contact.form.submit")}</span>
                       <ArrowRight className="w-3.5 h-3.5" />

@@ -1,9 +1,7 @@
 import {
   Wifi,
   ShieldCheck,
-  Zap,
   CheckCircle2,
-  Lock,
   Layers,
   Users,
   BarChart3,
@@ -12,11 +10,9 @@ import {
   GraduationCap,
   Radio,
   QrCode,
-  TrendingUp,
   Star,
   Wallet,
 } from "lucide-react";
-import { SoftIcon } from "@advo/ui";
 import { HeroPhoneMockup } from "@/features/marketing/HeroPhoneMockup";
 import { InteractiveRevenueCalculator } from "@/features/marketing/InteractiveRevenueCalculator";
 import { FaqSection } from "@/features/marketing/FaqSection";
@@ -42,33 +38,26 @@ const PAYMENT_BRANDS = ["M-Pesa", "Tigo Pesa", "Airtel Money", "Halopesa"];
  * cheap to render, no stock photography of people who do not exist.
  */
 const AVATARS = [
-  { initials: "JM", tone: "bg-advo-blue" },
+  { initials: "JM", tone: "bg-advo-orange" },
   { initials: "FA", tone: "bg-advo-violet" },
   { initials: "EM", tone: "bg-advo-teal" },
   { initials: "SN", tone: "bg-advo-orange" },
-];
-
-const STEP_BADGES = [
-  "bg-advo-blue-soft text-advo-blue",
-  "bg-advo-gold-soft text-[#b15f00]",
-  "bg-advo-violet-soft text-advo-violet",
-  "bg-advo-teal-soft text-advo-teal",
 ];
 
 export default async function MarketingHomePage() {
   const { t } = await getServerI18n();
 
   const stats = [
-    { icon: <Zap className="size-5" />, tone: "accent" as const, value: `< ${t("marketing.home.stats.speedValue")}`, label: t("marketing.home.stats.speedLabel") },
-    { icon: <ShieldCheck className="size-5" />, tone: "success" as const, value: "99.98%", label: t("marketing.home.stats.uptimeLabel") },
-    { icon: <Lock className="size-5" />, tone: "gold" as const, value: "100%", label: t("marketing.home.stats.ledgerLabel") },
-    { icon: <TrendingUp className="size-5" />, tone: "violet" as const, value: "0%", label: t("marketing.home.stats.lossLabel") },
+    { value: `< ${t("marketing.home.stats.speedValue")}`, label: t("marketing.home.stats.speedLabel") },
+    { value: "99.98%", label: t("marketing.home.stats.uptimeLabel") },
+    { value: "100%", label: t("marketing.home.stats.ledgerLabel") },
+    { value: "0%", label: t("marketing.home.stats.lossLabel") },
   ];
 
   const solutions = [
     {
       icon: <Coffee className="size-6" />,
-      tone: "accent" as const,
+      tone: "gold" as const,
       title: t("marketing.home.solutions.cafe.title"),
       desc: t("marketing.home.solutions.cafe.desc"),
       points: [t("marketing.home.solutions.cafe.feature1"), t("marketing.home.solutions.cafe.feature2")],
@@ -89,7 +78,7 @@ export default async function MarketingHomePage() {
     },
     {
       icon: <Radio className="size-6" />,
-      tone: "violet" as const,
+      tone: "warning" as const,
       title: t("marketing.home.solutions.wisp.title"),
       desc: t("marketing.home.solutions.wisp.desc"),
       points: [t("marketing.home.solutions.wisp.feature1"), t("marketing.home.solutions.wisp.feature2")],
@@ -106,7 +95,7 @@ export default async function MarketingHomePage() {
   const features = [
     {
       icon: <ShieldCheck className="size-6" />,
-      iconClass: "border-[#1B5EA4]/35 bg-[#1B5EA4]/15 text-[#7FB4E6]",
+      iconClass: "border-[#FBA102]/35 bg-[#FBA102]/15 text-[#FBA102]",
       title: t("marketing.home.features.ledger.title"),
       desc: t("marketing.home.features.ledger.desc"),
     },
@@ -130,13 +119,13 @@ export default async function MarketingHomePage() {
     },
     {
       icon: <Users className="size-6" />,
-      iconClass: "border-[#8B7BE8]/35 bg-[#8B7BE8]/15 text-[#B3A6F2]",
+      iconClass: "border-[#F16304]/35 bg-[#F16304]/15 text-[#F48B45]",
       title: t("marketing.home.features.agents.title"),
       desc: t("marketing.home.features.agents.desc"),
     },
     {
       icon: <BarChart3 className="size-6" />,
-      iconClass: "border-cyan-400/35 bg-cyan-400/15 text-cyan-300",
+      iconClass: "border-[#03ac77]/35 bg-[#03ac77]/15 text-[#03ac77]",
       title: t("marketing.home.features.reports.title"),
       desc: t("marketing.home.features.reports.desc"),
     },
@@ -173,14 +162,10 @@ export default async function MarketingHomePage() {
             maskImage: "radial-gradient(ellipse 75% 55% at 50% 0%, #000 35%, transparent 100%)",
           }}
         />
-        {/* Brand glows */}
+        {/* Warm gold wash. The field stays charcoal — the reference hero has no blue bloom. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -top-48 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(27,94,164,0.5),transparent_70%)] blur-3xl"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/4 -right-40 h-[26rem] w-[26rem] rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.3),transparent_70%)] blur-3xl"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[32rem] w-[40rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.14),transparent_68%)] blur-3xl"
         />
 
         <Container className="relative z-10 pt-14 pb-16 sm:pt-20 sm:pb-20 lg:pt-24 lg:pb-24">
@@ -215,7 +200,7 @@ export default async function MarketingHomePage() {
               <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-white/65">
                 {trustPoints.map((point) => (
                   <li key={point} className="inline-flex items-center gap-2">
-                    <CheckCircle2 aria-hidden="true" className="size-4 text-emerald-400" />
+                    <CheckCircle2 aria-hidden="true" className="size-4 text-[#03ac77]" />
                     {point}
                   </li>
                 ))}
@@ -279,8 +264,8 @@ export default async function MarketingHomePage() {
                   {brand}
                 </span>
               ))}
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#1B5EA4]/40 bg-[#1B5EA4]/15 px-4 py-2 text-sm font-semibold text-white">
-                <Wifi aria-hidden="true" className="size-3.5 text-[#7FB4E6]" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#FBA102]/40 bg-[#FBA102]/15 px-4 py-2 text-sm font-semibold text-white">
+                <Wifi aria-hidden="true" className="size-3.5 text-[#FBA102]" />
                 TP-Link Omada SDN
               </span>
             </div>
@@ -291,34 +276,28 @@ export default async function MarketingHomePage() {
       {/* ═══════════════════════════════════════════════════════════════════
           TRUST METRICS
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section tone="soft" aria-labelledby="stats-title">
+      <Section tone="dark" className="border-t border-[#FBA102]/20" aria-labelledby="stats-title">
         <SectionHeading
+          tone="dark"
           eyebrow={t("marketing.home.stats.eyebrow")}
           title={t("marketing.home.stats.title")}
           titleId="stats-title"
         />
-        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
-            <Card key={stat.label} interactive className="flex items-start gap-4 p-6">
-              <SoftIcon tone={stat.tone} size="lg">
-                {stat.icon}
-              </SoftIcon>
-              <div className="min-w-0">
-                <div className="font-mono text-2xl font-black tracking-tight text-advo-text tabular-nums">
-                  {stat.value}
-                </div>
-                <p className="mt-1 text-sm leading-snug text-advo-muted">{stat.label}</p>
+            <div key={stat.label} className="bg-[#16181b] p-6 sm:p-8">
+              <div className={cx("font-mono text-3xl font-black tracking-tight tabular-nums sm:text-4xl", GOLD_TEXT)}>
+                {stat.value}
               </div>
-            </Card>
+              <p className="mt-2 text-sm leading-snug text-white/65">{stat.label}</p>
+            </div>
           ))}
-        </div>
+        </dl>
       </Section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SOLUTIONS
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="solutions" tone="light" aria-labelledby="solutions-title">
+      <Section id="solutions" tone="raised" aria-labelledby="solutions-title">
         <SectionHeading
+          tone="dark"
           eyebrow={t("marketing.home.solutions.badge")}
           title={t("marketing.home.solutions.title")}
           lead={t("marketing.home.solutions.subtitle")}
@@ -326,16 +305,16 @@ export default async function MarketingHomePage() {
         />
         <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
           {solutions.map((solution) => (
-            <Card key={solution.title} interactive className="flex h-full flex-col p-7">
-              <SoftIcon tone={solution.tone} size="lg">
+            <Card key={solution.title} tone="dark" interactive className="flex h-full flex-col p-7">
+              <span className="grid size-12 place-items-center rounded-2xl border border-[#FBA102]/30 bg-[#FBA102]/10 text-[#FBA102]">
                 {solution.icon}
-              </SoftIcon>
-              <h3 className="mt-5 text-lg font-bold text-advo-text">{solution.title}</h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-advo-muted">{solution.desc}</p>
-              <ul className="mt-5 space-y-2 border-t border-advo-border pt-5">
+              </span>
+              <h3 className="mt-5 text-lg font-bold text-white">{solution.title}</h3>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-white/65">{solution.desc}</p>
+              <ul className="mt-5 space-y-2 border-t border-white/10 pt-5">
                 {solution.points.map((point) => (
-                  <li key={point} className="flex items-start gap-2 text-sm font-medium text-advo-text">
-                    <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-advo-gold" />
+                  <li key={point} className="flex items-start gap-2 text-sm font-medium text-white/90">
+                    <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[#03ac77]" />
                     {point}
                   </li>
                 ))}
@@ -344,37 +323,32 @@ export default async function MarketingHomePage() {
           ))}
         </div>
         <div className="mt-10 flex justify-center">
-          <ButtonLink href="/features" variant="outline" arrow>
+          <ButtonLink href="/features" variant="onDark" arrow>
             {t("marketing.nav.features")}
           </ButtonLink>
         </div>
       </Section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          HOW IT WORKS
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="how-it-works" tone="soft" aria-labelledby="how-title">
+      <Section id="how-it-works" tone="dark" aria-labelledby="how-title">
         <SectionHeading
+          tone="dark"
           eyebrow={t("marketing.home.how.badge")}
           title={t("marketing.home.how.title")}
           lead={t("marketing.home.how.subtitle")}
           titleId="how-title"
         />
-        <ol className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="relative mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, index) => (
             <li key={step.title}>
-              <Card interactive className="flex h-full flex-col p-6">
+              <Card tone="dark" interactive className="flex h-full flex-col p-6">
                 <span
-                  className={cx(
-                    "flex size-11 items-center justify-center rounded-xl font-mono text-lg font-black",
-                    STEP_BADGES[index] ?? STEP_BADGES[0],
-                  )}
+                  className="flex size-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#FBA102,#F16304)] font-mono text-lg font-black text-[#111213]"
                   aria-hidden="true"
                 >
                   {index + 1}
                 </span>
-                <h3 className="mt-4 text-base font-bold text-advo-text">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-advo-muted">{step.desc}</p>
+                <h3 className="mt-4 text-base font-bold text-white">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-white/65">{step.desc}</p>
               </Card>
             </li>
           ))}
@@ -386,10 +360,7 @@ export default async function MarketingHomePage() {
         </div>
       </Section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          REVENUE CALCULATOR
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="calculator" tone="light">
+      <Section id="calculator" tone="raised">
         <InteractiveRevenueCalculator />
       </Section>
 
@@ -432,9 +403,9 @@ export default async function MarketingHomePage() {
       {/* ═══════════════════════════════════════════════════════════════════
           PRICING PREVIEW
       ═══════════════════════════════════════════════════════════════════ */}
-      <Section id="pricing" tone="soft" aria-labelledby="pricing-title">
+      <Section id="pricing" tone="raised" aria-labelledby="pricing-title">
         <SectionHeading
-          eyebrowTone="gold"
+          tone="dark"
           eyebrow={t("marketing.home.pricing.badge")}
           title={t("marketing.home.pricing.title")}
           lead={t("marketing.home.pricing.subtitle")}
@@ -443,6 +414,7 @@ export default async function MarketingHomePage() {
         {plans.length > 0 ? (
           <div className="mt-12">
             <PlanCardGrid
+              dark
               plans={plans}
               t={t}
               popularId={popularId}
@@ -450,8 +422,8 @@ export default async function MarketingHomePage() {
             />
           </div>
         ) : (
-          <div className="mt-12 mx-auto max-w-xl rounded-card border border-advo-border bg-white p-8 text-center shadow-advo-card">
-            <p className="text-sm text-advo-muted">{t("marketing.plans.empty")}</p>
+          <div className="mx-auto mt-12 max-w-xl rounded-card border border-white/10 bg-white/[0.04] p-8 text-center">
+            <p className="text-sm text-white/65">{t("marketing.plans.empty")}</p>
             <div className="mt-5 flex justify-center">
               <ButtonLink href="/contact" variant="primary" arrow>
                 {t("marketing.plans.contact")}
@@ -460,17 +432,15 @@ export default async function MarketingHomePage() {
           </div>
         )}
         <div className="mt-10 flex justify-center">
-          <ButtonLink href="/pricing" variant="outline" arrow>
+          <ButtonLink href="/pricing" variant="onDark" arrow>
             {t("marketing.home.pricing.compare")}
           </ButtonLink>
         </div>
       </Section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          TESTIMONIALS
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Section tone="light" aria-labelledby="testimonials-title">
+      <Section tone="dark" aria-labelledby="testimonials-title">
         <SectionHeading
+          tone="dark"
           eyebrow={t("marketing.home.testimonials.badge")}
           title={t("marketing.home.testimonials.title")}
           lead={t("marketing.home.testimonials.subtitle")}
@@ -478,25 +448,25 @@ export default async function MarketingHomePage() {
         />
         <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
           {testimonials.map((testimonial) => (
-            <Card key={testimonial.name} className="flex h-full flex-col p-7">
+            <Card key={testimonial.name} tone="dark" className="flex h-full flex-col p-7">
               <div className="flex items-center gap-1" aria-hidden="true">
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Star key={index} className="size-4 fill-advo-gold text-advo-gold" />
                 ))}
               </div>
-              <blockquote className="mt-5 flex-1 text-sm leading-relaxed text-advo-text">
+              <blockquote className="mt-5 flex-1 text-sm leading-relaxed text-white/85">
                 &ldquo;{testimonial.quote}&rdquo;
               </blockquote>
-              <figcaption className="mt-6 flex items-center gap-3 border-t border-advo-border pt-5">
+              <figcaption className="mt-6 flex items-center gap-3 border-t border-white/10 pt-5">
                 <span
                   aria-hidden="true"
-                  className="flex size-10 items-center justify-center rounded-full bg-advo-blue-soft text-sm font-bold text-advo-blue"
+                  className="flex size-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#FBA102,#F16304)] text-sm font-bold text-[#111213]"
                 >
                   {testimonial.initials}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-bold text-advo-text">{testimonial.name}</span>
-                  <span className="block text-xs text-advo-muted">{testimonial.role}</span>
+                  <span className="block text-sm font-bold text-white">{testimonial.name}</span>
+                  <span className="block text-xs text-white/55">{testimonial.role}</span>
                 </span>
               </figcaption>
             </Card>
@@ -504,20 +474,14 @@ export default async function MarketingHomePage() {
         </div>
       </Section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          FAQ
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Section tone="soft">
+      <Section tone="raised">
         <FaqSection />
       </Section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          CLOSING CTA
-      ═══════════════════════════════════════════════════════════════════ */}
-      <section className="relative w-full overflow-hidden bg-advo-charcoal py-20 text-white sm:py-24 lg:py-28">
+      <section className="relative w-full overflow-hidden border-t border-[#FBA102]/20 bg-advo-charcoal py-20 text-white sm:py-24 lg:py-28">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-24 left-1/2 h-[24rem] w-[42rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(241,99,4,0.35),rgba(27,94,164,0.35)_45%,transparent_75%)] blur-3xl"
+          className="pointer-events-none absolute -bottom-24 left-1/2 h-[24rem] w-[42rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.28),rgba(241,99,4,0.18)_42%,transparent_72%)] blur-3xl"
         />
         <Container className="relative z-10">
           <div className="mx-auto max-w-3xl text-center">
