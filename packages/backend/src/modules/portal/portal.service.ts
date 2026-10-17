@@ -406,7 +406,9 @@ export async function redeemVoucher(input: { contextToken: string; code: string 
   await enforceRateLimit("voucher-redeem-ip", ip, 10, 600);
   const ctx = await loadContext(input.contextToken);
   await enforceRateLimit("voucher-redeem-mac", ctx.clientMac, 10, 600);
-  if (normalizeVoucherCode(input.code).length !== 12) badRequest("Voucher code is invalid", "VOUCHER_INVALID");
+  // New batches are 6 digits; older alphanumeric batches were 12 symbols.
+  const codeLen = normalizeVoucherCode(input.code).length;
+  if (codeLen !== 6 && codeLen !== 12) badRequest("Voucher code is invalid", "VOUCHER_INVALID");
 
   const voucher = await prisma.voucher.findUnique({
     where: { codeLookup: voucherLookupHash(input.code) },

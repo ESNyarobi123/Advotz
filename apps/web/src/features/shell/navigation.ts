@@ -23,7 +23,6 @@ import {
   UserCheck,
   UserPlus,
   Users,
-  Wallet,
   Wifi,
   type LucideIcon,
 } from "lucide-react";
@@ -35,7 +34,13 @@ export type Role = SessionUser["role"];
  * in whatever language the operator picked. Icon lookup is keyed by `href`,
  * which is stable, instead of by the (now translated) label.
  */
-export type NavItem = { href: string; labelKey: MessageKey; icon: LucideIcon };
+export type NavItem = {
+  href: string;
+  labelKey: MessageKey;
+  icon: LucideIcon;
+  /** Visible in the sidebar as a muted "shadow" row that cannot be opened. */
+  disabled?: boolean;
+};
 
 /** A labelled, collapsible group of nav items rendered in the sidebar. */
 export type NavSection = { id: string; labelKey: MessageKey; items: NavItem[] };
@@ -67,12 +72,12 @@ const ICONS: Record<string, LucideIcon> = {
   "/reseller/captive-portal": Palette,
   "/reseller/customers": Users,
   "/reseller/orders": Receipt,
-  "/reseller/wallet": Wallet,
+  "/reseller/wallet": ArrowUpRight,
   "/reseller/support": HelpCircle,
   "/agent": LayoutDashboard,
   "/agent/leads": UserPlus,
   "/agent/commissions": TrendingUp,
-  "/agent/wallet": Wallet,
+  "/agent/wallet": ArrowUpRight,
   "/agent/support": HelpCircle,
 };
 
@@ -82,8 +87,8 @@ export const HOME: Record<Role, string> = {
   AGENT: "/agent",
 };
 
-function item(href: string, labelKey: MessageKey): NavItem {
-  return { href, labelKey, icon: ICONS[href] ?? LayoutDashboard };
+function item(href: string, labelKey: MessageKey, opts?: { disabled?: boolean }): NavItem {
+  return { href, labelKey, icon: ICONS[href] ?? LayoutDashboard, disabled: opts?.disabled };
 }
 
 /** The first item of every section — used to separate sections on the icon rail. */
@@ -110,7 +115,7 @@ export const SECTIONS: Record<Role, NavSection[]> = {
       item("/admin/commissions", "nav.commissions"),
     ]),
     section("network", "nav.group.network", [
-      item("/admin/controllers", "nav.controllers"),
+      item("/admin/controllers", "nav.controllers", { disabled: true }),
       item("/admin/network", "nav.sitesAndDevices"),
     ]),
     section("finance", "nav.group.finance", [
@@ -140,7 +145,7 @@ export const SECTIONS: Record<Role, NavSection[]> = {
       // Subscription sits directly under Payments so everything the reseller
       // owes or is owed reads as one block instead of being split in two.
       item("/reseller/subscription", "nav.subscription"),
-      item("/reseller/wallet", "nav.wallet"),
+      item("/reseller/wallet", "nav.withdraw"),
     ]),
     section("help", "nav.group.help", [item("/reseller/support", "nav.support")]),
   ],
@@ -151,7 +156,7 @@ export const SECTIONS: Record<Role, NavSection[]> = {
     ]),
     section("earnings", "nav.group.earnings", [
       item("/agent/commissions", "nav.commissions"),
-      item("/agent/wallet", "nav.wallet"),
+      item("/agent/wallet", "nav.withdraw"),
     ]),
     section("help", "nav.group.help", [item("/agent/support", "nav.support")]),
   ],

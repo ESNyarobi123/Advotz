@@ -472,6 +472,10 @@ export const resellerScreensEn = {
   "reseller.packages.form.namePlaceholder": "e.g. 1 hour (Fast VIP)",
   "reseller.packages.form.price": "Price (TZS)",
   "reseller.packages.form.priceHint": "Minimum 500 TZS (the mobile money threshold)",
+  "reseller.packages.form.invalidPrice": "Enter the price as a whole number of shillings.",
+  "reseller.packages.form.durationTooLong": "The longest package is 366 days.",
+  "reseller.packages.form.speedTooLow": "Each speed must be at least 0.1 Mbps.",
+  "reseller.packages.form.speedTooHigh": "The highest speed is 10,000 Mbps.",
   "reseller.packages.form.customMinutes": "Or custom duration (minutes)",
   "reseller.packages.form.download": "Download limit (Mbps)",
   "reseller.packages.form.downloadPlaceholder": "e.g. 5",
@@ -480,6 +484,18 @@ export const resellerScreensEn = {
   "reseller.packages.form.quotaType": "Data quota policy",
   "reseller.packages.form.quotaType.unlimited": "Unlimited data usage",
   "reseller.packages.form.quotaType.total": "Total data volume cap",
+  "reseller.packages.form.capability.speedUnsupported":
+    "Speed caps cannot be enforced at {sites}. Clear the speed fields or unselect those sites.",
+  "reseller.packages.form.capability.siteNotReady":
+    "{sites} cannot connect guests yet. Finish the Controller setup or unselect those sites.",
+  "reseller.packages.form.capability.quotaUnsupported":
+    "Data caps cannot be enforced at {sites}. Sell the package as unlimited data, or unselect those sites.",
+  "reseller.packages.form.capability.speedHint":
+    "{sites} cannot apply a speed cap. Leave the speed fields empty to sell there.",
+  "reseller.packages.form.capability.quotaHint":
+    "{sites} cannot apply a data cap. Unlimited data still works there.",
+  "reseller.packages.form.capability.optionsLoadError":
+    "Could not check what your controllers support: {reason}",
   "reseller.packages.form.quotaType.daily": "Daily reset cap",
   "reseller.packages.form.quotaType.monthly": "Monthly reset cap",
   "reseller.packages.form.quotaGb": "Data cap in gigabytes (GB)",
@@ -490,6 +506,8 @@ export const resellerScreensEn = {
   "reseller.packages.form.sitesLoadError": "Could not load sites: {reason}",
   "reseller.packages.form.sitesLoading": "Loading sites…",
   "reseller.packages.form.sitesEmpty": "No sites created yet. Create a site first.",
+  "reseller.packages.form.sitesNoneSelected":
+    "No site selected — this package stays hidden from every portal until you assign one.",
   "reseller.packages.form.save": "Saving package…",
   "reseller.packages.form.saveRevision": "Save new revision",
   "reseller.packages.form.create": "Create package",
@@ -497,7 +515,6 @@ export const resellerScreensEn = {
   "reseller.packages.form.eyebrow.create": "New package",
   "reseller.packages.form.eyebrow.edit": "New revision",
   "reseller.packages.form.preview.title": "Live guest preview",
-  "reseller.packages.form.preview.hint": "Exactly what a guest sees on your captive portal, updated as you type.",
   "reseller.packages.form.preview.badge": "Live preview",
   "reseller.packages.form.preview.select": "Choose this",
   "reseller.packages.form.preview.untitled": "Your package name",
@@ -538,7 +555,7 @@ export const resellerScreensEn = {
   "reseller.packages.duration.30d": "30 days",
   "reseller.packages.list.title": "Active WiFi packages",
   "reseller.packages.list.subtitle": "Live tariff catalog available on your captive portals",
-  "reseller.packages.view.cards": "Cards",
+  "reseller.packages.view.cards": "List",
   "reseller.packages.view.table": "Table",
   "reseller.packages.empty.title": "No WiFi packages yet",
   "reseller.packages.empty.body": "Guests will have nothing to buy until you create your first package.",
@@ -1128,6 +1145,10 @@ export const resellerScreensSw: Record<ResellerScreenKey, string> = {
   "reseller.packages.form.namePlaceholder": "mf. Saa 1 (Fast VIP)",
   "reseller.packages.form.price": "Bei (TZS)",
   "reseller.packages.form.priceHint": "Kiwango cha chini TZS 500 (kikomo cha mobile money)",
+  "reseller.packages.form.invalidPrice": "Weka bei kama namba kamili ya shilingi.",
+  "reseller.packages.form.durationTooLong": "Kifurushi kirefu zaidi ni siku 366.",
+  "reseller.packages.form.speedTooLow": "Kila kasi iwe angalau 0.1 Mbps.",
+  "reseller.packages.form.speedTooHigh": "Kasi ya juu zaidi ni Mbps 10,000.",
   "reseller.packages.form.customMinutes": "Au muda maalum (dakika)",
   "reseller.packages.form.download": "Kikomo cha download (Mbps)",
   "reseller.packages.form.downloadPlaceholder": "mf. 5",
@@ -1136,6 +1157,18 @@ export const resellerScreensSw: Record<ResellerScreenKey, string> = {
   "reseller.packages.form.quotaType": "Sera ya kikomo cha data",
   "reseller.packages.form.quotaType.unlimited": "Data bila kikomo",
   "reseller.packages.form.quotaType.total": "Kikomo cha jumla ya data",
+  "reseller.packages.form.capability.speedUnsupported":
+    "Vikomo vya kasi haviwezi kutekelezwa kwenye {sites}. Ondoa vikomo vya kasi au usichague maeneo hayo.",
+  "reseller.packages.form.capability.siteNotReady":
+    "{sites} haziwezi kuunganisha wageni bado. Kamilisha usanidi wa Controller au usichague maeneo hayo.",
+  "reseller.packages.form.capability.quotaUnsupported":
+    "Vikomo vya data haviwezi kutekelezwa kwenye {sites}. Uza kifurushi kama data bila kikomo, au usichague maeneo hayo.",
+  "reseller.packages.form.capability.speedHint":
+    "{sites} haviwezi kuweka kikomo cha kasi. Acha sehemu za kasi wazi ili kuuza hapo.",
+  "reseller.packages.form.capability.quotaHint":
+    "{sites} haviwezi kuweka kikomo cha data. Data bila kikomo inafanya kazi hapo.",
+  "reseller.packages.form.capability.optionsLoadError":
+    "Imeshindikana kukagua uwezo wa controller: {reason}",
   "reseller.packages.form.quotaType.daily": "Kikomo kinachojirudia kila siku",
   "reseller.packages.form.quotaType.monthly": "Kikomo kinachojirudia kila mwezi",
   "reseller.packages.form.quotaGb": "Kikomo cha data kwa gigabytes (GB)",
@@ -1146,6 +1179,8 @@ export const resellerScreensSw: Record<ResellerScreenKey, string> = {
   "reseller.packages.form.sitesLoadError": "Imeshindwa kupakia maeneo: {reason}",
   "reseller.packages.form.sitesLoading": "Inapakia maeneo…",
   "reseller.packages.form.sitesEmpty": "Hakuna eneo lililoundwa bado. Unda eneo kwanza.",
+  "reseller.packages.form.sitesNoneSelected":
+    "Hakuna eneo lililochaguliwa — kifurushi hiki kitabaki kimefichwa kwenye portal zote hadi utakapoweka eneo.",
   "reseller.packages.form.save": "Inahifadhi kifurushi…",
   "reseller.packages.form.saveRevision": "Hifadhi revision mpya",
   "reseller.packages.form.create": "Unda kifurushi",
@@ -1153,7 +1188,6 @@ export const resellerScreensSw: Record<ResellerScreenKey, string> = {
   "reseller.packages.form.eyebrow.create": "Kifurushi kipya",
   "reseller.packages.form.eyebrow.edit": "Revision mpya",
   "reseller.packages.form.preview.title": "Muonekano wa mgeni",
-  "reseller.packages.form.preview.hint": "Hivi ndivyo mgeni anavyoona kwenye captive portal yako, ikibadilika unapoandika.",
   "reseller.packages.form.preview.badge": "Muonekano hai",
   "reseller.packages.form.preview.select": "Chagua hiki",
   "reseller.packages.form.preview.untitled": "Jina la kifurushi chako",
@@ -1194,7 +1228,7 @@ export const resellerScreensSw: Record<ResellerScreenKey, string> = {
   "reseller.packages.duration.30d": "Mwezi 1",
   "reseller.packages.list.title": "Vifurushi hai vya WiFi",
   "reseller.packages.list.subtitle": "Orodha ya bei inayopatikana kwenye captive portal zako",
-  "reseller.packages.view.cards": "Kadi",
+  "reseller.packages.view.cards": "Orodha",
   "reseller.packages.view.table": "Jedwali",
   "reseller.packages.empty.title": "Hakuna kifurushi cha WiFi bado",
   "reseller.packages.empty.body": "Wageni hawataona cha kununua hadi uunde kifurushi chako cha kwanza.",

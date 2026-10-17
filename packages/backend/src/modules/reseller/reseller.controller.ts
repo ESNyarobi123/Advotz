@@ -26,7 +26,7 @@ import { CurrentUser, Roles, RolesGuard, SessionAuthGuard, requireResellerId, ty
 import { enumQuery, parse, type HttpReply } from "../../common/http.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
 import { getGrantForReseller, listGrants, retryGrantDevice, revokeGrant } from "../access/grants.service.js";
-import { archivePackage, createPackage, listPackages, packageRevisions, updatePackage } from "../catalog/packages.service.js";
+import { archivePackage, createPackage, listPackages, packageRevisions, packageSiteOptions, updatePackage } from "../catalog/packages.service.js";
 import {
   archiveVoucherGroup,
   createVoucherGroup,
@@ -230,6 +230,12 @@ export class ResellerController {
   @Post("packages")
   createPackage(@CurrentUser() a: RequestActor, @Body() body: unknown) {
     return createPackage(requireResellerId(a), a.id, parse(wifiPackageInputSchema, body));
+  }
+
+  /** Which caps each site can enforce, so the form never offers an unsellable package. */
+  @Get("package-options")
+  packageOptions(@CurrentUser() a: RequestActor) {
+    return packageSiteOptions(requireResellerId(a));
   }
 
   @Put("packages/:id")

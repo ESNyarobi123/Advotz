@@ -12,7 +12,7 @@ Which capability gates what:
 | Any sale or voucher activation | `authorizeClient` |
 | Download or upload speed set | `perClientRateLimit` |
 | `TOTAL` data quota | `totalTrafficQuota` |
-| `DAILY` / `MONTHLY` quota | `dailyMonthlyQuotaWindows` |
+| `DAILY` / `MONTHLY` quota | `dailyMonthlyQuotaWindows` (not sellable: no adapter implements the window reset) |
 
 ## Current values
 
@@ -47,6 +47,8 @@ Evidence recorded by an Admin overrides the static view above for that Controlle
 
 ## Consequences in the product
 
-- Creating a quota package (`TOTAL`, `DAILY` or `MONTHLY`) is refused with a 422 that lists the missing capabilities. This is covered by an integration test.
+- The package API accepts `UNLIMITED` and `TOTAL` only. `DAILY` and `MONTHLY` are rejected at validation because no adapter has a verified reset-and-reauthorize loop; a rolling window that cannot be reset would silently sell unlimited data.
+- Creating a `TOTAL` quota package is refused with a 422 that lists the missing capabilities. This is covered by an integration test.
+- The package form asks `GET /reseller/package-options` before offering a speed or data cap: unsupported options are disabled with the blocking site names, so a reseller cannot build a package the Controller will reject.
 - Admin → Controllers shows each Controller's capability list with its reasons. A Reseller who tries to create a package the hardware cannot enforce gets those reasons in the error.
 - Adoption is not automated. An approved device claim records the device, and adoption itself must be done in the Omada UI until `adoptDevice` is verified.

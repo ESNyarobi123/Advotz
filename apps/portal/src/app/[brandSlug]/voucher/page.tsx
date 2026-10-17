@@ -59,11 +59,12 @@ export default function VoucherPage() {
             id="code"
             label={t("voucherCode")}
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            autoCapitalize="characters"
+            onChange={(e) => setCode(e.target.value.replace(/[^\dA-Za-z\-\s]/g, "").slice(0, 20))}
+            inputMode="numeric"
             autoComplete="off"
             spellCheck={false}
-            placeholder="XXXX-XXXX"
+            placeholder="000000"
+            maxLength={20}
             required
           />
           {error ? <Notice tone="danger">{error}</Notice> : null}

@@ -4,15 +4,20 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatDateTime, formatTzs } from "@advo/api-client";
 import type { PlanFeatures, PlanLifecycle, CommercialPromise } from "@advo/contracts";
 import { useOverlayState } from "@heroui/react";
-import { Button, Card, Input, Label, Modal } from "@heroui/react";
+import { Button, Card, Input, Modal } from "@heroui/react";
 import { AdvoKpi, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
   ArchiveRestore,
+  ArrowRight,
   CalendarClock,
+  CheckCircle2,
+  ChevronLeft,
   Coins,
   ChevronDown,
+  FileText,
   Filter,
   Gauge,
+  Hash,
   History,
   Layers,
   Pencil,
@@ -28,12 +33,12 @@ import {
   Users,
   Wifi,
 } from "lucide-react";
-import { Field, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
+import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { ReasonDialog } from "@/features/common/reason-dialog";
 import { PlanFeatureEditor, planDraftFrom, planIssues, type PlanDraft } from "@/features/admin/plan-features";
 import { PlanMigrationList, PlanMigrationModal } from "@/features/admin/plan-migrations";
 import { api } from "@/lib/api";
-import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
+import { toInt, useAction, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -667,8 +672,62 @@ function Mini({ icon, label, value }: { icon: ReactNode; label: string; value: R
 
 /* ────────────────────────── Create / edit modal ────────────────────────── */
 
+const PLAN_FORM_STEPS = ["identity", "pricing", "features", "launch"] as const;
+type PlanFormStep = (typeof PLAN_FORM_STEPS)[number];
+
+const PLAN_STEP_LABEL: Record<
+  PlanFormStep,
+  | "admin.plans.form.step.identity"
+  | "admin.plans.form.step.pricing"
+  | "admin.plans.form.step.features"
+  | "admin.plans.form.step.launch"
+> = {
+  identity: "admin.plans.form.step.identity",
+  pricing: "admin.plans.form.step.pricing",
+  features: "admin.plans.form.step.features",
+  launch: "admin.plans.form.step.launch",
+};
+
+const PLAN_STEP_LEAD: Record<
+  PlanFormStep,
+  | "admin.plans.form.step.identityLead"
+  | "admin.plans.form.step.pricingLead"
+  | "admin.plans.form.step.featuresLead"
+  | "admin.plans.form.step.launchLead"
+> = {
+  identity: "admin.plans.form.step.identityLead",
+  pricing: "admin.plans.form.step.pricingLead",
+  features: "admin.plans.form.step.featuresLead",
+  launch: "admin.plans.form.step.launchLead",
+};
+
+type PlanFormValues = {
+  code: string;
+  name: string;
+  description: string;
+  priceTzs: string;
+  periodDays: string;
+  trialDays: string;
+  trialEligible: boolean;
+  isDemo: boolean;
+};
+
+function planFormValuesFrom(plan: PlanRow | null): PlanFormValues {
+  return {
+    code: plan?.code ?? "",
+    name: plan?.name ?? "",
+    description: plan?.description ?? "",
+    priceTzs: plan?.priceTzs ?? "",
+    periodDays: String(plan?.periodDays ?? 30),
+    trialDays: plan?.trialDays != null ? String(plan.trialDays) : "",
+    trialEligible: plan?.trialEligible ?? false,
+    isDemo: plan?.isDemo ?? false,
+  };
+}
+
 /**
- * One modal for both create and edit.
+ * One modal for both create and edit — four short hero-style steps instead of
+ * one long scroll.
  *
  * `plan === null` means create; a row means edit. `open` drives the overlay so the
  * modal is always mounted and HeroUI can run its enter/exit transition.
@@ -687,6 +746,9 @@ function PlanFormModal({
   const { t } = useI18n();
   const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
   const [done, setDone] = useState(false);
+  const [step, setStep] = useState<PlanFormStep>("identity");
+  const [stepError, setStepError] = useState<string | null>(null);
+  const [values, setValues] = useState<PlanFormValues>(() => planFormValuesFrom(plan));
   /**
    * The plan version's feature configuration, held as one draft.
    *
@@ -695,17 +757,16 @@ function PlanFormModal({
    */
   const [draft, setDraft] = useState<PlanDraft>(() => planDraftFrom(plan));
 
-  const save = useAction(async (form: HTMLFormElement) => {
-    const v = formValues(form);
+  const save = useAction(async () => {
     const payload = {
-      code: v.code.toLowerCase(),
-      name: v.name,
-      description: v.description ?? "",
-      priceTzs: v.priceTzs,
-      periodDays: toInt(v.periodDays),
-      trialEligible: v.trialEligible === "true",
-      trialDays: toInt(v.trialDays),
-      isDemo: v.isDemo === "true",
+      code: values.code.trim().toLowerCase(),
+      name: values.name.trim(),
+      description: values.description.trim(),
+      priceTzs: values.priceTzs,
+      periodDays: toInt(values.periodDays),
+      trialEligible: values.trialEligible,
+      trialDays: toInt(values.trialDays),
+      isDemo: values.isDemo,
       // The feature payload owns the limits, so the legacy columns are left out
       // and cannot drift away from what the portal actually enforces.
       features: draft.features,
@@ -719,7 +780,6 @@ function PlanFormModal({
       await api.post("/admin/plans", payload);
       await onSaved(t("admin.plans.form.successCreate"));
     }
-    form.reset();
     setDone(true);
   });
 
@@ -730,7 +790,10 @@ function PlanFormModal({
   useEffect(() => {
     if (open) {
       setDone(false);
+      setStep("identity");
+      setStepError(null);
       resetError(null);
+      setValues(planFormValuesFrom(plan));
       setDraft(planDraftFrom(plan));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -738,8 +801,71 @@ function PlanFormModal({
 
   function close() {
     setDone(false);
+    setStep("identity");
+    setStepError(null);
     save.setError(null);
     onClose();
+  }
+
+  function patch<K extends keyof PlanFormValues>(key: K, value: PlanFormValues[K]) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+    setStepError(null);
+  }
+
+  function validateStep(current: PlanFormStep): string | null {
+    if (current === "identity") {
+      const code = values.code.trim();
+      if (!code) return t("admin.plans.form.code");
+      if (!/^[a-zA-Z0-9-]+$/.test(code)) return t("admin.plans.form.codeHint");
+      if (!values.name.trim()) return t("admin.plans.form.name");
+      return null;
+    }
+    if (current === "pricing") {
+      const price = Number(values.priceTzs);
+      const days = Number(values.periodDays);
+      if (!Number.isFinite(price) || price < 1) return t("admin.plans.form.priceHint");
+      if (!Number.isFinite(days) || days < 1 || days > 366) return t("admin.plans.form.periodDaysHint");
+      return null;
+    }
+    if (current === "features") {
+      const issues = planIssues(draft.features, draft.commercialPromise);
+      return issues[0]?.message ?? null;
+    }
+    if (values.trialEligible) {
+      const days = Number(values.trialDays);
+      if (!Number.isFinite(days) || days < 1 || days > 90) return t("admin.plans.form.trialDaysHint");
+    }
+    return null;
+  }
+
+  function goNext() {
+    const error = validateStep(step);
+    if (error) {
+      setStepError(error);
+      return;
+    }
+    const index = PLAN_FORM_STEPS.indexOf(step);
+    if (index < PLAN_FORM_STEPS.length - 1) {
+      setStepError(null);
+      setStep(PLAN_FORM_STEPS[index + 1]!);
+    }
+  }
+
+  function goBack() {
+    const index = PLAN_FORM_STEPS.indexOf(step);
+    if (index > 0) {
+      setStepError(null);
+      setStep(PLAN_FORM_STEPS[index - 1]!);
+    }
+  }
+
+  async function submit() {
+    const error = validateStep("launch");
+    if (error) {
+      setStepError(error);
+      return;
+    }
+    await save.run();
   }
 
   // A live plan with subscribers cannot be rewritten in place, so say so before saving.
@@ -747,18 +873,36 @@ function PlanFormModal({
   const title = plan
     ? t("admin.plans.form.titleEdit", { name: plan.name })
     : t("admin.plans.form.titleCreate");
+  const stepIndex = PLAN_FORM_STEPS.indexOf(step);
+  const progressPct = (stepIndex / (PLAN_FORM_STEPS.length - 1)) * 100;
+  const pricePreview = Number(values.priceTzs);
+  const periodPreview = Number(values.periodDays);
 
   return (
     <Modal.Root state={overlay}>
       <Modal.Backdrop>
         <Modal.Container size="lg">
-          <Modal.Dialog className="bg-white">
-            <Modal.Header>
-              <Modal.Heading className="text-base font-black text-advo-text">{title}</Modal.Heading>
+          <Modal.Dialog className="max-h-[92vh] overflow-hidden !bg-white !text-[#18212F] [color-scheme:light]">
+            <Modal.Header className="relative overflow-hidden !bg-white border-b border-[#DFE5EC] pb-4">
+              <div
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-1.5"
+                style={{ background: "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)" }}
+              />
+              <div className="space-y-1 pt-1">
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-[#1B5EA4]/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[#1B5EA4] uppercase">
+                  <Sparkles className="size-3 text-[#FBA102]" />
+                  {t("admin.plans.form.step.of", { current: stepIndex + 1, total: PLAN_FORM_STEPS.length })}
+                </p>
+                <Modal.Heading className="!text-xl font-black tracking-tight !text-[#18212F]">{title}</Modal.Heading>
+                <p className="text-xs leading-relaxed text-[#526174]">
+                  {plan ? t("admin.plans.form.descriptionEdit") : t("admin.plans.form.descriptionCreate")}
+                </p>
+              </div>
             </Modal.Header>
-            <Modal.Body>
+            <Modal.Body className="overflow-y-auto !bg-white">
               {done ? (
-                <div className="space-y-4">
+                <div className="space-y-4 py-2">
                   <Notice tone="success">
                     {plan ? t("admin.plans.form.successEdit") : t("admin.plans.form.successCreate")}
                   </Notice>
@@ -769,126 +913,210 @@ function PlanFormModal({
                   </div>
                 </div>
               ) : (
-                <form
-                  // Keyed so opening for a different plan re-applies every defaultValue.
-                  className="space-y-5"
-                  key={plan?.id ?? "create"}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void save.run(e.currentTarget);
-                  }}
-                >
-                  <p className="text-xs text-advo-muted">
-                    {plan ? t("admin.plans.form.descriptionEdit") : t("admin.plans.form.descriptionCreate")}
-                  </p>
+                <div className="space-y-5" key={plan?.id ?? "create"}>
+                  {/* Step progress — same language as the registration hero */}
+                  <div className="rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] p-4">
+                    <div className="relative flex items-center justify-between">
+                      <div className="absolute top-4 right-6 left-6 -z-0 h-0.5 bg-[#DFE5EC]" />
+                      <div
+                        className="absolute top-4 left-6 -z-0 h-0.5 bg-[#1B5EA4] transition-all duration-300"
+                        style={{ width: `calc(${progressPct}% - 0px)` }}
+                      />
+                      {PLAN_FORM_STEPS.map((key, index) => {
+                        const active = index === stepIndex;
+                        const complete = index < stepIndex;
+                        const last = index === PLAN_FORM_STEPS.length - 1;
+                        return (
+                          <div className="relative z-10 flex flex-col items-center" key={key}>
+                            <div
+                              className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                                complete
+                                  ? "bg-[#1B5EA4] text-white shadow-md ring-4 ring-blue-50"
+                                  : active && last
+                                    ? "text-[#111213] shadow-md ring-4 ring-amber-50"
+                                    : active
+                                      ? "bg-[#1B5EA4] text-white shadow-md ring-4 ring-blue-50"
+                                      : "bg-slate-200 text-slate-500"
+                              }`}
+                              style={
+                                active && last
+                                  ? { background: "linear-gradient(135deg, #FBA102 0%, #F16304 100%)" }
+                                  : undefined
+                              }
+                            >
+                              {complete ? <CheckCircle2 className="size-4 text-white" /> : index + 1}
+                            </div>
+                            <span
+                              className={`mt-1.5 text-[10px] font-bold ${
+                                active ? (last ? "text-[#F16304]" : "text-[#1B5EA4]") : "text-[#18212F]"
+                              }`}
+                            >
+                              {t(PLAN_STEP_LABEL[key])}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                  {/* Identity */}
-                  <FormSection icon={<Tag />} title={t("admin.plans.form.section.identity")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        defaultValue={plan?.code}
-                        hint={t("admin.plans.form.codeHint")}
-                        label={t("admin.plans.form.code")}
-                        name="code"
-                        pattern="[a-zA-Z0-9-]+"
-                        placeholder={t("admin.plans.form.codePlaceholder")}
-                        required
-                      />
-                      <Field
-                        defaultValue={plan?.name}
-                        label={t("admin.plans.form.name")}
-                        name="name"
-                        placeholder={t("admin.plans.form.namePlaceholder")}
-                        required
-                      />
-                      <div className="sm:col-span-2">
-                        <Field
-                          defaultValue={plan?.description ?? ""}
-                          hint={t("admin.plans.form.descriptionHint")}
-                          label={t("admin.plans.form.descriptionLabel")}
-                          maxLength={200}
-                          name="description"
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black tracking-tight text-[#18212F]">{t(PLAN_STEP_LABEL[step])}</h3>
+                    <p className="text-xs text-[#526174]">{t(PLAN_STEP_LEAD[step])}</p>
+                  </div>
+
+                  {step === "identity" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <SmartField
+                          hint={t("admin.plans.form.codeHint")}
+                          icon={<Hash />}
+                          label={t("admin.plans.form.code")}
+                          mono
+                          onChange={(v) => patch("code", v)}
+                          placeholder={t("admin.plans.form.codePlaceholder")}
+                          value={values.code}
+                        />
+                        <SmartField
+                          icon={<Tag />}
+                          label={t("admin.plans.form.name")}
+                          onChange={(v) => patch("name", v)}
+                          placeholder={t("admin.plans.form.namePlaceholder")}
+                          value={values.name}
                         />
                       </div>
-                    </div>
-                  </FormSection>
-
-                  {/* Pricing */}
-                  <FormSection icon={<Coins />} title={t("admin.plans.form.section.pricing")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        defaultValue={plan?.priceTzs}
-                        hint={t("admin.plans.form.priceHint")}
-                        label={t("admin.plans.form.price")}
-                        min={1}
-                        name="priceTzs"
-                        required
-                        type="number"
-                      />
-                      <Field
-                        defaultValue={plan?.periodDays ?? 30}
-                        hint={t("admin.plans.form.periodDaysHint")}
-                        label={t("admin.plans.form.periodDays")}
-                        max={366}
-                        min={1}
-                        name="periodDays"
-                        required
-                        type="number"
+                      <SmartField
+                        hint={t("admin.plans.form.descriptionHint")}
+                        icon={<FileText />}
+                        label={t("admin.plans.form.descriptionLabel")}
+                        maxLength={200}
+                        onChange={(v) => patch("description", v)}
+                        value={values.description}
                       />
                     </div>
-                  </FormSection>
+                  ) : null}
 
-                  {/* Features & policy — the keys the portal actually obeys. The editor
-                      brings its own titled groups, so it is not nested in another. */}
-                  <div className="space-y-3 border-t border-[var(--advo-border)] pt-5">
-                    <h3 className="flex items-center gap-2 text-sm font-black tracking-tight text-advo-text">
-                      <span className="grid size-6 place-items-center rounded-lg bg-advo-blue-soft text-advo-blue [&_svg]:size-3.5">
-                        <Gauge />
-                      </span>
-                      {t("admin.plans.form.section.features")}
-                    </h3>
-                    <PlanFeatureEditor draft={draft} onChange={setDraft} />
-                  </div>
-
-                  {/* Trial & classification */}
-                  <FormSection icon={<Sparkles />} title={t("admin.plans.form.section.trial")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        defaultValue={plan?.trialDays ?? undefined}
-                        hint={t("admin.plans.form.trialDaysHint")}
-                        label={t("admin.plans.form.trialDays")}
-                        max={90}
-                        min={1}
-                        name="trialDays"
-                        type="number"
-                      />
-                      <div className="flex flex-col justify-center gap-3 sm:pt-6">
-                        <Checkbox name="trialEligible" defaultChecked={plan?.trialEligible} label={t("admin.plans.form.trialEligible")} />
-                        <Checkbox name="isDemo" defaultChecked={plan?.isDemo} label={t("admin.plans.form.isDemo")} />
-                        <p className="text-[11px] text-advo-muted">{t("admin.plans.form.isDemoHint")}</p>
+                  {step === "pricing" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <SmartField
+                          hint={t("admin.plans.form.priceHint")}
+                          icon={<Coins />}
+                          label={t("admin.plans.form.price")}
+                          min={1}
+                          onChange={(v) => patch("priceTzs", v)}
+                          type="number"
+                          value={values.priceTzs}
+                        />
+                        <SmartField
+                          hint={t("admin.plans.form.periodDaysHint")}
+                          icon={<CalendarClock />}
+                          label={t("admin.plans.form.periodDays")}
+                          max={366}
+                          min={1}
+                          onChange={(v) => patch("periodDays", v)}
+                          type="number"
+                          value={values.periodDays}
+                        />
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-[#DFE5EC] bg-gradient-to-br from-[#F7F9FC] via-white to-[#FFF8EE] p-4">
+                        <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
+                          {t("admin.plans.form.previewTitle")}
+                        </p>
+                        <p className="mt-1 truncate text-lg font-black tracking-tight text-[#18212F]">
+                          {values.name.trim() || t("admin.plans.form.namePlaceholder")}
+                        </p>
+                        <p className="mt-2 text-2xl font-black tabular-nums text-[#1B5EA4]">
+                          {Number.isFinite(pricePreview) && pricePreview > 0 && Number.isFinite(periodPreview) && periodPreview > 0
+                            ? t("admin.plans.perPeriod", {
+                                price: formatTzs(String(Math.round(pricePreview))),
+                                days: Math.round(periodPreview),
+                              })
+                            : "—"}
+                        </p>
+                        {values.code.trim() ? (
+                          <p className="mt-1 font-mono text-[11px] text-[#526174]">{values.code.trim().toLowerCase()}</p>
+                        ) : null}
                       </div>
                     </div>
-                  </FormSection>
+                  ) : null}
 
-                  {/* What saving will actually do */}
-                  <Notice tone={willVersion ? "warning" : "accent"}>
-                    {willVersion && plan
-                      ? t("admin.plans.form.willVersion", { count: references(plan) })
-                      : t("admin.plans.form.willReplace")}
-                  </Notice>
+                  {step === "features" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-3 duration-200">
+                      <PlanFeatureEditor draft={draft} onChange={setDraft} />
+                    </div>
+                  ) : null}
 
+                  {step === "launch" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <SmartField
+                          hint={t("admin.plans.form.trialDaysHint")}
+                          icon={<Sparkles />}
+                          label={t("admin.plans.form.trialDays")}
+                          max={90}
+                          min={1}
+                          onChange={(v) => patch("trialDays", v)}
+                          type="number"
+                          value={values.trialDays}
+                        />
+                        <div className="flex flex-col justify-center gap-3 sm:pt-6">
+                          <SmartToggle
+                            checked={values.trialEligible}
+                            label={t("admin.plans.form.trialEligible")}
+                            onChange={(checked) => patch("trialEligible", checked)}
+                          />
+                          <SmartToggle
+                            checked={values.isDemo}
+                            label={t("admin.plans.form.isDemo")}
+                            onChange={(checked) => patch("isDemo", checked)}
+                          />
+                          <p className="text-[11px] text-advo-muted">{t("admin.plans.form.isDemoHint")}</p>
+                        </div>
+                      </div>
+                      <Notice tone={willVersion ? "warning" : "accent"}>
+                        {willVersion && plan
+                          ? t("admin.plans.form.willVersion", { count: references(plan) })
+                          : t("admin.plans.form.willReplace")}
+                      </Notice>
+                    </div>
+                  ) : null}
+
+                  {stepError ? <Notice tone="danger">{stepError}</Notice> : null}
                   {save.error ? <Notice tone="danger">{save.error}</Notice> : null}
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--advo-border)] pt-4">
-                    <Button onPress={close} type="button" variant="ghost">
-                      {t("admin.plans.form.cancel")}
-                    </Button>
-                    <Button isDisabled={save.pending} type="submit" variant="primary">
-                      {plan ? <Pencil className="size-4" /> : <Plus className="size-4" />}
-                      {save.pending ? "…" : plan ? t("admin.plans.form.submitEdit") : t("admin.plans.form.submitCreate")}
-                    </Button>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--advo-border)] pt-4">
+                    <div className="flex flex-wrap gap-2">
+                      {stepIndex > 0 ? (
+                        <Button onPress={goBack} type="button" variant="ghost">
+                          <ChevronLeft className="size-4" />
+                          {t("admin.plans.form.step.back")}
+                        </Button>
+                      ) : (
+                        <Button onPress={close} type="button" variant="ghost">
+                          {t("admin.plans.form.cancel")}
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {stepIndex > 0 ? (
+                        <Button className="sm:hidden" onPress={close} type="button" variant="ghost">
+                          {t("admin.plans.form.cancel")}
+                        </Button>
+                      ) : null}
+                      {step === "launch" ? (
+                        <Button isDisabled={save.pending} onPress={() => void submit()} type="button" variant="primary">
+                          {plan ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+                          {save.pending ? "…" : plan ? t("admin.plans.form.submitEdit") : t("admin.plans.form.submitCreate")}
+                        </Button>
+                      ) : (
+                        <Button onPress={goNext} type="button" variant="primary">
+                          {t("admin.plans.form.step.next")}
+                          <ArrowRight className="size-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </form>
+                </div>
               )}
             </Modal.Body>
             <Modal.CloseTrigger aria-label={t("admin.plans.form.cancel")} />
@@ -899,26 +1127,91 @@ function PlanFormModal({
   );
 }
 
-/** A titled group of fields inside the plan modal. */
-function FormSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+/** Register-style labelled input with a leading icon. */
+function SmartField({
+  label,
+  hint,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  mono,
+  min,
+  max,
+  maxLength,
+}: {
+  label: string;
+  hint?: string;
+  icon: ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: "text" | "number";
+  mono?: boolean;
+  min?: number;
+  max?: number;
+  maxLength?: number;
+}) {
   return (
-    <fieldset className="rounded-2xl border border-[var(--advo-border)] p-4">
-      <legend className="flex items-center gap-1.5 px-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
-        <span className="[&_svg]:size-3.5">{icon}</span>
-        {title}
-      </legend>
-      {children}
-    </fieldset>
+    <div className="space-y-1.5">
+      <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">{label}</label>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#526174] [&_svg]:size-4">
+          {icon}
+        </div>
+        <input
+          className={`w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] py-3 pr-3.5 pl-10 text-xs text-[#18212F] outline-none transition focus:border-[#1B5EA4] focus:bg-white focus:ring-2 focus:ring-[#1B5EA4]/20 ${
+            mono ? "font-mono" : ""
+          }`}
+          max={max}
+          maxLength={maxLength}
+          min={min}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          type={type}
+          value={value}
+        />
+      </div>
+      {hint ? <p className="text-[11px] leading-snug text-[#526174]">{hint}</p> : null}
+    </div>
   );
 }
 
-/** Plain checkbox with the label wrapping the input, so clicking the text toggles it. */
-function Checkbox({ name, label, defaultChecked }: { name: string; label: string; defaultChecked?: boolean }) {
+/** Large tap target toggle used on the launch step. */
+function SmartToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <input className="h-4 w-4 accent-[var(--advo-blue)]" defaultChecked={defaultChecked} name={name} type="checkbox" value="true" />
-      {label}
-    </label>
+    <button
+      aria-pressed={checked}
+      className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+        checked
+          ? "border-[#1B5EA4]/30 bg-[#1B5EA4]/8 text-[#18212F]"
+          : "border-[#DFE5EC] bg-[#F7F9FC] text-[#526174] hover:border-[#1B5EA4]/20"
+      }`}
+      onClick={() => onChange(!checked)}
+      type="button"
+    >
+      <span className="text-sm font-semibold">{label}</span>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+          checked ? "bg-[#1B5EA4]" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition ${
+            checked ? "translate-x-4" : ""
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 

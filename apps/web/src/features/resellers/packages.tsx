@@ -14,6 +14,7 @@ import {
   draftFromRevision,
   PackageFormDrawer,
   type PackageDraft,
+  type PackageFormSiteOptions,
 } from "./package-form-drawer";
 import {
   Package,
@@ -24,10 +25,12 @@ import {
   Smartphone,
   Plus,
   Edit3,
-  LayoutGrid,
   List,
+  Table2,
   Sparkles,
   MapPin,
+  Archive,
+  type LucideIcon,
 } from "lucide-react";
 
 type Revision = {
@@ -56,8 +59,10 @@ export function ResellerPackagesScreen() {
   const { t } = useI18n();
   const packages = useResource<PackageRow[]>("/reseller/packages");
   const sites = useResource<SiteOption[]>("/reseller/sites");
+  // Which caps each site can enforce; the form locks options the Controller would reject.
+  const options = useResource<{ sites: PackageFormSiteOptions[] }>("/reseller/package-options");
   const [editing, setEditing] = useState<PackageRow | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [viewMode, setViewMode] = useState<"rows" | "table">("rows");
   const [isFormOpen, setIsFormOpen] = useState(false);
 
   const save = useAction(async (draft: PackageDraft) => {
@@ -223,6 +228,8 @@ export function ResellerPackagesScreen() {
         open={isFormOpen}
         pending={save.pending}
         sites={(sites.data ?? []).map((site) => ({ id: site.id, name: site.name, state: site.state }))}
+        siteOptions={options.data?.sites ?? []}
+        siteOptionsError={options.error?.message ?? null}
         sitesError={sites.error?.message ?? null}
         sitesLoading={sites.loading}
       />
@@ -236,12 +243,12 @@ export function ResellerPackagesScreen() {
         <div className="flex items-center rounded-xl border border-advo-border bg-white p-1 shadow-sm">
           <button
             type="button"
-            onClick={() => setViewMode("grid")}
+            onClick={() => setViewMode("rows")}
             className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-              viewMode === "grid" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
+              viewMode === "rows" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <LayoutGrid className="h-3.5 w-3.5" />
+            <List className="h-3.5 w-3.5" />
             {t("reseller.packages.view.cards")}
           </button>
           <button
@@ -251,13 +258,13 @@ export function ResellerPackagesScreen() {
               viewMode === "table" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <List className="h-3.5 w-3.5" />
+            <Table2 className="h-3.5 w-3.5" />
             {t("reseller.packages.view.table")}
           </button>
         </div>
       </div>
 
-      {/* Grid or Table Display */}
+      {/* Horizontal rows or table */}
       <ResourceView resource={packages}>
         {(rows) => {
           if (rows.length === 0) {
@@ -280,122 +287,19 @@ export function ResellerPackagesScreen() {
             );
           }
 
-          if (viewMode === "grid") {
+          if (viewMode === "rows") {
             return (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {rows.map((p) => {
-                  const r = p.currentRevision;
-                  return (
-                    <Card
-                      key={p.id}
-                      className="group relative flex flex-col justify-between overflow-hidden p-6 transition hover:-translate-y-0.5 hover:shadow-lg"
-                    >
-                      {/* Top Accent Strip */}
-                      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-advo-blue via-advo-gold to-advo-orange" />
-
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-advo-blue">
-                              <Clock className="h-3 w-3" />
-                              {r ? formatDuration(r.durationSeconds) : t("reseller.packages.card.custom")}
-                            </span>
-                            <h3 className="mt-2 text-xl font-bold text-advo-text group-hover:text-advo-blue">
-                              {r?.name ?? p.name}
-                            </h3>
-                          </div>
-                          <span className="rounded-lg bg-slate-100 px-2 py-1 font-mono text-[10px] font-semibold text-slate-600">
-                            rev {r?.revision ?? 1}
-                          </span>
-                        </div>
-
-                        {/* Price */}
-                        <div className="mt-4 flex items-baseline gap-1">
-                          <span className="text-3xl font-extrabold tracking-tight text-advo-text">
-                            {formatTzs(r?.priceTzs)}
-                          </span>
-                          <span className="text-xs text-slate-400">{t("reseller.packages.card.perVoucher")}</span>
-                        </div>
-
-                        {/* Limits and Quota Badges */}
-                        <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-4">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="flex items-center gap-1.5 text-slate-500">
-                              <Zap className="h-3.5 w-3.5 text-advo-gold" />
-                              {t("reseller.packages.card.speedLimit")}
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {r?.downloadKbps
-                                ? `↓ ${formatSpeed(r.downloadKbps)} · ↑ ${formatSpeed(r.uploadKbps)}`
-                                : t("reseller.packages.card.unthrottled")}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="flex items-center gap-1.5 text-slate-500">
-                              <HardDrive className="h-3.5 w-3.5 text-emerald-600" />
-                              {t("reseller.packages.card.dataQuota")}
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {r?.quotaType === "UNLIMITED"
-                                ? t("reseller.packages.card.unlimitedData")
-                                : `${formatBytes(r?.quotaBytes)} ${r?.quotaType.toLowerCase()}`}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="flex items-center gap-1.5 text-slate-500">
-                              <Smartphone className="h-3.5 w-3.5 text-indigo-600" />
-                              {t("reseller.packages.card.deviceLimit")}
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {t("reseller.packages.card.devices", { count: r?.maxDevices ?? 1 })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Sites assignment */}
-                        <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
-                          <MapPin className="h-3 w-3 text-slate-400" />
-                          {p.assignments.length > 0 ? (
-                            p.assignments.map((a) => (
-                              <span
-                                key={a.site.id}
-                                className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700"
-                              >
-                                {a.site.name}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-[11px] font-medium text-advo-gold">
-                              {t("reseller.packages.card.notAssigned")}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Card Actions */}
-                      <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(p)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-advo-blue hover:text-advo-blue"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          {t("reseller.packages.card.edit")}
-                        </button>
-                        <ActionButton
-                          variant="danger"
-                          confirm={t("reseller.packages.card.archiveConfirm")}
-                          onRun={() => api.del(`/reseller/packages/${p.id}`)}
-                          onDone={packages.reload}
-                        >
-                          {t("reseller.packages.card.archive")}
-                        </ActionButton>
-                      </div>
-                    </Card>
-                  );
-                })}
+              <div className="flex flex-col gap-2.5">
+                {rows.map((p) => (
+                  <PackageDetailRow
+                    key={p.id}
+                    onArchive={() => api.del(`/reseller/packages/${p.id}`)}
+                    onArchived={packages.reload}
+                    onEdit={() => openEdit(p)}
+                    pkg={p}
+                    t={t}
+                  />
+                ))}
               </div>
             );
           }
@@ -487,6 +391,174 @@ export function ResellerPackagesScreen() {
         }}
       </ResourceView>
     </div>
+  );
+}
+
+type Translate = ReturnType<typeof useI18n>["t"];
+
+/** Horizontal detail row — package facts left, edit/archive pinned far right. */
+function PackageDetailRow({
+  pkg,
+  t,
+  onEdit,
+  onArchive,
+  onArchived,
+}: {
+  pkg: PackageRow;
+  t: Translate;
+  onEdit: () => void;
+  onArchive: () => Promise<unknown>;
+  onArchived: () => void | Promise<void>;
+}) {
+  const [archiving, setArchiving] = useState(false);
+  const r = pkg.currentRevision;
+  const title = r?.name ?? pkg.name;
+  const speed = r?.downloadKbps
+    ? `↓ ${formatSpeed(r.downloadKbps)} · ↑ ${formatSpeed(r.uploadKbps)}`
+    : t("reseller.packages.card.unthrottled");
+  const quota =
+    r?.quotaType === "UNLIMITED"
+      ? t("reseller.packages.card.unlimitedData")
+      : r
+        ? `${formatBytes(r.quotaBytes)} ${r.quotaType.toLowerCase()}`
+        : "—";
+
+  async function archive() {
+    if (!window.confirm(t("reseller.packages.card.archiveConfirm"))) return;
+    setArchiving(true);
+    try {
+      await onArchive();
+      await onArchived();
+    } finally {
+      setArchiving(false);
+    }
+  }
+
+  return (
+    <Card className="overflow-hidden p-0 transition-shadow hover:shadow-advo-lift">
+      <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-advo-blue/10 text-advo-blue ring-1 ring-advo-blue/20">
+            <Package className="h-5 w-5" />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-sm font-black tracking-tight text-advo-text" title={title}>
+                {title}
+              </h3>
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-advo-blue">
+                <Clock className="h-3 w-3" />
+                {r ? formatDuration(r.durationSeconds) : t("reseller.packages.card.custom")}
+              </span>
+              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-600">
+                rev {r?.revision ?? 1}
+              </span>
+            </div>
+
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-base font-extrabold tracking-tight text-advo-text">
+                {formatTzs(r?.priceTzs)}
+              </span>
+              <span className="text-[11px] text-advo-muted">{t("reseller.packages.card.perVoucher")}</span>
+            </div>
+
+            <dl className="mt-2 flex flex-wrap gap-1.5">
+              <FactChip icon={Zap} label={t("reseller.packages.card.speedLimit")} value={speed} />
+              <FactChip icon={HardDrive} label={t("reseller.packages.card.dataQuota")} value={quota} />
+              <FactChip
+                icon={Smartphone}
+                label={t("reseller.packages.card.deviceLimit")}
+                value={t("reseller.packages.card.devices", { count: r?.maxDevices ?? 1 })}
+              />
+              {pkg.assignments.length > 0 ? (
+                pkg.assignments.slice(0, 3).map((a) => (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-lg border border-advo-border/70 bg-advo-page px-2 py-1 text-[10px] font-bold text-advo-text"
+                    key={a.site.id}
+                    title={a.site.name}
+                  >
+                    <MapPin className="h-3 w-3 text-slate-400" />
+                    <span className="max-w-[8rem] truncate">{a.site.name}</span>
+                  </span>
+                ))
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-lg border border-dashed border-advo-gold/40 bg-advo-gold-soft/40 px-2 py-1 text-[10px] font-semibold text-[#b15f00]">
+                  <MapPin className="h-3 w-3" />
+                  {t("reseller.packages.card.notAssigned")}
+                </span>
+              )}
+            </dl>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-1 border-t border-advo-border/60 pt-2.5 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
+          <RowIconButton
+            icon={Edit3}
+            label={t("reseller.packages.card.edit")}
+            onPress={onEdit}
+          />
+          <RowIconButton
+            disabled={archiving}
+            icon={Archive}
+            label={t("reseller.packages.card.archive")}
+            onPress={() => void archive()}
+            tone="danger"
+          />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function FactChip({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-advo-border/70 bg-advo-page px-2 py-1">
+      <Icon className="h-3 w-3 shrink-0 text-advo-muted" aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+      <span className="truncate text-[10px] font-bold text-advo-text" title={`${label}: ${value}`}>
+        {value}
+      </span>
+    </span>
+  );
+}
+
+function RowIconButton({
+  icon: Icon,
+  label,
+  onPress,
+  tone = "default",
+  disabled,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+  tone?: "default" | "danger";
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className={`grid size-9 place-items-center rounded-xl transition disabled:opacity-50 ${
+        tone === "danger"
+          ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+          : "text-advo-muted hover:bg-advo-page hover:text-advo-text"
+      }`}
+      disabled={disabled}
+      onClick={onPress}
+      title={label}
+      type="button"
+    >
+      <Icon className="h-4 w-4" />
+    </button>
   );
 }
 

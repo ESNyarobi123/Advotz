@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatDateTime, formatDuration, formatTzs } from "@advo/api-client";
 import { Card } from "@heroui/react";
-import { AdvoTable, StatusChip, statusTone } from "@advo/ui";
-import { ActionButton } from "@/features/common/actions";
-import { Mono, ResourceView } from "@/features/common/components";
-import { deviceStateLabel, fulfillmentStateLabel, grantStateLabel, paymentStateLabel } from "@/features/common/labels";
+import { StatusChip, statusTone } from "@advo/ui";
+import { PageHero, ResourceView } from "@/features/common/components";
+import { deviceStateLabel, grantStateLabel } from "@/features/common/labels";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/hooks";
@@ -15,11 +14,17 @@ import {
   Smartphone,
   Activity,
   Clock,
-  Receipt,
-  CheckCircle2,
   Search,
-  DollarSign,
   TrendingUp,
+  Wifi,
+  WifiOff,
+  Ticket,
+  CreditCard,
+  Ban,
+  RefreshCw,
+  MapPin,
+  X,
+  type LucideIcon,
 } from "lucide-react";
 
 type Grant = {
@@ -46,27 +51,11 @@ type Customer = {
   lastPurchaseAt: string | null;
 };
 
-type Order = {
-  id: string;
-  amountTzs: string;
-  paymentState: string;
-  fulfillmentState: string;
-  createdAt: string;
-  paidAt: string | null;
-  priceSnapshot: { name?: string; saleFeeBasisPoints?: number };
-  customer: { phone: string; firstName: string | null; lastName: string | null } | null;
-  site: { name: string } | null;
-  attempts: Array<{ state: string; lastError: string | null }>;
-  grant: { state: string; expiresAt: string | null } | null;
-};
+type Presence = "online" | "offline" | "expired" | "pending";
+type ClientFilter = "all" | Presence | "voucher" | "payment";
 
-/** Real enum vocabulary (packages/db/prisma/schema.prisma), rendered for humans. */
-const SETTLED_PAYMENT_STATES = new Set(["PAID", "OVERPAID"]);
+const ENDED_GRANT_STATES = new Set(["EXPIRED", "QUOTA_EXHAUSTED", "REVOKED"]);
 
-/**
- * Formats the time left on an active grant. Expiry is fixed at first activation,
- * so this counts down against `expiresAt` rather than extending.
- */
 function remaining(t: I18n["t"], expiresAt: string | null): string {
   if (!expiresAt) return t("reseller.customers.remaining.notStarted");
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -77,531 +66,496 @@ function remaining(t: I18n["t"], expiresAt: string | null): string {
     : t("reseller.customers.remaining.minutes", { minutes: mins });
 }
 
+/** Online = active grant with at least one authorized device. */
+function clientPresence(g: Grant): Presence {
+  if (ENDED_GRANT_STATES.has(g.state)) return "expired";
+  if (g.state === "PENDING_ACTIVATION" || g.state === "ACTIVATION_FAILED") return "pending";
+  if (g.state === "ACTIVE") {
+    return g.devices.some((d) => d.authState === "AUTHORIZED") ? "online" : "offline";
+  }
+  return "offline";
+}
+
+function primaryMac(g: Grant): string {
+  const authorized = g.devices.find((d) => d.authState === "AUTHORIZED");
+  return authorized?.clientMac ?? g.devices[0]?.clientMac ?? "—";
+}
+
 export function ResellerCustomersScreen() {
   const { t } = useI18n();
   const grants = useResource<Grant[]>("/reseller/grants");
   const customers = useResource<Customer[]>("/reseller/customers");
+  const [filter, setFilter] = useState<ClientFilter>("all");
+  const [query, setQuery] = useState("");
 
   const grantList = grants.data ?? [];
   const customerList = customers.data ?? [];
 
-  const activeGrants = grantList.filter((g) => g.state === "ACTIVE").length;
-  const totalDevicesOnline = grantList.reduce((acc, g) => {
-    return acc + g.devices.filter((d) => d.authState === "AUTHORIZED").length;
-  }, 0);
-  const totalCustomers = customerList.length;
+  const onlineCount = grantList.filter((g) => clientPresence(g) === "online").length;
+  const offlineCount = grantList.filter((g) => clientPresence(g) === "offline").length;
+  const expiredCount = grantList.filter((g) => clientPresence(g) === "expired").length;
+  const totalDevicesOnline = grantList.reduce(
+    (acc, g) => acc + g.devices.filter((d) => d.authState === "AUTHORIZED").length,
+    0,
+  );
   const totalCustomerSpend = customerList.reduce((acc, c) => acc + (Number(c.totalTzs) || 0), 0);
 
-  return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-advo-blue/10 px-2.5 py-0.5 text-xs font-semibold text-advo-blue">
-            <Users className="h-3.5 w-3.5" />
-            {t("reseller.customers.badge")}
-          </span>
-          <span className="text-xs text-slate-400">·</span>
-          <span className="text-xs font-medium text-slate-500">{t("reseller.customers.sync")}</span>
-        </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-advo-text sm:text-3xl">
-          {t("nav.customersAndAccess")}
-        </h1>
-        <p className="mt-1 text-sm text-advo-muted">{t("reseller.customers.subtitle")}</p>
-      </div>
-
-      {/* KPI Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.customers.kpi.activeSessions")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <Activity className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600">{activeGrants}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.customers.kpi.activeSessionsHint")}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.customers.kpi.onlineDevices")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-advo-blue">
-              <Smartphone className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-advo-text">{totalDevicesOnline}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.customers.kpi.onlineDevicesHint")}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.customers.kpi.registeredUsers")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Users className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-advo-text">{totalCustomers}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.customers.kpi.registeredUsersHint")}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.customers.kpi.totalSpend")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-advo-gold">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-advo-text">{formatTzs(totalCustomerSpend)}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.customers.kpi.totalSpendHint")}</p>
-        </Card>
-      </div>
-
-      {/* Guest Access Section */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-advo-text">{t("reseller.customers.guestAccess.title")}</h2>
-            <p className="text-xs text-slate-500">{t("reseller.customers.guestAccess.description")}</p>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <ResourceView resource={grants}>
-            {(rows) => (
-              <AdvoTable label={t("reseller.customers.guestAccess.tableLabel")}
-                rows={rows}
-                rowKey={(g) => g.id}
-                empty={t("reseller.customers.guestAccess.empty")}
-                columns={[
-                  {
-                    key: "p",
-                    header: t("reseller.col.packageAndSite"),
-                    render: (g) => (
-                      <div>
-                        <p className="font-bold text-advo-text">{g.packageSnapshot.name ?? t("reseller.col.package")}</p>
-                        <p className="text-xs text-slate-500">
-                          {g.site.name} ·{" "}
-                          <span
-                            className={`font-semibold ${
-                              g.orderId ? "text-advo-blue" : "text-advo-gold"
-                            }`}
-                          >
-                            {g.orderId
-                              ? t("reseller.customers.source.mobilePayment")
-                              : t("reseller.customers.source.voucher")}
-                          </span>
-                        </p>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "s",
-                    header: t("reseller.col.state"),
-                    render: (g) => (
-                      <StatusChip tone={statusTone(g.state)}>{grantStateLabel(t, g.state)}</StatusChip>
-                    ),
-                  },
-                  {
-                    key: "t",
-                    header: t("reseller.col.timeRemaining"),
-                    render: (g) => (
-                      <div>
-                        <span className="font-semibold text-slate-800">{formatDuration(g.durationSeconds)}</span>
-                        <div className="mt-0.5">
-                          {g.state === "ACTIVE" ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[11px] font-bold text-advo-blue">
-                              <Clock className="h-3 w-3" />
-                              {remaining(t, g.expiresAt)}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400">{formatDateTime(g.expiresAt)}</span>
-                          )}
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "d",
-                    header: t("reseller.col.devices"),
-                    render: (g) => (
-                      <ul className="space-y-1.5">
-                        {g.devices.map((d) => (
-                          <li key={d.id} className="flex flex-wrap items-center gap-2 text-xs">
-                            <Mono>{d.clientMac}</Mono>
-                            <span
-                              className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
-                                d.authState === "AUTHORIZED"
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : "bg-slate-100 text-slate-600"
-                              }`}
-                            >
-                              {deviceStateLabel(t, d.authState)}
-                            </span>
-                            {["FAILED", "UNKNOWN"].includes(d.authState) &&
-                            g.state !== "REVOKED" &&
-                            g.state !== "EXPIRED" ? (
-                              <ActionButton
-                                onRun={() => api.post(`/reseller/grant-devices/${d.id}/retry`)}
-                                onDone={grants.reload}
-                              >
-                                {t("common.retry")}
-                              </ActionButton>
-                            ) : null}
-                            {d.lastError ? <span className="text-xs text-red-600">{d.lastError}</span> : null}
-                          </li>
-                        ))}
-                        <li className="text-[11px] text-slate-400">
-                          {t("reseller.customers.deviceSlots", { used: g.devices.length, total: g.maxDevices })}
-                        </li>
-                      </ul>
-                    ),
-                  },
-                  {
-                    key: "a",
-                    header: "",
-                    render: (g) =>
-                      ["ACTIVE", "PENDING_ACTIVATION"].includes(g.state) ? (
-                        <ActionButton
-                          variant="danger"
-                          reasonPrompt={t("reseller.customers.revokeReason")}
-                          onRun={(reason) => api.post(`/reseller/grants/${g.id}/revoke`, { reason })}
-                          onDone={grants.reload}
-                        >
-                          {t("reseller.customers.revoke")}
-                        </ActionButton>
-                      ) : null,
-                  },
-                ]}
-              />
-            )}
-          </ResourceView>
-        </div>
-      </Card>
-
-      {/* Customers Section */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-advo-text">{t("reseller.customers.directory.title")}</h2>
-            <p className="text-xs text-slate-500">{t("reseller.customers.directory.description")}</p>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <ResourceView resource={customers}>
-            {(rows) => (
-              <AdvoTable label={t("reseller.customers.directory.tableLabel")}
-                rows={rows}
-                rowKey={(c) => c.id}
-                empty={t("reseller.customers.directory.empty")}
-                columns={[
-                  {
-                    key: "n",
-                    header: t("reseller.col.customer"),
-                    render: (c) => (
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-advo-blue/10 font-bold text-advo-blue">
-                          {(c.name || c.phone).slice(0, 1).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-bold text-advo-text">{c.name || t("reseller.customers.guest")}</p>
-                          <p className="text-xs text-slate-500">{c.phone}</p>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "p",
-                    header: t("reseller.col.totalPurchases"),
-                    render: (c) => (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700">
-                        {c.purchases === 1
-                          ? t("reseller.customers.ordersCount", { count: c.purchases })
-                          : t("reseller.customers.ordersCountPlural", { count: c.purchases })}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: "t",
-                    header: t("reseller.col.totalPaid"),
-                    render: (c) => (
-                      <span className="font-bold text-emerald-700">{formatTzs(c.totalTzs)}</span>
-                    ),
-                    className: "text-right",
-                  },
-                  {
-                    key: "l",
-                    header: t("reseller.col.lastPurchase"),
-                    render: (c) => (
-                      <span className="text-xs text-slate-500">{formatDateTime(c.lastPurchaseAt)}</span>
-                    ),
-                  },
-                ]}
-              />
-            )}
-          </ResourceView>
-        </div>
-      </Card>
-    </div>
+  const term = query.trim().toLowerCase();
+  const visible = useMemo(
+    () =>
+      grantList.filter((g) => {
+        const presence = clientPresence(g);
+        if (filter === "online" && presence !== "online") return false;
+        if (filter === "offline" && presence !== "offline") return false;
+        if (filter === "expired" && presence !== "expired") return false;
+        if (filter === "pending" && presence !== "pending") return false;
+        if (filter === "voucher" && !g.voucherId) return false;
+        if (filter === "payment" && !g.orderId) return false;
+        if (!term) return true;
+        const hay = [
+          g.packageSnapshot.name ?? "",
+          g.site.name,
+          g.id,
+          ...g.devices.map((d) => d.clientMac),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(term);
+      }),
+    [grantList, filter, term],
   );
-}
 
-export function ResellerOrdersScreen() {
-  const { t } = useI18n();
-  const orders = useResource<Order[]>("/reseller/orders");
-  const [filterState, setFilterState] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const orderList = orders.data ?? [];
-  const settledOrders = orderList.filter((o) => SETTLED_PAYMENT_STATES.has(o.paymentState));
-  const totalVolume = settledOrders.reduce((acc, o) => acc + (Number(o.amountTzs) || 0), 0);
-  const pendingOrders = orderList.filter((o) => o.paymentState === "UNPAID");
-
-  /** Payment-state filter chips, labelled through the shared enum vocabulary. */
-  const orderFilters = [
-    { value: "ALL", label: t("reseller.filter.all") },
-    { value: "UNPAID", label: paymentStateLabel(t, "UNPAID") },
-    { value: "PAID", label: paymentStateLabel(t, "PAID") },
-    { value: "OVERPAID", label: paymentStateLabel(t, "OVERPAID") },
-    { value: "NEEDS_REVIEW", label: paymentStateLabel(t, "NEEDS_REVIEW") },
-    { value: "REFUND_PENDING", label: paymentStateLabel(t, "REFUND_PENDING") },
-    { value: "REFUNDED", label: paymentStateLabel(t, "REFUNDED") },
-    { value: "CANCELLED", label: paymentStateLabel(t, "CANCELLED") },
+  const filters: Array<{ key: ClientFilter; label: string; count?: number }> = [
+    { key: "all", label: t("reseller.customers.filter.all"), count: grantList.length },
+    { key: "online", label: t("reseller.customers.filter.online"), count: onlineCount },
+    { key: "offline", label: t("reseller.customers.filter.offline"), count: offlineCount },
+    { key: "expired", label: t("reseller.customers.filter.expired"), count: expiredCount },
+    {
+      key: "pending",
+      label: t("reseller.customers.filter.pending"),
+      count: grantList.filter((g) => clientPresence(g) === "pending").length,
+    },
+    {
+      key: "voucher",
+      label: t("reseller.customers.filter.voucher"),
+      count: grantList.filter((g) => Boolean(g.voucherId)).length,
+    },
+    {
+      key: "payment",
+      label: t("reseller.customers.filter.payment"),
+      count: grantList.filter((g) => Boolean(g.orderId)).length,
+    },
   ];
 
-  const filteredOrders = orderList.filter((o) => {
-    if (filterState !== "ALL" && o.paymentState !== filterState) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const phone = o.customer?.phone?.toLowerCase() ?? "";
-      const name = `${o.customer?.firstName ?? ""} ${o.customer?.lastName ?? ""}`.toLowerCase();
-      const pkg = o.priceSnapshot.name?.toLowerCase() ?? "";
-      const ref = o.id.toLowerCase();
-      if (!phone.includes(q) && !name.includes(q) && !pkg.includes(q) && !ref.includes(q)) {
-        return false;
-      }
-    }
-    return true;
-  });
-
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-advo-blue/10 px-2.5 py-0.5 text-xs font-semibold text-advo-blue">
-            <Receipt className="h-3.5 w-3.5" />
-            {t("reseller.orders.badge")}
+    <div className="mx-auto max-w-7xl space-y-5">
+      <PageHero
+        eyebrow={t("reseller.customers.badge")}
+        title={t("reseller.customers.title")}
+        description={t("reseller.customers.subtitle")}
+        icon={<Users />}
+        iconTone="accent"
+        meta={
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-advo-border bg-white px-2.5 py-0.5 text-[11px] font-semibold text-advo-muted">
+            <Activity className="h-3 w-3 text-advo-blue" />
+            {t("reseller.customers.sync")}
           </span>
-          <span className="text-xs text-slate-400">·</span>
-          <span className="text-xs font-medium text-slate-500">M-Pesa, Airtel Money, TigoPesa, HaloPesa</span>
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KpiCard
+          hint={t("reseller.customers.kpi.activeSessionsHint")}
+          icon={Wifi}
+          label={t("reseller.customers.kpi.activeSessions")}
+          tone="emerald"
+          value={onlineCount}
+        />
+        <KpiCard
+          hint={t("reseller.customers.kpi.onlineDevicesHint")}
+          icon={Smartphone}
+          label={t("reseller.customers.kpi.onlineDevices")}
+          tone="blue"
+          value={totalDevicesOnline}
+        />
+        <KpiCard
+          hint={t("reseller.customers.kpi.expiredHint")}
+          icon={Ban}
+          label={t("reseller.customers.kpi.expired")}
+          tone="rose"
+          value={expiredCount}
+        />
+        <KpiCard
+          hint={t("reseller.customers.kpi.totalSpendHint")}
+          icon={TrendingUp}
+          label={t("reseller.customers.kpi.totalSpend")}
+          tone="amber"
+          value={formatTzs(totalCustomerSpend)}
+        />
+      </div>
+
+      {/* Filters + search */}
+      <section className="space-y-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-sm font-black tracking-tight text-advo-text">
+              {t("reseller.customers.list.title")}
+              <span className="ml-1.5 font-bold text-advo-muted">
+                {t("reseller.customers.list.count", { count: visible.length })}
+              </span>
+            </h2>
+          </div>
+
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">
+            <div className="relative min-w-0 flex-1 sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-advo-muted" />
+              <input
+                aria-label={t("reseller.customers.search.placeholder")}
+                className="w-full rounded-xl border border-advo-border bg-white py-2 pl-8 pr-8 text-xs font-medium text-advo-text transition placeholder:text-advo-muted focus:border-advo-blue focus:outline-none"
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("reseller.customers.search.placeholder")}
+                type="search"
+                value={query}
+              />
+              {query ? (
+                <button
+                  aria-label={t("reseller.customers.search.clear")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-advo-muted hover:bg-slate-100"
+                  onClick={() => setQuery("")}
+                  type="button"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-advo-text sm:text-3xl">{t("nav.payments")}</h1>
-        <p className="mt-1 text-sm text-advo-muted">{t("reseller.orders.subtitle")}</p>
-      </div>
 
-      {/* KPI Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.orders.kpi.grossVolume")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-emerald-600">{formatTzs(totalVolume)}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.orders.kpi.grossVolumeHint")}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.orders.kpi.paidOrders")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-advo-blue">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-advo-text">{settledOrders.length}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.orders.kpi.paidOrdersHint")}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.orders.kpi.pending")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-advo-gold">
-              <Clock className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-advo-gold">{pendingOrders.length}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.orders.kpi.pendingHint")}</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t("reseller.orders.kpi.attempts")}
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-              <Receipt className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-2 text-2xl font-bold text-advo-text">{orderList.length}</div>
-          <p className="mt-1 text-xs text-slate-500">{t("reseller.orders.kpi.attemptsHint")}</p>
-        </Card>
-      </div>
-
-      {/* Orders Table Container */}
-      <Card className="p-6">
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              aria-label={t("reseller.search.label")}
-              placeholder={t("reseller.search.placeholder")}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-field border border-slate-200 bg-[var(--advo-page)] py-2 pl-9 pr-4 text-xs font-medium text-[var(--advo-text)] placeholder-slate-400 transition focus:border-[var(--advo-blue)] focus:bg-white focus:outline-none"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto">
-            {orderFilters.map((f) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {filters.map((f) => {
+            const active = filter === f.key;
+            return (
               <button
-                key={f.value}
+                key={f.key}
                 type="button"
-                onClick={() => setFilterState(f.value)}
-                className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
-                  filterState === f.value
-                    ? "bg-[var(--advo-blue)] text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                aria-pressed={active}
+                onClick={() => setFilter(f.key)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                  active
+                    ? "border-advo-blue bg-advo-blue text-white shadow-sm"
+                    : "border-advo-border bg-white text-advo-muted hover:border-advo-blue/40 hover:text-advo-text"
                 }`}
               >
                 {f.label}
+                {typeof f.count === "number" ? (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                      active ? "bg-white/20 text-white" : "bg-advo-page text-advo-text"
+                    }`}
+                  >
+                    {f.count}
+                  </span>
+                ) : null}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        <div className="mt-4">
-          <ResourceView resource={orders}>
-            {() => (
-              <AdvoTable label={t("reseller.orders.tableLabel")}
-                rows={filteredOrders}
-                rowKey={(o) => o.id}
-                empty={t("reseller.orders.empty")}
-                columns={[
-                  {
-                    key: "d",
-                    header: t("reseller.col.date"),
-                    render: (o) => (
-                      <span className="text-xs font-medium text-slate-600">
-                        {formatDateTime(o.paidAt ?? o.createdAt)}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: "c",
-                    header: t("reseller.col.customer"),
-                    render: (o) =>
-                      o.customer ? (
-                        <div>
-                          <p className="font-bold text-advo-text">
-                            {[o.customer.firstName, o.customer.lastName].filter(Boolean).join(" ") ||
-                              t("reseller.customers.guest")}
-                          </p>
-                          <p className="text-xs text-slate-400">{o.customer.phone}</p>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      ),
-                  },
-                  {
-                    key: "p",
-                    header: t("reseller.col.packageAndSite"),
-                    render: (o) => (
-                      <div>
-                        <p className="font-bold text-advo-text">{o.priceSnapshot.name ?? "—"}</p>
-                        <p className="text-xs text-slate-400">{o.site?.name}</p>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "a",
-                    header: t("reseller.col.amount"),
-                    render: (o) => (
-                      <span className="font-bold text-emerald-700">{formatTzs(o.amountTzs)}</span>
-                    ),
-                    className: "text-right",
-                  },
-                  {
-                    key: "pay",
-                    header: t("reseller.col.status"),
-                    render: (o) => (
-                      <div>
-                        <StatusChip
-                          tone={
-                            SETTLED_PAYMENT_STATES.has(o.paymentState)
-                              ? "success"
-                              : o.paymentState === "CANCELLED" || o.paymentState === "REFUNDED"
-                              ? "danger"
-                              : "warning"
-                          }
-                        >
-                          {paymentStateLabel(t, o.paymentState)}
-                        </StatusChip>
-                        {o.attempts[0]?.lastError ? (
-                          <p className="mt-1 max-w-56 text-[11px] text-red-600">{o.attempts[0].lastError}</p>
-                        ) : null}
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "f",
-                    header: t("reseller.col.grant"),
-                    render: (o) => {
-                      const state = o.grant?.state ?? o.fulfillmentState;
-                      const isFulfilled = state === "ACTIVE" || state === "FULFILLED";
-                      const label = o.grant
-                        ? grantStateLabel(t, state)
-                        : fulfillmentStateLabel(t, state);
-                      return (
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ${
-                            isFulfilled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {label}
-                        </span>
-                      );
-                    },
-                  },
-                  {
-                    key: "r",
-                    header: t("reseller.col.reference"),
-                    render: (o) => <Mono>{o.id.slice(0, 8)}</Mono>,
-                  },
-                ]}
-              />
-            )}
-          </ResourceView>
-        </div>
-      </Card>
+        <ResourceView resource={grants}>
+          {(rows) =>
+            rows.length === 0 ? (
+              <Card className="border-dashed p-12 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-blue-50 text-advo-blue">
+                  <Users className="h-7 w-7" />
+                </div>
+                <h3 className="mt-4 text-base font-bold text-advo-text">
+                  {t("reseller.customers.guestAccess.empty")}
+                </h3>
+              </Card>
+            ) : visible.length === 0 ? (
+              <Card className="p-8 text-center text-xs text-advo-muted">
+                {term
+                  ? t("reseller.customers.search.noMatch", { query })
+                  : t("reseller.customers.guestAccess.empty")}
+              </Card>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {visible.map((g) => (
+                  <ClientDetailRow
+                    key={g.id}
+                    grant={g}
+                    onReload={grants.reload}
+                    t={t}
+                  />
+                ))}
+              </div>
+            )
+          }
+        </ResourceView>
+      </section>
     </div>
   );
 }
+
+/** Horizontal detail row — client identity + presence left, revoke/retry far right. */
+function ClientDetailRow({
+  grant: g,
+  t,
+  onReload,
+}: {
+  grant: Grant;
+  t: I18n["t"];
+  onReload: () => void | Promise<void>;
+}) {
+  const presence = clientPresence(g);
+  const mac = primaryMac(g);
+  const packageName = g.packageSnapshot.name ?? t("reseller.col.package");
+  const isPayment = Boolean(g.orderId);
+  const sourceLabel = isPayment
+    ? t("reseller.customers.source.mobilePayment")
+    : t("reseller.customers.source.voucher");
+  const SourceIcon = isPayment ? CreditCard : Ticket;
+
+  const presenceStyle = {
+    online: {
+      iconWrap: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70",
+      dot: "bg-emerald-500",
+      chip: "success" as const,
+    },
+    offline: {
+      iconWrap: "bg-slate-100 text-slate-500 ring-1 ring-slate-200/80",
+      dot: "bg-slate-400",
+      chip: "default" as const,
+    },
+    expired: {
+      iconWrap: "bg-rose-50 text-rose-600 ring-1 ring-rose-200/70",
+      dot: "bg-rose-400",
+      chip: "danger" as const,
+    },
+    pending: {
+      iconWrap: "bg-amber-50 text-amber-700 ring-1 ring-amber-200/70",
+      dot: "bg-amber-400",
+      chip: "warning" as const,
+    },
+  }[presence];
+
+  const PresenceIcon = presence === "online" ? Wifi : presence === "expired" ? Ban : WifiOff;
+
+  return (
+    <Card className="overflow-hidden p-0 transition-shadow hover:shadow-advo-lift">
+      <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${presenceStyle.iconWrap}`}>
+            <PresenceIcon className="h-5 w-5" />
+            <span
+              aria-hidden="true"
+              className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-white ${presenceStyle.dot}`}
+            />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-sm font-black tracking-tight text-advo-text" title={packageName}>
+                {packageName}
+              </h3>
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  isPayment
+                    ? "bg-advo-blue/10 text-advo-blue ring-1 ring-advo-blue/20"
+                    : "bg-advo-gold-soft text-[#b15f00] ring-1 ring-advo-gold/30"
+                }`}
+              >
+                <SourceIcon className="h-3 w-3" />
+                {sourceLabel}
+              </span>
+              <StatusChip tone={presenceStyle.chip}>
+                {t(`reseller.customers.presence.${presence}`)}
+              </StatusChip>
+              <StatusChip tone={statusTone(g.state)}>{grantStateLabel(t, g.state)}</StatusChip>
+            </div>
+
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-advo-muted">
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate font-semibold text-advo-text/80">{g.site.name}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 font-mono text-advo-text/80">
+                <Smartphone className="h-3 w-3 text-slate-400" />
+                <span className="select-all">{mac}</span>
+              </span>
+            </div>
+
+            <dl className="mt-2 flex flex-wrap items-center gap-1.5">
+              <FactChip
+                icon={Clock}
+                label={t("reseller.col.timeRemaining")}
+                value={
+                  g.state === "ACTIVE"
+                    ? remaining(t, g.expiresAt)
+                    : formatDuration(g.durationSeconds)
+                }
+                tone={presence === "online" ? "emerald" : "default"}
+              />
+              <FactChip
+                icon={Smartphone}
+                label={t("reseller.col.devices")}
+                value={t("reseller.customers.deviceSlots", {
+                  used: g.devices.length,
+                  total: g.maxDevices,
+                })}
+              />
+              {g.devices.slice(0, 2).map((d) => (
+                <span
+                  key={d.id}
+                  className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
+                    d.authState === "AUTHORIZED"
+                      ? "border-emerald-200/70 bg-emerald-50/60 text-emerald-700"
+                      : "border-advo-border/70 bg-advo-page text-advo-muted"
+                  }`}
+                  title={d.clientMac}
+                >
+                  {deviceStateLabel(t, d.authState)}
+                </span>
+              ))}
+            </dl>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-1 border-t border-advo-border/60 pt-2.5 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
+          {g.devices
+            .filter(
+              (d) =>
+                ["FAILED", "UNKNOWN"].includes(d.authState) &&
+                g.state !== "REVOKED" &&
+                g.state !== "EXPIRED",
+            )
+            .slice(0, 1)
+            .map((d) => (
+              <RowIconButton
+                key={d.id}
+                icon={RefreshCw}
+                label={t("reseller.customers.retry")}
+                onPress={() => {
+                  void api.post(`/reseller/grant-devices/${d.id}/retry`).then(() => onReload());
+                }}
+              />
+            ))}
+          {["ACTIVE", "PENDING_ACTIVATION"].includes(g.state) ? (
+            <RowIconButton
+              icon={Ban}
+              label={t("reseller.customers.revoke")}
+              tone="danger"
+              onPress={() => {
+                const reason = window.prompt(t("reseller.customers.revokeReason"));
+                if (!reason || reason.trim().length < 3) return;
+                void api
+                  .post(`/reseller/grants/${g.id}/revoke`, { reason: reason.trim() })
+                  .then(() => onReload());
+              }}
+            />
+          ) : null}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  hint: string;
+  icon: LucideIcon;
+  tone: "blue" | "emerald" | "amber" | "rose";
+}) {
+  const tones = {
+    blue: "bg-blue-50 text-advo-blue",
+    emerald: "bg-emerald-50 text-emerald-600",
+    amber: "bg-amber-50 text-advo-gold",
+    rose: "bg-rose-50 text-rose-600",
+  }[tone];
+  const valueTone = tone === "emerald" ? "text-emerald-600" : tone === "rose" ? "text-rose-600" : "text-advo-text";
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+        <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${tones}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </div>
+      <div className={`mt-2 text-2xl font-bold ${valueTone}`}>{value}</div>
+      <p className="mt-1 text-xs text-slate-500">{hint}</p>
+    </Card>
+  );
+}
+
+function FactChip({
+  icon: Icon,
+  label,
+  value,
+  tone = "default",
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  tone?: "default" | "emerald";
+}) {
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2 py-1 ${
+        tone === "emerald"
+          ? "border-emerald-200/70 bg-emerald-50/60"
+          : "border-advo-border/70 bg-advo-page"
+      }`}
+    >
+      <Icon
+        className={`h-3 w-3 shrink-0 ${tone === "emerald" ? "text-emerald-600" : "text-advo-muted"}`}
+        aria-hidden="true"
+      />
+      <span className="sr-only">{label}</span>
+      <span
+        className={`truncate text-[10px] font-bold ${
+          tone === "emerald" ? "text-emerald-700" : "text-advo-text"
+        }`}
+        title={`${label}: ${value}`}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
+
+function RowIconButton({
+  icon: Icon,
+  label,
+  onPress,
+  tone = "default",
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <button
+      aria-label={label}
+      className={`grid size-9 place-items-center rounded-xl transition ${
+        tone === "danger"
+          ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+          : "text-advo-muted hover:bg-advo-page hover:text-advo-text"
+      }`}
+      onClick={onPress}
+      title={label}
+      type="button"
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+

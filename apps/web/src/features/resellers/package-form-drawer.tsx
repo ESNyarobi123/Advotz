@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Drawer, useOverlayState } from "@heroui/react";
 import { formatDuration, formatTzs } from "@advo/api-client";
 import type { MessageKey, TranslateVars } from "@advo/i18n";
-import { Notice, PortalPackageCard } from "@advo/ui";
+import { Notice } from "@advo/ui";
 import { useI18n } from "@/lib/i18n";
 import {
   Check,
@@ -16,7 +16,6 @@ import {
   Package as PackageIcon,
   Plus,
   Smartphone,
-  Sparkles,
 } from "lucide-react";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -38,7 +37,20 @@ export type PackageRevisionDraft = {
 
 export type PackageFormSite = { id: string; name: string; state: string };
 
-export type PackageQuotaType = "UNLIMITED" | "TOTAL" | "DAILY" | "MONTHLY";
+/**
+ * What the Controller at a site can actually enforce. The form reads this before
+ * offering a cap, so a save never fails with a capability error the reseller
+ * could not have predicted.
+ */
+export type PackageFormSiteOptions = {
+  siteId: string;
+  name: string;
+  authorizeClient: boolean;
+  speedLimits: boolean;
+  totalQuota: boolean;
+};
+
+export type PackageQuotaType = "UNLIMITED" | "TOTAL";
 
 export type PackageDraft = {
   name: string;
@@ -69,13 +81,11 @@ export const DURATION_CHOICES = [
   { seconds: 604800, key: "reseller.packages.duration.7d" },
   { seconds: 2592000, key: "reseller.packages.duration.30d" },
 ] as const satisfies ReadonlyArray<{ seconds: number; key: MessageKey }>;
-const QUOTA_TYPES = ["UNLIMITED", "TOTAL", "DAILY", "MONTHLY"] as const satisfies ReadonlyArray<PackageQuotaType>;
+const QUOTA_TYPES = ["UNLIMITED", "TOTAL"] as const satisfies ReadonlyArray<PackageQuotaType>;
 
 const QUOTA_LABEL_KEY: Record<PackageQuotaType, MessageKey> = {
   UNLIMITED: "reseller.packages.form.quotaType.unlimited",
   TOTAL: "reseller.packages.form.quotaType.total",
-  DAILY: "reseller.packages.form.quotaType.daily",
-  MONTHLY: "reseller.packages.form.quotaType.monthly",
 };
 
 /** Caps a reseller reaches for most; one tap fills an editable speed profile. */
@@ -101,9 +111,13 @@ export function emptyDraft(): PackageDraft {
 export function draftFromRevision(revision: PackageRevisionDraft | null, assignedSiteIds: string[]): PackageDraft {
   if (!revision) return emptyDraft();
   const standard = DURATION_CHOICES.find((choice) => choice.seconds === revision.durationSeconds);
-  const quotaType = QUOTA_TYPES.includes(revision.quotaType as PackageQuotaType)
-    ? (revision.quotaType as PackageQuotaType)
-    : "UNLIMITED";
+  // Rolling daily/monthly windows stopped being sellable: a revision written
+  // before that is shown as a total cap of the same size, so editing it cannot
+  // silently drop the data allowance the guests paid for.
+  const quotaType: PackageQuotaType =
+    revision.quotaType === "TOTAL" || revision.quotaType === "DAILY" || revision.quotaType === "MONTHLY"
+      ? "TOTAL"
+      : "UNLIMITED";
   return {
     name: revision.name,
     priceTzs: String(revision.priceTzs),
@@ -157,21 +171,60 @@ export function packageBodyFromDraft(draft: PackageDraft) {
 }
 
 /**
+ * What the sites chosen in the draft can actually enforce. `speedBlockedSites`
+ * and `quotaBlockedSites` are already joined for display, because the blocker is
+ * deliberately a plain message key plus vars.
+ */
+export type PackageDraftCapabilities = {
+  authorizeClient: boolean;
+  speedLimits: boolean;
+  totalQuota: boolean;
+  unreadySites: string;
+  speedBlockedSites: string;
+  quotaBlockedSites: string;
+};
+
+/**
  * Why the draft cannot be submitted yet, or `null` when it is complete.
  *
  * Returned as a message key so the caller translates it once, in place; the
- * form has no opinion about language.
+ * form has no opinion about language. The capability checks mirror the server's
+ * `enforcementGaps`, so the form explains a rejection before the request is sent.
  */
-export function draftBlocker(draft: PackageDraft): { key: MessageKey; vars?: TranslateVars } | null {
+export function draftBlocker(
+  draft: PackageDraft,
+  caps?: PackageDraftCapabilities | null,
+): { key: MessageKey; vars?: TranslateVars } | null {
   const price = Number(draft.priceTzs);
   const named = draft.name.trim().length >= 2;
   const priced = Number.isFinite(price) && price > 0;
 
   if (!named || !priced) return { key: "reseller.packages.form.summary.empty" };
+  if (!/^\d{1,15}$/.test(draft.priceTzs.trim())) return { key: "reseller.packages.form.invalidPrice" };
   if (price < 500) return { key: "reseller.packages.form.belowMinimum" };
-  if (durationSecondsOf(draft) < 60) return { key: "reseller.packages.form.noDuration" };
+  const duration = durationSecondsOf(draft);
+  if (duration < 60) return { key: "reseller.packages.form.noDuration" };
+  if (duration > 366 * 86400) return { key: "reseller.packages.form.durationTooLong" };
+  if (caps && !caps.authorizeClient) {
+    return { key: "reseller.packages.form.capability.siteNotReady", vars: { sites: caps.unreadySites } };
+  }
+  const speeds = [draft.downloadMbps, draft.uploadMbps]
+    .filter((value) => value.trim() !== "")
+    .map((value) => Number(value) * 1024);
+  if (speeds.some((kbps) => !Number.isFinite(kbps) || kbps < 64)) {
+    return { key: "reseller.packages.form.speedTooLow" };
+  }
+  if (speeds.some((kbps) => kbps > 10_000_000)) {
+    return { key: "reseller.packages.form.speedTooHigh" };
+  }
   if (draft.quotaType !== "UNLIMITED" && !(Number(draft.quotaGb) > 0)) {
     return { key: "reseller.packages.form.section.dataHint" };
+  }
+  if ((draft.downloadMbps || draft.uploadMbps) && caps && !caps.speedLimits) {
+    return { key: "reseller.packages.form.capability.speedUnsupported", vars: { sites: caps.speedBlockedSites } };
+  }
+  if (draft.quotaType !== "UNLIMITED" && caps && !caps.totalQuota) {
+    return { key: "reseller.packages.form.capability.quotaUnsupported", vars: { sites: caps.quotaBlockedSites } };
   }
   return null;
 }
@@ -183,10 +236,7 @@ export function draftBlocker(draft: PackageDraft): { key: MessageKey; vars?: Tra
 /**
  * The package form, as a right-hand popup.
  *
- * A package is the thing a guest actually buys, so the form leads with the
- * guest's view: a real `PortalPackageCard` — the very component the captive
- * portal renders — sits above the fields and updates on every keystroke. Below
- * it the fields are grouped into the questions a reseller answers in order
+ * Fields are grouped into the questions a reseller answers in order
  * (basics → duration → speed → data → devices → sites), each stating why it is
  * being asked instead of showing a bare label.
  */
@@ -196,6 +246,8 @@ export function PackageFormDrawer({
   editingRevision,
   initialDraft,
   sites,
+  siteOptions,
+  siteOptionsError,
   sitesError,
   sitesLoading,
   pending,
@@ -209,6 +261,9 @@ export function PackageFormDrawer({
   editingRevision?: PackageRevisionDraft | null;
   initialDraft: PackageDraft;
   sites: PackageFormSite[];
+  /** Per-site enforcement, from `GET /reseller/package-options`. */
+  siteOptions: PackageFormSiteOptions[];
+  siteOptionsError: string | null;
   sitesError: string | null;
   sitesLoading: boolean;
   pending: boolean;
@@ -234,40 +289,30 @@ export function PackageFormDrawer({
   const priceValid = Number.isFinite(price) && price > 0;
   const capped = draft.quotaType !== "UNLIMITED";
 
-  /** What the guest card shows, derived from the draft as it is typed. */
-  const preview = useMemo(() => {
-    const gb = Number(draft.quotaGb);
-    const mbps = Number(draft.downloadMbps);
+  /**
+   * Enforcement only matters at the sites that will sell the package. With none
+   * selected there is nothing to enforce yet, so the form stays open and says
+   * plainly that the package is invisible until it is assigned.
+   */
+  const caps = useMemo<PackageDraftCapabilities>(() => {
+    const scope = new Set(draft.siteIds);
+    const evaluated = siteOptions.filter((option) => scope.has(option.siteId));
+    const blocked = (supports: (option: PackageFormSiteOptions) => boolean) =>
+      evaluated.filter((option) => !supports(option)).map((option) => option.name);
+    const unready = blocked((option) => option.authorizeClient);
+    const speedBlocked = blocked((option) => option.speedLimits);
+    const quotaBlocked = blocked((option) => option.totalQuota);
     return {
-      id: "preview",
-      name: draft.name.trim() || t("reseller.packages.form.preview.untitled"),
-      duration: seconds >= 60 ? formatDuration(seconds, locale) : t("reseller.packages.card.custom"),
-      // `PortalPackageCard` prints the currency itself, so the amount goes in bare.
-      price: priceValid ? formatTzs(price).replace(/^TZS\s*/, "") : "—",
-      currency: "TSh",
-      // A blank speed drops the line, so the card never claims "Up to Uncapped".
-      speed: mbps > 0 ? `${mbps} Mbps` : "",
-      // The card prints this line verbatim, so the unit is added here.
-      data: !capped
-        ? t("reseller.packages.card.unlimitedData")
-        : gb > 0
-          ? t("portal.card.allowance", { data: `${Math.round(gb * 10) / 10} GB` })
-          : "",
-      devices: draft.maxDevices,
-      icon: iconForSeconds(seconds),
+      authorizeClient: unready.length === 0,
+      speedLimits: speedBlocked.length === 0,
+      totalQuota: quotaBlocked.length === 0,
+      unreadySites: unready.join(", "),
+      speedBlockedSites: speedBlocked.join(", "),
+      quotaBlockedSites: quotaBlocked.join(", "),
     };
-  }, [draft, seconds, priceValid, price, capped, locale, t]);
+  }, [draft.siteIds, siteOptions]);
 
-  /** A short package reads well per hour; a long one reads better per day. */
-  const rateHint = useMemo(() => {
-    if (!priceValid || seconds < 3600) return null;
-    if (seconds >= 86400) {
-      return t("reseller.packages.form.perDay", { amount: formatTzs(Math.round(price / (seconds / 86400))) });
-    }
-    return t("reseller.packages.form.perHour", { amount: formatTzs(Math.round(price / (seconds / 3600))) });
-  }, [priceValid, seconds, price, t]);
-
-  const blocker = draftBlocker(draft);
+  const blocker = draftBlocker(draft, caps);
   const allSelected = sites.length > 0 && draft.siteIds.length === sites.length;
   const selectedCount = draft.siteIds.length;
 
@@ -314,44 +359,6 @@ export function PackageFormDrawer({
 
             {/* ── Body ── */}
             <Drawer.Body className="mx-0 mt-0 space-y-5 overflow-y-auto bg-[var(--advo-page)] px-6 py-6">
-              {/* The guest's own card, re-rendered from the draft. */}
-              <section className="rounded-2xl border border-[var(--advo-border)] bg-white p-4 shadow-advo-card">
-                <header className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
-                      <Sparkles className="size-3.5 text-advo-gold" />
-                      {t("reseller.packages.form.preview.title")}
-                    </h3>
-                    <p className="mt-0.5 text-[11px] text-advo-muted">
-                      {t("reseller.packages.form.preview.hint")}
-                    </p>
-                  </div>
-                  <span className="hidden shrink-0 rounded-full bg-portal-paper px-2 py-0.5 text-[10px] font-bold text-portal-muted sm:inline-block">
-                    {t("reseller.packages.form.preview.badge")}
-                  </span>
-                </header>
-                {/* `PortalPackageCard` is a <button>, which sizes to its content;
-                    `[&>button]` stretches it to the phone-sized frame the portal
-                    would give it, so the preview reads at a realistic width. */}
-                <div className="mx-auto w-full max-w-[248px] [&>button]:w-full">
-                  <PortalPackageCard
-                    labels={{
-                      upTo: t("portal.card.upTo"),
-                      deviceOne: t("portal.card.deviceOne"),
-                      deviceMany: t("portal.card.deviceMany"),
-                    }}
-                    package={preview}
-                    selectLabel={t("reseller.packages.form.preview.select")}
-                    style="classic"
-                  />
-                </div>
-                {rateHint ? (
-                  <p className="mt-3 text-center text-[11px] font-semibold text-emerald-700 tabular-nums">
-                    {rateHint}
-                  </p>
-                ) : null}
-              </section>
-
               {/* 1 · Basics */}
               <Section
                 index={1}
@@ -468,6 +475,11 @@ export function PackageFormDrawer({
                     value={draft.uploadMbps}
                   />
                 </div>
+                {!caps.speedLimits ? (
+                  <p className="mt-2 text-[11px] font-semibold text-[var(--advo-danger)]" role="alert">
+                    {t("reseller.packages.form.capability.speedHint", { sites: caps.speedBlockedSites })}
+                  </p>
+                ) : null}
               </Section>
 
               {/* 4 · Data quota */}
@@ -481,12 +493,18 @@ export function PackageFormDrawer({
                   {QUOTA_TYPES.map((type) => (
                     <PresetChip
                       active={draft.quotaType === type}
+                      disabled={type === "TOTAL" && !caps.totalQuota}
                       key={type}
                       label={t(QUOTA_LABEL_KEY[type])}
                       onClick={() => patch({ quotaType: type, quotaGb: type === "UNLIMITED" ? "" : draft.quotaGb })}
                     />
                   ))}
                 </div>
+                {!caps.totalQuota ? (
+                  <p className="mt-2 text-[11px] font-semibold text-[var(--advo-danger)]" role="alert">
+                    {t("reseller.packages.form.capability.quotaHint", { sites: caps.quotaBlockedSites })}
+                  </p>
+                ) : null}
                 {/* The cap field exists only when the policy uses it, so an
                     unlimited package can never submit a stray quotaBytes. */}
                 {capped ? (
@@ -596,9 +614,24 @@ export function PackageFormDrawer({
                   })}
                 </div>
 
+                {!caps.authorizeClient ? (
+                  <p className="mt-3 text-xs font-semibold text-[var(--advo-danger)]" role="alert">
+                    {t("reseller.packages.form.capability.siteNotReady", { sites: caps.unreadySites })}
+                  </p>
+                ) : null}
+                {selectedCount === 0 && sites.length > 0 ? (
+                  <p className="mt-3 text-[11px] font-semibold text-amber-700">
+                    {t("reseller.packages.form.sitesNoneSelected")}
+                  </p>
+                ) : null}
+
                 {sitesError ? (
                   <p className="mt-3 text-xs font-semibold text-[var(--advo-danger)]" role="alert">
                     {t("reseller.packages.form.sitesLoadError", { reason: sitesError })}
+                  </p>
+                ) : siteOptionsError ? (
+                  <p className="mt-3 text-xs font-semibold text-[var(--advo-danger)]" role="alert">
+                    {t("reseller.packages.form.capability.optionsLoadError", { reason: siteOptionsError })}
                   </p>
                 ) : sitesLoading && sites.length === 0 ? (
                   <p className="mt-3 text-xs text-advo-muted">{t("reseller.packages.form.sitesLoading")}</p>
@@ -667,14 +700,6 @@ export function PackageFormDrawer({
  * Small pieces
  * ───────────────────────────────────────────────────────────────────────── */
 
-/** The portal's icon vocabulary, chosen from the duration being sold. */
-function iconForSeconds(seconds: number): "clock" | "bolt" | "sun" | "calendar" {
-  if (seconds <= 3600) return "clock";
-  if (seconds <= 6 * 3600) return "bolt";
-  if (seconds <= 86400) return "sun";
-  return "calendar";
-}
-
 /** One numbered step of the form: a title, the reason it is asked, then fields. */
 function Section({
   index,
@@ -711,11 +736,13 @@ function Section({
 /** A tappable preset — the primary way a duration, quota policy or speed is chosen. */
 function PresetChip({
   active,
+  disabled = false,
   label,
   title,
   onClick,
 }: {
   active: boolean;
+  disabled?: boolean;
   label: string;
   title?: string;
   onClick: () => void;
@@ -724,10 +751,13 @@ function PresetChip({
     <button
       aria-pressed={active}
       className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${
-        active
-          ? "border-advo-blue bg-advo-blue text-white shadow-advo-field"
-          : "border-[var(--advo-border)] bg-white text-advo-text hover:border-advo-blue hover:text-advo-blue"
+        disabled
+          ? "cursor-not-allowed border-[var(--advo-border)] bg-[var(--advo-surface-soft)] text-slate-400"
+          : active
+            ? "border-advo-blue bg-advo-blue text-white shadow-advo-field"
+            : "border-[var(--advo-border)] bg-white text-advo-text hover:border-advo-blue hover:text-advo-blue"
       }`}
+      disabled={disabled}
       onClick={onClick}
       title={title}
       type="button"

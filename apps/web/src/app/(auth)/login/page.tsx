@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Card, Button } from "@heroui/react";
 import { Notice } from "@advo/ui";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,6 +9,8 @@ import { useI18n } from "@/lib/i18n";
 import { AdvoLogo } from "@/features/marketing/AdvoLogo";
 import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 import { AuthShowcasePanel } from "@/features/auth/AuthShowcasePanel";
+import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
+import { buttonClasses, cx } from "@/features/marketing/ui";
 import {
   Lock,
   Mail,
@@ -19,10 +20,12 @@ import {
   ArrowRight,
   ArrowLeft,
   KeyRound,
-  CheckCircle,
 } from "lucide-react";
 
 const HOME = { ADMIN: "/admin", AGENT: "/agent", RESELLER: "/reseller" } as const;
+
+const fieldClass =
+  "w-full rounded-field border border-advo-border bg-advo-page pl-11 pr-3.5 py-3 text-sm text-advo-text outline-none transition placeholder:text-advo-muted focus:border-advo-gold/60 focus:bg-white focus:ring-2 focus:ring-advo-gold/25 disabled:opacity-60";
 
 function LoginForm() {
   const { t } = useI18n();
@@ -59,65 +62,63 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6">
-      {/* Mobile-only logo */}
-      <div className="lg:hidden flex items-center justify-between mb-4">
+    <div className="mx-auto w-full max-w-[26rem] space-y-6">
+      {/* Mobile brand bar */}
+      <div className="mb-2 flex items-center justify-between lg:hidden">
         <AdvoLogo size="sm" variant="light" />
-        <Link
-          href="/"
-          className="text-xs font-semibold text-[#526174] hover:text-[#18212F] flex items-center gap-1"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{t("auth.common.home")}</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <LocaleSwitcher compact showIcon={false} variant="light" />
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-advo-muted transition hover:text-advo-text"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            {t("auth.common.home")}
+          </Link>
+        </div>
       </div>
 
-      {/* Main Form Container Card */}
-      <Card className="p-7 sm:p-9 shadow-xl relative overflow-hidden">
-        {/* Top Brand Gradient Accent Bar */}
+      <div className="relative overflow-hidden rounded-card border border-advo-border bg-white p-7 shadow-advo-card sm:p-9">
+        {/* Gold accent — matches landing CTA energy */}
         <div
-          className="absolute top-0 left-0 right-0 h-1.5"
-          style={{
-            background: "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)",
-          }}
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,#fba102_0%,#f16304_100%)]"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-20 size-44 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.12),transparent_70%)] blur-2xl"
         />
 
-        {/* Header */}
-        <div className="mb-6 space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#1B5EA4]/10 text-[#1B5EA4] mb-1">
-            <KeyRound className="w-3 h-3" />
+        <header className="relative mb-7 space-y-2.5">
+          <span className="inline-flex items-center gap-2 rounded-full border border-advo-gold/30 bg-advo-gold-soft px-3 py-1 text-[11px] font-bold tracking-[0.14em] text-[#b15f00] uppercase">
+            <KeyRound className="size-3" aria-hidden="true" />
             {t("auth.login.badge")}
-          </div>
-          <h1 className="text-2xl font-black text-[#18212F] tracking-tight">
+          </span>
+          <h1 className="text-2xl font-black tracking-tight text-advo-text sm:text-[1.7rem]">
             {needsCode ? t("auth.login.titleMfa") : t("auth.login.title")}
           </h1>
-          <p className="text-xs text-[#526174] leading-relaxed">
-            {needsCode
-              ? t("auth.login.subtitleMfa")
-              : t("auth.login.subtitle")}
+          <p className="text-sm leading-relaxed text-advo-muted">
+            {needsCode ? t("auth.login.subtitleMfa") : t("auth.login.subtitle")}
           </p>
-        </div>
+        </header>
 
-        {/* Social Login Options on Top */}
         {!needsCode && (
-          <div className="mb-6">
+          <div className="relative mb-6">
             <SocialLoginButtons />
           </div>
         )}
 
-        {/* Main Email & Password Form */}
-        <form onSubmit={onSubmit} className="space-y-4">
-          {/* Email Input */}
+        <form onSubmit={onSubmit} className="relative space-y-4">
           <div>
             <label
               htmlFor="email"
-              className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
+              className="mb-1.5 block text-xs font-bold tracking-wide text-advo-text uppercase"
             >
               {t("email")}
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                <Mail className="w-4 h-4" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                <Mail className="size-4" aria-hidden="true" />
               </div>
               <input
                 id="email"
@@ -128,32 +129,31 @@ function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={needsCode}
-                className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 disabled:opacity-60"
+                className={fieldClass}
               />
             </div>
           </div>
 
-          {/* Password Input */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="mb-1.5 flex items-center justify-between gap-3">
               <label
                 htmlFor="password"
-                className="block text-xs font-bold text-[#18212F] uppercase tracking-wide"
+                className="block text-xs font-bold tracking-wide text-advo-text uppercase"
               >
                 {t("password")}
               </label>
               {!needsCode && (
                 <Link
                   href="/forgot-password"
-                  className="text-xs font-semibold text-[#1B5EA4] hover:text-[#2176C2] transition"
+                  className="text-xs font-semibold text-[#b15f00] transition hover:text-advo-orange"
                 >
                   {t("auth.login.forgot")}
                 </Link>
               )}
             </div>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                <Lock className="w-4 h-4" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                <Lock className="size-4" aria-hidden="true" />
               </div>
               <input
                 id="password"
@@ -164,31 +164,31 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={needsCode}
-                className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-10 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 disabled:opacity-60"
+                className={cx(fieldClass, "pr-11")}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#526174] hover:text-[#18212F]"
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-advo-muted transition hover:text-advo-text"
                 tabIndex={-1}
                 aria-label={showPassword ? t("auth.password.hide") : t("auth.password.show")}
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showPassword ? (
+                  <EyeOff className="size-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="size-4" aria-hidden="true" />
+                )}
               </button>
             </div>
           </div>
 
-          {/* MFA / Two-Factor Code Field */}
           {needsCode && (
-            <div className="rounded-2xl bg-blue-50/80 border border-blue-200 p-4 space-y-2.5 animate-in fade-in duration-200">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#1B5EA4]">
-                <ShieldCheck className="w-4 h-4" />
+            <div className="animate-in fade-in space-y-2.5 rounded-2xl border border-advo-gold/25 bg-advo-gold-soft/60 p-4 duration-200">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#b15f00]">
+                <ShieldCheck className="size-4" aria-hidden="true" />
                 <span>{t("auth.login.mfaBadge")}</span>
               </div>
-              <label
-                htmlFor="mfa"
-                className="block text-xs font-semibold text-[#18212F]"
-              >
+              <label htmlFor="mfa" className="block text-xs font-semibold text-advo-text">
                 {t("auth.login.mfaCodeLabel")}
               </label>
               <input
@@ -202,101 +202,107 @@ function LoginForm() {
                 onChange={(e) => setMfaCode(e.target.value)}
                 required
                 autoFocus
-                className="w-full rounded-field border border-[#DFE5EC] bg-white px-3.5 py-3 text-center text-xl font-mono font-black tracking-widest text-[#18212F] outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20"
+                className="w-full rounded-field border border-advo-border bg-white px-3.5 py-3 text-center font-mono text-xl font-black tracking-[0.35em] text-advo-text outline-none focus:border-advo-gold/60 focus:ring-2 focus:ring-advo-gold/25"
               />
-              <p className="text-[11px] text-[#526174]">
-                {t("auth.login.mfaHint")}
-              </p>
+              <p className="text-[11px] text-advo-muted">{t("auth.login.mfaHint")}</p>
             </div>
           )}
 
-          {/* Remember me option */}
           {!needsCode && (
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-2.5 pt-0.5">
               <input
                 id="rememberMe"
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="rounded border-[#DFE5EC] text-[#1B5EA4] focus:ring-[#1B5EA4] accent-[#1B5EA4] w-4 h-4 cursor-pointer"
+                className="size-4 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
               />
-              <label htmlFor="rememberMe" className="text-xs text-[#526174] cursor-pointer select-none">
+              <label
+                htmlFor="rememberMe"
+                className="cursor-pointer select-none text-xs text-advo-muted"
+              >
                 {t("auth.login.remember")}
               </label>
             </div>
           )}
 
-          {/* Error alert with role="alert" */}
           {error && <Notice tone="danger">{error}</Notice>}
 
-          {/* Submit button */}
-          <Button
+          <button
             type="submit"
-            isDisabled={pending}
-            variant="primary"
-            className="w-full py-3.5 text-xs font-bold shadow-lg"
+            disabled={pending}
+            className={buttonClasses({
+              variant: "gold",
+              size: "lg",
+              className: "w-full shadow-[0_16px_36px_-14px_rgba(251,161,2,0.75)]",
+            })}
           >
             <span>
               {pending
                 ? t("auth.login.verifying")
                 : needsCode
-                ? t("auth.login.verifyAndLogin")
-                : t("login")}
+                  ? t("auth.login.verifyAndLogin")
+                  : t("login")}
             </span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+            <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+          </button>
         </form>
 
-        {/* Footer Register Link */}
-        <div className="mt-8 pt-6 border-t border-[#DFE5EC] text-center text-xs text-[#526174]">
+        <div className="relative mt-8 border-t border-advo-border pt-6 text-center text-sm text-advo-muted">
           <span>{t("auth.login.noAccount")} </span>
           <Link
             href="/register"
-            className="font-bold text-[#1B5EA4] hover:text-[#2176C2] transition underline underline-offset-2"
+            className="font-bold text-[#b15f00] underline underline-offset-2 transition hover:text-advo-orange"
           >
             {t("auth.login.registerLink")}
           </Link>
         </div>
-      </Card>
-
-      {/* Trust & Guarantee Indicator */}
-      <div className="text-center text-[11px] text-[#526174] flex items-center justify-center gap-2">
-        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-        <span>{t("auth.login.sslNote")}</span>
       </div>
+
+      <p className="flex items-center justify-center gap-2 text-center text-[11px] text-advo-muted">
+        <ShieldCheck className="size-3.5 text-emerald-600" aria-hidden="true" />
+        <span>{t("auth.login.sslNote")}</span>
+      </p>
     </div>
   );
 }
 
 export default function LoginPage() {
   const { t } = useI18n();
+
   return (
-    <div className="min-h-screen flex bg-[#F7F9FC] text-[#18212F]">
-      {/* Left side: Premium Brand Showcase Panel */}
+    <div className="flex min-h-screen bg-advo-page text-advo-text selection:bg-[#FBA102] selection:text-advo-charcoal">
       <AuthShowcasePanel type="login" />
 
-      {/* Right side: Modern Auth Container */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 relative overflow-y-auto">
-        {/* Desktop Top Nav */}
-        <div className="hidden lg:flex items-center justify-end">
+      <div className="relative flex w-full flex-col justify-between overflow-y-auto p-6 sm:p-10 lg:w-[52%] xl:w-1/2 lg:p-12 xl:p-16">
+        {/* Soft gold atmosphere on the form side */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.08),transparent_70%)] blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-1/4 size-64 rounded-full bg-[radial-gradient(circle,rgba(241,99,4,0.05),transparent_70%)] blur-3xl"
+        />
+
+        <div className="relative z-10 hidden items-center justify-between lg:flex">
+          <LocaleSwitcher compact showIcon={false} variant="light" />
           <Link
             href="/"
-            className="text-xs font-semibold text-[#526174] hover:text-[#18212F] transition flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-white border border-transparent hover:border-[#DFE5EC]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 text-xs font-semibold text-advo-muted transition hover:border-advo-border hover:bg-white hover:text-advo-text"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{t("auth.common.backToMainSite")}</span>
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            {t("auth.common.backToMainSite")}
           </Link>
         </div>
 
-        {/* Form Container */}
-        <div className="flex-1 flex items-center justify-center py-6">
+        <div className="relative z-10 flex flex-1 items-center justify-center py-8">
           <Suspense>
             <LoginForm />
           </Suspense>
         </div>
 
-        {/* Simple Footer */}
-        <footer className="text-center text-xs text-[#526174] pt-4">
+        <footer className="relative z-10 pt-4 text-center text-xs text-advo-muted">
           &copy; {new Date().getFullYear()} Advo TZ · {t("auth.common.footerTagline")}
         </footer>
       </div>

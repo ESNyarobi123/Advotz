@@ -327,11 +327,9 @@ export class AuthService extends AuthLookup {
       });
     }
 
-    // Local development convenience: when Admin MFA is switched off
-    // (`ADMIN_MFA_REQUIRED=false` outside production) skip the code challenge
-    // entirely, so an Admin reaches the dashboard with just email and password.
-    // `adminMfaRequired()` is hard-wired to `true` in production, so this branch
-    // can never open a production session.
+    // When Admin MFA is switched off (`ADMIN_MFA_REQUIRED=false`) skip the code
+    // challenge entirely, so an Admin reaches the dashboard with just email and
+    // password. The default is on, in every environment.
     let mfaPassed = false;
     if (user.role === UserRole.ADMIN && !adminMfaRequired()) {
       mfaPassed = true;
@@ -804,12 +802,9 @@ export class AuthService extends AuthLookup {
     });
 
     const user = await this.toSessionUser(session.userId);
-    // Local development convenience: when Admin MFA is switched off, an Admin
-    // session counts as MFA-passed even if it was created while the challenge
-    // was still on. Without this, an existing Admin session keeps dead-ending
-    // on the dashboard's MFA wall until the browser cookie is cleared.
-    // `adminMfaRequired()` is hard-wired to `true` in production, so this can
-    // never open a production Admin session.
+    // When Admin MFA is switched off, an Admin session counts as MFA-passed even
+    // if it was created while the challenge was still on. Without this, an
+    // existing Admin session keeps dead-ending on the dashboard's MFA wall.
     const mfaPassed =
       session.mfaPassed || (user.role === UserRole.ADMIN && !adminMfaRequired());
     return {

@@ -12,8 +12,6 @@ import {
   Check,
   Copy,
   Cpu,
-  Eye,
-  EyeOff,
   Lock,
   MapPin,
   Pencil,
@@ -281,7 +279,7 @@ export function ResellerDevicesScreen() {
                 {t("reseller.devices.search.noMatch", { query })}
               </Card>
             ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="flex flex-col gap-2.5">
                 {visibleDevices.map((device) => (
                   <DeviceCard
                     copied={copiedId === device.id}
@@ -467,7 +465,7 @@ function DeviceStatCard({
 
 type DeviceDialog = "rename" | "retry" | "remove" | "wifi";
 
-/** One device as a card, with rename, retry, remove and WiFi on the site. */
+/** Horizontal detail row — identity + facts on the left, actions pinned far right. */
 function DeviceCard({
   device,
   t,
@@ -522,93 +520,125 @@ function DeviceCard({
   const error = rename.error || retry.error || remove.error || addWifi.error;
   const label = device.name ?? device.model ?? device.mac;
   const networks = device.wifi ?? [];
+  const lastSeen = device.lastSeenAt
+    ? formatDateTime(device.lastSeenAt)
+    : t("reseller.devices.card.never");
 
   return (
-    <Card className="flex flex-col p-4 transition-shadow hover:shadow-md">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-start gap-2.5">
+    <Card className="overflow-hidden p-0 transition-shadow hover:shadow-advo-lift">
+      <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+        {/* Identity */}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <span
-            className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
-              online ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+            className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
+              online
+                ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70"
+                : "bg-rose-50 text-rose-600 ring-1 ring-rose-200/70"
             }`}
           >
-            <Router className="h-4 w-4" />
+            <Router className="h-5 w-5" />
+            <span
+              aria-hidden="true"
+              className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-white ${
+                online ? "bg-emerald-500" : "bg-rose-400"
+              }`}
+            />
           </span>
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-bold text-advo-text" title={device.name ?? device.model ?? device.mac}>
-              {device.name ?? device.model ?? device.mac}
-            </h3>
-            <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-advo-muted">
-              <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
-              <span className="truncate">{device.site?.name ?? t("reseller.devices.card.noSite")}</span>
-            </p>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3
+                className="truncate text-sm font-black tracking-tight text-advo-text"
+                title={label}
+              >
+                {label}
+              </h3>
+              <StatusChip tone={online ? "success" : statusTone(status)}>
+                {deviceStatusLabel(t, device.observedStatus)}
+              </StatusChip>
+            </div>
+
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-advo-muted">
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate font-semibold">
+                  {device.site?.name ?? t("reseller.devices.card.noSite")}
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1 font-mono text-advo-text/80">
+                <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
+                  {t("reseller.devices.card.mac")}
+                </span>
+                <span className="select-all" title={device.mac}>
+                  {device.mac}
+                </span>
+                <button
+                  aria-label={copied ? t("common.copied") : t("common.copy")}
+                  className="rounded-md p-0.5 text-advo-muted transition hover:bg-slate-100 hover:text-advo-text"
+                  onClick={onCopy}
+                  title={t("common.copy")}
+                  type="button"
+                >
+                  {copied ? (
+                    <Check className="h-3 w-3 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                </button>
+              </span>
+            </div>
+
+            {/* Compact facts strip */}
+            <dl className="mt-2 flex flex-wrap gap-1.5">
+              <FactChip label={t("reseller.devices.card.model")} value={device.model || "—"} />
+              <FactChip label={t("reseller.devices.card.firmware")} value={device.firmware || "—"} mono />
+              <FactChip label={t("reseller.devices.card.lastSeen")} value={lastSeen} />
+              {networks.length > 0 ? (
+                networks.slice(0, 2).map((network) => (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-lg border border-advo-border/70 bg-advo-page px-2 py-1 text-[10px] font-bold text-advo-text"
+                    key={network.id}
+                    title={network.name}
+                  >
+                    <Wifi className="h-3 w-3 text-advo-blue" />
+                    <span className="max-w-[7rem] truncate">{network.name}</span>
+                    {network.secured ? <Lock className="h-2.5 w-2.5 text-slate-400" /> : null}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-lg border border-dashed border-advo-border px-2 py-1 text-[10px] font-semibold text-advo-muted">
+                  <WifiOff className="h-3 w-3" />
+                  {t("reseller.devices.card.wifiEmpty")}
+                </span>
+              )}
+            </dl>
           </div>
         </div>
-        <StatusChip tone={online ? "success" : statusTone(status)}>
-          {deviceStatusLabel(t, device.observedStatus)}
-        </StatusChip>
-      </div>
 
-      <div className="mt-3 flex items-center gap-1.5 rounded-xl border border-advo-border bg-slate-50 px-2.5 py-1.5">
-        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-          {t("reseller.devices.card.mac")}
-        </span>
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-advo-text select-all" title={device.mac}>
-          {device.mac}
-        </span>
-        <button
-          aria-label={copied ? t("common.copied") : t("common.copy")}
-          className="shrink-0 rounded-lg p-1 text-advo-muted transition hover:bg-white hover:text-advo-text"
-          onClick={onCopy}
-          title={t("common.copy")}
-          type="button"
-        >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Detail label={t("reseller.devices.card.firmware")} value={device.firmware || "—"} mono />
-        <Detail label={t("reseller.devices.card.model")} value={device.model || "—"} />
-        <Detail
-          label={t("reseller.devices.card.lastSeen")}
-          value={device.lastSeenAt ? formatDateTime(device.lastSeenAt) : t("reseller.devices.card.never")}
-        />
-        <Detail label={t("reseller.devices.card.site")} value={device.site?.name ?? t("reseller.devices.card.noSite")} />
-      </div>
-
-      <div className="mt-3 rounded-xl border border-advo-border/70 bg-advo-page px-2.5 py-2">
-        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("reseller.devices.card.wifi")}</p>
-        {networks.length === 0 ? (
-          <p className="mt-1 text-[11px] font-semibold text-advo-muted">{t("reseller.devices.card.wifiEmpty")}</p>
-        ) : (
-          <ul className="mt-1.5 space-y-1">
-            {networks.map((network) => (
-              <li className="flex items-center gap-1.5 text-[11px] font-bold text-advo-text" key={network.id}>
-                <Wifi className="h-3 w-3 shrink-0 text-advo-blue" />
-                <span className="min-w-0 flex-1 truncate" title={network.name}>
-                  {network.name}
-                </span>
-                {network.secured ? <Lock className="h-3 w-3 shrink-0 text-slate-400" /> : null}
-                {network.hidden ? <EyeOff className="h-3 w-3 shrink-0 text-slate-400" /> : <Eye className="h-3 w-3 shrink-0 text-slate-400" />}
-                <span className="shrink-0 rounded-md bg-white px-1.5 py-0.5 text-[9px] font-bold text-advo-muted">
-                  {network.band === "2.4"
-                    ? t("reseller.devices.wifi.band24")
-                    : network.band === "5"
-                      ? t("reseller.devices.wifi.band5")
-                      : t("reseller.devices.wifi.bandBoth")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="mt-3 grid grid-cols-4 gap-1 border-t border-advo-border pt-3">
-        <CardAction icon={Pencil} label={t("reseller.devices.action.rename")} onPress={() => setDialog("rename")} />
-        <CardAction icon={RefreshCw} label={t("reseller.devices.action.retry")} onPress={() => setDialog("retry")} />
-        <CardAction icon={Trash2} label={t("reseller.devices.action.remove")} onPress={() => setDialog("remove")} tone="danger" />
-        <CardAction icon={Wifi} label={t("reseller.devices.action.wifi")} onPress={() => setDialog("wifi")} />
+        {/* Actions — far right */}
+        <div className="flex shrink-0 items-center justify-end gap-1 border-t border-advo-border/60 pt-2.5 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
+          <RowAction
+            icon={Wifi}
+            label={t("reseller.devices.action.wifi")}
+            onPress={() => setDialog("wifi")}
+          />
+          <RowAction
+            icon={Pencil}
+            label={t("reseller.devices.action.rename")}
+            onPress={() => setDialog("rename")}
+          />
+          <RowAction
+            icon={RefreshCw}
+            label={t("reseller.devices.action.retry")}
+            onPress={() => setDialog("retry")}
+          />
+          <RowAction
+            icon={Trash2}
+            label={t("reseller.devices.action.remove")}
+            onPress={() => setDialog("remove")}
+            tone="danger"
+          />
+        </div>
       </div>
 
       <Modal.Root state={overlay}>
@@ -633,7 +663,9 @@ function DeviceCard({
                     : dialog === "retry"
                       ? t("reseller.devices.retry.subtitle")
                       : dialog === "wifi"
-                        ? t("reseller.devices.wifi.subtitle", { site: device.site?.name ?? t("reseller.devices.card.noSite") })
+                        ? t("reseller.devices.wifi.subtitle", {
+                            site: device.site?.name ?? t("reseller.devices.card.noSite"),
+                          })
                         : dialog === "remove"
                           ? t("reseller.devices.remove.body", { name: label })
                           : ""}
@@ -642,17 +674,70 @@ function DeviceCard({
               <Modal.Body>
                 {error ? <Notice tone="danger">{error}</Notice> : null}
                 {dialog === "rename" ? (
-                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void rename.run(event.currentTarget); }}>
-                    <DeviceField defaultValue={device.name ?? ""} id={`rename-name-${device.id}`} label={t("reseller.devices.rename.name")} name="name" required />
-                    <DeviceField defaultValue={device.model ?? ""} id={`rename-model-${device.id}`} label={t("reseller.devices.rename.model")} name="model" />
-                    <DialogActions cancel={t("reseller.devices.form.cancel")} onCancel={close} pending={pending} submit={rename.pending ? t("reseller.devices.rename.pending") : t("reseller.devices.rename.save")} />
+                  <form
+                    className="space-y-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void rename.run(event.currentTarget);
+                    }}
+                  >
+                    <DeviceField
+                      defaultValue={device.name ?? ""}
+                      id={`rename-name-${device.id}`}
+                      label={t("reseller.devices.rename.name")}
+                      name="name"
+                      required
+                    />
+                    <DeviceField
+                      defaultValue={device.model ?? ""}
+                      id={`rename-model-${device.id}`}
+                      label={t("reseller.devices.rename.model")}
+                      name="model"
+                    />
+                    <DialogActions
+                      cancel={t("reseller.devices.form.cancel")}
+                      onCancel={close}
+                      pending={pending}
+                      submit={
+                        rename.pending
+                          ? t("reseller.devices.rename.pending")
+                          : t("reseller.devices.rename.save")
+                      }
+                    />
                   </form>
                 ) : null}
                 {dialog === "retry" ? (
-                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void retry.run(event.currentTarget); }}>
-                    <DeviceField id={`retry-user-${device.id}`} label={t("reseller.devices.retry.username")} name="deviceUsername" required />
-                    <DeviceField autoComplete="new-password" id={`retry-pass-${device.id}`} label={t("reseller.devices.retry.password")} name="devicePassword" required type="password" />
-                    <DialogActions cancel={t("reseller.devices.form.cancel")} onCancel={close} pending={pending} submit={retry.pending ? t("reseller.devices.retry.pending") : t("reseller.devices.retry.submit")} />
+                  <form
+                    className="space-y-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void retry.run(event.currentTarget);
+                    }}
+                  >
+                    <DeviceField
+                      id={`retry-user-${device.id}`}
+                      label={t("reseller.devices.retry.username")}
+                      name="deviceUsername"
+                      required
+                    />
+                    <DeviceField
+                      autoComplete="new-password"
+                      id={`retry-pass-${device.id}`}
+                      label={t("reseller.devices.retry.password")}
+                      name="devicePassword"
+                      required
+                      type="password"
+                    />
+                    <DialogActions
+                      cancel={t("reseller.devices.form.cancel")}
+                      onCancel={close}
+                      pending={pending}
+                      submit={
+                        retry.pending
+                          ? t("reseller.devices.retry.pending")
+                          : t("reseller.devices.retry.submit")
+                      }
+                    />
                   </form>
                 ) : null}
                 {dialog === "remove" ? (
@@ -660,38 +745,86 @@ function DeviceCard({
                     <Button isDisabled={pending} onPress={close} type="button" variant="outline">
                       {t("reseller.devices.remove.no")}
                     </Button>
-                    <Button isDisabled={pending} onPress={() => void remove.run()} type="button" variant="danger">
-                      {remove.pending ? t("reseller.devices.remove.pending") : t("reseller.devices.remove.yes")}
+                    <Button
+                      isDisabled={pending}
+                      onPress={() => void remove.run()}
+                      type="button"
+                      variant="danger"
+                    >
+                      {remove.pending
+                        ? t("reseller.devices.remove.pending")
+                        : t("reseller.devices.remove.yes")}
                     </Button>
                   </div>
                 ) : null}
                 {dialog === "wifi" ? (
-                  <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void addWifi.run(event.currentTarget); }}>
-                    <DeviceField id={`wifi-name-${device.id}`} label={t("reseller.devices.wifi.name")} name="name" required />
-                    <DeviceField autoComplete="new-password" id={`wifi-pass-${device.id}`} label={t("reseller.devices.wifi.password")} name="password" type="password" />
-                    <p className="-mt-1 text-[11px] text-advo-muted">{t("reseller.devices.wifi.passwordHint")}</p>
+                  <form
+                    className="space-y-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void addWifi.run(event.currentTarget);
+                    }}
+                  >
+                    <DeviceField
+                      id={`wifi-name-${device.id}`}
+                      label={t("reseller.devices.wifi.name")}
+                      name="name"
+                      required
+                    />
+                    <DeviceField
+                      autoComplete="new-password"
+                      id={`wifi-pass-${device.id}`}
+                      label={t("reseller.devices.wifi.password")}
+                      name="password"
+                      type="password"
+                    />
+                    <p className="-mt-1 text-[11px] text-advo-muted">
+                      {t("reseller.devices.wifi.passwordHint")}
+                    </p>
                     <label className="flex items-center gap-2 text-xs font-bold text-advo-text">
-                      <input checked={hidden} className="size-4 accent-advo-blue" onChange={(event) => setHidden(event.target.checked)} type="checkbox" />
+                      <input
+                        checked={hidden}
+                        className="size-4 accent-advo-blue"
+                        onChange={(event) => setHidden(event.target.checked)}
+                        type="checkbox"
+                      />
                       {t("reseller.devices.wifi.hide")}
                     </label>
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-advo-text">{t("reseller.devices.wifi.band")}</p>
+                      <p className="text-xs font-bold text-advo-text">
+                        {t("reseller.devices.wifi.band")}
+                      </p>
                       <div className="grid grid-cols-3 gap-1.5" role="group">
                         {(["2.4", "5", "both"] as const).map((choice) => (
                           <button
                             className={`rounded-xl border px-2 py-2 text-[11px] font-bold transition ${
-                              band === choice ? "border-advo-blue bg-advo-blue text-white" : "border-advo-border bg-advo-page text-advo-text"
+                              band === choice
+                                ? "border-advo-blue bg-advo-blue text-white"
+                                : "border-advo-border bg-advo-page text-advo-text"
                             }`}
                             key={choice}
                             onClick={() => setBand(choice)}
                             type="button"
                           >
-                            {choice === "2.4" ? t("reseller.devices.wifi.band24") : choice === "5" ? t("reseller.devices.wifi.band5") : t("reseller.devices.wifi.bandBoth")}
+                            {choice === "2.4"
+                              ? t("reseller.devices.wifi.band24")
+                              : choice === "5"
+                                ? t("reseller.devices.wifi.band5")
+                                : t("reseller.devices.wifi.bandBoth")}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <DialogActions cancel={t("reseller.devices.form.cancel")} onCancel={close} pending={pending} submit={addWifi.pending ? t("reseller.devices.wifi.pending") : t("reseller.devices.wifi.submit")} />
+                    <DialogActions
+                      cancel={t("reseller.devices.form.cancel")}
+                      onCancel={close}
+                      pending={pending}
+                      submit={
+                        addWifi.pending
+                          ? t("reseller.devices.wifi.pending")
+                          : t("reseller.devices.wifi.submit")
+                      }
+                    />
                   </form>
                 ) : null}
               </Modal.Body>
@@ -704,7 +837,31 @@ function DeviceCard({
   );
 }
 
-function CardAction({
+function FactChip({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-advo-border/70 bg-advo-page px-2 py-1">
+      <span className="shrink-0 text-[9px] font-bold tracking-wider text-slate-400 uppercase">
+        {label}
+      </span>
+      <span
+        className={`truncate text-[10px] font-bold text-advo-text ${mono ? "font-mono" : ""}`}
+        title={value}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
+
+function RowAction({
   icon: Icon,
   label,
   onPress,
@@ -717,14 +874,17 @@ function CardAction({
 }) {
   return (
     <button
-      className={`flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold transition ${
-        tone === "danger" ? "text-rose-600 hover:bg-rose-50" : "text-advo-text hover:bg-advo-page"
+      aria-label={label}
+      className={`grid size-9 place-items-center rounded-xl transition ${
+        tone === "danger"
+          ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+          : "text-advo-muted hover:bg-advo-page hover:text-advo-text"
       }`}
       onClick={onPress}
+      title={label}
       type="button"
     >
-      <Icon className="h-3.5 w-3.5" />
-      <span className="truncate">{label}</span>
+      <Icon className="h-4 w-4" />
     </button>
   );
 }
@@ -738,17 +898,6 @@ function DialogActions({ cancel, submit, pending, onCancel }: { cancel: string; 
       <Button isDisabled={pending} type="submit" variant="primary">
         {submit}
       </Button>
-    </div>
-  );
-}
-
-function Detail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="rounded-xl border border-advo-border/60 bg-advo-page px-2.5 py-2">
-      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-0.5 truncate text-[11px] font-bold text-advo-text ${mono ? "font-mono" : ""}`} title={value}>
-        {value}
-      </p>
     </div>
   );
 }

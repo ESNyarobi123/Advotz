@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { formatDateTime, formatTzs } from "@advo/api-client";
-import { Button, Card, Input, Label, Modal, useOverlayState } from "@heroui/react";
+import { Button, Card, Input, Modal, useOverlayState } from "@heroui/react";
 import { AdvoKpi, AdvoSelect, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
   AlertTriangle,
+  ArrowRight,
   BadgeCheck,
   Ban,
   CalendarClock,
+  CheckCircle2,
+  ChevronLeft,
   Coins,
   Filter,
   HandCoins,
@@ -19,15 +22,17 @@ import {
   Repeat,
   Search,
   Sparkles,
+  Tag,
   Timer,
   Trash2,
   TriangleAlert,
+  User,
   Wallet,
 } from "lucide-react";
-import { Field, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
+import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { ReasonDialog, type ReasonDialogLabels } from "@/features/common/reason-dialog";
 import { api, errorMessage } from "@/lib/api";
-import { formValues, toInt, useResource } from "@/lib/hooks";
+import { toInt, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey, TranslateVars } from "@advo/i18n";
 
@@ -296,11 +301,11 @@ export function AdminCommissionsScreen() {
         iconTone="gold"
         meta={
           <>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--advo-border)] bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-advo-muted tabular-nums">
-              <Filter className="size-3" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-semibold text-[#F4F6F8] tabular-nums">
+              <Filter className="size-3 text-[#C5CDD8]" />
               {t("admin.commissions.policies.count", { count: policyRows.length })}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-advo-success-soft px-2.5 py-1 text-[11px] font-bold text-emerald-700 tabular-nums">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-300 tabular-nums">
               <Sparkles className="size-3" />
               {t("admin.commissions.hero.live", { count: stats.live })}
             </span>
@@ -372,7 +377,7 @@ export function AdminCommissionsScreen() {
 
       {/* ── Tabs ── */}
       <div
-        className="flex flex-wrap gap-1 rounded-2xl border border-[var(--advo-border)] bg-white/70 p-1.5 shadow-advo-card"
+        className="flex flex-wrap gap-1 rounded-2xl border border-[var(--advo-border)] bg-[var(--advo-surface-sunken)] p-1.5 shadow-advo-card"
         role="tablist"
       >
         {(["accruals", "policies"] as const).map((key) => {
@@ -381,18 +386,20 @@ export function AdminCommissionsScreen() {
             <button
               aria-selected={active}
               className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
-                active ? "bg-advo-blue text-white shadow-advo-card" : "text-advo-muted hover:bg-advo-blue-soft hover:text-advo-blue"
+                active
+                  ? "bg-[#1B5EA4] text-white shadow-advo-card"
+                  : "text-[#E8EAEE] hover:bg-[#2A2D33] hover:text-white"
               }`}
               key={key}
               onClick={() => setTab(key)}
               role="tab"
               type="button"
             >
-              {key === "accruals" ? <Coins className="size-3.5" /> : <Percent className="size-3.5" />}
+              {key === "accruals" ? <Coins className="size-3.5 shrink-0" /> : <Percent className="size-3.5 shrink-0" />}
               {t(key === "accruals" ? "admin.commissions.tab.accruals" : "admin.commissions.tab.policies")}
               <span
-                className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                  active ? "bg-white/25" : "bg-advo-surface-soft"
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  active ? "bg-white/25 text-white" : "border border-white/15 bg-[#101113] text-[#F4F6F8]"
                 }`}
               >
                 {key === "accruals" ? (summary.data?.totalCount ?? accrualRows.length) : policyRows.length}
@@ -407,7 +414,7 @@ export function AdminCommissionsScreen() {
           <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
             <SectionHeader
               action={
-                <span className="rounded-full bg-advo-surface-soft px-2.5 py-1 text-[11px] font-bold text-advo-muted tabular-nums">
+                <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
                   {t("admin.commissions.accruals.showing", { shown: visibleAccruals.length, total: accrualRows.length })}
                 </span>
               }
@@ -420,7 +427,7 @@ export function AdminCommissionsScreen() {
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-advo-muted" />
                 <Input
                   aria-label={t("admin.commissions.search.accruals")}
-                  className="pl-9"
+                  className="border border-[var(--advo-border)] !bg-[var(--advo-surface-sunken)] pl-9 !text-[var(--advo-text)]"
                   placeholder={t("admin.commissions.search.accruals")}
                   value={accrualQuery}
                   onChange={(e) => setAccrualQuery(e.target.value)}
@@ -508,7 +515,7 @@ export function AdminCommissionsScreen() {
           <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
             <SectionHeader
               action={
-                <span className="rounded-full bg-advo-surface-soft px-2.5 py-1 text-[11px] font-bold text-advo-muted tabular-nums">
+                <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
                   {visiblePolicies.length} / {policyRows.length}
                 </span>
               }
@@ -521,7 +528,7 @@ export function AdminCommissionsScreen() {
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-advo-muted" />
                 <Input
                   aria-label={t("admin.commissions.search.policies")}
-                  className="pl-9"
+                  className="border border-[var(--advo-border)] !bg-[var(--advo-surface-sunken)] pl-9 !text-[var(--advo-text)]"
                   placeholder={t("admin.commissions.search.policies")}
                   value={policyQuery}
                   onChange={(e) => setPolicyQuery(e.target.value)}
@@ -697,14 +704,16 @@ function FilterPill({
 }) {
   return (
     <button
-      className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${
-        active ? "bg-advo-blue text-white" : "bg-advo-surface-soft text-advo-muted hover:bg-advo-blue-soft hover:text-advo-blue"
+      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+        active
+          ? "border-transparent bg-[#1B5EA4] text-white"
+          : "border-white/15 bg-[#2A2D33] text-[#E8EAEE] hover:border-[#1B5EA4]/60 hover:text-white"
       }`}
       onClick={onClick}
       type="button"
     >
       {label}
-      <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
+      <span className={`ml-1.5 tabular-nums ${active ? "text-white/85" : "text-white"}`}>{count}</span>
     </button>
   );
 }
@@ -990,8 +999,62 @@ function AccrualSummary({ accrual }: { accrual: AccrualRow }) {
 
 /* ────────────────────────── Create / replace modal ────────────────────────── */
 
+const POLICY_FORM_STEPS = ["identity", "rate", "eligibility", "launch"] as const;
+type PolicyFormStep = (typeof POLICY_FORM_STEPS)[number];
+
+const POLICY_STEP_LABEL: Record<
+  PolicyFormStep,
+  | "admin.commissions.form.step.identity"
+  | "admin.commissions.form.step.rate"
+  | "admin.commissions.form.step.eligibility"
+  | "admin.commissions.form.step.launch"
+> = {
+  identity: "admin.commissions.form.step.identity",
+  rate: "admin.commissions.form.step.rate",
+  eligibility: "admin.commissions.form.step.eligibility",
+  launch: "admin.commissions.form.step.launch",
+};
+
+const POLICY_STEP_LEAD: Record<
+  PolicyFormStep,
+  | "admin.commissions.form.step.identityLead"
+  | "admin.commissions.form.step.rateLead"
+  | "admin.commissions.form.step.eligibilityLead"
+  | "admin.commissions.form.step.launchLead"
+> = {
+  identity: "admin.commissions.form.step.identityLead",
+  rate: "admin.commissions.form.step.rateLead",
+  eligibility: "admin.commissions.form.step.eligibilityLead",
+  launch: "admin.commissions.form.step.launchLead",
+};
+
+type PolicyFormValues = {
+  name: string;
+  agentId: string;
+  trigger: Trigger;
+  planCodes: string;
+  referralEligibilityDays: string;
+  holdDays: string;
+  effectiveFrom: string;
+  isDemo: boolean;
+};
+
+function policyFormValuesFrom(policy: PolicyRow | null): PolicyFormValues {
+  return {
+    name: policy?.name ?? "",
+    agentId: policy?.agentId ?? "",
+    trigger: policy?.trigger ?? "FIRST_SUBSCRIPTION_PAYMENT",
+    planCodes: policy?.eligiblePlanCodes.join(", ") ?? "",
+    referralEligibilityDays: policy?.referralEligibilityDays != null ? String(policy.referralEligibilityDays) : "",
+    holdDays: String(policy?.holdDays ?? 0),
+    effectiveFrom: "",
+    isDemo: policy?.isDemo ?? false,
+  };
+}
+
 /**
- * One modal for both create and replace.
+ * One modal for both create and replace — four short light steps so fields stay
+ * readable inside the dark admin shell.
  *
  * `policy === null` creates from scratch; a row means "replace this policy", which
  * prefills the scope and rate and starts the successor now. Replacing is how a rate
@@ -1013,6 +1076,9 @@ function PolicyFormModal({
   const { t } = useI18n();
   const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
 
+  const [step, setStep] = useState<PolicyFormStep>("identity");
+  const [stepError, setStepError] = useState<string | null>(null);
+  const [values, setValues] = useState<PolicyFormValues>(() => policyFormValuesFrom(policy));
   const [mode, setMode] = useState<Mode>("PERCENTAGE");
   const [percent, setPercent] = useState("");
   const [fixed, setFixed] = useState("");
@@ -1026,6 +1092,9 @@ function PolicyFormModal({
     if (!open) return;
     setDone(false);
     setError(null);
+    setStepError(null);
+    setStep("identity");
+    setValues(policyFormValuesFrom(policy));
     setMode(policy?.mode ?? "PERCENTAGE");
     setPercent(policy?.mode === "PERCENTAGE" && policy.basisPoints ? String(policy.basisPoints / 100) : "");
     setFixed(policy?.mode === "FIXED" && policy.fixedTzs ? policy.fixedTzs : "");
@@ -1048,40 +1117,83 @@ function PolicyFormModal({
     return { amount, base: sample, cappedAt };
   }, [mode, percent, fixed, cap]);
 
-  async function save(form: HTMLFormElement) {
-    const values = formValues(form);
+  function patch<K extends keyof PolicyFormValues>(key: K, value: PolicyFormValues[K]) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+    setStepError(null);
+  }
+
+  function validateStep(current: PolicyFormStep): string | null {
+    if (current === "identity") {
+      if (!values.name.trim()) return t("admin.commissions.form.name");
+      return null;
+    }
+    if (current === "rate") {
+      if (mode === "PERCENTAGE") {
+        const bps = Math.round(Number(percent) * 100);
+        if (!Number.isFinite(bps) || bps < 1) return t("admin.commissions.form.percent");
+      } else if (!fixed || Number(fixed) < 1) {
+        return t("admin.commissions.form.fixedTzs");
+      }
+      return null;
+    }
+    return null;
+  }
+
+  function goNext() {
+    const message = validateStep(step);
+    if (message) {
+      setStepError(message);
+      return;
+    }
+    const index = POLICY_FORM_STEPS.indexOf(step);
+    if (index < POLICY_FORM_STEPS.length - 1) {
+      setStepError(null);
+      setStep(POLICY_FORM_STEPS[index + 1]!);
+    }
+  }
+
+  function goBack() {
+    const index = POLICY_FORM_STEPS.indexOf(step);
+    if (index > 0) {
+      setStepError(null);
+      setStep(POLICY_FORM_STEPS[index - 1]!);
+    }
+  }
+
+  async function save() {
+    const message = validateStep("rate");
+    if (message) {
+      setStep("rate");
+      setStepError(message);
+      return;
+    }
     const bps = mode === "PERCENTAGE" ? Math.round(Number(percent) * 100) : undefined;
-    if (mode === "PERCENTAGE" && (!bps || !Number.isFinite(bps) || bps < 1)) {
-      setError(t("admin.commissions.form.percent"));
-      return;
-    }
-    if (mode === "FIXED" && !fixed) {
-      setError(t("admin.commissions.form.fixedTzs"));
-      return;
-    }
     setPending(true);
     setError(null);
     try {
       await api.post("/admin/commission-policies", {
-        name: values.name,
-        agentId: values.agentId,
+        name: values.name.trim(),
+        agentId: values.agentId || undefined,
         trigger: values.trigger,
         mode,
-        fixedTzs: mode === "FIXED" ? values.fixedTzs : undefined,
+        // Use controlled state — the fixed Input previously had no `name`, so FormData
+        // silently dropped FIXED rates.
+        fixedTzs: mode === "FIXED" ? fixed : undefined,
         basisPoints: bps,
         eligiblePlanCodes: values.planCodes
           ? values.planCodes.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
         referralEligibilityDays: toInt(values.referralEligibilityDays),
         holdDays: toInt(values.holdDays) ?? 0,
-        maxPerInvoiceTzs: values.maxPerInvoiceTzs,
-        effectiveFrom: values.effectiveFrom ? new Date(values.effectiveFrom).toISOString() : new Date().toISOString(),
-        isDemo: values.isDemo === "true",
+        maxPerInvoiceTzs: cap || undefined,
+        effectiveFrom: values.effectiveFrom
+          ? new Date(values.effectiveFrom).toISOString()
+          : new Date().toISOString(),
+        isDemo: values.isDemo,
       });
       await onSaved(
         policy ? t("admin.commissions.form.successReplace") : t("admin.commissions.form.successCreate"),
       );
-      form.reset();
       setDone(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -1093,85 +1205,154 @@ function PolicyFormModal({
   function close() {
     setDone(false);
     setError(null);
+    setStepError(null);
+    setStep("identity");
     onClose();
   }
 
   const title = policy
     ? t("admin.commissions.form.titleReplace", { name: policy.name })
     : t("admin.commissions.form.titleCreate");
+  const stepIndex = POLICY_FORM_STEPS.indexOf(step);
+  const progressPct = (stepIndex / (POLICY_FORM_STEPS.length - 1)) * 100;
+  const lightSelect =
+    "border border-[#DFE5EC] !bg-white !text-[#18212F] shadow-none hover:!bg-white focus:!bg-white focus:ring-2 focus:ring-[#1B5EA4]/20";
 
   return (
     <Modal.Root state={overlay}>
       <Modal.Backdrop>
         <Modal.Container size="lg">
-          <Modal.Dialog className="bg-white">
-            <Modal.Header>
-              <Modal.Heading className="text-base font-black text-advo-text">{title}</Modal.Heading>
+          <Modal.Dialog className="max-h-[92vh] overflow-hidden !bg-white !text-[#18212F] [color-scheme:light]">
+            <Modal.Header className="relative overflow-hidden !bg-white border-b border-[#DFE5EC] pb-4">
+              <div
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-1.5"
+                style={{ background: "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)" }}
+              />
+              <div className="space-y-1 pt-1">
+                <p className="inline-flex items-center gap-1.5 rounded-full bg-[#1B5EA4]/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[#1B5EA4] uppercase">
+                  <Sparkles className="size-3 text-[#FBA102]" />
+                  {t("admin.commissions.form.step.of", { current: stepIndex + 1, total: POLICY_FORM_STEPS.length })}
+                </p>
+                <Modal.Heading className="!text-xl font-black tracking-tight !text-[#18212F]">{title}</Modal.Heading>
+                <p className="text-xs leading-relaxed text-[#526174]">
+                  {policy
+                    ? t("admin.commissions.form.descriptionReplace")
+                    : t("admin.commissions.form.descriptionCreate")}
+                </p>
+              </div>
             </Modal.Header>
-            <Modal.Body>
+            <Modal.Body className="overflow-y-auto !bg-white">
               {done ? (
-                <div className="space-y-4">
+                <div className="space-y-4 py-2">
                   <Notice tone="success">
                     {policy
                       ? t("admin.commissions.form.successReplace")
                       : t("admin.commissions.form.successCreate")}
                   </Notice>
-                  <div className="flex justify-end border-t border-[var(--advo-border)] pt-4">
+                  <div className="flex justify-end border-t border-[#DFE5EC] pt-4">
                     <Button onPress={close} type="button" variant="primary">
                       {t("admin.commissions.form.done")}
                     </Button>
                   </div>
                 </div>
               ) : (
-                <form
-                  // Keyed so opening for a different policy re-applies every defaultValue.
-                  className="space-y-5"
-                  key={policy?.id ?? "create"}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void save(e.currentTarget);
-                  }}
-                >
-                  <p className="text-xs text-advo-muted">
-                    {policy
-                      ? t("admin.commissions.form.descriptionReplace")
-                      : t("admin.commissions.form.descriptionCreate")}
-                  </p>
-
-                  <FormSection icon={<Coins />} title={t("admin.commissions.form.section.identity")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        defaultValue={policy?.name}
-                        label={t("admin.commissions.form.name")}
-                        name="name"
-                        placeholder={t("admin.commissions.form.namePlaceholder")}
-                        required
+                <div className="space-y-5" key={policy?.id ?? "create"}>
+                  <div className="rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] p-4">
+                    <div className="relative flex items-center justify-between">
+                      <div className="absolute top-4 right-6 left-6 -z-0 h-0.5 bg-[#DFE5EC]" />
+                      <div
+                        className="absolute top-4 left-6 -z-0 h-0.5 bg-[#1B5EA4] transition-all duration-300"
+                        style={{ width: `${progressPct}%` }}
                       />
-                      <div>
-                        <Label htmlFor="policy-agent">{t("admin.commissions.form.agent")}</Label>
-                        <AdvoSelect defaultValue={policy?.agentId ?? ""} id="policy-agent" name="agentId">
-                          <option value="">{t("admin.commissions.form.agentAll")}</option>
-                          {agents.map((agent) => (
-                            <option key={agent.id} value={agent.id}>
-                              {agent.referralCode}
-                            </option>
-                          ))}
-                        </AdvoSelect>
-                        <p className="mt-1 text-xs text-advo-muted">{t("admin.commissions.form.agentHint")}</p>
+                      {POLICY_FORM_STEPS.map((key, index) => {
+                        const active = index === stepIndex;
+                        const complete = index < stepIndex;
+                        const last = index === POLICY_FORM_STEPS.length - 1;
+                        return (
+                          <div className="relative z-10 flex flex-col items-center" key={key}>
+                            <div
+                              className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                                complete
+                                  ? "bg-[#1B5EA4] text-white shadow-md ring-4 ring-blue-50"
+                                  : active && last
+                                    ? "text-[#111213] shadow-md ring-4 ring-amber-50"
+                                    : active
+                                      ? "bg-[#1B5EA4] text-white shadow-md ring-4 ring-blue-50"
+                                      : "bg-slate-200 text-slate-500"
+                              }`}
+                              style={
+                                active && last
+                                  ? { background: "linear-gradient(135deg, #FBA102 0%, #F16304 100%)" }
+                                  : undefined
+                              }
+                            >
+                              {complete ? <CheckCircle2 className="size-4 text-white" /> : index + 1}
+                            </div>
+                            <span
+                              className={`mt-1.5 text-[10px] font-bold ${
+                                active ? (last ? "text-[#F16304]" : "text-[#1B5EA4]") : "text-[#18212F]"
+                              }`}
+                            >
+                              {t(POLICY_STEP_LABEL[key])}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black tracking-tight text-[#18212F]">{t(POLICY_STEP_LABEL[step])}</h3>
+                    <p className="text-xs text-[#526174]">{t(POLICY_STEP_LEAD[step])}</p>
+                  </div>
+
+                  {step === "identity" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 grid gap-4 duration-200 sm:grid-cols-2">
+                      <PolicySmartField
+                        icon={<Tag />}
+                        label={t("admin.commissions.form.name")}
+                        onChange={(v) => patch("name", v)}
+                        placeholder={t("admin.commissions.form.namePlaceholder")}
+                        value={values.name}
+                      />
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">
+                          {t("admin.commissions.form.agent")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#526174]">
+                            <User className="size-4" />
+                          </div>
+                          <AdvoSelect
+                            className={`pl-10 ${lightSelect}`}
+                            onChange={(e) => patch("agentId", e.target.value)}
+                            value={values.agentId}
+                          >
+                            <option value="">{t("admin.commissions.form.agentAll")}</option>
+                            {agents.map((agent) => (
+                              <option key={agent.id} value={agent.id}>
+                                {agent.referralCode}
+                              </option>
+                            ))}
+                          </AdvoSelect>
+                        </div>
+                        <p className="text-[11px] leading-snug text-[#526174]">{t("admin.commissions.form.agentHint")}</p>
                       </div>
                     </div>
-                  </FormSection>
+                  ) : null}
 
-                  <FormSection icon={<Percent />} title={t("admin.commissions.form.section.rate")}>
-                    <div className="space-y-4">
+                  {step === "rate" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <Label htmlFor="policy-trigger">{t("admin.commissions.form.trigger")}</Label>
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">
+                            {t("admin.commissions.form.trigger")}
+                          </label>
                           <AdvoSelect
-                            defaultValue={policy?.trigger ?? "FIRST_SUBSCRIPTION_PAYMENT"}
-                            id="policy-trigger"
-                            name="trigger"
-                            required
+                            className={lightSelect}
+                            onChange={(e) => patch("trigger", e.target.value as Trigger)}
+                            value={values.trigger}
                           >
                             <option value="FIRST_SUBSCRIPTION_PAYMENT">
                               {t("admin.commissions.form.triggerFirst")}
@@ -1179,11 +1360,12 @@ function PolicyFormModal({
                             <option value="SUBSCRIPTION_RENEWAL">{t("admin.commissions.form.triggerRenewal")}</option>
                           </AdvoSelect>
                         </div>
-                        <div>
-                          <Label htmlFor="policy-mode">{t("admin.commissions.form.mode")}</Label>
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">
+                            {t("admin.commissions.form.mode")}
+                          </label>
                           <AdvoSelect
-                            id="policy-mode"
-                            name="mode"
+                            className={lightSelect}
                             onChange={(e) => setMode(e.target.value as Mode)}
                             value={mode}
                           >
@@ -1192,147 +1374,170 @@ function PolicyFormModal({
                           </AdvoSelect>
                         </div>
                       </div>
-
                       <div className="grid gap-4 sm:grid-cols-2">
                         {mode === "PERCENTAGE" ? (
-                          <div>
-                            <Label htmlFor="policy-percent">
-                              {t("admin.commissions.form.percent")}
-                              <span className="text-[var(--advo-danger)]"> *</span>
-                            </Label>
-                            <Input
-                              id="policy-percent"
-                              inputMode="decimal"
-                              min={0.01}
-                              onChange={(e) => setPercent(e.target.value)}
-                              placeholder="10"
-                              step={0.01}
-                              type="number"
-                              value={percent}
-                            />
-                            <p className="mt-1 text-xs text-advo-muted">{t("admin.commissions.form.percentHint")}</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <Label htmlFor="policy-fixed">
-                              {t("admin.commissions.form.fixedTzs")}
-                              <span className="text-[var(--advo-danger)]"> *</span>
-                            </Label>
-                            <Input
-                              id="policy-fixed"
-                              min={1}
-                              onChange={(e) => setFixed(e.target.value)}
-                              type="number"
-                              value={fixed}
-                            />
-                            <p className="mt-1 text-xs text-advo-muted">{t("admin.commissions.form.fixedTzsHint")}</p>
-                          </div>
-                        )}
-                        <div>
-                          <Label htmlFor="policy-cap">{t("admin.commissions.form.cap")}</Label>
-                          <Input
-                            id="policy-cap"
-                            min={1}
-                            name="maxPerInvoiceTzs"
-                            onChange={(e) => setCap(e.target.value)}
+                          <PolicySmartField
+                            hint={t("admin.commissions.form.percentHint")}
+                            icon={<Percent />}
+                            label={t("admin.commissions.form.percent")}
+                            min={0.01}
+                            onChange={setPercent}
+                            placeholder="10"
+                            step={0.01}
                             type="number"
-                            value={cap}
+                            value={percent}
                           />
-                          <p className="mt-1 text-xs text-advo-muted">{t("admin.commissions.form.capHint")}</p>
-                        </div>
+                        ) : (
+                          <PolicySmartField
+                            hint={t("admin.commissions.form.fixedTzsHint")}
+                            icon={<Coins />}
+                            label={t("admin.commissions.form.fixedTzs")}
+                            min={1}
+                            onChange={setFixed}
+                            type="number"
+                            value={fixed}
+                          />
+                        )}
+                        <PolicySmartField
+                          hint={t("admin.commissions.form.capHint")}
+                          icon={<Wallet />}
+                          label={t("admin.commissions.form.cap")}
+                          min={1}
+                          onChange={setCap}
+                          type="number"
+                          value={cap}
+                        />
                       </div>
-
-                      {/* What the rate actually pays, computed the way the server does. */}
                       {preview ? (
-                        <div className="rounded-xl border border-[var(--advo-border)] bg-gradient-to-br from-white to-[var(--advo-gold-soft)] px-3.5 py-2.5">
-                          <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+                        <div className="overflow-hidden rounded-2xl border border-[#DFE5EC] bg-gradient-to-br from-[#F7F9FC] via-white to-[#FFF8EE] p-4">
+                          <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
                             {t("admin.commissions.form.previewTitle")}
                           </p>
-                          <p className="mt-0.5 text-sm font-bold text-advo-text">
+                          <p className="mt-1 text-sm font-bold text-[#18212F]">
                             {t("admin.commissions.form.preview", {
                               amount: formatTzs(preview.amount),
                               base: formatTzs(preview.base),
                             })}
                           </p>
                           {preview.cappedAt ? (
-                            <p className="mt-0.5 text-[11px] text-advo-muted">
+                            <p className="mt-0.5 text-[11px] text-[#526174]">
                               {t("admin.commissions.form.previewCap", { amount: formatTzs(preview.cappedAt) })}
                             </p>
                           ) : null}
                         </div>
                       ) : null}
                     </div>
-                  </FormSection>
+                  ) : null}
 
-                  <FormSection icon={<Receipt />} title={t("admin.commissions.form.section.eligibility")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        defaultValue={policy?.eligiblePlanCodes.join(", ")}
+                  {step === "eligibility" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 grid gap-4 duration-200 sm:grid-cols-2">
+                      <PolicySmartField
                         hint={t("admin.commissions.form.planCodesHint")}
+                        icon={<Receipt />}
                         label={t("admin.commissions.form.planCodes")}
-                        name="planCodes"
+                        onChange={(v) => patch("planCodes", v)}
+                        value={values.planCodes}
                       />
-                      <Field
-                        defaultValue={policy?.referralEligibilityDays ?? undefined}
+                      <PolicySmartField
                         hint={t("admin.commissions.form.referralDaysHint")}
+                        icon={<CalendarClock />}
                         label={t("admin.commissions.form.referralDays")}
                         min={1}
-                        name="referralEligibilityDays"
+                        onChange={(v) => patch("referralEligibilityDays", v)}
                         type="number"
+                        value={values.referralEligibilityDays}
                       />
                     </div>
-                  </FormSection>
+                  ) : null}
 
-                  <FormSection icon={<Timer />} title={t("admin.commissions.form.section.timing")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field
-                        defaultValue={policy?.holdDays ?? 0}
-                        hint={t("admin.commissions.form.holdDaysHint")}
-                        label={t("admin.commissions.form.holdDays")}
-                        min={0}
-                        name="holdDays"
-                        type="number"
-                      />
-                      <Field
-                        hint={t("admin.commissions.form.effectiveFromHint")}
-                        label={t("admin.commissions.form.effectiveFrom")}
-                        name="effectiveFrom"
-                        type="datetime-local"
-                      />
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          className="h-4 w-4 accent-[var(--advo-blue)]"
-                          defaultChecked={policy?.isDemo}
-                          name="isDemo"
-                          type="checkbox"
-                          value="true"
+                  {step === "launch" ? (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <PolicySmartField
+                          hint={t("admin.commissions.form.holdDaysHint")}
+                          icon={<Timer />}
+                          label={t("admin.commissions.form.holdDays")}
+                          min={0}
+                          onChange={(v) => patch("holdDays", v)}
+                          type="number"
+                          value={values.holdDays}
                         />
-                        {t("admin.commissions.form.isDemo")}
-                      </label>
-                      <p className="text-[11px] text-advo-muted">{t("admin.commissions.form.isDemoHint")}</p>
+                        <PolicySmartField
+                          hint={t("admin.commissions.form.effectiveFromHint")}
+                          icon={<CalendarClock />}
+                          label={t("admin.commissions.form.effectiveFrom")}
+                          onChange={(v) => patch("effectiveFrom", v)}
+                          type="datetime-local"
+                          value={values.effectiveFrom}
+                        />
+                      </div>
+                      <button
+                        aria-pressed={values.isDemo}
+                        className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                          values.isDemo
+                            ? "border-[#1B5EA4]/30 bg-[#1B5EA4]/8 text-[#18212F]"
+                            : "border-[#DFE5EC] bg-[#F7F9FC] text-[#526174] hover:border-[#1B5EA4]/20"
+                        }`}
+                        onClick={() => patch("isDemo", !values.isDemo)}
+                        type="button"
+                      >
+                        <span>
+                          <span className="block text-sm font-semibold">{t("admin.commissions.form.isDemo")}</span>
+                          <span className="mt-0.5 block text-[11px] text-[#526174]">
+                            {t("admin.commissions.form.isDemoHint")}
+                          </span>
+                        </span>
+                        <span
+                          className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                            values.isDemo ? "bg-[#1B5EA4]" : "bg-slate-300"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow transition ${
+                              values.isDemo ? "translate-x-4" : ""
+                            }`}
+                          />
+                        </span>
+                      </button>
+                      <Notice tone="accent">{t("admin.commissions.form.previewCloses")}</Notice>
                     </div>
-                  </FormSection>
+                  ) : null}
 
-                  <Notice tone="accent">{t("admin.commissions.form.previewCloses")}</Notice>
-
+                  {stepError ? <Notice tone="danger">{stepError}</Notice> : null}
                   {error ? <Notice tone="danger">{error}</Notice> : null}
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--advo-border)] pt-4">
-                    <Button onPress={close} type="button" variant="ghost">
-                      {t("admin.commissions.form.cancel")}
-                    </Button>
-                    <Button isDisabled={pending} type="submit" variant="primary">
-                      {policy ? <Repeat className="size-4" /> : <Plus className="size-4" />}
-                      {pending
-                        ? "…"
-                        : policy
-                          ? t("admin.commissions.form.submitReplace")
-                          : t("admin.commissions.form.submitCreate")}
-                    </Button>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#DFE5EC] pt-4">
+                    <div>
+                      {stepIndex > 0 ? (
+                        <Button onPress={goBack} type="button" variant="ghost">
+                          <ChevronLeft className="size-4" />
+                          {t("admin.commissions.form.step.back")}
+                        </Button>
+                      ) : (
+                        <Button onPress={close} type="button" variant="ghost">
+                          {t("admin.commissions.form.cancel")}
+                        </Button>
+                      )}
+                    </div>
+                    <div>
+                      {step === "launch" ? (
+                        <Button isDisabled={pending} onPress={() => void save()} type="button" variant="primary">
+                          {policy ? <Repeat className="size-4" /> : <Plus className="size-4" />}
+                          {pending
+                            ? "…"
+                            : policy
+                              ? t("admin.commissions.form.submitReplace")
+                              : t("admin.commissions.form.submitCreate")}
+                        </Button>
+                      ) : (
+                        <Button onPress={goNext} type="button" variant="primary">
+                          {t("admin.commissions.form.step.next")}
+                          <ArrowRight className="size-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </form>
+                </div>
               )}
             </Modal.Body>
             <Modal.CloseTrigger aria-label={t("admin.commissions.form.cancel")} />
@@ -1343,15 +1548,47 @@ function PolicyFormModal({
   );
 }
 
-function FormSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+/** Light labelled input that stays readable inside the dark admin shell. */
+function PolicySmartField({
+  label,
+  hint,
+  icon,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  min,
+  step,
+}: {
+  label: string;
+  hint?: string;
+  icon: ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: "text" | "number" | "datetime-local";
+  min?: number;
+  step?: number;
+}) {
   return (
-    <fieldset className="rounded-2xl border border-[var(--advo-border)] p-4">
-      <legend className="flex items-center gap-1.5 px-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
-        <span className="[&_svg]:size-3.5">{icon}</span>
-        {title}
-      </legend>
-      {children}
-    </fieldset>
+    <div className="space-y-1.5">
+      <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">{label}</label>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#526174] [&_svg]:size-4">
+          {icon}
+        </div>
+        <input
+          className="w-full rounded-field border border-[#DFE5EC] !bg-[#F7F9FC] py-3 pr-3.5 pl-10 text-xs !text-[#18212F] outline-none transition focus:border-[#1B5EA4] focus:!bg-white focus:ring-2 focus:ring-[#1B5EA4]/20"
+          min={min}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          step={step}
+          type={type}
+          value={value}
+        />
+      </div>
+      {hint ? <p className="text-[11px] leading-snug text-[#526174]">{hint}</p> : null}
+    </div>
   );
 }
 

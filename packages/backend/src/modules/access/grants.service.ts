@@ -225,10 +225,28 @@ async function confirmAuthorized(grantDeviceId: string, grantId: string, respons
     await tx.$queryRaw`SELECT id FROM "AccessGrant" WHERE id = ${grantId}::uuid FOR UPDATE`;
     const grant = await tx.accessGrant.findUniqueOrThrow({ where: { id: grantId } });
     const now = new Date();
+    // The authorization call can land after the grant lapsed (a slow Controller,
+    // or the sweeper expiring it mid-flight). The Controller has just granted
+    // access, so it must be taken back rather than left open.
+    const effectiveExpiry = grant.activatedAt ? grant.expiresAt : (grant.candidateExpiresAt ?? grant.expiresAt);
+    const lapsed =
+      grant.state === "EXPIRED" ||
+      grant.state === "REVOKED" ||
+      grant.state === "ACTIVATION_FAILED" ||
+      (effectiveExpiry !== null && effectiveExpiry <= now);
     await tx.accessGrantDevice.update({
       where: { id: grantDeviceId },
-      data: { authState: "AUTHORIZED", authorizedAt: now, lastError: null, controllerResponse: response as Prisma.InputJsonValue },
+      data: {
+        authState: lapsed ? "REVOKE_PENDING" : "AUTHORIZED",
+        authorizedAt: now,
+        lastError: null,
+        controllerResponse: response as Prisma.InputJsonValue,
+      },
     });
+    if (lapsed) {
+      await emitOutbox(tx, OutboxEventType.GRANT_REVOKE, "AccessGrantDevice", grantDeviceId, { grantDeviceId });
+      return;
+    }
     if (!grant.activatedAt) {
       await tx.accessGrant.update({
         where: { id: grantId },
@@ -312,6 +330,20 @@ export async function revokeGrantDevice(grantDeviceId: string): Promise<string> 
       await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { authState: "REVOKED", lastError: null } });
       return "revoked";
     }
+    // The expiry path has a second line of defence: the Controller's signed
+    // authorization time. When it cannot revoke on demand, the session still
+    // ends on that timer — recording a manual action at that point would be a
+    // permanent false alarm on every lapsed package.
+    if (res.unsupported && (device.grant.state === "EXPIRED" || device.grant.state === "QUOTA_EXHAUSTED")) {
+      await prisma.accessGrantDevice.update({
+        where: { id: device.id },
+        data: {
+          authState: "REVOKED",
+          lastError: "Controller cannot revoke on demand; its signed authorization time ended the session",
+        },
+      });
+      return "lapsed";
+    }
     await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { lastError: res.reason ?? "Revoke unsupported; revoke manually in the Controller" } });
     return "unsupported";
   } catch (err) {
@@ -322,12 +354,41 @@ export async function revokeGrantDevice(grantDeviceId: string): Promise<string> 
   }
 }
 
-/** Sweeper: expire ended grants and fail unactivated ones past their activation deadline. */
+/**
+ * Sweeper: expire ended grants, deauthorize their devices, and fail unactivated ones.
+ *
+ * The Controller's own authorization timer is the first line of defence, but it is
+ * not the guarantee: a Controller that ignores or loses the timer would leave the
+ * guest online after the package ended. Enqueuing the revoke here makes the
+ * entitlement end at our clock too, and the Controller then captures the guest's
+ * next request with the external portal again.
+ */
 export async function sweepGrants(now = new Date()) {
-  const expired = await prisma.accessGrant.updateMany({
+  const due = await prisma.accessGrant.findMany({
     where: { state: "ACTIVE", expiresAt: { lte: now } },
-    data: { state: "EXPIRED" },
+    select: { id: true },
+    take: 500,
   });
+  let expired = 0;
+  for (const grant of due) {
+    const didExpire = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "AccessGrant" WHERE id = ${grant.id}::uuid FOR UPDATE`;
+      const current = await tx.accessGrant.findUniqueOrThrow({ where: { id: grant.id } });
+      if (current.state !== "ACTIVE" || !current.expiresAt || current.expiresAt > now) return false;
+      await tx.accessGrant.update({ where: { id: current.id }, data: { state: "EXPIRED" } });
+      const devices = await tx.accessGrantDevice.findMany({
+        where: { grantId: current.id, authState: { in: ["AUTHORIZED", "UNKNOWN", "AUTHORIZING"] } },
+        select: { id: true },
+      });
+      for (const device of devices) {
+        await tx.accessGrantDevice.update({ where: { id: device.id }, data: { authState: "REVOKE_PENDING" } });
+        await emitOutbox(tx, OutboxEventType.GRANT_REVOKE, "AccessGrantDevice", device.id, { grantDeviceId: device.id });
+      }
+      await tx.accessGrantDevice.updateMany({ where: { grantId: current.id, authState: "RESERVED" }, data: { authState: "REVOKED" } });
+      return true;
+    });
+    if (didExpire) expired += 1;
+  }
   const stale = await prisma.accessGrant.findMany({
     where: { state: "PENDING_ACTIVATION", activationDeadline: { lte: now }, candidateExpiresAt: null },
     select: { id: true, orderId: true, voucherId: true },
@@ -339,7 +400,7 @@ export async function sweepGrants(now = new Date()) {
       if (g.orderId) await tx.order.update({ where: { id: g.orderId }, data: { fulfillmentState: "NEEDS_REVIEW" } });
     });
   }
-  return { expired: expired.count, activationFailed: stale.length };
+  return { expired, activationFailed: stale.length };
 }
 
 export async function listGrants(resellerId: string, filter: { state?: GrantState; siteId?: string }) {

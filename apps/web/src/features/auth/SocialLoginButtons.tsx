@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Info, X, Sparkles } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export function SocialLoginButtons() {
@@ -100,20 +100,18 @@ export function SocialLoginButtons() {
     <div className="space-y-4">
       {/* Notice alert when clicked */}
       {activeNotice && (
-        <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/80 text-amber-900 animate-in fade-in duration-200 flex items-start justify-between shadow-sm">
+        <div className="flex animate-in fade-in items-start justify-between rounded-2xl border border-advo-gold/30 bg-advo-gold-soft p-3.5 text-[#7a4200] shadow-sm duration-200">
           <div className="flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-xs leading-relaxed font-medium">
-              {activeNotice}
-            </div>
+            <Info className="mt-0.5 size-4 shrink-0 text-[#b15f00]" />
+            <div className="text-xs leading-relaxed font-medium">{activeNotice}</div>
           </div>
           <button
             type="button"
             onClick={() => setActiveNotice(null)}
-            className="text-amber-700 hover:text-amber-950 p-1 -mr-1 -mt-1 rounded-lg transition"
+            className="-mr-1 -mt-1 rounded-lg p-1 text-[#b15f00] transition hover:text-advo-charcoal"
             aria-label={t("common.close")}
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="size-3.5" />
           </button>
         </div>
       )}
@@ -127,7 +125,7 @@ export function SocialLoginButtons() {
             onClick={() => handleClick(s.name)}
             aria-label={s.ariaLabel}
             title={s.ariaLabel}
-            className={`flex items-center justify-center gap-2 py-3 px-3 rounded-2xl border border-[#DFE5EC] bg-white text-xs font-bold text-[#18212F] shadow-sm transition-all duration-200 active:scale-95 group ${s.borderHover}`}
+            className={`group flex items-center justify-center gap-2 rounded-2xl border border-advo-border bg-white px-3 py-3 text-xs font-bold text-advo-text shadow-sm transition-all duration-200 active:scale-95 ${s.borderHover}`}
           >
             <div className="transition-transform group-hover:scale-110">
               {s.icon}
@@ -137,10 +135,9 @@ export function SocialLoginButtons() {
         ))}
       </div>
 
-      {/* Modern Luxury Divider */}
       <div className="relative flex items-center justify-center py-2">
-        <div className="w-full border-t border-[#DFE5EC]" />
-        <span className="bg-[#F7F9FC] sm:bg-white px-3.5 py-1 rounded-full border border-[#DFE5EC] text-[10px] font-extrabold text-[#526174] uppercase tracking-wider relative shrink-0 shadow-xs">
+        <div className="w-full border-t border-advo-border" />
+        <span className="relative shrink-0 rounded-full border border-advo-border bg-white px-3.5 py-1 text-[10px] font-extrabold tracking-wider text-advo-muted uppercase shadow-xs">
           {t("auth.social.continueWithEmail")}
         </span>
       </div>

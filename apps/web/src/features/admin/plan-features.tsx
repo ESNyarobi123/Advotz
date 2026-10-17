@@ -112,9 +112,14 @@ export function PlanFeatureEditor({
     });
   }
 
+  // `!` wins over HeroUI `bg-field` / `text-field-foreground`, which stay dark
+  // inside overlays even when the product theme is light.
+  const lightSelect =
+    "border border-[#DFE5EC] !bg-white !text-[#18212F] shadow-none hover:!bg-white focus:!bg-white focus:ring-2 focus:ring-[#1B5EA4]/20";
+
   return (
     <div className="space-y-5">
-      <p className="text-xs text-advo-muted">{t("admin.plans.form.featuresHint")}</p>
+      <p className="text-xs leading-relaxed text-[#526174]">{t("admin.plans.form.featuresHint")}</p>
 
       {/* ── Preset ── */}
       <FeatureSection icon={<Sparkles />} title={t("admin.plans.preset.label")}>
@@ -125,8 +130,8 @@ export function PlanFeatureEditor({
                 aria-pressed={draft.preset === preset.key}
                 className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${
                   draft.preset === preset.key
-                    ? "bg-advo-blue text-white"
-                    : "bg-advo-surface-soft text-advo-muted hover:bg-advo-blue-soft hover:text-advo-blue"
+                    ? "bg-[#1B5EA4] text-white"
+                    : "border border-[#DFE5EC] bg-[#F7F9FC] text-[#526174] hover:border-[#1B5EA4]/30 hover:text-[#1B5EA4]"
                 }`}
                 key={preset.key}
                 onClick={() => applyPreset(preset.key)}
@@ -142,7 +147,7 @@ export function PlanFeatureEditor({
               </span>
             ) : null}
           </div>
-          <p className="text-[11px] text-advo-muted">{t("admin.plans.preset.hint")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.preset.hint")}</p>
         </div>
       </FeatureSection>
 
@@ -162,7 +167,7 @@ export function PlanFeatureEditor({
           ) : null}
 
           <div>
-            <p className="mb-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+            <p className="mb-1.5 text-[10px] font-bold tracking-wider text-[#526174] uppercase">
               {t("admin.plans.lifecycle.label")}
             </p>
             <Segmented
@@ -173,7 +178,7 @@ export function PlanFeatureEditor({
               ]}
               value={lifecycle === "ARCHIVED" ? "DRAFT" : lifecycle}
             />
-            <p className="mt-1.5 text-[11px] text-advo-muted">{t("admin.plans.lifecycleHint")}</p>
+            <p className="mt-1.5 text-[11px] leading-snug text-[#526174]">{t("admin.plans.lifecycleHint")}</p>
           </div>
         </div>
       </FeatureSection>
@@ -181,7 +186,7 @@ export function PlanFeatureEditor({
       {/* ── Placement policy ── */}
       <FeatureSection icon={<Lock />} title={t("admin.plans.visibility.title")}>
         <div className="space-y-3">
-          <p className="text-[11px] text-advo-muted">{t("admin.plans.visibility.hint")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.visibility.hint")}</p>
           <PlacementGroup
             keys={SPONSORED_KEYS}
             label={t("admin.plans.placement.group.sponsored")}
@@ -219,7 +224,7 @@ export function PlanFeatureEditor({
               }
             />
           </div>
-          <p className="text-[11px] text-advo-muted">{t("admin.plans.branding.badgeNote")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.branding.badgeNote")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <ColorField
               label={t("admin.plans.branding.primary")}
@@ -242,7 +247,7 @@ export function PlanFeatureEditor({
       {/* ── Package cards & payments ── */}
       <FeatureSection icon={<Check />} title={t("admin.plans.cards.title")}>
         <div className="space-y-3">
-          <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+          <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
             {t("admin.plans.cards.allowed")}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -255,7 +260,7 @@ export function PlanFeatureEditor({
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${
                     on
                       ? "bg-advo-teal text-white"
-                      : "bg-advo-surface-soft text-advo-muted hover:bg-advo-blue-soft hover:text-advo-blue"
+                      : "border border-[#DFE5EC] bg-[#F7F9FC] text-[#526174] hover:border-[#1B5EA4]/30 hover:text-[#1B5EA4]"
                   }`}
                   key={style}
                   // The last style cannot be removed: publishing requires at least one.
@@ -287,11 +292,11 @@ export function PlanFeatureEditor({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+              <span className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
                 {t("admin.plans.cards.default")}
               </span>
               <AdvoSelect
-                className="mt-1"
+                className={`mt-1 ${lightSelect}`}
                 onChange={(e) =>
                   patch({ features: { ...features, package_cards: { ...features.package_cards, default_style: e.target.value as PackageCardStyle } } })
                 }
@@ -315,7 +320,7 @@ export function PlanFeatureEditor({
 
           {/* Arrangements are plan-gated exactly like styles: a plan only ever offers
               the layouts it allows, and the default must be one of them. */}
-          <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+          <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
             {t("admin.plans.layout.title")}
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -328,7 +333,7 @@ export function PlanFeatureEditor({
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ${
                     on
                       ? "bg-advo-teal text-white"
-                      : "bg-advo-surface-soft text-advo-muted hover:bg-advo-blue-soft hover:text-advo-blue"
+                      : "border border-[#DFE5EC] bg-[#F7F9FC] text-[#526174] hover:border-[#1B5EA4]/30 hover:text-[#1B5EA4]"
                   }`}
                   key={layout}
                   onClick={() => {
@@ -358,11 +363,11 @@ export function PlanFeatureEditor({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+              <span className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
                 {t("admin.plans.layout.default")}
               </span>
               <AdvoSelect
-                className="mt-1"
+                className={`mt-1 ${lightSelect}`}
                 onChange={(e) =>
                   patch({
                     features: {
@@ -385,8 +390,8 @@ export function PlanFeatureEditor({
             </label>
           </div>
 
-          <div className="border-t border-[var(--advo-border)] pt-3">
-            <p className="mb-2 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+          <div className="border-t border-[#DFE5EC] pt-3">
+            <p className="mb-2 text-[10px] font-bold tracking-wider text-[#526174] uppercase">
               {t("admin.plans.payments.title")}
             </p>
             <Toggle
@@ -420,13 +425,13 @@ export function PlanFeatureEditor({
               value={features.limits.wifi_packages_per_site}
             />
           </div>
-          <p className="text-[11px] text-advo-muted">{t("admin.plans.limits.note")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.limits.note")}</p>
         </div>
       </FeatureSection>
 
       {/* ── Live validation + preview of the resolved portal ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[var(--advo-border)] p-3.5">
+        <div className="rounded-2xl border border-[#DFE5EC] bg-white p-3.5">
           {issues.length === 0 ? (
             <Notice tone="success">{t("admin.plans.issues.ok")}</Notice>
           ) : (
@@ -461,16 +466,16 @@ export function PlanFeaturePreview({ features }: { features: PlanFeatures }) {
   const normalized = normalizePlanFeatures(features);
 
   return (
-    <div className="rounded-2xl border border-[var(--advo-border)] bg-advo-surface-soft/40 p-3.5">
-      <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">{t("admin.plans.preview.title")}</p>
-      <p className="mt-0.5 mb-2.5 text-[11px] text-advo-muted">{t("admin.plans.preview.hint")}</p>
+    <div className="rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] p-3.5">
+      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">{t("admin.plans.preview.title")}</p>
+      <p className="mt-0.5 mb-2.5 text-[11px] leading-snug text-[#526174]">{t("admin.plans.preview.hint")}</p>
       <ul className="space-y-1.5">
         {VISIBILITY_KEYS.map((key) => {
           const policy = placementOf(normalized, key);
           const decision = resolveVisibility(policy.mode, undefined, policy.default_visible);
           return (
             <li className="flex items-center justify-between gap-2 text-[11px]" key={key}>
-              <span className="truncate font-semibold text-advo-text">{t(`admin.plans.placement.${key}`)}</span>
+              <span className="truncate font-semibold text-[#18212F]">{t(`admin.plans.placement.${key}`)}</span>
               <span className="flex shrink-0 items-center gap-1.5">
                 <StatusChip tone={decision.visible ? "success" : "default"}>
                   {decision.visible ? t("admin.plans.preview.visible") : t("admin.plans.preview.hidden")}
@@ -485,7 +490,7 @@ export function PlanFeaturePreview({ features }: { features: PlanFeatures }) {
           );
         })}
       </ul>
-      <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-[var(--advo-border)] pt-2.5">
+      <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-[#DFE5EC] pt-2.5">
         <StatusChip tone={normalized.payments.voucher ? "success" : "default"}>
           {normalized.payments.voucher ? t("admin.plans.preview.voucherOn") : t("admin.plans.preview.voucherOff")}
         </StatusChip>
@@ -522,14 +527,14 @@ function PlacementRow({
   const locked = policy.mode !== "OPTIONAL";
 
   return (
-    <li className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--advo-border)] bg-white/60 px-3 py-2">
+    <li className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] px-3.5 py-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-bold text-advo-text">{t(`admin.plans.placement.${placementKey}`)}</p>
-        <p className="text-[10px] text-advo-muted">{t(`admin.plans.mode.${policy.mode}.hint`)}</p>
+        <p className="truncate text-xs font-bold text-[#18212F]">{t(`admin.plans.placement.${placementKey}`)}</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-[#526174]">{t(`admin.plans.mode.${policy.mode}.hint`)}</p>
       </div>
       <AdvoSelect
         aria-label={t(`admin.plans.placement.${placementKey}`)}
-        className="w-32 shrink-0 py-1.5 text-[11px]"
+        className="w-36 shrink-0 border border-[#DFE5EC] !bg-white py-2 text-[11px] font-semibold !text-[#18212F] shadow-none hover:!bg-white focus:!bg-white focus:ring-2 focus:ring-[#1B5EA4]/20"
         onChange={(e) => onPatch({ features: setPlacement(features, placementKey, { mode: e.target.value as AdMode }) })}
         value={policy.mode}
       >
@@ -539,10 +544,14 @@ function PlacementRow({
           </option>
         ))}
       </AdvoSelect>
-      <label className={`flex shrink-0 items-center gap-1.5 text-[11px] ${locked ? "opacity-50" : ""}`}>
+      <label
+        className={`flex shrink-0 items-center gap-1.5 text-[11px] font-semibold ${
+          locked ? "cursor-not-allowed text-[#64748B]" : "text-[#18212F]"
+        }`}
+      >
         <input
           checked={policy.default_visible}
-          className="h-3.5 w-3.5 accent-[var(--advo-blue)]"
+          className="h-3.5 w-3.5 accent-[#1B5EA4] disabled:opacity-60"
           disabled={locked}
           onChange={(e) => onPatch({ features: setPlacement(features, placementKey, { default_visible: e.target.checked }) })}
           type="checkbox"
@@ -567,8 +576,8 @@ function PlacementGroup({
 }) {
   return (
     <div>
-      <p className="mb-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">{label}</p>
-      <ul className="space-y-1.5">
+      <p className="mb-2 text-[10px] font-bold tracking-wider text-[#526174] uppercase">{label}</p>
+      <ul className="space-y-2">
         {keys.map((key) => (
           <PlacementRow features={features} key={key} onPatch={onPatch} placementKey={key} />
         ))}
@@ -588,12 +597,14 @@ function Segmented<T extends string>({
   onChange: (next: T) => void;
 }) {
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-full bg-advo-surface-soft p-1">
+    <div className="inline-flex flex-wrap gap-1 rounded-full border border-[#DFE5EC] bg-[#F7F9FC] p-1">
       {options.map((option) => (
         <button
           aria-pressed={value === option.id}
           className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold transition-colors ${
-            value === option.id ? "bg-white text-advo-blue shadow-advo-card" : "text-advo-muted hover:text-advo-blue"
+            value === option.id
+              ? "bg-white text-[#1B5EA4] shadow-sm ring-1 ring-[#DFE5EC]"
+              : "text-[#526174] hover:text-[#1B5EA4]"
           }`}
           key={option.id}
           onClick={() => onChange(option.id)}
@@ -617,10 +628,10 @@ function Toggle({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-xl border border-[var(--advo-border)] bg-white/60 px-3 py-2 text-xs font-semibold text-advo-text">
+    <label className="flex items-center gap-2 rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] px-3 py-2.5 text-xs font-semibold text-[#18212F]">
       <input
         checked={checked}
-        className="h-4 w-4 accent-[var(--advo-blue)]"
+        className="h-4 w-4 accent-[#1B5EA4]"
         onChange={(e) => onChange(e.target.checked)}
         type="checkbox"
       />
@@ -648,18 +659,18 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 
   return (
     <div>
-      <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">{label}</p>
+      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">{label}</p>
       <div className="mt-1 flex items-center gap-2">
         <input
           aria-label={label}
-          className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-[var(--advo-border)] bg-white p-0.5"
+          className="h-9 w-11 shrink-0 cursor-pointer rounded-lg border border-[#DFE5EC] bg-white p-0.5"
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           type="color"
           value={value}
         />
         <input
           aria-label={`${label} hex`}
-          className="w-full rounded-field bg-field px-2.5 py-1.5 font-mono text-xs text-field-foreground shadow-field outline-none"
+          className="w-full rounded-field border border-[#DFE5EC] !bg-white px-2.5 py-1.5 font-mono text-xs !text-[#18212F] outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20"
           onChange={(e) => {
             const next = e.target.value.trim();
             setText(next);
@@ -697,12 +708,12 @@ function LimitField({
   const unlimited = value === null;
 
   return (
-    <div className="rounded-xl border border-[var(--advo-border)] bg-white/60 px-3 py-2">
-      <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">{label}</p>
-      <div className="mt-1 flex items-center gap-2">
+    <div className="rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] px-3.5 py-3">
+      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">{label}</p>
+      <div className="mt-1.5 flex items-center gap-2">
         <input
           aria-label={label}
-          className="w-20 rounded-field bg-field px-2 py-1 text-sm text-field-foreground shadow-field outline-none disabled:opacity-40"
+          className="w-20 rounded-field border border-[#DFE5EC] !bg-white px-2 py-1.5 text-sm font-semibold !text-[#18212F] outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 disabled:opacity-40"
           disabled={unlimited}
           min={1}
           max={100000}
@@ -713,10 +724,10 @@ function LimitField({
           type="number"
           value={unlimited ? "" : value}
         />
-        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-advo-muted">
+        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#18212F]">
           <input
             checked={unlimited}
-            className="h-3.5 w-3.5 accent-[var(--advo-blue)]"
+            className="h-3.5 w-3.5 accent-[#1B5EA4]"
             onChange={(e) => onChange(e.target.checked ? null : 50)}
             type="checkbox"
           />
@@ -730,9 +741,9 @@ function LimitField({
 /** A titled group of controls inside the plan modal. */
 function FeatureSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <fieldset className="rounded-2xl border border-[var(--advo-border)] p-4">
-      <legend className="flex items-center gap-1.5 px-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
-        <span className="[&_svg]:size-3.5">{icon}</span>
+    <fieldset className="rounded-2xl border border-[#DFE5EC] !bg-white p-4 !text-[#18212F]">
+      <legend className="flex items-center gap-1.5 bg-white px-1.5 text-[10px] font-bold tracking-wider text-[#526174] uppercase">
+        <span className="text-[#1B5EA4] [&_svg]:size-3.5">{icon}</span>
         {title}
       </legend>
       {children}

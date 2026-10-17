@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { formatDateTime, formatTzs } from "@advo/api-client";
 import { Button, Card, EmptyState, SearchField, ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import { buttonVariants } from "@heroui/styles";
-import { AdvoKpi, AdvoTable, DeltaBadge, Notice, StatusChip, statusTone } from "@advo/ui";
+import { AdvoKpi, DeltaBadge, Notice, StatusChip, statusTone } from "@advo/ui";
 import {
   CHART_COLORS,
   ChartCard,
@@ -16,13 +16,17 @@ import {
 } from "@/features/common/charts";
 import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { accountStatusLabel, paymentStateLabel, subscriptionStateLabel } from "@/features/common/labels";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type I18n } from "@/lib/i18n";
 import { useResource } from "@/lib/hooks";
 import {
   ArrowUpRight,
+  Clock,
   Download,
   ExternalLink,
   LayoutDashboard,
+  MapPin,
+  Package,
+  Phone,
   Printer,
   Radio,
   RefreshCw,
@@ -70,7 +74,21 @@ type OrderItem = {
   grant?: { id: string; state: string; expiresAt: string } | null;
 };
 
+type DisplayOrder = {
+  key: string;
+  id: string;
+  phone: string;
+  name: string | null;
+  plan: string | null;
+  site: string;
+  amountTzs: string;
+  status: string;
+  time: string;
+};
+
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
+const SETTLED_PAYMENT_STATES = new Set(["PAID", "OVERPAID"]);
+const DANGER_PAYMENT_STATES = new Set(["CANCELLED", "REFUNDED"]);
 
 /** Colour per payment state, used by the mix donut and the state legend. */
 const PAYMENT_STATE_COLORS: Record<string, string> = {
@@ -487,13 +505,14 @@ function OverviewBody({
       {/* ── Recent transactions ── */}
       <ResourceView resource={orders}>
         {() => (
-          <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
+          <section className="space-y-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-advo-text">{t("reseller.overview.recent.title")}</h2>
-                <span className="rounded-full bg-advo-page px-2 py-0.5 text-xs font-bold text-advo-muted">
-                  {filteredOrders.length}
-                </span>
+              <div>
+                <h2 className="text-sm font-black tracking-tight text-advo-text">
+                  {t("reseller.overview.recent.title")}
+                  <span className="ml-1.5 font-bold text-advo-muted">({filteredOrders.length})</span>
+                </h2>
+                <p className="text-xs text-advo-muted">{t("reseller.overview.recent.tableLabel")}</p>
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -527,61 +546,17 @@ function OverviewBody({
               </div>
             </div>
 
-            <AdvoTable
-              columns={[
-                {
-                  key: "id",
-                  header: t("reseller.col.transaction"),
-                  isRowHeader: true,
-                  render: (ord) => <span className="font-mono font-bold text-advo-blue">#{ord.id}</span>,
-                },
-                {
-                  key: "customer",
-                  header: t("reseller.col.customer"),
-                  render: (ord) => (
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-advo-blue to-advo-gold text-[10px] font-bold text-white">
-                        {(ord.name ?? ord.phone).charAt(0)}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-bold text-advo-text">{ord.name ?? ord.phone}</span>
-                        {ord.name ? <span className="block font-mono text-[10px] text-advo-muted">{ord.phone}</span> : null}
-                      </span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "plan",
-                  header: t("reseller.col.package"),
-                  render: (ord) => <span className="font-medium text-advo-text">{ord.plan ?? "—"}</span>,
-                },
-                {
-                  key: "site",
-                  header: t("reseller.col.site"),
-                  render: (ord) => <span className="text-advo-muted">{ord.site}</span>,
-                },
-                { key: "time", header: t("reseller.col.time"), render: (ord) => <span className="text-advo-muted">{ord.time}</span> },
-                {
-                  key: "amount",
-                  header: t("reseller.col.amount"),
-                  className: "text-right",
-                  render: (ord) => (
-                    <span className="font-bold tabular-nums text-advo-text">{formatTzs(ord.amountTzs)}</span>
-                  ),
-                },
-                {
-                  key: "status",
-                  header: t("reseller.col.status"),
-                  render: (ord) => (
-                    <StatusChip tone={statusTone(ord.status)}>{paymentStateLabel(t, ord.status)}</StatusChip>
-                  ),
-                },
-              ]}
-              empty={t("reseller.overview.recent.empty")}
-              label={t("reseller.overview.recent.tableLabel")}
-              rowKey={(ord) => ord.key}
-              rows={filteredOrders}
-            />
+            {filteredOrders.length === 0 ? (
+              <Card className="border-dashed p-10 text-center shadow-advo-card ring-1 ring-advo-border/70">
+                <p className="text-sm font-semibold text-advo-muted">{t("reseller.overview.recent.empty")}</p>
+              </Card>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {filteredOrders.map((ord) => (
+                  <OverviewTransactionRow key={ord.key} order={ord} t={t} />
+                ))}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-advo-muted">
               <span>
@@ -595,7 +570,7 @@ function OverviewBody({
                 <ArrowUpRight className="size-3.5" />
               </Link>
             </div>
-          </Card>
+          </section>
         )}
       </ResourceView>
 
@@ -665,5 +640,101 @@ function OverviewBody({
         {t("reseller.overview.printHint")}
       </p>
     </div>
+  );
+}
+
+function paymentChipTone(state: string): "success" | "danger" | "warning" {
+  if (SETTLED_PAYMENT_STATES.has(state)) return "success";
+  if (DANGER_PAYMENT_STATES.has(state)) return "danger";
+  return "warning";
+}
+
+function OverviewTransactionRow({ order: ord, t }: { order: DisplayOrder; t: I18n["t"] }) {
+  const paid = SETTLED_PAYMENT_STATES.has(ord.status);
+  const label = ord.name ?? ord.phone;
+  const initial = (label || "?").slice(0, 1).toUpperCase();
+
+  return (
+    <Card className="overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70 transition-shadow hover:shadow-advo-lift">
+      <div className="flex items-center gap-3 p-3.5 sm:gap-4 sm:p-4">
+        <span
+          className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-sm font-black ring-1 ${
+            paid
+              ? "bg-emerald-50 text-emerald-700 ring-emerald-200/70"
+              : DANGER_PAYMENT_STATES.has(ord.status)
+                ? "bg-rose-50 text-rose-700 ring-rose-200/70"
+                : "bg-advo-blue/10 text-advo-blue ring-advo-blue/20"
+          }`}
+        >
+          {initial}
+          <span
+            aria-hidden="true"
+            className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-white ${
+              paid
+                ? "bg-emerald-500"
+                : DANGER_PAYMENT_STATES.has(ord.status)
+                  ? "bg-rose-400"
+                  : "bg-amber-400"
+            }`}
+          />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-black tracking-tight text-advo-text" title={label}>
+              {label}
+            </h3>
+            <StatusChip tone={paymentChipTone(ord.status)}>
+              {paymentStateLabel(t, ord.status)}
+            </StatusChip>
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-advo-muted">
+            {ord.name ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-advo-text/80">
+                <Phone className="h-3 w-3 text-slate-400" />
+                {ord.phone}
+              </span>
+            ) : null}
+            {ord.plan ? (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Package className="h-3 w-3 shrink-0 text-slate-400" />
+                <span className="truncate font-semibold">{ord.plan}</span>
+              </span>
+            ) : null}
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+              <span className="truncate font-semibold">{ord.site}</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3 text-slate-400" />
+              {ord.time}
+            </span>
+          </div>
+
+          <dl className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-advo-border/70 bg-advo-page px-2 py-1">
+              <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
+                {t("reseller.col.reference")}
+              </span>
+              <span className="font-mono text-[10px] font-bold text-advo-text">{ord.id}</span>
+            </span>
+          </dl>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end justify-center gap-0.5 border-l border-advo-border/60 pl-3 sm:pl-4">
+          <p
+            className={`text-base font-black tracking-tight tabular-nums sm:text-lg ${
+              paid ? "text-emerald-700" : "text-advo-text"
+            }`}
+          >
+            {formatTzs(ord.amountTzs)}
+          </p>
+          <p className="text-[10px] font-semibold text-advo-muted">
+            {paid ? t("reseller.orders.row.settled") : t("reseller.orders.row.checkout")}
+          </p>
+        </div>
+      </div>
+    </Card>
   );
 }

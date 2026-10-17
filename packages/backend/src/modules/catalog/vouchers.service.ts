@@ -13,17 +13,57 @@ export async function listVoucherGroups(resellerId: string) {
   });
   const counts = await prisma.voucher.groupBy({
     by: ["groupId", "state"],
-    where: { resellerId },
+    where: { resellerId, state: { not: "DELETED" } },
     _count: true,
   });
-  return groups.map((g) => ({
-    ...g,
-    counts: Object.fromEntries(counts.filter((c) => c.groupId === g.id).map((c) => [c.state, c._count])),
-  }));
+  // Redeemed + grant still live = "in use"; redeemed after grant ends = "used".
+  const inUseRows = await prisma.voucher.findMany({
+    where: {
+      resellerId,
+      state: "REDEEMED",
+      grant: { state: { in: ["ACTIVE", "PENDING_ACTIVATION"] } },
+    },
+    select: { groupId: true },
+  });
+  const inUseByGroup = new Map<string, number>();
+  for (const row of inUseRows) {
+    inUseByGroup.set(row.groupId, (inUseByGroup.get(row.groupId) ?? 0) + 1);
+  }
+  return groups.map((g) => {
+    const byState = Object.fromEntries(
+      counts.filter((c) => c.groupId === g.id).map((c) => [c.state, c._count]),
+    ) as Record<string, number>;
+    const unused = byState.UNUSED ?? 0;
+    const redeemed = byState.REDEEMED ?? 0;
+    const inUse = inUseByGroup.get(g.id) ?? 0;
+    const used = Math.max(0, redeemed - inUse) + (byState.REVOKED ?? 0) + (byState.EXPIRED ?? 0);
+    return {
+      ...g,
+      counts: {
+        ...byState,
+        UNUSED: unused,
+        IN_USE: inUse,
+        USED: used,
+      },
+    };
+  });
 }
 
 /** A batch is created and audited in one transaction, so a retry cannot leave a partial group behind. */
 const VOUCHER_CODE_ATTEMPTS = 5;
+
+/** Unique six-digit codes for one batch draw (retries the generator on collision). */
+function allocateVoucherCodes(count: number): string[] {
+  const codes = new Set<string>();
+  let guard = 0;
+  while (codes.size < count) {
+    codes.add(generateVoucherCode());
+    if (++guard > count * 40) {
+      throw new Error("Could not allocate unique voucher codes in the six-digit space");
+    }
+  }
+  return [...codes];
+}
 
 export async function createVoucherGroup(resellerId: string, actorUserId: string, input: { name: string; packageId: string; count: number }) {
   const pkg = await prisma.wifiPackage.findFirst({ where: { id: input.packageId, resellerId, status: "ACTIVE" } });
@@ -33,7 +73,9 @@ export async function createVoucherGroup(resellerId: string, actorUserId: string
   if (!ent) forbidden("An active trial or subscription is required to create voucher groups");
 
   for (let attempt = 1; ; attempt++) {
-    const codes = Array.from({ length: input.count }, () => generateVoucherCode());
+    // Draw a unique-in-batch set first — six digits are a small space, so a
+    // birthday collision inside a 500-code batch is real without this.
+    const codes = allocateVoucherCodes(input.count);
     try {
       return await prisma.$transaction(async (tx) => {
         const group = await tx.voucherGroup.create({

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@heroui/react";
 import { PaymentWaitingStage } from "@/components/PaymentWaitingStage";
@@ -39,13 +40,16 @@ export function PaymentStatus({
   orderToken: string;
 }) {
   const { locale, t, toggle, setLocale } = useLocale();
+  const router = useRouter();
   const [status, setStatus] = useState<OrderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [extras, setExtras] = useState<PortalBootstrap | null>(null);
+  const [clockEnded, setClockEnded] = useState(false);
   const paidAt = useRef<number | null>(null);
+  const rechecked = useRef(false);
 
   // The connected-page extras (businesses, jobs, promotion packages) come from
   // the same bootstrap the landing screen uses; a failure is non-fatal.
@@ -91,6 +95,45 @@ export function PaymentStatus({
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
+
+  const expiresAtMs =
+    status?.access?.state === "ACTIVE" && status.access.expiresAt
+      ? new Date(status.access.expiresAt).getTime()
+      : null;
+  const accessEnded = Boolean(
+    status?.access && ["EXPIRED", "QUOTA_EXHAUSTED", "REVOKED"].includes(status.access.state),
+  );
+
+  /**
+   * The Controller deauthorizes the device at this instant (the sweeper enqueues
+   * the revoke on the same clock), so the page follows it: a periodic check is
+   * used rather than one long timeout, which overflows for 30-day packages.
+   */
+  useEffect(() => {
+    if (expiresAtMs === null) return;
+    const check = () => {
+      if (Date.now() >= expiresAtMs) setClockEnded(true);
+    };
+    check();
+    const id = setInterval(check, 15_000);
+    return () => clearInterval(id);
+  }, [expiresAtMs]);
+
+  /**
+   * When the package just ended, ask the server once (it owns the expiry
+   * decision) and return the guest to the package list so they can buy again.
+   * A guest opening an old order later is not bounced — they get the status and
+   * a link instead.
+   */
+  useEffect(() => {
+    if (!clockEnded) return;
+    if (!rechecked.current) {
+      rechecked.current = true;
+      void load();
+    }
+    const id = setTimeout(() => router.replace(`/${slug}`), 8000);
+    return () => clearTimeout(id);
+  }, [clockEnded, load, router, slug]);
 
   async function retry(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -223,11 +266,19 @@ export function PaymentStatus({
             status.fulfillmentState === "NEEDS_REVIEW" ? (
               <Notice tone="warning">{t("needsReview")}</Notice>
             ) : null}
-            {status.access &&
-            ["EXPIRED", "REVOKED", "QUOTA_EXHAUSTED"].includes(
-              status.access.state,
-            ) ? (
-              <Notice tone="accent">{t("accessEnded")}</Notice>
+            {status.access && (accessEnded || clockEnded) ? (
+              <>
+                <Notice tone="accent">
+                  {clockEnded ? t("sessionEndedReturn") : t("accessEnded")}
+                </Notice>
+                <a
+                  className={`${systemActionClass} no-underline`}
+                  href={`/${slug}`}
+                  style={systemActionStyle}
+                >
+                  {t("buyAgain")}
+                </a>
+              </>
             ) : null}
           </div>
         </Card>

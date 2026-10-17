@@ -109,19 +109,18 @@ export function voucherLookupHash(code: string): string {
 }
 
 export function normalizeVoucherCode(code: string): string {
+  // Spaces/dashes ignored. Keeps A–Z so legacy 12-symbol batches still redeem.
   return code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-// Excludes 0/O/1/I/L to keep printed codes unambiguous.
-const VOUCHER_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
-
-/** 12 symbols from a 31-char alphabet ≈ 59 bits of entropy. Rendered XXXX-XXXX-XXXX. */
+/**
+ * Six-digit numeric code for counter sales (000000–999999).
+ *
+ * ≈ 20 bits of entropy: fine for a captive portal that already rate-limits
+ * redemptions per IP and MAC. Printed large and unambiguous — no letters.
+ */
 export function generateVoucherCode(): string {
-  let raw = "";
-  for (let i = 0; i < 12; i++) {
-    raw += VOUCHER_ALPHABET[randomInt(VOUCHER_ALPHABET.length)];
-  }
-  return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
+  return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
 export function constantTimeEqualHex(a: string, b: string): boolean {

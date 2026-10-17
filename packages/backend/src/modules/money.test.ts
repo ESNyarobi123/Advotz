@@ -35,11 +35,12 @@ describe("commission calculation (integer TZS, basis points)", () => {
 });
 
 describe("voucher codes and CSV export", () => {
-  it("generates unambiguous 12-symbol codes and normalizes input", () => {
+  it("generates six-digit numeric codes and normalizes input", () => {
     const code = generateVoucherCode();
-    expect(code).toMatch(/^[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$/);
-    expect(normalizeVoucherCode(code.toLowerCase().replace(/-/g, " "))).toBe(code.replace(/-/g, ""));
-    expect(voucherLookupHash(code)).toBe(voucherLookupHash(code.toLowerCase()));
+    expect(code).toMatch(/^\d{6}$/);
+    expect(normalizeVoucherCode(`${code.slice(0, 3)}-${code.slice(3)}`)).toBe(code);
+    expect(normalizeVoucherCode(`${code.slice(0, 3)} ${code.slice(3)}`)).toBe(code);
+    expect(voucherLookupHash(code)).toBe(voucherLookupHash(`${code.slice(0, 3)}-${code.slice(3)}`));
   });
 
   it("neutralises spreadsheet formula injection", () => {
@@ -47,7 +48,7 @@ describe("voucher codes and CSV export", () => {
     expect(csvCell("+1")).toBe(`"'+1"`);
     expect(csvCell("-1")).toBe(`"'-1"`);
     expect(csvCell("@a")).toBe(`"'@a"`);
-    expect(csvCell("ABCD-EFGH-JKMN")).toBe(`"ABCD-EFGH-JKMN"`);
+    expect(csvCell("482917")).toBe(`"482917"`);
   });
 });
 

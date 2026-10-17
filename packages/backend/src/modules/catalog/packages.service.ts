@@ -31,6 +31,44 @@ export async function siteCapabilities(siteId: string): Promise<ControllerCapabi
   return adapter.getCapabilities();
 }
 
+/**
+ * What a package may actually sell at each site.
+ *
+ * The form asks before offering a speed cap or a data cap, so a reseller never
+ * builds a package the Controller will reject on save. `authorizeClient: false`
+ * means the site is not connected to a Controller yet — an onboarding problem
+ * rather than a Controller limitation, so it is reported separately.
+ */
+export type PackageSiteOptions = {
+  siteId: string;
+  name: string;
+  authorizeClient: boolean;
+  speedLimits: boolean;
+  totalQuota: boolean;
+};
+
+export async function packageSiteOptions(resellerId: string): Promise<{ sites: PackageSiteOptions[] }> {
+  const sites = await prisma.site.findMany({
+    where: { resellerId, archivedAt: null },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  const sim = allowSimulated();
+  const rows = await Promise.all(
+    sites.map(async (site): Promise<PackageSiteOptions> => {
+      const caps = await siteCapabilities(site.id);
+      return {
+        siteId: site.id,
+        name: site.name,
+        authorizeClient: Boolean(caps) && canEnforce(caps?.authorizeClient, sim),
+        speedLimits: Boolean(caps) && canEnforce(caps?.perClientRateLimit, sim),
+        totalQuota: Boolean(caps) && canEnforce(caps?.totalTrafficQuota, sim),
+      };
+    }),
+  );
+  return { sites: rows };
+}
+
 function validatePackage(input: WifiPackageInput) {
   if ((input.quotaType === "UNLIMITED") !== (input.quotaBytes === undefined)) {
     badRequest("quotaBytes is required for quota packages and must be omitted for UNLIMITED");

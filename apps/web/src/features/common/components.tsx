@@ -199,6 +199,8 @@ export function SelectField({
   required,
   defaultValue,
   multiple,
+  value,
+  onChange,
 }: {
   name: string;
   label: string;
@@ -206,12 +208,21 @@ export function SelectField({
   required?: boolean;
   defaultValue?: string;
   multiple?: boolean;
+  value?: string;
+  onChange?: ChangeEventHandler<HTMLSelectElement>;
 }) {
   const id = `f-${name}`;
+  const controlled = value !== undefined;
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <AdvoSelect id={id} name={name} required={required} defaultValue={defaultValue} multiple={multiple}>
+      <AdvoSelect
+        id={id}
+        name={name}
+        required={required}
+        multiple={multiple}
+        {...(controlled ? { value, onChange } : { defaultValue, onChange })}
+      >
         {!required && !multiple ? <option value="">—</option> : null}
         {options.map((o) => (
           <option key={o.value} value={o.value}>

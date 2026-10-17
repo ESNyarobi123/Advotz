@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { formatDateTime, formatTzs } from "@advo/api-client";
+import { BUSINESS_TIMEZONE, formatDateTime, formatTzs } from "@advo/api-client";
 import { Button, Card, Input, Label, Modal } from "@heroui/react";
-import { AdvoKpi, AdvoSelect, AdvoTable, Notice, SoftIcon, StatusChip } from "@advo/ui";
+import { AdvoKpi, AdvoTable, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
   Banknote,
   CircleCheck,
   Clock,
   Coins,
   CreditCard,
+  Eye,
+  Filter,
   Hash,
-  Info,
   Percent,
   Receipt,
   RefreshCw,
@@ -20,6 +21,14 @@ import {
   Webhook,
   Wifi,
 } from "lucide-react";
+import {
+  CHART_COLORS,
+  ChartCard,
+  DualAreaChart,
+  MixDonut,
+  type DualTrendPoint,
+  type MixSlice,
+} from "@/features/common/charts";
 import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import {
   CardSkeleton,
@@ -38,6 +47,31 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey, TranslateVars } from "@advo/i18n";
+
+const TREND_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Formats an instant as a `YYYY-MM-DD` key in the business time zone (EAT). */
+const darDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BUSINESS_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const dayKey = (value: string | Date) => darDay.format(typeof value === "string" ? new Date(value) : value);
+
+/** Snippe attempt lifecycle colours for the status donut. */
+const ATTEMPT_MIX_COLORS: Record<string, string> = {
+  CREATED: CHART_COLORS.neutral,
+  DISPATCHING: CHART_COLORS.blueSoft,
+  PENDING: CHART_COLORS.blue,
+  UNKNOWN: CHART_COLORS.warning,
+  COMPLETED: CHART_COLORS.success,
+  FAILED: CHART_COLORS.danger,
+  VOIDED: CHART_COLORS.orange,
+  EXPIRED: CHART_COLORS.muted,
+  NEEDS_REVIEW: CHART_COLORS.warning,
+};
 
 type T = (key: MessageKey, vars?: TranslateVars) => string;
 
@@ -179,6 +213,7 @@ const needsSettlement = (row: PaymentRow) =>
  */
 export function AdminPaymentsScreen() {
   const { t } = useI18n();
+  const [tab, setTab] = useState<"attempts" | "webhooks">("attempts");
   const [state, setState] = useUrlFilter("state");
   const [provider, setProvider] = useUrlFilter("provider");
   const [hookState, setHookState] = useUrlFilter("hook");
@@ -285,6 +320,45 @@ export function AdminPaymentsScreen() {
       })),
     };
   }, [stats, t]);
+
+  /** Daily completed revenue (guest vs subscription) + Snippe attempt-state donut. */
+  const series = useMemo(() => {
+    const days: string[] = [];
+    for (let i = TREND_DAYS - 1; i >= 0; i -= 1) days.push(dayKey(new Date(Date.now() - i * DAY_MS)));
+    const buckets = new Map<string, { primary: number; secondary: number }>();
+    for (const day of days) buckets.set(day, { primary: 0, secondary: 0 });
+
+    for (const row of attemptRows) {
+      if (row.state !== "COMPLETED") continue;
+      const when = row.completedAt ?? row.order.paidAt ?? row.createdAt;
+      const bucket = buckets.get(dayKey(when));
+      if (!bucket) continue;
+      const amount = Number(row.amountReceivedTzs ?? row.order.amountTzs) || 0;
+      if (row.order.purpose === "PLATFORM_SUBSCRIPTION") bucket.secondary += amount;
+      else bucket.primary += amount;
+    }
+
+    const trend: DualTrendPoint[] = days.map((day) => ({ day, ...buckets.get(day)! }));
+    const guestTotal = trend.reduce((sum, d) => sum + d.primary, 0);
+    const subTotal = trend.reduce((sum, d) => sum + d.secondary, 0);
+
+    const byState = stats?.attempts.byState ?? {};
+    const mix: MixSlice[] = ATTEMPT_STATES.filter((s) => (byState[s] ?? 0) > 0)
+      .map((s) => ({
+        label: t(stateLabel(s)),
+        value: byState[s] ?? 0,
+        color: ATTEMPT_MIX_COLORS[s] ?? CHART_COLORS.neutral,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      trend,
+      mix,
+      guestTotal,
+      subTotal,
+      attemptTotal: stats?.attempts.total ?? attemptRows.length,
+    };
+  }, [attemptRows, stats, t]);
 
   async function handleReconciled(result: string) {
     setFlash(t("admin.payments.attempts.reconcileSuccess", { result: reconcileOutcome(result, t) }));
@@ -418,6 +492,46 @@ export function AdminPaymentsScreen() {
         )}
       </div>
 
+      {/* ── Trends + Snippe status circle ── */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <ChartCard
+          action={
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1B5EA4]/35 bg-[#1B5EA4]/15 px-2.5 py-1 text-[11px] font-bold text-[#9EC5F0]">
+                <span className="size-2 rounded-full" style={{ background: CHART_COLORS.blue }} />
+                {t("admin.payments.trend.guest")} · {formatTzs(series.guestTotal)}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FBA102]/35 bg-[#FBA102]/15 px-2.5 py-1 text-[11px] font-bold text-[#F5C96A]">
+                <span className="size-2 rounded-full" style={{ background: CHART_COLORS.gold }} />
+                {t("admin.payments.trend.subscription")} · {formatTzs(series.subTotal)}
+              </span>
+            </div>
+          }
+          className="xl:col-span-8"
+          description={t("admin.payments.trend.description", { days: TREND_DAYS })}
+          title={t("admin.payments.trend.title")}
+        >
+          <DualAreaChart
+            data={series.trend}
+            primaryLabel={t("admin.payments.trend.guest")}
+            secondaryLabel={t("admin.payments.trend.subscription")}
+          />
+        </ChartCard>
+
+        <ChartCard
+          className="xl:col-span-4"
+          description={t("admin.payments.mix.description")}
+          title={t("admin.payments.mix.title")}
+        >
+          <MixDonut
+            centerLabel={t("admin.payments.mix.center")}
+            centerValue={String(series.attemptTotal)}
+            data={series.mix}
+            height={190}
+          />
+        </ChartCard>
+      </div>
+
       {/* ── Distribution box cards ── */}
       <section>
         <SectionHeader
@@ -434,7 +548,10 @@ export function AdminPaymentsScreen() {
                 hint={t("admin.payments.distribution.attemptsHint")}
                 icon={<CreditCard />}
                 iconTone={stats.attempts.needsReview > 0 ? "danger" : "accent"}
-                onPick={(next) => setState(state === next ? "" : next)}
+                onPick={(next) => {
+                  setTab("attempts");
+                  setState(state === next ? "" : next);
+                }}
                 pickedState={state}
                 rows={attemptCards.attempts}
                 title={t("admin.payments.distribution.attempts")}
@@ -454,7 +571,10 @@ export function AdminPaymentsScreen() {
                 hint={t("admin.payments.distribution.providersHint")}
                 icon={<Wifi />}
                 iconTone="violet"
-                onPick={(next) => setProvider(provider === next ? "" : next)}
+                onPick={(next) => {
+                  setTab("attempts");
+                  setProvider(provider === next ? "" : next);
+                }}
                 pickedState={provider}
                 rows={attemptCards.providers}
                 title={t("admin.payments.distribution.providers")}
@@ -465,7 +585,10 @@ export function AdminPaymentsScreen() {
                 hint={t("admin.payments.distribution.webhooksHint")}
                 icon={<Webhook />}
                 iconTone={stats.webhooks.quarantined + stats.webhooks.failed > 0 ? "warning" : "success"}
-                onPick={(next) => setHookState(hookState === next ? "" : next)}
+                onPick={(next) => {
+                  setTab("webhooks");
+                  setHookState(hookState === next ? "" : next);
+                }}
                 pickedState={hookState}
                 rows={attemptCards.webhooks}
                 title={t("admin.payments.distribution.webhooks")}
@@ -478,327 +601,276 @@ export function AdminPaymentsScreen() {
         </div>
       </section>
 
-      {/* ── Payment attempts ── */}
-      <section>
-        <SectionHeader
-          description={t("admin.payments.attempts.description")}
-          icon={<CreditCard />}
-          iconTone="accent"
-          title={t("admin.payments.attempts.title")}
-        />
-        <Card className="mt-3 gap-3 p-3 shadow-advo-card ring-1 ring-advo-border/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-56 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-advo-muted" />
+      {/* ── Tabs ── */}
+      <div
+        className="flex flex-wrap gap-1 rounded-2xl border border-[var(--advo-border)] bg-[var(--advo-surface-sunken)] p-1.5 shadow-advo-card"
+        role="tablist"
+      >
+        {(
+          [
+            {
+              key: "attempts" as const,
+              icon: <CreditCard className="size-3.5 shrink-0" />,
+              label: t("admin.payments.tab.attempts"),
+              count: stats?.attempts.total ?? attemptRows.length,
+            },
+            {
+              key: "webhooks" as const,
+              icon: <Webhook className="size-3.5 shrink-0" />,
+              label: t("admin.payments.tab.webhooks"),
+              count: stats?.webhooks.total ?? webhookRows.length,
+            },
+          ] as const
+        ).map((item) => {
+          const active = tab === item.key;
+          return (
+            <button
+              aria-selected={active}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
+                active
+                  ? "bg-[#1B5EA4] text-white shadow-advo-card"
+                  : "text-[#E8EAEE] hover:bg-[#2A2D33] hover:text-white"
+              }`}
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              role="tab"
+              type="button"
+            >
+              {item.icon}
+              {item.label}
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  active ? "bg-white/25 text-white" : "border border-white/15 bg-[#101113] text-[#F4F6F8]"
+                }`}
+              >
+                {item.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "attempts" ? (
+        <>
+          <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
+            <SectionHeader
+              action={
+                <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
+                  {t("admin.payments.attempts.count", {
+                    shown: filteredAttempts.length,
+                    total: attemptRows.length,
+                  })}
+                </span>
+              }
+              description={t("admin.payments.attempts.description")}
+              icon={<Filter />}
+              iconTone="accent"
+              title={t("admin.payments.attempts.filterTitle")}
+            />
+            <div className="relative min-w-56">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-[#8B939E]" />
               <Input
                 aria-label={t("admin.payments.attempts.search")}
-                className="pl-9"
+                className="border border-[var(--advo-border)] !bg-[var(--advo-surface-sunken)] pl-9 !text-[var(--advo-text)]"
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("admin.payments.attempts.search")}
                 value={query}
               />
             </div>
-            <AdvoSelect
-              aria-label={t("admin.payments.attempts.filterState")}
-              className="w-auto"
-              onChange={(e) => setState(e.target.value)}
-              value={state}
-            >
-              <option value="">{t("admin.payments.attempts.allStates")}</option>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.payments.attempts.filterState")}>
+              <FilterPill
+                active={!state}
+                count={stats?.attempts.total ?? attemptRows.length}
+                label={t("admin.payments.attempts.allStates")}
+                onClick={() => setState("")}
+              />
               {ATTEMPT_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {t(stateLabel(s))}
-                </option>
+                <FilterPill
+                  active={state === s}
+                  count={stats?.attempts.byState[s] ?? 0}
+                  key={s}
+                  label={t(stateLabel(s))}
+                  onClick={() => setState(state === s ? "" : s)}
+                />
               ))}
-            </AdvoSelect>
-            <AdvoSelect
-              aria-label={t("admin.payments.attempts.filterProvider")}
-              className="w-auto"
-              onChange={(e) => setProvider(e.target.value)}
-              value={provider}
-            >
-              <option value="">{t("admin.payments.attempts.allProviders")}</option>
-              {providerOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </AdvoSelect>
-            <span className="ml-auto shrink-0 text-xs font-semibold text-advo-muted tabular-nums">
-              {t("admin.payments.attempts.count", { shown: filteredAttempts.length, total: attemptRows.length })}
-            </span>
-          </div>
+            </div>
+            {providerOptions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.payments.attempts.filterProvider")}>
+                <FilterPill
+                  active={!provider}
+                  count={stats?.attempts.total ?? attemptRows.length}
+                  label={t("admin.payments.attempts.allProviders")}
+                  onClick={() => setProvider("")}
+                />
+                {providerOptions.map((p) => (
+                  <FilterPill
+                    active={provider === p}
+                    count={providerVolume.get(p)?.count ?? 0}
+                    key={p}
+                    label={p}
+                    onClick={() => setProvider(provider === p ? "" : p)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </Card>
 
           <ResourceView resource={payments}>
-            {() => (
-              <>
-                <AdvoTable
-                  empty={t("admin.payments.attempts.empty")}
-                  label={t("admin.payments.attempts.title")}
-                  rowKey={(p) => p.id}
-                  rows={shownAttempts}
-                  columns={[
-                    {
-                      key: "purpose",
-                      header: t("admin.payments.attempts.col.purpose"),
-                      render: (p) => (
-                        <div className="flex min-w-44 items-start gap-2.5">
-                          <SoftIcon size="sm" tone={p.order.purpose === "WIFI_PACKAGE" ? "teal" : "violet"}>
-                            {p.order.purpose === "WIFI_PACKAGE" ? <Wifi /> : <Receipt />}
-                          </SoftIcon>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-advo-text">
-                              {p.order.purpose === "WIFI_PACKAGE"
-                                ? t("admin.payments.attempts.purpose.guest")
-                                : t("admin.payments.attempts.purpose.subscription")}
-                            </p>
-                            <p className="truncate text-xs text-advo-muted">{p.order.reseller.businessName}</p>
-                            {p.order.site?.name ? (
-                              <p className="truncate text-[11px] text-advo-muted">{p.order.site.name}</p>
-                            ) : null}
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "amount",
-                      header: t("admin.payments.attempts.col.amount"),
-                      render: (p) => (
-                        <div className="min-w-40">
-                          <p className="text-sm font-bold text-advo-text tabular-nums">
-                            {t("admin.payments.attempts.expected", { amount: formatTzs(p.order.amountTzs) })}
-                          </p>
-                          <p className="mt-0.5 text-xs text-advo-muted tabular-nums">
-                            {p.amountReceivedTzs
-                              ? t("admin.payments.attempts.received", { amount: formatTzs(p.amountReceivedTzs) })
-                              : t("admin.payments.none")}
-                          </p>
-                          <p className="text-xs tabular-nums">
-                            {p.feeTzs !== null ? (
-                              <span className="text-advo-muted">
-                                {t("admin.payments.attempts.fee", { amount: formatTzs(p.feeTzs) })}
-                              </span>
-                            ) : needsSettlement(p) ? (
-                              <span className="font-semibold text-[#b45309]">
-                                {t("admin.payments.attempts.feeUnknown")}
-                              </span>
-                            ) : null}
-                          </p>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "state",
-                      header: t("admin.payments.attempts.col.state"),
-                      render: (p) => (
-                        <div className="min-w-32">
-                          <StatusChip tone={CHIP_TONE[p.state] ?? "default"}>{t(stateLabel(p.state))}</StatusChip>
-                          {p.lastError ? (
-                            <p className="mt-1 max-w-56 text-[11px] leading-snug text-[var(--advo-danger)]">
-                              {p.lastError}
-                            </p>
-                          ) : null}
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "order",
-                      header: t("admin.payments.attempts.col.order"),
-                      render: (p) => (
-                        <div className="flex min-w-32 flex-col items-start gap-1">
-                          <StatusChip tone={CHIP_TONE[p.order.paymentState] ?? "default"}>
-                            {t(stateLabel(p.order.paymentState))}
-                          </StatusChip>
-                          <StatusChip>{t(fulfillmentLabel(p.order.fulfillmentState))}</StatusChip>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "reference",
-                      header: t("admin.payments.attempts.col.reference"),
-                      render: (p) => (
-                        <div className="min-w-32">
-                          <Mono>{p.providerReference ?? t("admin.payments.none")}</Mono>
-                          <p className="mt-1 max-w-40 truncate text-[11px] text-advo-muted">{p.provider}</p>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "created",
-                      header: t("admin.payments.attempts.col.created"),
-                      render: (p) => (
-                        <div className="min-w-32 text-xs">
-                          <p className="text-advo-text">{formatDateTime(p.createdAt)}</p>
-                          <p className="mt-0.5 text-[11px] text-advo-muted">
-                            {p.lastCheckedAt
-                              ? t("admin.payments.attempts.checked", { when: formatDateTime(p.lastCheckedAt) })
-                              : t("admin.payments.attempts.neverChecked")}
-                          </p>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "actions",
-                      header: t("admin.payments.attempts.col.actions"),
-                      render: (p) => (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {RECONCILABLE.has(p.state) ? (
-                            <Button
-                              className="text-xs"
-                              onPress={() => setReconcileTarget(p)}
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              {t("admin.payments.attempts.action.reconcile")}
-                            </Button>
-                          ) : null}
-                          {needsSettlement(p) ? (
-                            <Button
-                              className="text-xs"
-                              onPress={() => setSettleTarget(p)}
-                              size="sm"
-                              type="button"
-                              variant="primary"
-                            >
-                              {t("admin.payments.attempts.action.settle")}
-                            </Button>
-                          ) : null}
-                          <Button
-                            className="text-xs"
-                            onPress={() => setDetail(p)}
-                            size="sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Info className="size-3.5" />
-                            {t("admin.payments.attempts.action.detail")}
-                          </Button>
-                        </div>
-                      ),
-                    },
-                  ]}
-                />
-                {visibleCount < filteredAttempts.length ? (
-                  <div className="flex justify-center pt-1">
-                    <Button onPress={() => setVisibleCount((n) => n + 25)} size="sm" type="button" variant="outline">
-                      {t("admin.payments.attempts.action.showMore")}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
+            {() =>
+              filteredAttempts.length === 0 ? (
+                <Card className="shadow-advo-card ring-1 ring-advo-border/70">
+                  <EmptyState text={t("admin.payments.attempts.empty")} />
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {shownAttempts.map((p) => (
+                    <AttemptCard
+                      key={p.id}
+                      onDetail={() => setDetail(p)}
+                      onReconcile={RECONCILABLE.has(p.state) ? () => setReconcileTarget(p) : undefined}
+                      onSettle={needsSettlement(p) ? () => setSettleTarget(p) : undefined}
+                      payment={p}
+                      t={t}
+                    />
+                  ))}
+                  {visibleCount < filteredAttempts.length ? (
+                    <div className="flex justify-center pt-1">
+                      <Button onPress={() => setVisibleCount((n) => n + 25)} size="sm" type="button" variant="outline">
+                        {t("admin.payments.attempts.action.showMore")}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
           </ResourceView>
-        </Card>
-      </section>
-
-      {/* ── Webhook inbox ── */}
-      <section>
-        <SectionHeader
-          description={t("admin.payments.webhooks.description")}
-          icon={<Webhook />}
-          iconTone="teal"
-          title={t("admin.payments.webhooks.title")}
-        />
-        <Card className="mt-3 gap-3 p-3 shadow-advo-card ring-1 ring-advo-border/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <AdvoSelect
-              aria-label={t("admin.payments.webhooks.filterState")}
-              className="w-auto"
-              onChange={(e) => setHookState(e.target.value)}
-              value={hookState}
-            >
-              <option value="">{t("admin.payments.webhooks.allStates")}</option>
+        </>
+      ) : (
+        <>
+          <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
+            <SectionHeader
+              action={
+                <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
+                  {t("admin.payments.webhooks.count", {
+                    shown: shownWebhooks.length,
+                    total: webhookRows.length,
+                  })}
+                </span>
+              }
+              description={t("admin.payments.webhooks.description")}
+              icon={<Filter />}
+              iconTone="teal"
+              title={t("admin.payments.webhooks.filterTitle")}
+            />
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.payments.webhooks.filterState")}>
+              <FilterPill
+                active={!hookState}
+                count={stats?.webhooks.total ?? webhookRows.length}
+                label={t("admin.payments.webhooks.allStates")}
+                onClick={() => setHookState("")}
+              />
               {WEBHOOK_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {t(stateLabel(s))}
-                </option>
+                <FilterPill
+                  active={hookState === s}
+                  count={stats?.webhooks.byState[s] ?? 0}
+                  key={s}
+                  label={t(stateLabel(s))}
+                  onClick={() => setHookState(hookState === s ? "" : s)}
+                />
               ))}
-            </AdvoSelect>
-            <span className="ml-auto shrink-0 text-xs font-semibold text-advo-muted tabular-nums">
-              {t("admin.payments.webhooks.count", {
-                shown: shownWebhooks.length,
-                total: webhookRows.length,
-              })}
-            </span>
-          </div>
+            </div>
+          </Card>
 
           <ResourceView resource={webhooks}>
-            {() => (
-              <>
-              <AdvoTable
-                empty={t("admin.payments.webhooks.empty")}
-                label={t("admin.payments.webhooks.title")}
-                rowKey={(w) => w.id}
-                rows={shownWebhooks}
-                columns={[
-                  {
-                    key: "event",
-                    header: t("admin.payments.webhooks.col.event"),
-                    render: (w) => (
-                      <div className="min-w-44">
-                        <Mono>{w.eventType}</Mono>
-                        <p className="mt-1 max-w-48 truncate text-[11px] text-advo-muted">{w.eventId}</p>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "provider",
-                    header: t("admin.payments.webhooks.col.provider"),
-                    render: (w) => (
-                      <div className="min-w-28 text-xs">
-                        <p className="font-semibold text-advo-text">{w.provider}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-advo-muted">
-                          {t("admin.payments.webhooks.account", { id: w.providerAccountId.slice(0, 8) })}
-                        </p>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "state",
-                    header: t("admin.payments.webhooks.col.state"),
-                    render: (w) => (
-                      <div className="min-w-32">
-                        <StatusChip tone={CHIP_TONE[w.state] ?? "default"}>{t(stateLabel(w.state))}</StatusChip>
-                        {w.reason ? (
-                          <p className="mt-1 max-w-56 text-[11px] leading-snug text-advo-muted">{w.reason}</p>
-                        ) : null}
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "attempts",
-                    header: t("admin.payments.webhooks.col.attempts"),
-                    render: (w) => <span className="text-sm font-bold text-advo-text tabular-nums">{w.attempts}</span>,
-                  },
-                  {
-                    key: "received",
-                    header: t("admin.payments.webhooks.col.received"),
-                    render: (w) => <span className="text-xs text-advo-text">{formatDateTime(w.receivedAt)}</span>,
-                  },
-                  {
-                    key: "processed",
-                    header: t("admin.payments.webhooks.col.processed"),
-                    render: (w) => (
-                      <span className="text-xs text-advo-muted">
-                        {w.processedAt ? formatDateTime(w.processedAt) : t("admin.payments.webhooks.notProcessed")}
-                      </span>
-                    ),
-                  },
-                ]}
-              />
-                {visibleHooks < webhookRows.length ? (
-                  <div className="flex justify-center pt-1">
-                    <Button onPress={() => setVisibleHooks((n) => n + 15)} size="sm" type="button" variant="outline">
-                      {t("admin.payments.attempts.action.showMore")}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
+            {() =>
+              webhookRows.length === 0 ? (
+                <Card className="shadow-advo-card ring-1 ring-advo-border/70">
+                  <EmptyState text={t("admin.payments.webhooks.empty")} />
+                </Card>
+              ) : (
+                <>
+                  <Card className="gap-0 overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70">
+                    <AdvoTable
+                      empty={t("admin.payments.webhooks.empty")}
+                      label={t("admin.payments.webhooks.title")}
+                      rowKey={(w) => w.id}
+                      rows={shownWebhooks}
+                      columns={[
+                        {
+                          key: "event",
+                          header: t("admin.payments.webhooks.col.event"),
+                          render: (w) => (
+                            <div className="min-w-44">
+                              <Mono>{w.eventType}</Mono>
+                              <p className="mt-1 max-w-48 truncate text-[11px] text-advo-muted">{w.eventId}</p>
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "provider",
+                          header: t("admin.payments.webhooks.col.provider"),
+                          render: (w) => (
+                            <div className="min-w-28 text-xs">
+                              <p className="font-semibold text-advo-text">{w.provider}</p>
+                              <p className="mt-0.5 truncate text-[11px] text-advo-muted">
+                                {t("admin.payments.webhooks.account", { id: w.providerAccountId.slice(0, 8) })}
+                              </p>
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "state",
+                          header: t("admin.payments.webhooks.col.state"),
+                          render: (w) => (
+                            <div className="min-w-32">
+                              <StatusChip tone={CHIP_TONE[w.state] ?? "default"}>{t(stateLabel(w.state))}</StatusChip>
+                              {w.reason ? (
+                                <p className="mt-1 max-w-56 text-[11px] leading-snug text-advo-muted">{w.reason}</p>
+                              ) : null}
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "attempts",
+                          header: t("admin.payments.webhooks.col.attempts"),
+                          render: (w) => (
+                            <span className="text-sm font-bold text-advo-text tabular-nums">{w.attempts}</span>
+                          ),
+                        },
+                        {
+                          key: "received",
+                          header: t("admin.payments.webhooks.col.received"),
+                          render: (w) => (
+                            <span className="text-xs text-advo-text">{formatDateTime(w.receivedAt)}</span>
+                          ),
+                        },
+                        {
+                          key: "processed",
+                          header: t("admin.payments.webhooks.col.processed"),
+                          render: (w) => (
+                            <span className="text-xs text-advo-muted">
+                              {w.processedAt
+                                ? formatDateTime(w.processedAt)
+                                : t("admin.payments.webhooks.notProcessed")}
+                            </span>
+                          ),
+                        },
+                      ]}
+                    />
+                  </Card>
+                  {visibleHooks < webhookRows.length ? (
+                    <div className="flex justify-center pt-1">
+                      <Button onPress={() => setVisibleHooks((n) => n + 15)} size="sm" type="button" variant="outline">
+                        {t("admin.payments.attempts.action.showMore")}
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )
+            }
           </ResourceView>
-        </Card>
-      </section>
+        </>
+      )}
 
       <PaymentDetailDialog onClose={() => setDetail(null)} open={detail !== null} target={detail} t={t} />
 
@@ -822,6 +894,116 @@ export function AdminPaymentsScreen() {
         t={t}
       />
     </div>
+  );
+}
+
+function AttemptCard({
+  payment: p,
+  t,
+  onDetail,
+  onReconcile,
+  onSettle,
+}: {
+  payment: PaymentRow;
+  t: T;
+  onDetail: () => void;
+  onReconcile?: () => void;
+  onSettle?: () => void;
+}) {
+  const guest = p.order.purpose === "WIFI_PACKAGE";
+  return (
+    <Card className="gap-0 overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <SoftIcon size="sm" tone={guest ? "teal" : "violet"}>
+            {guest ? <Wifi /> : <Receipt />}
+          </SoftIcon>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-bold text-[var(--advo-text)]">
+                {guest ? t("admin.payments.attempts.purpose.guest") : t("admin.payments.attempts.purpose.subscription")}
+              </p>
+              <StatusChip tone={CHIP_TONE[p.state] ?? "default"}>{t(stateLabel(p.state))}</StatusChip>
+              <StatusChip tone={CHIP_TONE[p.order.paymentState] ?? "default"}>
+                {t(stateLabel(p.order.paymentState))}
+              </StatusChip>
+            </div>
+            <p className="truncate text-xs text-[var(--advo-muted)]">
+              {p.order.reseller.businessName}
+              {p.order.site?.name ? ` · ${p.order.site.name}` : ""}
+            </p>
+            <p className="text-sm font-bold text-[var(--advo-text)] tabular-nums">
+              {formatTzs(p.order.amountTzs)}
+              {p.amountReceivedTzs ? (
+                <span className="ml-2 text-xs font-semibold text-emerald-300">
+                  {t("admin.payments.attempts.received", { amount: formatTzs(p.amountReceivedTzs) })}
+                </span>
+              ) : null}
+            </p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[var(--advo-muted)]">
+              <span>{p.provider}</span>
+              <Mono>{p.providerReference ?? t("admin.payments.none")}</Mono>
+              <span>{formatDateTime(p.createdAt)}</span>
+            </p>
+            {p.lastError ? <p className="text-[11px] leading-snug text-red-300">{p.lastError}</p> : null}
+            {needsSettlement(p) ? (
+              <p className="text-[11px] font-semibold text-amber-300">{t("admin.payments.attempts.feeUnknown")}</p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">
+          <Button className="text-xs" onPress={onDetail} size="sm" type="button" variant="primary">
+            <Eye className="size-3.5" />
+            {t("admin.payments.attempts.action.detail")}
+          </Button>
+          {onReconcile ? (
+            <Button className="text-xs" onPress={onReconcile} size="sm" type="button" variant="outline">
+              {t("admin.payments.attempts.action.reconcile")}
+            </Button>
+          ) : null}
+          {onSettle ? (
+            <Button className="text-xs" onPress={onSettle} size="sm" type="button" variant="outline">
+              {t("admin.payments.attempts.action.settle")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function FilterPill({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+        active
+          ? "border-transparent bg-[#1B5EA4] text-white"
+          : "border-white/15 bg-[#2A2D33] text-[#E8EAEE] hover:border-[#1B5EA4]/60 hover:text-white"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+      <span className={`ml-1.5 tabular-nums ${active ? "text-white/85" : "text-white"}`}>{count}</span>
+    </button>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <span className="flex flex-col items-center gap-1.5 py-8">
+      <span className="text-sm font-bold text-[var(--advo-text)]">{text}</span>
+    </span>
   );
 }
 
@@ -1160,7 +1342,7 @@ function SettleDialog({
 
 function Mono({ children }: { children: ReactNode }) {
   return (
-    <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">
+    <code className="rounded border border-white/10 bg-[#101113] px-1.5 py-0.5 font-mono text-xs text-[#E8EAEE]">
       <Hash className="mr-0.5 inline size-2.5 opacity-50" />
       {children}
     </code>

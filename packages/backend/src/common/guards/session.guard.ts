@@ -114,7 +114,8 @@ export const SKIP_MFA_KEY = "skipMfa";
 export const SkipMfa = () => SetMetadata(SKIP_MFA_KEY, true);
 
 export function adminMfaRequired() {
-  if (process.env.NODE_ENV === "production") return true;
+  // Explicit `false` skips the Admin code challenge in every environment,
+  // including production. Anything else keeps the challenge on.
   return process.env.ADMIN_MFA_REQUIRED !== "false";
 }
 

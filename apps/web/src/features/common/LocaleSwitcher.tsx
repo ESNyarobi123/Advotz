@@ -17,6 +17,8 @@ export function LocaleSwitcher({
   variant = "light",
   showIcon = true,
   compact = false,
+  /** No outer border/box — sits flush inside a parent row (sidebar footer). */
+  flush = false,
   className = "",
 }: {
   /** `dark` sits on the charcoal sidebar, `light` on white marketing surfaces. */
@@ -24,6 +26,7 @@ export function LocaleSwitcher({
   showIcon?: boolean;
   /** Short codes (`EN` / `SW`) for the narrow icon rail instead of full names. */
   compact?: boolean;
+  flush?: boolean;
   className?: string;
 }) {
   const { locale, setLocale, t } = useI18n();
@@ -42,17 +45,22 @@ export function LocaleSwitcher({
     router.refresh();
   };
 
-  const shell =
-    variant === "dark"
-      ? "border-white/10 bg-white/[0.06]"
-      : "border-[var(--advo-border)] bg-[var(--advo-page)]";
+  const shell = flush
+    ? "border-0 bg-transparent p-0"
+    : variant === "dark"
+      ? "border border-white/10 bg-white/[0.06] p-0.5"
+      : "border border-[var(--advo-border)] bg-[var(--advo-page)] p-0.5";
   const inactive = variant === "dark" ? "text-slate-400 hover:text-white" : "text-[var(--advo-muted)] hover:text-[var(--advo-text)]";
-  const active = variant === "dark" ? "bg-white/15 font-bold text-white" : "bg-white font-bold text-advo-blue shadow-sm";
+  const active = variant === "dark"
+    ? flush
+      ? "bg-white/12 font-bold text-white"
+      : "bg-white/15 font-bold text-white"
+    : "bg-white font-bold text-advo-blue shadow-sm";
 
   return (
     <div
       aria-label={t("common.languageSwitch")}
-      className={`inline-flex items-center gap-1 rounded-xl border p-0.5 ${shell} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-xl ${shell} ${className}`}
       role="group"
       title={t("common.languageCurrent", { language: LOCALE_META[locale].nativeName })}
     >

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Card } from "@heroui/react";
 import { Notice } from "@advo/ui";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,6 +9,8 @@ import { useI18n } from "@/lib/i18n";
 import { AdvoLogo } from "@/features/marketing/AdvoLogo";
 import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 import { AuthShowcasePanel } from "@/features/auth/AuthShowcasePanel";
+import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
+import { buttonClasses, cx } from "@/features/marketing/ui";
 import {
   User,
   Mail,
@@ -28,30 +29,35 @@ import {
   Coffee,
   Hotel,
   GraduationCap,
-  Store,
   Wifi,
 } from "lucide-react";
+
+const fieldClass =
+  "w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-3 text-sm text-advo-text outline-none transition placeholder:text-advo-muted focus:border-advo-gold/60 focus:bg-white focus:ring-2 focus:ring-advo-gold/25";
+
+const fieldWithIcon = cx(fieldClass, "pl-11");
+
+const labelClass =
+  "mb-1.5 block text-xs font-bold tracking-wide text-advo-text uppercase";
+
+const linkAccent =
+  "font-bold text-[#b15f00] underline underline-offset-2 transition hover:text-advo-orange";
 
 export default function RegisterPage() {
   const { t } = useI18n();
   const router = useRouter();
 
   const [accountType, setAccountType] = useState<"reseller" | "agent">("reseller");
-
-  // Multi-step state for reseller: 1, 2, 3
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const [form, setForm] = useState({
-    // Step 1: Account
     ownerName: "",
     email: "",
     phone: "+255",
     password: "",
-    // Step 2: Business
     businessName: "",
     venueType: "cafe",
     city: "Dar es Salaam",
-    // Step 3: Network & Legal
     deviceType: "ap",
     referralCode: "",
     acceptTerms: false,
@@ -87,7 +93,6 @@ export default function RegisterPage() {
     setAgentForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  // Step 1 Validation
   function validateStep1() {
     if (!form.ownerName.trim()) {
       setError(t("auth.register.error.fullName"));
@@ -109,7 +114,6 @@ export default function RegisterPage() {
     return true;
   }
 
-  // Step 2 Validation
   function validateStep2() {
     if (!form.businessName.trim()) {
       setError(t("auth.register.error.businessName"));
@@ -121,11 +125,8 @@ export default function RegisterPage() {
 
   function handleNext(e: React.FormEvent) {
     e.preventDefault();
-    if (step === 1 && validateStep1()) {
-      setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
-    }
+    if (step === 1 && validateStep1()) setStep(2);
+    else if (step === 2 && validateStep2()) setStep(3);
   }
 
   function handlePrev() {
@@ -153,9 +154,7 @@ export default function RegisterPage() {
         phone: form.phone,
         password: form.password,
         acceptTerms: true as const,
-        ...(form.referralCode.trim()
-          ? { referralCode: form.referralCode.trim() }
-          : {}),
+        ...(form.referralCode.trim() ? { referralCode: form.referralCode.trim() } : {}),
       };
 
       const res = await apiFetch<{
@@ -222,7 +221,9 @@ export default function RegisterPage() {
           email: agentForm.email.trim(),
           phone: agentForm.phone.trim(),
           password: agentForm.password,
-          referralCode: agentForm.referralCode.trim() ? agentForm.referralCode.trim().toUpperCase() : undefined,
+          referralCode: agentForm.referralCode.trim()
+            ? agentForm.referralCode.trim().toUpperCase()
+            : undefined,
           acceptTerms: true as const,
         }),
       });
@@ -242,169 +243,189 @@ export default function RegisterPage() {
     }
   }
 
+  const stepMeta = [
+    { n: 1 as const, label: t("auth.register.stepAccount") },
+    { n: 2 as const, label: t("auth.register.stepBusiness") },
+    { n: 3 as const, label: t("auth.register.stepDeviceType") },
+  ];
+
   return (
-    <div className="min-h-screen flex bg-[#F7F9FC] text-[#18212F]">
-      {/* Left side: Premium Brand Showcase Panel */}
+    <div className="flex min-h-screen bg-advo-page text-advo-text selection:bg-[#FBA102] selection:text-advo-charcoal">
       <AuthShowcasePanel type="register" />
 
-      {/* Right side: Modern Auth Container */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-16 relative overflow-y-auto">
-        {/* Desktop Top Nav */}
-        <div className="hidden lg:flex items-center justify-end">
+      <div className="relative flex w-full flex-col justify-between overflow-y-auto p-6 sm:p-10 lg:w-[52%] xl:w-1/2 lg:p-12 xl:p-16">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.08),transparent_70%)] blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-1/4 size-64 rounded-full bg-[radial-gradient(circle,rgba(241,99,4,0.05),transparent_70%)] blur-3xl"
+        />
+
+        <div className="relative z-10 hidden items-center justify-between lg:flex">
+          <LocaleSwitcher compact showIcon={false} variant="light" />
           <Link
             href="/"
-            className="text-xs font-semibold text-[#526174] hover:text-[#18212F] transition flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-white border border-transparent hover:border-[#DFE5EC]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 text-xs font-semibold text-advo-muted transition hover:border-advo-border hover:bg-white hover:text-advo-text"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{t("auth.common.backToMainSite")}</span>
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            {t("auth.common.backToMainSite")}
           </Link>
         </div>
 
-        {/* Mobile-only Top Bar */}
-        <div className="lg:hidden flex items-center justify-between mb-4">
+        <div className="relative z-10 mb-2 flex items-center justify-between lg:hidden">
           <AdvoLogo size="sm" variant="light" />
-          <Link
-            href="/"
-            className="text-xs font-semibold text-[#526174] hover:text-[#18212F] flex items-center gap-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{t("auth.common.home")}</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher compact showIcon={false} variant="light" />
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-advo-muted transition hover:text-advo-text"
+            >
+              <ArrowLeft className="size-3.5" aria-hidden="true" />
+              {t("auth.common.home")}
+            </Link>
+          </div>
         </div>
 
-        {/* Main Multi-Step Form Card */}
-        <div className="w-full max-w-xl mx-auto my-auto py-4">
-          <Card className="p-7 sm:p-9 shadow-xl relative overflow-hidden">
-            {/* Top Brand Gradient Line */}
+        <div className="relative z-10 mx-auto w-full max-w-xl flex-1 py-6">
+          <div className="relative overflow-hidden rounded-card border border-advo-border bg-white p-7 shadow-advo-card sm:p-9">
             <div
-              className="absolute top-0 left-0 right-0 h-1.5"
-              style={{
-                background: "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)",
-              }}
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,#fba102_0%,#f16304_100%)]"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-16 -top-20 size-44 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.12),transparent_70%)] blur-2xl"
             />
 
-            {/* Header */}
-            <div className="mb-6 space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#1B5EA4]/10 text-[#1B5EA4] mb-1">
-                <Sparkles className="w-3 h-3 text-[#FBA102]" />
-                {accountType === "reseller" ? t("auth.register.badgeReseller") : t("auth.register.badgeAgent")}
-              </div>
-              <h1 className="text-2xl font-black text-[#18212F] tracking-tight">
-                {accountType === "reseller" ? t("auth.register.titleReseller") : t("auth.register.titleAgent")}
+            <header className="relative mb-6 space-y-2.5">
+              <span className="inline-flex items-center gap-2 rounded-full border border-advo-gold/30 bg-advo-gold-soft px-3 py-1 text-[11px] font-bold tracking-[0.14em] text-[#b15f00] uppercase">
+                <Sparkles className="size-3" aria-hidden="true" />
+                {accountType === "reseller"
+                  ? t("auth.register.badgeReseller")
+                  : t("auth.register.badgeAgent")}
+              </span>
+              <h1 className="text-2xl font-black tracking-tight text-advo-text sm:text-[1.7rem]">
+                {accountType === "reseller"
+                  ? t("auth.register.titleReseller")
+                  : t("auth.register.titleAgent")}
               </h1>
-              <p className="text-xs text-[#526174] leading-relaxed">
+              <p className="text-sm leading-relaxed text-advo-muted">
                 {accountType === "reseller"
                   ? t("auth.register.subtitleReseller")
                   : t("auth.register.subtitleAgent")}
               </p>
-            </div>
+            </header>
 
-            {/* Role / Account Type Selector Tabs */}
-            <div className="grid grid-cols-2 p-1 bg-[#F7F9FC] border border-[#DFE5EC] rounded-2xl mb-6">
+            {/* Account type tabs */}
+            <div className="relative mb-6 grid grid-cols-2 gap-1 rounded-2xl border border-advo-border bg-advo-page p-1">
               <button
                 type="button"
                 id="tab-reseller"
-                onClick={() => { setAccountType("reseller"); setError(null); }}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                onClick={() => {
+                  setAccountType("reseller");
+                  setError(null);
+                }}
+                className={cx(
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all",
                   accountType === "reseller"
-                    ? "bg-white text-[#1B5EA4] shadow-sm border border-[#DFE5EC]"
-                    : "text-[#526174] hover:text-[#18212F]"
-                }`}
+                    ? "border border-advo-gold/30 bg-white text-[#b15f00] shadow-sm"
+                    : "text-advo-muted hover:text-advo-text",
+                )}
               >
-                <Building className="w-4 h-4 text-[#1B5EA4]" />
-                <span>{t("auth.register.tabReseller")}</span>
+                <Building className="size-4" aria-hidden="true" />
+                {t("auth.register.tabReseller")}
               </button>
               <button
                 type="button"
                 id="tab-agent"
-                onClick={() => { setAccountType("agent"); setError(null); }}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+                onClick={() => {
+                  setAccountType("agent");
+                  setError(null);
+                }}
+                className={cx(
+                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all",
                   accountType === "agent"
-                    ? "bg-white text-[#F16304] shadow-sm border border-[#DFE5EC]"
-                    : "text-[#526174] hover:text-[#18212F]"
-                }`}
+                    ? "border border-advo-gold/30 bg-white text-[#b15f00] shadow-sm"
+                    : "text-advo-muted hover:text-advo-text",
+                )}
               >
-                <Sparkles className="w-4 h-4 text-[#FBA102]" />
-                <span>{t("auth.register.tabAgent")}</span>
+                <Sparkles className="size-4" aria-hidden="true" />
+                {t("auth.register.tabAgent")}
               </button>
             </div>
 
             {accountType === "agent" ? (
-              <form onSubmit={onAgentSubmit} className="space-y-4">
-                {/* Social Login Buttons */}
-                <div className="mb-4">
-                  <SocialLoginButtons />
-                  <div className="relative my-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-[#DFE5EC]" />
+              <form onSubmit={onAgentSubmit} className="relative space-y-4">
+                <SocialLoginButtons />
+
+                <div>
+                  <label htmlFor="agent-name" className={labelClass}>
+                    {t("auth.register.fullNameLabel")}
+                  </label>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                      <User className="size-4" aria-hidden="true" />
                     </div>
-                    <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
-                      <span className="bg-white px-3 text-[#526174]">
-                        {t("auth.register.agentOrDetails")}
-                      </span>
-                    </div>
+                    <input
+                      id="agent-name"
+                      type="text"
+                      required
+                      placeholder={t("auth.register.fullNamePlaceholder")}
+                      value={agentForm.name}
+                      onChange={(e) => updateAgent("name", e.target.value)}
+                      className={fieldWithIcon}
+                    />
                   </div>
                 </div>
 
-                {/* Name */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#18212F] flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-[#1B5EA4]" />
-                    <span>{t("auth.register.fullNameLabel")}</span>
+                <div>
+                  <label htmlFor="agent-email" className={labelClass}>
+                    {t("email")}
                   </label>
-                  <input
-                    id="agent-name"
-                    type="text"
-                    required
-                    placeholder={t("auth.register.fullNamePlaceholder")}
-                    value={agentForm.name}
-                    onChange={(e) => updateAgent("name", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-field border border-[#DFE5EC] bg-[#F7F9FC] text-xs font-medium text-[#18212F] focus:bg-white focus:outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 transition"
-                  />
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                      <Mail className="size-4" aria-hidden="true" />
+                    </div>
+                    <input
+                      id="agent-email"
+                      type="email"
+                      required
+                      placeholder={t("auth.register.agentEmailPlaceholder")}
+                      value={agentForm.email}
+                      onChange={(e) => updateAgent("email", e.target.value)}
+                      className={fieldWithIcon}
+                    />
+                  </div>
                 </div>
 
-                {/* Email */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#18212F] flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-[#1B5EA4]" />
-                    <span>{t("email")}</span>
+                <div>
+                  <label htmlFor="agent-phone" className={labelClass}>
+                    {t("phone")}
                   </label>
-                  <input
-                    id="agent-email"
-                    type="email"
-                    required
-                    placeholder={t("auth.register.agentEmailPlaceholder")}
-                    value={agentForm.email}
-                    onChange={(e) => updateAgent("email", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-field border border-[#DFE5EC] bg-[#F7F9FC] text-xs font-medium text-[#18212F] focus:bg-white focus:outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 transition"
-                  />
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                      <Phone className="size-4" aria-hidden="true" />
+                    </div>
+                    <input
+                      id="agent-phone"
+                      type="tel"
+                      required
+                      placeholder="+255712345678"
+                      value={agentForm.phone}
+                      onChange={(e) => updateAgent("phone", e.target.value)}
+                      className={cx(fieldWithIcon, "font-mono")}
+                    />
+                  </div>
                 </div>
 
-                {/* Phone */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#18212F] flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-[#1B5EA4]" />
-                    <span>{t("phone")}</span>
-                  </label>
-                  <input
-                    id="agent-phone"
-                    type="tel"
-                    required
-                    placeholder="+255712345678"
-                    value={agentForm.phone}
-                    onChange={(e) => updateAgent("phone", e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-field border border-[#DFE5EC] bg-[#F7F9FC] text-xs font-medium text-[#18212F] focus:bg-white focus:outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 transition"
-                  />
-                </div>
-
-                {/* Desired Referral Code */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-[#18212F] flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#FBA102]" />
-                      <span>{t("auth.register.referralLabel")}</span>
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label htmlFor="agent-code" className={cx(labelClass, "mb-0")}>
+                      {t("auth.register.referralLabel")}
                     </label>
-                    <span className="text-[10px] text-[#526174]">{t("auth.common.optional")}</span>
+                    <span className="text-[10px] text-advo-muted">{t("auth.common.optional")}</span>
                   </div>
                   <input
                     id="agent-code"
@@ -412,20 +433,19 @@ export default function RegisterPage() {
                     placeholder={t("auth.register.referralPlaceholder")}
                     value={agentForm.referralCode}
                     onChange={(e) => updateAgent("referralCode", e.target.value.toUpperCase())}
-                    className="w-full px-3.5 py-2.5 rounded-field border border-[#DFE5EC] bg-[#F7F9FC] text-xs font-medium text-[#18212F] focus:bg-white focus:outline-none focus:border-[#FBA102] focus:ring-2 focus:ring-[#FBA102]/20 transition uppercase"
+                    className={cx(fieldClass, "uppercase")}
                   />
-                  <p className="text-[10px] text-[#526174]">
-                    {t("auth.register.referralHint")}
-                  </p>
+                  <p className="mt-1.5 text-[11px] text-advo-muted">{t("auth.register.referralHint")}</p>
                 </div>
 
-                {/* Password */}
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-[#18212F] flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-[#1B5EA4]" />
-                    <span>{t("auth.password.minLength")}</span>
+                <div>
+                  <label htmlFor="agent-password" className={labelClass}>
+                    {t("auth.password.minLength")}
                   </label>
                   <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                      <Lock className="size-4" aria-hidden="true" />
+                    </div>
                     <input
                       id="agent-password"
                       type={showPassword ? "text" : "password"}
@@ -433,536 +453,465 @@ export default function RegisterPage() {
                       placeholder="••••••••••••"
                       value={agentForm.password}
                       onChange={(e) => updateAgent("password", e.target.value)}
-                      className="w-full px-3.5 py-2.5 pr-10 rounded-field border border-[#DFE5EC] bg-[#F7F9FC] text-xs font-medium text-[#18212F] focus:bg-white focus:outline-none focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 transition"
+                      className={cx(fieldWithIcon, "pr-11")}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#526174] hover:text-[#18212F]"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-advo-muted transition hover:text-advo-text"
+                      aria-label={showPassword ? t("auth.password.hide") : t("auth.password.show")}
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? (
+                        <EyeOff className="size-4" aria-hidden="true" />
+                      ) : (
+                        <Eye className="size-4" aria-hidden="true" />
+                      )}
                     </button>
                   </div>
                 </div>
 
-                {/* Accept Terms */}
-                <label className="flex items-start gap-2.5 cursor-pointer pt-2">
+                <label className="flex cursor-pointer items-start gap-2.5 pt-1">
                   <input
                     type="checkbox"
                     id="agent-terms"
                     checked={agentForm.acceptTerms}
                     onChange={(e) => updateAgent("acceptTerms", e.target.checked)}
-                    className="mt-0.5 rounded border-[#DFE5EC] text-[#1B5EA4] focus:ring-[#1B5EA4]"
+                    className="mt-0.5 size-4 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
                   />
-                  <span className="text-[11px] text-[#526174] leading-relaxed">
+                  <span className="text-[11px] leading-relaxed text-advo-muted">
                     {t("auth.register.agentTermsLead")}{" "}
-                    <Link href="/terms" className="text-[#1B5EA4] font-bold hover:underline">
+                    <Link href="/terms" className={linkAccent}>
                       {t("auth.register.agentTermsLink")}
                     </Link>{" "}
                     {t("auth.register.termsAnd")}{" "}
-                    <Link href="/privacy" className="text-[#1B5EA4] font-bold hover:underline">
+                    <Link href="/privacy" className={linkAccent}>
                       {t("auth.register.termsPrivacy")}
                     </Link>{" "}
                     {t("auth.register.agentTermsTrail")}
                   </span>
                 </label>
 
-                {/* Error Banner */}
-                {error && (
-                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-600">
-                    {error}
-                  </div>
-                )}
-                {info && (
-                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs font-semibold text-[#1B5EA4]">
-                    {info}
-                  </div>
-                )}
+                {error && <Notice tone="danger">{error}</Notice>}
+                {info && <Notice tone="success">{info}</Notice>}
 
-                {/* Submit button */}
                 <button
                   type="submit"
                   id="agent-submit-btn"
                   disabled={pending || !agentForm.acceptTerms}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-xs text-white shadow-lg transition-all duration-200 disabled:opacity-60 active:scale-[0.99] bg-[#1B5EA4] hover:bg-[#2176C2] mt-4"
-                  style={{
-                    boxShadow: "0 4px 15px rgba(27, 94, 164, 0.45)",
-                  }}
+                  className={buttonClasses({
+                    variant: "gold",
+                    size: "lg",
+                    className: "mt-2 w-full",
+                  })}
                 >
-                  <span>{pending ? t("auth.register.agentSubmitPending") : t("auth.register.agentSubmit")}</span>
-                  <Sparkles className="w-4 h-4 text-[#FBA102]" />
+                  <span>
+                    {pending
+                      ? t("auth.register.agentSubmitPending")
+                      : t("auth.register.agentSubmit")}
+                  </span>
+                  <Sparkles className="size-4 shrink-0" aria-hidden="true" />
                 </button>
               </form>
             ) : (
               <>
-            {/* Visual Step Progress Tracker */}
-            <div className="mb-8 p-4 rounded-2xl bg-[#F7F9FC] border border-[#DFE5EC]">
-              <div className="flex items-center justify-between relative">
-                {/* Connecting track line */}
-                <div className="absolute top-4 left-6 right-6 h-0.5 bg-[#DFE5EC] -z-0" />
-                <div
-                  className="absolute top-4 left-6 h-0.5 transition-all duration-300 -z-0"
-                  style={{
-                    width: step === 1 ? "0%" : step === 2 ? "50%" : "100%",
-                    backgroundColor: "#1B5EA4",
-                  }}
-                />
-
-                {/* Step 1 Indicator */}
-                <div className="flex flex-col items-center relative z-10">
+                {/* Step progress */}
+                <div className="relative mb-7 rounded-2xl border border-advo-border bg-advo-page p-4">
+                  <div className="absolute top-[2.15rem] right-10 left-10 h-0.5 bg-advo-border" />
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      step >= 1
-                        ? "bg-[#1B5EA4] text-white shadow-md ring-4 ring-blue-50"
-                        : "bg-slate-200 text-slate-500"
-                    }`}
-                  >
-                    {step > 1 ? <CheckCircle2 className="w-4 h-4 text-white" /> : "1"}
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold mt-1.5 ${
-                      step === 1 ? "text-[#1B5EA4]" : "text-[#18212F]"
-                    }`}
-                  >
-                    {t("auth.register.stepAccount")}
-                  </span>
+                    className="absolute top-[2.15rem] left-10 h-0.5 bg-[linear-gradient(90deg,#fba102,#f16304)] transition-all duration-300"
+                    style={{
+                      width:
+                        step === 1 ? "0%" : step === 2 ? "calc(50% - 2.5rem)" : "calc(100% - 5rem)",
+                    }}
+                  />
+                  <ol className="relative z-10 flex items-start justify-between">
+                    {stepMeta.map((s) => {
+                      const done = step > s.n;
+                      const active = step === s.n;
+                      return (
+                        <li key={s.n} className="flex flex-col items-center">
+                          <span
+                            className={cx(
+                              "flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all",
+                              done || active
+                                ? "bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)] text-advo-charcoal shadow-md ring-4 ring-advo-gold-soft"
+                                : "bg-white text-advo-muted ring-1 ring-advo-border",
+                            )}
+                          >
+                            {done ? (
+                              <CheckCircle2 className="size-4" aria-hidden="true" />
+                            ) : (
+                              s.n
+                            )}
+                          </span>
+                          <span
+                            className={cx(
+                              "mt-1.5 text-[10px] font-bold",
+                              active ? "text-[#b15f00]" : "text-advo-muted",
+                            )}
+                          >
+                            {s.label}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
 
-                {/* Step 2 Indicator */}
-                <div className="flex flex-col items-center relative z-10">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      step >= 2
-                        ? "bg-[#1B5EA4] text-white shadow-md ring-4 ring-blue-50"
-                        : "bg-slate-200 text-slate-500"
-                    }`}
-                  >
-                    {step > 2 ? <CheckCircle2 className="w-4 h-4 text-white" /> : "2"}
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold mt-1.5 ${
-                      step === 2 ? "text-[#1B5EA4]" : "text-[#18212F]"
-                    }`}
-                  >
-                    {t("auth.register.stepBusiness")}
-                  </span>
-                </div>
-
-                {/* Step 3 Indicator */}
-                <div className="flex flex-col items-center relative z-10">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      step === 3
-                        ? "text-[#111213] shadow-md ring-4 ring-amber-50"
-                        : "bg-slate-200 text-slate-500"
-                    }`}
-                    style={
-                      step === 3
-                        ? {
-                            background: "linear-gradient(135deg, #FBA102 0%, #F16304 100%)",
-                          }
-                        : undefined
-                    }
-                  >
-                    3
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold mt-1.5 ${
-                      step === 3 ? "text-[#F16304]" : "text-[#18212F]"
-                    }`}
-                  >
-                    {t("auth.register.stepDeviceType")}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Form Wizard */}
-            <form onSubmit={step === 3 ? onSubmit : handleNext} className="space-y-4">
-              {/* ============================================================= */}
-              {/* STEP 1: Taarifa za Msingi & Akaunti                           */}
-              {/* ============================================================= */}
-              {step === 1 && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
-                  {/* Social Buttons on top */}
-                  <div className="mb-2">
-                    <div className="text-[11px] font-bold text-[#18212F] uppercase tracking-wider mb-2.5 text-center">
-                      {t("auth.register.socialPrompt")}
-                    </div>
-                    <SocialLoginButtons />
-                  </div>
-
-                  {/* Owner Name */}
-                  <div>
-                    <label
-                      htmlFor="ownerName"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("auth.register.fullNameLabel")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <User className="w-4 h-4" />
+                <form
+                  onSubmit={step === 3 ? onSubmit : handleNext}
+                  className="relative space-y-4"
+                >
+                  {step === 1 && (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div>
+                        <p className="mb-2.5 text-center text-[11px] font-bold tracking-wider text-advo-muted uppercase">
+                          {t("auth.register.socialPrompt")}
+                        </p>
+                        <SocialLoginButtons />
                       </div>
-                      <input
-                        id="ownerName"
-                        type="text"
-                        placeholder={t("auth.register.ownerNamePlaceholder")}
-                        value={form.ownerName}
-                        onChange={(e) => update("ownerName", e.target.value)}
-                        required
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20"
-                      />
-                    </div>
-                  </div>
 
-                  {/* Email */}
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("email")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <Mail className="w-4 h-4" />
+                      <div>
+                        <label htmlFor="ownerName" className={labelClass}>
+                          {t("auth.register.fullNameLabel")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <User className="size-4" aria-hidden="true" />
+                          </div>
+                          <input
+                            id="ownerName"
+                            type="text"
+                            placeholder={t("auth.register.ownerNamePlaceholder")}
+                            value={form.ownerName}
+                            onChange={(e) => update("ownerName", e.target.value)}
+                            required
+                            className={fieldWithIcon}
+                          />
+                        </div>
                       </div>
-                      <input
-                        id="email"
-                        type="email"
-                        placeholder={t("auth.field.emailPlaceholder")}
-                        value={form.email}
-                        onChange={(e) => update("email", e.target.value)}
-                        required
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20"
-                      />
-                    </div>
-                  </div>
 
-                  {/* Phone */}
-                  <div>
-                    <label
-                      htmlFor="phone"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("phone")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <Phone className="w-4 h-4" />
+                      <div>
+                        <label htmlFor="email" className={labelClass}>
+                          {t("email")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <Mail className="size-4" aria-hidden="true" />
+                          </div>
+                          <input
+                            id="email"
+                            type="email"
+                            placeholder={t("auth.field.emailPlaceholder")}
+                            value={form.email}
+                            onChange={(e) => update("email", e.target.value)}
+                            required
+                            className={fieldWithIcon}
+                          />
+                        </div>
                       </div>
-                      <input
-                        id="phone"
-                        type="tel"
-                        placeholder="+2557XXXXXXXX"
-                        value={form.phone}
-                        onChange={(e) => update("phone", e.target.value)}
-                        required
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20 font-mono"
-                      />
-                    </div>
-                  </div>
 
-                  {/* Password */}
-                  <div>
-                    <label
-                      htmlFor="password"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("auth.password.minLength")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <Lock className="w-4 h-4" />
+                      <div>
+                        <label htmlFor="phone" className={labelClass}>
+                          {t("phone")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <Phone className="size-4" aria-hidden="true" />
+                          </div>
+                          <input
+                            id="phone"
+                            type="tel"
+                            placeholder="+2557XXXXXXXX"
+                            value={form.phone}
+                            onChange={(e) => update("phone", e.target.value)}
+                            required
+                            className={cx(fieldWithIcon, "font-mono")}
+                          />
+                        </div>
                       </div>
-                      <input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••••••"
-                        value={form.password}
-                        onChange={(e) => update("password", e.target.value)}
-                        minLength={10}
-                        required
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-10 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20"
-                      />
+
+                      <div>
+                        <label htmlFor="password" className={labelClass}>
+                          {t("auth.password.minLength")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <Lock className="size-4" aria-hidden="true" />
+                          </div>
+                          <input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••••••"
+                            value={form.password}
+                            onChange={(e) => update("password", e.target.value)}
+                            minLength={10}
+                            required
+                            className={cx(fieldWithIcon, "pr-11")}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-advo-muted transition hover:text-advo-text"
+                            tabIndex={-1}
+                            aria-label={
+                              showPassword ? t("auth.password.hide") : t("auth.password.show")
+                            }
+                          >
+                            {showPassword ? (
+                              <EyeOff className="size-4" aria-hidden="true" />
+                            ) : (
+                              <Eye className="size-4" aria-hidden="true" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 2 && (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div>
+                        <label htmlFor="businessName" className={labelClass}>
+                          {t("auth.register.businessNameLabel")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <Building className="size-4" aria-hidden="true" />
+                          </div>
+                          <input
+                            id="businessName"
+                            type="text"
+                            placeholder={t("auth.register.businessNamePlaceholder")}
+                            value={form.businessName}
+                            onChange={(e) => update("businessName", e.target.value)}
+                            required
+                            className={fieldWithIcon}
+                          />
+                        </div>
+                        <p className="mt-1.5 text-[11px] text-advo-muted">
+                          {t("auth.register.businessNameHint")}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label htmlFor="venueType" className={labelClass}>
+                          {t("auth.register.venueTypeLabel")}
+                        </label>
+                        <div className="mb-2 grid grid-cols-2 gap-2">
+                          {[
+                            { id: "cafe", label: t("auth.register.venue.cafe"), icon: Coffee },
+                            { id: "hotel", label: t("auth.register.venue.hotel"), icon: Hotel },
+                            {
+                              id: "hostel",
+                              label: t("auth.register.venue.hostel"),
+                              icon: GraduationCap,
+                            },
+                            { id: "wisp", label: t("auth.register.venue.wisp"), icon: Wifi },
+                          ].map((item) => {
+                            const Icon = item.icon;
+                            const isSelected = form.venueType === item.id;
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => update("venueType", item.id)}
+                                className={cx(
+                                  "flex items-center gap-2.5 rounded-xl border p-3 text-left text-xs transition-all",
+                                  isSelected
+                                    ? "border-advo-gold/50 bg-advo-gold-soft font-bold text-[#b15f00] shadow-xs"
+                                    : "border-advo-border bg-advo-page text-advo-muted hover:bg-white",
+                                )}
+                              >
+                                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                                {item.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <select
+                          id="venueType"
+                          value={form.venueType}
+                          onChange={(e) => update("venueType", e.target.value)}
+                          className={fieldClass}
+                        >
+                          <option value="cafe">{t("auth.register.venueOption.cafe")}</option>
+                          <option value="hotel">{t("auth.register.venueOption.hotel")}</option>
+                          <option value="hostel">{t("auth.register.venueOption.hostel")}</option>
+                          <option value="wisp">{t("auth.register.venueOption.wisp")}</option>
+                          <option value="salon">{t("auth.register.venueOption.salon")}</option>
+                          <option value="other">{t("auth.register.venueOption.other")}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="city" className={labelClass}>
+                          {t("auth.register.cityLabel")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <MapPin className="size-4" aria-hidden="true" />
+                          </div>
+                          <select
+                            id="city"
+                            value={form.city}
+                            onChange={(e) => update("city", e.target.value)}
+                            className={fieldWithIcon}
+                          >
+                            <option value="Dar es Salaam">{t("auth.register.city.dar")}</option>
+                            <option value="Arusha">{t("auth.register.city.arusha")}</option>
+                            <option value="Zanzibar">{t("auth.register.city.zanzibar")}</option>
+                            <option value="Mwanza">{t("auth.register.city.mwanza")}</option>
+                            <option value="Dodoma">{t("auth.register.city.dodoma")}</option>
+                            <option value="Mbeya">{t("auth.register.city.mbeya")}</option>
+                            <option value="Morogoro">{t("auth.register.city.morogoro")}</option>
+                            <option value="Tanga">{t("auth.register.city.tanga")}</option>
+                            <option value="Kilimanjaro">
+                              {t("auth.register.city.kilimanjaro")}
+                            </option>
+                            <option value="Other">{t("auth.register.city.other")}</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 3 && (
+                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
+                      <div>
+                        <label htmlFor="deviceType" className={labelClass}>
+                          {t("auth.register.deviceTypeLabel")}
+                        </label>
+                        <div className="relative">
+                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
+                            <Radio className="size-4" aria-hidden="true" />
+                          </div>
+                          <select
+                            id="deviceType"
+                            value={form.deviceType}
+                            onChange={(e) => update("deviceType", e.target.value)}
+                            className={fieldWithIcon}
+                          >
+                            <option value="ap">{t("auth.register.deviceType.ap")}</option>
+                            <option value="gateway">{t("auth.register.deviceType.gateway")}</option>
+                            <option value="switch">{t("auth.register.deviceType.switch")}</option>
+                            <option value="repeater">
+                              {t("auth.register.deviceType.repeater")}
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="referralCode" className={labelClass}>
+                          {t("referralCodeOptional")}
+                        </label>
+                        <input
+                          id="referralCode"
+                          type="text"
+                          placeholder={t("auth.register.referralCodePlaceholder")}
+                          value={form.referralCode}
+                          onChange={(e) => update("referralCode", e.target.value)}
+                          className={cx(fieldClass, "font-mono uppercase")}
+                        />
+                        <p className="mt-1.5 text-[11px] text-advo-muted">
+                          {t("auth.register.referralBonusHint")}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-advo-border bg-advo-page p-4">
+                        <label className="flex cursor-pointer items-start gap-3 text-xs text-advo-text">
+                          <input
+                            type="checkbox"
+                            checked={form.acceptTerms}
+                            onChange={(e) => update("acceptTerms", e.target.checked)}
+                            required
+                            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
+                          />
+                          <span className="leading-relaxed">
+                            {t("auth.register.termsLead")}{" "}
+                            <Link href="/terms" className={linkAccent}>
+                              {t("auth.register.termsService")}
+                            </Link>{" "}
+                            {t("auth.register.termsAnd")}{" "}
+                            <Link href="/privacy" className={linkAccent}>
+                              {t("auth.register.termsPrivacy")}
+                            </Link>{" "}
+                            {t("auth.register.termsTrail")}
+                          </span>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50 p-3.5">
+                        <ShieldCheck className="size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+                        <p className="text-[11px] leading-snug text-emerald-900">
+                          <strong>{t("auth.register.guaranteeTitle")}</strong>{" "}
+                          {t("auth.register.guaranteeBody")}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {error && <Notice tone="danger">{error}</Notice>}
+                  {info && <Notice tone="success">{info}</Notice>}
+
+                  <div className="flex items-center gap-3 border-t border-advo-border pt-4">
+                    {step > 1 && (
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#526174] hover:text-[#18212F]"
-                        tabIndex={-1}
-                        aria-label={showPassword ? t("auth.password.hide") : t("auth.password.show")}
+                        onClick={handlePrev}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-advo-page px-4 py-3 text-xs font-bold text-advo-text transition hover:bg-white active:scale-95"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        <ArrowLeft className="size-4" aria-hidden="true" />
+                        {t("back")}
                       </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {/* ============================================================= */}
-              {/* STEP 2: Taarifa za Biashara ya WiFi                           */}
-              {/* ============================================================= */}
-              {step === 2 && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
-                  {/* Business Name */}
-                  <div>
-                    <label
-                      htmlFor="businessName"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("auth.register.businessNameLabel")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <Building className="w-4 h-4" />
-                      </div>
-                      <input
-                        id="businessName"
-                        type="text"
-                        placeholder={t("auth.register.businessNamePlaceholder")}
-                        value={form.businessName}
-                        onChange={(e) => update("businessName", e.target.value)}
-                        required
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] focus:ring-2 focus:ring-[#1B5EA4]/20"
-                      />
-                    </div>
-                    <p className="text-[11px] text-[#526174] mt-1.5">
-                      {t("auth.register.businessNameHint")}
-                    </p>
-                  </div>
-
-                  {/* Venue Type Visual Selection */}
-                  <div>
-                    <label
-                      htmlFor="venueType"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("auth.register.venueTypeLabel")}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      {[
-                        { id: "cafe", label: t("auth.register.venue.cafe"), icon: Coffee },
-                        { id: "hotel", label: t("auth.register.venue.hotel"), icon: Hotel },
-                        { id: "hostel", label: t("auth.register.venue.hostel"), icon: GraduationCap },
-                        { id: "wisp", label: t("auth.register.venue.wisp"), icon: Wifi },
-                      ].map((item) => {
-                        const Icon = item.icon;
-                        const isSelected = form.venueType === item.id;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => update("venueType", item.id)}
-                            className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? "border-[#1B5EA4] bg-blue-50/50 text-[#1B5EA4] font-bold shadow-xs"
-                                : "border-[#DFE5EC] bg-[#F7F9FC] text-[#526174] hover:bg-slate-100"
-                            }`}
-                          >
-                            <Icon className={`w-4 h-4 ${isSelected ? "text-[#1B5EA4]" : "text-[#526174]"}`} />
-                            <span className="text-xs">{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <select
-                      id="venueType"
-                      value={form.venueType}
-                      onChange={(e) => update("venueType", e.target.value)}
-                      className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] px-3.5 py-2.5 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4]"
-                    >
-                      <option value="cafe">{t("auth.register.venueOption.cafe")}</option>
-                      <option value="hotel">{t("auth.register.venueOption.hotel")}</option>
-                      <option value="hostel">{t("auth.register.venueOption.hostel")}</option>
-                      <option value="wisp">{t("auth.register.venueOption.wisp")}</option>
-                      <option value="salon">{t("auth.register.venueOption.salon")}</option>
-                      <option value="other">{t("auth.register.venueOption.other")}</option>
-                    </select>
-                  </div>
-
-                  {/* City */}
-                  <div>
-                    <label
-                      htmlFor="city"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("auth.register.cityLabel")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <select
-                        id="city"
-                        value={form.city}
-                        onChange={(e) => update("city", e.target.value)}
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4]"
+                    {step < 3 ? (
+                      <button
+                        type="submit"
+                        className={buttonClasses({
+                          variant: "gold",
+                          size: "lg",
+                          className: "flex-1",
+                        })}
                       >
-                        <option value="Dar es Salaam">{t("auth.register.city.dar")}</option>
-                        <option value="Arusha">{t("auth.register.city.arusha")}</option>
-                        <option value="Zanzibar">{t("auth.register.city.zanzibar")}</option>
-                        <option value="Mwanza">{t("auth.register.city.mwanza")}</option>
-                        <option value="Dodoma">{t("auth.register.city.dodoma")}</option>
-                        <option value="Mbeya">{t("auth.register.city.mbeya")}</option>
-                        <option value="Morogoro">{t("auth.register.city.morogoro")}</option>
-                        <option value="Tanga">{t("auth.register.city.tanga")}</option>
-                        <option value="Kilimanjaro">{t("auth.register.city.kilimanjaro")}</option>
-                        <option value="Other">{t("auth.register.city.other")}</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ============================================================= */}
-              {/* STEP 3: Vifaa vya Mtandao, Rufaa & Masharti                   */}
-              {/* ============================================================= */}
-              {step === 3 && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200">
-                  {/* Device type */}
-                  <div>
-                    <label
-                      htmlFor="deviceType"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("auth.register.deviceTypeLabel")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#526174]">
-                        <Radio className="w-4 h-4" />
-                      </div>
-                      <select
-                        id="deviceType"
-                        value={form.deviceType}
-                        onChange={(e) => update("deviceType", e.target.value)}
-                        className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] pl-10 pr-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4]"
+                        <span>{t("auth.register.next")}</span>
+                        <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={pending || !form.acceptTerms}
+                        className={buttonClasses({
+                          variant: "gold",
+                          size: "lg",
+                          className: "flex-1",
+                        })}
                       >
-                        <option value="ap">{t("auth.register.deviceType.ap")}</option>
-                        <option value="gateway">{t("auth.register.deviceType.gateway")}</option>
-                        <option value="switch">{t("auth.register.deviceType.switch")}</option>
-                        <option value="repeater">{t("auth.register.deviceType.repeater")}</option>
-                      </select>
-                    </div>
+                        <span>
+                          {pending
+                            ? t("auth.register.submitPending")
+                            : t("auth.register.submit")}
+                        </span>
+                        <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
+                </form>
+              </>
+            )}
 
-                  {/* Referral Code */}
-                  <div>
-                    <label
-                      htmlFor="referralCode"
-                      className="block text-xs font-bold text-[#18212F] uppercase tracking-wide mb-1.5"
-                    >
-                      {t("referralCodeOptional")}
-                    </label>
-                    <input
-                      id="referralCode"
-                      type="text"
-                      placeholder={t("auth.register.referralCodePlaceholder")}
-                      value={form.referralCode}
-                      onChange={(e) => update("referralCode", e.target.value)}
-                      className="w-full rounded-field border border-[#DFE5EC] bg-[#F7F9FC] px-3.5 py-3 text-xs text-[#18212F] outline-none transition focus:bg-white focus:border-[#1B5EA4] font-mono uppercase"
-                    />
-                    <p className="text-[11px] text-[#526174] mt-1.5">
-                      {t("auth.register.referralBonusHint")}
-                    </p>
-                  </div>
-
-                  {/* Terms Agreement Checkbox */}
-                  <div className="p-4 rounded-2xl bg-[#F7F9FC] border border-[#DFE5EC]">
-                    <label className="flex items-start gap-3 text-xs text-[#18212F] cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.acceptTerms}
-                        onChange={(e) => update("acceptTerms", e.target.checked)}
-                        required
-                        className="mt-0.5 rounded border-[#DFE5EC] text-[#1B5EA4] focus:ring-[#1B5EA4] accent-[#1B5EA4] w-4 h-4 cursor-pointer shrink-0"
-                      />
-                      <span className="leading-relaxed">
-                        {t("auth.register.termsLead")}{" "}
-                        <Link href="/terms" className="font-bold text-[#1B5EA4] hover:underline">
-                          {t("auth.register.termsService")}
-                        </Link>{" "}
-                        {t("auth.register.termsAnd")}{" "}
-                        <Link href="/privacy" className="font-bold text-[#1B5EA4] hover:underline">
-                          {t("auth.register.termsPrivacy")}
-                        </Link>{" "}
-                        {t("auth.register.termsTrail")}
-                      </span>
-                    </label>
-                  </div>
-
-                  {/* Guarantee Box */}
-                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                    <div className="text-[11px] text-emerald-900 leading-snug">
-                      <strong>{t("auth.register.guaranteeTitle")}</strong> {t("auth.register.guaranteeBody")}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error & Info Messages */}
-              {error && <Notice tone="danger">{error}</Notice>}
-
-              {info && <Notice tone="success">{info}</Notice>}
-
-              {/* Multi-Step Action Buttons */}
-              <div className="flex items-center gap-3 pt-4 border-t border-[#DFE5EC]">
-                {step > 1 && (
-                  <button
-                    type="button"
-                    onClick={handlePrev}
-                    className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-[#DFE5EC] bg-[#F7F9FC] hover:bg-slate-200 text-xs font-bold text-[#18212F] transition active:scale-95"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>{t("back")}</span>
-                  </button>
-                )}
-
-                {step < 3 ? (
-                  <button
-                    type="submit"
-                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-xs text-white shadow-md transition-all duration-200 active:scale-[0.99] bg-[#1B5EA4] hover:bg-[#2176C2]"
-                    style={{
-                      boxShadow: "0 4px 14px rgba(27, 94, 164, 0.35)",
-                    }}
-                  >
-                    <span>{t("auth.register.next")}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={pending || !form.acceptTerms}
-                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-xs text-white shadow-lg transition-all duration-200 disabled:opacity-60 active:scale-[0.99] bg-[#1B5EA4] hover:bg-[#2176C2]"
-                    style={{
-                      boxShadow: "0 4px 15px rgba(27, 94, 164, 0.45)",
-                    }}
-                  >
-                    <span>{pending ? t("auth.register.submitPending") : t("auth.register.submit")}</span>
-                    <Sparkles className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </form>
-          </>
-        )}
-
-            {/* Footer Already Registered Link */}
-            <div className="mt-8 pt-6 border-t border-[#DFE5EC] text-center text-xs text-[#526174]">
+            <div className="relative mt-8 border-t border-advo-border pt-6 text-center text-sm text-advo-muted">
               <span>{t("auth.register.haveAccount")} </span>
-              <Link
-                href="/login"
-                className="font-bold text-[#1B5EA4] hover:text-[#2176C2] transition underline underline-offset-2"
-              >
+              <Link href="/login" className={linkAccent}>
                 {t("auth.register.loginLink")}
               </Link>
             </div>
-          </Card>
+          </div>
         </div>
 
-        {/* Simple Footer */}
-        <footer className="text-center text-xs text-[#526174] pt-4">
+        <footer className="relative z-10 pt-4 text-center text-xs text-advo-muted">
           &copy; {new Date().getFullYear()} Advo TZ · {t("auth.common.footerTagline")}
         </footer>
       </div>

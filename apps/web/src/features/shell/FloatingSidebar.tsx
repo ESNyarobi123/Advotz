@@ -18,6 +18,8 @@ import {
   useOverlayState,
 } from "@heroui/react";
 import {
+  ChevronDown,
+  Globe,
   HelpCircle,
   LogOut,
   Menu,
@@ -136,31 +138,54 @@ function SidebarBody({
         )}
       </ScrollShadow>
 
-      {/* Footer: language, repeated help entry point (dark panels hide the footer
-          label) and sign out. */}
-      <div className="mt-2 shrink-0 border-t border-white/[0.08] p-2.5">
-        <div className={`mb-2 flex ${collapsed ? "justify-center" : "justify-start"}`}>
-          <LocaleSwitcher compact={collapsed} showIcon={!collapsed} variant="dark" />
-        </div>
+      {/* Footer — same rhythm as nav rows so it reads as part of the rail, not a
+          detached card. Language sits flush; account / help / logout share one column. */}
+      <div className={`mt-auto shrink-0 space-y-0.5 pt-2 ${collapsed ? "px-2 pb-2.5" : "px-2.5 pb-2.5"}`}>
+        <div className="mb-1.5 h-px bg-white/[0.06]" aria-hidden="true" />
+
         {user ? <AccountButton collapsed={collapsed} role={role} system={system} user={user} /> : null}
+
+        <div
+          className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
+          {!collapsed ? (
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-400">
+              <Globe className="h-4 w-4" aria-hidden="true" />
+            </span>
+          ) : null}
+          <LocaleSwitcher
+            className={collapsed ? "" : "min-w-0 flex-1"}
+            compact={collapsed}
+            flush
+            showIcon={false}
+            variant="dark"
+          />
+        </div>
+
         <Link
-          className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white ${
+          className={`group flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-white/[0.07] hover:text-white ${
             collapsed ? "justify-center" : ""
           }`}
           href={supportHref}
           onClick={onNavigate}
         >
-          <HelpCircle className="h-4 w-4 shrink-0" />
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors group-hover:bg-white/10 group-hover:text-white">
+            <HelpCircle className="h-4 w-4" />
+          </span>
           {!collapsed ? <span>{t("nav.helpAndInfo")}</span> : null}
         </Link>
         <button
-          className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[11px] font-bold text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 ${
+          className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300 ${
             collapsed ? "justify-center" : ""
           }`}
           onClick={onLogout}
           type="button"
         >
-          <LogOut className="h-3.5 w-3.5 shrink-0" />
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-rose-400/80 transition-colors group-hover:bg-rose-500/15">
+            <LogOut className="h-3.5 w-3.5" />
+          </span>
           {!collapsed ? <span>{t("nav.logout")}</span> : null}
         </button>
       </div>
@@ -245,22 +270,39 @@ function AccountButton({
   );
 
   return (
-    <div className={`relative mb-1 ${collapsed ? "flex justify-center" : ""}`} ref={rootRef}>
+    <div className="relative" ref={rootRef}>
       <button
         aria-expanded={open}
         aria-label={user.name}
-        className="rounded-full ring-2 ring-white/15 transition hover:ring-white/40"
+        className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-white/[0.07] ${
+          collapsed ? "justify-center" : ""
+        } ${open ? "bg-white/[0.06]" : ""}`}
         onClick={toggle}
         ref={buttonRef}
         type="button"
       >
         <Avatar aria-hidden="true" className="shrink-0" color="default" size="sm">
-          <Avatar.Fallback className={`text-xs font-black ${system ? "text-advo-charcoal" : "text-white"}`} style={{ background: mark }}>
+          <Avatar.Fallback
+            className={`text-xs font-black ${system ? "text-advo-charcoal" : "text-white"}`}
+            style={{ background: mark }}
+          >
             {initial}
           </Avatar.Fallback>
         </Avatar>
+        {!collapsed ? (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs font-bold leading-tight text-white">{user.name}</span>
+              <span className="mt-0.5 block truncate text-[10px] leading-tight text-slate-400">{user.email}</span>
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className={`h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </>
+        ) : null}
       </button>
-      {open && !collapsed ? <div className="mt-2">{details}</div> : null}
+      {open && !collapsed ? <div className="px-1 pb-1 pt-0.5">{details}</div> : null}
       {open && collapsed && flyout
         ? createPortal(
             <div className="fixed z-50 w-56" style={{ top: flyout.top, left: flyout.left }}>
@@ -282,6 +324,26 @@ function isFirstOfSection(entry: NavItem, sections: { items: NavItem[] }[]): boo
 function SidebarLink({ entry, active, onNavigate }: { entry: NavItem; active: boolean; onNavigate?: () => void }) {
   const { t } = useI18n();
   const Icon = entry.icon;
+  const label = t(entry.labelKey);
+
+  if (entry.disabled) {
+    return (
+      <span
+        aria-disabled="true"
+        className="flex cursor-not-allowed items-center gap-3 rounded-xl px-2.5 py-2 text-xs font-medium text-slate-500/55 select-none"
+        title={t("nav.comingSoon")}
+      >
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-500/45">
+          <Icon className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <span className="shrink-0 text-[9px] font-bold tracking-wide text-slate-500/50 uppercase">
+          {t("nav.comingSoon")}
+        </span>
+      </span>
+    );
+  }
+
   return (
     <Link
       aria-current={active ? "page" : undefined}
@@ -299,7 +361,7 @@ function SidebarLink({ entry, active, onNavigate }: { entry: NavItem; active: bo
       >
         <Icon className="h-4 w-4" />
       </span>
-      <span className="truncate">{t(entry.labelKey)}</span>
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
@@ -320,6 +382,34 @@ function RailLink({ entry, active, onNavigate }: { entry: NavItem; active: boole
   const { t } = useI18n();
   const label = t(entry.labelKey);
   const Icon = entry.icon;
+
+  if (entry.disabled) {
+    const tip = `${label} — ${t("nav.comingSoon")}`;
+    return (
+      <Tooltip.Root>
+        <Tooltip.Trigger
+          render={({ ref, ...triggerProps }) => {
+            const trigger = triggerProps as unknown as ButtonHTMLAttributes<HTMLButtonElement>;
+            return (
+              <button
+                {...trigger}
+                ref={ref as Ref<HTMLButtonElement>}
+                aria-disabled="true"
+                aria-label={tip}
+                className={`${trigger.className ?? ""} grid h-10 w-full cursor-not-allowed place-items-center rounded-xl text-slate-500/45`}
+                disabled
+                type="button"
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            );
+          }}
+        />
+        <Tooltip.Content placement="right">{tip}</Tooltip.Content>
+      </Tooltip.Root>
+    );
+  }
+
   return (
     <Tooltip.Root>
       <Tooltip.Trigger

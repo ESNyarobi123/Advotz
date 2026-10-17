@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { formatDateTime, formatTzs } from "@advo/api-client";
+import { BUSINESS_TIMEZONE, formatDateTime, formatTzs } from "@advo/api-client";
 import { Button, Card, Input, Modal } from "@heroui/react";
-import { AdvoKpi, AdvoSelect, AdvoTable, Notice, SoftIcon, StatusChip, type IconTone } from "@advo/ui";
+import { AdvoKpi, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
   ArrowLeftRight,
   Ban,
@@ -11,9 +11,10 @@ import {
   Building2,
   CircleCheck,
   Coins,
+  Eye,
+  Filter,
   HandCoins,
   Hourglass,
-  Info,
   RefreshCw,
   RotateCcw,
   Search,
@@ -24,6 +25,14 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import {
+  CHART_COLORS,
+  ChartCard,
+  DualAreaChart,
+  MixDonut,
+  type DualTrendPoint,
+  type MixSlice,
+} from "@/features/common/charts";
 import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import {
   CardSkeleton,
@@ -44,6 +53,30 @@ import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey, TranslateVars } from "@advo/i18n";
+
+const TREND_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const darDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BUSINESS_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const dayKey = (value: string | Date) => darDay.format(typeof value === "string" ? new Date(value) : value);
+
+/** Withdrawal request lifecycle colours for the status donut. */
+const REQUEST_MIX_COLORS: Record<string, string> = {
+  REQUESTED: CHART_COLORS.warning,
+  APPROVED: CHART_COLORS.blueSoft,
+  PROCESSING: CHART_COLORS.blue,
+  UNKNOWN: CHART_COLORS.orange,
+  NEEDS_REVIEW: CHART_COLORS.warning,
+  COMPLETED: CHART_COLORS.success,
+  FAILED: CHART_COLORS.danger,
+  REVERSED: CHART_COLORS.orange,
+  REJECTED: CHART_COLORS.neutral,
+};
 
 type T = (key: MessageKey, vars?: TranslateVars) => string;
 
@@ -311,6 +344,45 @@ export function AdminWithdrawalsScreen() {
     ];
   }, [stats, t]);
 
+  /** Daily paid-out volume (reseller vs agent) + request-state donut. */
+  const series = useMemo(() => {
+    const days: string[] = [];
+    for (let i = TREND_DAYS - 1; i >= 0; i -= 1) days.push(dayKey(new Date(Date.now() - i * DAY_MS)));
+    const buckets = new Map<string, { primary: number; secondary: number }>();
+    for (const day of days) buckets.set(day, { primary: 0, secondary: 0 });
+
+    for (const row of rows) {
+      if (row.state !== "COMPLETED") continue;
+      const when = row.updatedAt || row.createdAt;
+      const bucket = buckets.get(dayKey(when));
+      if (!bucket) continue;
+      const amount = Number(row.amountTzs) || 0;
+      if (row.ownerType === "AGENT") bucket.secondary += amount;
+      else bucket.primary += amount;
+    }
+
+    const trend: DualTrendPoint[] = days.map((day) => ({ day, ...buckets.get(day)! }));
+    const resellerTotal = trend.reduce((sum, d) => sum + d.primary, 0);
+    const agentTotal = trend.reduce((sum, d) => sum + d.secondary, 0);
+
+    const byState = stats?.requests.byState ?? {};
+    const mix: MixSlice[] = ORDERED_REQUEST_STATES.filter((s) => (byState[s] ?? 0) > 0)
+      .map((s) => ({
+        label: t(stateLabel(s)),
+        value: byState[s] ?? 0,
+        color: REQUEST_MIX_COLORS[s] ?? CHART_COLORS.neutral,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      trend,
+      mix,
+      resellerTotal,
+      agentTotal,
+      requestTotal: stats?.requests.total ?? rows.length,
+    };
+  }, [rows, stats, t]);
+
   const filteredCount = filtered.length;
 
   return (
@@ -481,6 +553,46 @@ export function AdminWithdrawalsScreen() {
         )}
       </div>
 
+      {/* ── Trends + status circle ── */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <ChartCard
+          action={
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1B5EA4]/35 bg-[#1B5EA4]/15 px-2.5 py-1 text-[11px] font-bold text-[#9EC5F0]">
+                <span className="size-2 rounded-full" style={{ background: CHART_COLORS.blue }} />
+                {t("admin.withdrawals.trend.reseller")} · {formatTzs(series.resellerTotal)}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FBA102]/35 bg-[#FBA102]/15 px-2.5 py-1 text-[11px] font-bold text-[#F5C96A]">
+                <span className="size-2 rounded-full" style={{ background: CHART_COLORS.gold }} />
+                {t("admin.withdrawals.trend.agent")} · {formatTzs(series.agentTotal)}
+              </span>
+            </div>
+          }
+          className="xl:col-span-8"
+          description={t("admin.withdrawals.trend.description", { days: TREND_DAYS })}
+          title={t("admin.withdrawals.trend.title")}
+        >
+          <DualAreaChart
+            data={series.trend}
+            primaryLabel={t("admin.withdrawals.trend.reseller")}
+            secondaryLabel={t("admin.withdrawals.trend.agent")}
+          />
+        </ChartCard>
+
+        <ChartCard
+          className="xl:col-span-4"
+          description={t("admin.withdrawals.mix.description")}
+          title={t("admin.withdrawals.mix.title")}
+        >
+          <MixDonut
+            centerLabel={t("admin.withdrawals.mix.center")}
+            centerValue={String(series.requestTotal)}
+            data={series.mix}
+            height={190}
+          />
+        </ChartCard>
+      </div>
+
       {/* ── Distribution box cards ── */}
       <section>
         <SectionHeader
@@ -497,7 +609,10 @@ export function AdminWithdrawalsScreen() {
                 hint={t("admin.withdrawals.states.hint")}
                 icon={<Send />}
                 iconTone={stats.attention > 0 ? "danger" : "accent"}
-                onPick={(next) => setState(state === next ? "" : next)}
+                onPick={(next) => {
+                  setState(state === next ? "" : next);
+                  setVisibleCount(PAGE_SIZE);
+                }}
                 pickedState={state}
                 rows={stateRows}
                 title={t("admin.withdrawals.states.title")}
@@ -517,7 +632,10 @@ export function AdminWithdrawalsScreen() {
                 hint={t("admin.withdrawals.beneficiaries.hint")}
                 icon={<UserRound />}
                 iconTone="teal"
-                onPick={(next) => setOwnerType(ownerType === next ? "" : next)}
+                onPick={(next) => {
+                  setOwnerType(ownerType === next ? "" : next);
+                  setVisibleCount(PAGE_SIZE);
+                }}
                 pickedState={ownerType}
                 rows={beneficiaryRows}
                 title={t("admin.withdrawals.beneficiaries.title")}
@@ -549,267 +667,144 @@ export function AdminWithdrawalsScreen() {
         ) : null}
       </section>
 
-      {/* ── Requests table ── */}
-      <section>
+      {/* ── Find + list ── */}
+      <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
         <SectionHeader
-          description={t("admin.withdrawals.requests.description")}
-          icon={<Send />}
-          iconTone="accent"
-          title={t("admin.withdrawals.requests.title")}
-        />
-        <Card className="mt-3 gap-3 p-3 shadow-advo-card ring-1 ring-advo-border/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-56 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-advo-muted" />
-              <Input
-                aria-label={t("admin.withdrawals.filter.search")}
-                className="pl-9"
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setVisibleCount(PAGE_SIZE);
-                }}
-                placeholder={t("admin.withdrawals.filter.search")}
-                value={query}
-              />
-            </div>
-            <AdvoSelect
-              aria-label={t("admin.withdrawals.filter.state")}
-              className="w-auto"
-              onChange={(e) => {
-                setState(e.target.value);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              value={state}
-            >
-              <option value="">{t("admin.withdrawals.filter.allStates")}</option>
-              {REQUEST_STATES.map((value) => (
-                <option key={value} value={value}>
-                  {t(stateLabel(value))}
-                </option>
-              ))}
-            </AdvoSelect>
-            <AdvoSelect
-              aria-label={t("admin.withdrawals.filter.beneficiary")}
-              className="w-auto"
-              onChange={(e) => {
-                setOwnerType(e.target.value);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              value={ownerType}
-            >
-              <option value="">{t("admin.withdrawals.filter.allBeneficiaries")}</option>
-              {BENEFICIARY_TYPES.map((value) => (
-                <option key={value} value={value}>
-                  {t(beneficiaryLabel(value))}
-                </option>
-              ))}
-            </AdvoSelect>
-            {state || ownerType || query ? (
-              <Button
-                onPress={() => {
-                  setState("");
-                  setOwnerType("");
-                  setQuery("");
-                }}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                <X className="size-3.5" />
-                {t("admin.withdrawals.filter.clear")}
-              </Button>
-            ) : null}
-            <span className="ml-auto shrink-0 text-xs font-semibold text-advo-muted tabular-nums">
+          action={
+            <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
               {t("admin.withdrawals.requests.count", { shown: filteredCount, total: rows.length })}
             </span>
+          }
+          description={t("admin.withdrawals.requests.description")}
+          icon={<Filter />}
+          iconTone="accent"
+          title={t("admin.withdrawals.requests.filterTitle")}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-56 flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-[#8B939E]" />
+            <Input
+              aria-label={t("admin.withdrawals.filter.search")}
+              className="border border-[var(--advo-border)] !bg-[var(--advo-surface-sunken)] pl-9 !text-[var(--advo-text)]"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVisibleCount(PAGE_SIZE);
+              }}
+              placeholder={t("admin.withdrawals.filter.search")}
+              value={query}
+            />
           </div>
+          {state || ownerType || query ? (
+            <Button
+              onPress={() => {
+                setState("");
+                setOwnerType("");
+                setQuery("");
+                setVisibleCount(PAGE_SIZE);
+              }}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <X className="size-3.5" />
+              {t("admin.withdrawals.filter.clear")}
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.withdrawals.filter.state")}>
+          <FilterPill
+            active={!state}
+            count={stats?.requests.total ?? rows.length}
+            label={t("admin.withdrawals.filter.allStates")}
+            onClick={() => {
+              setState("");
+              setVisibleCount(PAGE_SIZE);
+            }}
+          />
+          {ORDERED_REQUEST_STATES.map((value) => (
+            <FilterPill
+              active={state === value}
+              count={stats?.requests.byState[value] ?? 0}
+              key={value}
+              label={t(stateLabel(value))}
+              onClick={() => {
+                setState(state === value ? "" : value);
+                setVisibleCount(PAGE_SIZE);
+              }}
+            />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.withdrawals.filter.beneficiary")}>
+          <FilterPill
+            active={!ownerType}
+            count={stats?.requests.total ?? rows.length}
+            label={t("admin.withdrawals.filter.allBeneficiaries")}
+            onClick={() => {
+              setOwnerType("");
+              setVisibleCount(PAGE_SIZE);
+            }}
+          />
+          {BENEFICIARY_TYPES.map((value) => {
+            const count = stats?.beneficiaries.find((b) => b.ownerType === value)?.count ?? 0;
+            return (
+              <FilterPill
+                active={ownerType === value}
+                count={count}
+                key={value}
+                label={t(beneficiaryLabel(value))}
+                onClick={() => {
+                  setOwnerType(ownerType === value ? "" : value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+              />
+            );
+          })}
+        </div>
+      </Card>
 
-          <ResourceView resource={requests}>
-            {() => (
-              <>
-                <AdvoTable
-                  empty={rows.length === 0 ? t("admin.withdrawals.requests.empty") : t("admin.withdrawals.requests.noMatch")}
-                  label={t("admin.withdrawals.requests.title")}
-                  rowKey={(w) => w.id}
-                  rows={shown}
-                  columns={[
-                    {
-                      key: "beneficiary",
-                      header: t("admin.withdrawals.col.beneficiary"),
-                      render: (w) => (
-                        <div className="flex min-w-48 items-start gap-2.5">
-                          <SoftIcon size="sm" tone={w.ownerType === "RESELLER" ? "teal" : "violet"}>
-                            {w.ownerType === "RESELLER" ? <Building2 /> : <UserRound />}
-                          </SoftIcon>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-advo-text">
-                              {w.owner?.name ?? t("admin.withdrawals.unknownBeneficiary")}
-                            </p>
-                            <p className="truncate text-xs text-advo-muted">
-                              {t(beneficiaryLabel(w.ownerType))}
-                              {w.owner?.handle ? ` · ${w.owner.handle}` : ""}
-                            </p>
-                            {/* The destination name only earns a line when it differs from the account holder. */}
-                            <p className="truncate text-[11px] text-advo-muted tabular-nums">
-                              {destinationName(w) ? `${destinationName(w)} · ` : ""}
-                              {w.destinationSnapshot.phone ?? t("admin.withdrawals.none")}
-                            </p>
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "payout",
-                      header: t("admin.withdrawals.col.payout"),
-                      render: (w) => (
-                        <div className="min-w-28">
-                          <p className="text-sm font-bold text-advo-text tabular-nums">{formatTzs(w.amountTzs)}</p>
-                          {w.state === "REQUESTED" ? (
-                            <p className="mt-0.5 text-[11px] font-semibold text-[#b45309]">
-                              {ageLabel(w, t)}
-                            </p>
-                          ) : null}
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "fees",
-                      header: t("admin.withdrawals.col.fees"),
-                      render: (w) => (
-                        <div className="min-w-32 text-xs tabular-nums">
-                          <p className="text-advo-muted">
-                            {t("admin.withdrawals.fees.provider")} {formatTzs(w.providerFeeTzs)}
-                          </p>
-                          <p className="text-advo-muted">
-                            {t("admin.withdrawals.fees.platform")} {formatTzs(w.platformFeeTzs)}
-                          </p>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "debit",
-                      header: t("admin.withdrawals.col.totalDebit"),
-                      render: (w) => <span className="text-sm font-semibold tabular-nums">{formatTzs(w.totalDebitTzs)}</span>,
-                    },
-                    {
-                      key: "reserve",
-                      header: t("admin.withdrawals.col.reserve"),
-                      render: (w) => (
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold tabular-nums`}>
-                          <span aria-hidden="true" className={`size-2 rounded-full ${barClass(reserveTone(w))}`} />
-                          {t(reserveLabel(w) as MessageKey)}
-                        </span>
-                      ),
-                    },
-                    {
-                      key: "state",
-                      header: t("admin.withdrawals.col.state"),
-                      render: (w) => {
-                        const attempt = latestAttempt(w);
-                        return (
-                          <div className="min-w-36">
-                            <StatusChip tone={chipToneOf(w.state)}>{t(stateLabel(w.state))}</StatusChip>
-                            {w.failureReason || w.reviewReason ? (
-                              <p className="mt-1 max-w-56 text-[11px] leading-snug text-advo-muted">
-                                {w.failureReason ?? w.reviewReason}
-                              </p>
-                            ) : null}
-                            {attempt ? (
-                              <p className="mt-1 text-[11px] font-semibold text-advo-muted tabular-nums">
-                                {formatTzs(attempt.feeTzs)}
-                              </p>
-                            ) : null}
-                          </div>
-                        );
-                      },
-                    },
-                    {
-                      key: "created",
-                      header: t("admin.withdrawals.col.requested"),
-                      render: (w) => (
-                        <span className="text-xs whitespace-nowrap text-advo-muted tabular-nums">
-                          {formatDateTime(w.createdAt)}
-                        </span>
-                      ),
-                    },
-                    {
-                      key: "actions",
-                      header: t("admin.withdrawals.col.actions"),
-                      render: (w) => {
-                        const attempt = latestAttempt(w);
-                        return (
-                          <div className="flex min-w-40 flex-wrap items-center gap-2">
-                            {w.state === "REQUESTED" ? (
-                              <>
-                                <Button
-                                  className="text-xs"
-                                  onPress={() => setDecision({ row: w, kind: "approve" })}
-                                  size="sm"
-                                  type="button"
-                                  variant="primary"
-                                >
-                                  <CircleCheck className="size-3.5" />
-                                  {t("admin.withdrawals.action.approve")}
-                                </Button>
-                                <Button
-                                  className="text-xs"
-                                  onPress={() => setDecision({ row: w, kind: "reject" })}
-                                  size="sm"
-                                  type="button"
-                                  variant="danger-soft"
-                                >
-                                  <Ban className="size-3.5" />
-                                  {t("admin.withdrawals.action.reject")}
-                                </Button>
-                              </>
-                            ) : null}
-                            {attempt && RECONCILABLE.has(attempt.state) && w.state !== "REQUESTED" ? (
-                              <Button
-                                className="text-xs"
-                                onPress={() => setReconcileTarget(w)}
-                                size="sm"
-                                type="button"
-                                variant="outline"
-                              >
-                                <RotateCcw className="size-3.5" />
-                                {t("admin.withdrawals.action.reconcile")}
-                              </Button>
-                            ) : null}
-                            <Button
-                              className="text-xs"
-                              onPress={() => setDetail(w)}
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              <Info className="size-3.5" />
-                              {t("admin.withdrawals.action.detail")}
-                            </Button>
-                          </div>
-                        );
-                      },
-                    },
-                  ]}
+      <ResourceView resource={requests}>
+        {() =>
+          filteredCount === 0 ? (
+            <Card className="shadow-advo-card ring-1 ring-advo-border/70">
+              <EmptyState
+                text={rows.length === 0 ? t("admin.withdrawals.requests.empty") : t("admin.withdrawals.requests.noMatch")}
+              />
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {shown.map((w) => (
+                <WithdrawalCard
+                  key={w.id}
+                  onApprove={w.state === "REQUESTED" ? () => setDecision({ row: w, kind: "approve" }) : undefined}
+                  onDetail={() => setDetail(w)}
+                  onReconcile={
+                    latestAttempt(w) && RECONCILABLE.has(latestAttempt(w)!.state) && w.state !== "REQUESTED"
+                      ? () => setReconcileTarget(w)
+                      : undefined
+                  }
+                  onReject={w.state === "REQUESTED" ? () => setDecision({ row: w, kind: "reject" }) : undefined}
+                  row={w}
+                  t={t}
                 />
-                {visibleCount < filteredCount ? (
-                  <div className="flex justify-center pt-1">
-                    <Button
-                      onPress={() => setVisibleCount((n) => n + PAGE_SIZE)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {t("admin.withdrawals.requests.showMore", {
-                        count: Math.min(PAGE_SIZE, filteredCount - visibleCount),
-                      })}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
-          </ResourceView>
-        </Card>
-      </section>
+              ))}
+              {visibleCount < filteredCount ? (
+                <div className="flex justify-center pt-1">
+                  <Button
+                    onPress={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {t("admin.withdrawals.requests.showMore", {
+                      count: Math.min(PAGE_SIZE, filteredCount - visibleCount),
+                    })}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          )
+        }
+      </ResourceView>
 
       <DecisionDialog
         onClose={() => setDecision(null)}
@@ -825,6 +820,137 @@ export function AdminWithdrawalsScreen() {
 
 const TONE_DOT = TONE_BAR;
 const barClass = (tone: StateTone) => TONE_DOT[tone];
+
+function WithdrawalCard({
+  row: w,
+  t,
+  onDetail,
+  onApprove,
+  onReject,
+  onReconcile,
+}: {
+  row: WithdrawalRow;
+  t: T;
+  onDetail: () => void;
+  onApprove?: () => void;
+  onReject?: () => void;
+  onReconcile?: () => void;
+}) {
+  const attempt = latestAttempt(w);
+  const reseller = w.ownerType === "RESELLER";
+  return (
+    <Card className="gap-0 overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <SoftIcon size="sm" tone={reseller ? "teal" : "violet"}>
+            {reseller ? <Building2 /> : <UserRound />}
+          </SoftIcon>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-bold text-[var(--advo-text)]">
+                {w.owner?.name ?? t("admin.withdrawals.unknownBeneficiary")}
+              </p>
+              <StatusChip tone={chipToneOf(w.state)}>{t(stateLabel(w.state))}</StatusChip>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--advo-muted)]">
+                <span aria-hidden="true" className={`size-2 rounded-full ${barClass(reserveTone(w))}`} />
+                {t(reserveLabel(w) as MessageKey)}
+              </span>
+            </div>
+            <p className="truncate text-xs text-[var(--advo-muted)]">
+              {t(beneficiaryLabel(w.ownerType))}
+              {w.owner?.handle ? ` · ${w.owner.handle}` : ""}
+            </p>
+            <p className="truncate text-[11px] text-[var(--advo-muted)] tabular-nums">
+              {destinationName(w) ? `${destinationName(w)} · ` : ""}
+              {w.destinationSnapshot.phone ?? t("admin.withdrawals.none")}
+            </p>
+            <p className="text-sm font-bold text-[var(--advo-text)] tabular-nums">
+              {formatTzs(w.amountTzs)}
+              <span className="ml-2 text-xs font-semibold text-[var(--advo-muted)]">
+                {t("admin.withdrawals.col.totalDebit")} {formatTzs(w.totalDebitTzs)}
+              </span>
+            </p>
+            <p className="text-[11px] text-[var(--advo-muted)] tabular-nums">
+              {t("admin.withdrawals.fees.provider")} {formatTzs(w.providerFeeTzs)}
+              {" · "}
+              {t("admin.withdrawals.fees.platform")} {formatTzs(w.platformFeeTzs)}
+              {" · "}
+              {formatDateTime(w.createdAt)}
+              {w.state === "REQUESTED" ? ` · ${ageLabel(w, t)}` : ""}
+            </p>
+            {w.failureReason || w.reviewReason ? (
+              <p className="text-[11px] leading-snug text-amber-300">{w.failureReason ?? w.reviewReason}</p>
+            ) : null}
+            {attempt?.providerReference ? (
+              <p className="text-[11px] text-[var(--advo-muted)]">
+                {attempt.provider} · {attempt.providerReference}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end">
+          <Button className="text-xs" onPress={onDetail} size="sm" type="button" variant="primary">
+            <Eye className="size-3.5" />
+            {t("admin.withdrawals.action.detail")}
+          </Button>
+          {onApprove ? (
+            <Button className="text-xs" onPress={onApprove} size="sm" type="button" variant="outline">
+              <CircleCheck className="size-3.5" />
+              {t("admin.withdrawals.action.approve")}
+            </Button>
+          ) : null}
+          {onReject ? (
+            <Button className="text-xs" onPress={onReject} size="sm" type="button" variant="danger-soft">
+              <Ban className="size-3.5" />
+              {t("admin.withdrawals.action.reject")}
+            </Button>
+          ) : null}
+          {onReconcile ? (
+            <Button className="text-xs" onPress={onReconcile} size="sm" type="button" variant="outline">
+              <RotateCcw className="size-3.5" />
+              {t("admin.withdrawals.action.reconcile")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function FilterPill({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+        active
+          ? "border-transparent bg-[#1B5EA4] text-white"
+          : "border-white/15 bg-[#2A2D33] text-[#E8EAEE] hover:border-[#1B5EA4]/60 hover:text-white"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+      <span className={`ml-1.5 tabular-nums ${active ? "text-white/85" : "text-white"}`}>{count}</span>
+    </button>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <span className="flex flex-col items-center gap-1.5 py-8">
+      <span className="text-sm font-bold text-[var(--advo-text)]">{text}</span>
+    </span>
+  );
+}
 
 /* ────────────────────────────── Dialogs ────────────────────────────── */
 /** The preview every audited money decision shows before it is taken. */

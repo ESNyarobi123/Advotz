@@ -1,16 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatDateTime, formatTzs } from "@advo/api-client";
+import { BUSINESS_TIMEZONE, formatDateTime, formatTzs } from "@advo/api-client";
 import { Button, Card, Input } from "@heroui/react";
-import { AdvoKpi, AdvoSelect, AdvoTable, Notice, SoftIcon, StatusChip } from "@advo/ui";
+import { AdvoKpi, AdvoTable, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
   BookOpenCheck,
   Building2,
   CircleCheck,
-  Info,
+  Eye,
+  Filter,
   Layers,
   RefreshCw,
   Scale,
@@ -21,6 +22,14 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import {
+  CHART_COLORS,
+  ChartCard,
+  DualAreaChart,
+  MixDonut,
+  type DualTrendPoint,
+  type MixSlice,
+} from "@/features/common/charts";
 import { Mono, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import {
   CardSkeleton,
@@ -36,6 +45,25 @@ import {
 import { useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey, TranslateVars } from "@advo/i18n";
+
+const TREND_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const darDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone: BUSINESS_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const dayKey = (value: string | Date) => darDay.format(typeof value === "string" ? new Date(value) : value);
+
+const TONE_TO_CHART: Record<StateTone, string> = {
+  good: CHART_COLORS.success,
+  progress: CHART_COLORS.blue,
+  warn: CHART_COLORS.warning,
+  bad: CHART_COLORS.danger,
+  neutral: CHART_COLORS.neutral,
+};
 
 type T = (key: MessageKey, vars?: TranslateVars) => string;
 
@@ -247,6 +275,7 @@ export function AdminLedgerScreen() {
 
   // Every filter lives in the URL, so a filtered view survives a reload and can
   // be handed to whoever has to explain the number.
+  const [tab, setTab] = useState<"journals" | "accounts">("journals");
   const [event, setEvent] = useUrlFilter("event");
   const [owner, setOwner] = useUrlFilter("owner");
   const [family, setFamily] = useUrlFilter("family");
@@ -355,14 +384,62 @@ export function AdminLedgerScreen() {
   }, [journals.data, journalQuery]);
 
   const shownJournals = journalRows.slice(0, journalCount);
-  const accountRows = accounts.data?.rows ?? [];
-  const shownAccounts = accountRows.slice(0, accountCount);
+  const allAccountRows = accounts.data?.rows ?? [];
+  const filteredAccounts = useMemo(() => {
+    const needle = accountQuery.trim().toLowerCase();
+    if (!needle) return allAccountRows;
+    return allAccountRows.filter((row) =>
+      [row.owner?.name, row.owner?.handle, row.ownerId, row.type, row.normalBalance]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle)),
+    );
+  }, [allAccountRows, accountQuery]);
+  const shownAccounts = filteredAccounts.slice(0, accountCount);
 
   const filtersActive = Boolean(owner || family || side || accountQuery);
   const journalLoadTruncated = (journals.data?.total ?? 0) > (journals.data?.rows.length ?? 0);
 
   const debitSide = stats?.accounts.bySide.find((bucket) => bucket.normalBalance === "DEBIT");
   const creditSide = stats?.accounts.bySide.find((bucket) => bucket.normalBalance === "CREDIT");
+
+  /** Daily posted volume (receipts vs obligations) + event-mix donut. */
+  const series = useMemo(() => {
+    const days: string[] = [];
+    for (let i = TREND_DAYS - 1; i >= 0; i -= 1) days.push(dayKey(new Date(Date.now() - i * DAY_MS)));
+    const buckets = new Map<string, { primary: number; secondary: number }>();
+    for (const day of days) buckets.set(day, { primary: 0, secondary: 0 });
+
+    const raw = journals.data?.rows ?? [];
+    for (const row of raw) {
+      const bucket = buckets.get(dayKey(row.createdAt));
+      if (!bucket) continue;
+      const amount = Number(row.debitTzs) || 0;
+      const tone = eventTone(row.event);
+      if (tone === "good") bucket.primary += amount;
+      else bucket.secondary += amount;
+    }
+
+    const trend: DualTrendPoint[] = days.map((day) => ({ day, ...buckets.get(day)! }));
+    const inflow = trend.reduce((sum, d) => sum + d.primary, 0);
+    const other = trend.reduce((sum, d) => sum + d.secondary, 0);
+
+    const mix: MixSlice[] = (stats?.journals.bySource ?? [])
+      .filter((b) => b.journals > 0)
+      .map((b) => ({
+        label: eventLabel(t, b.event),
+        value: b.journals,
+        color: TONE_TO_CHART[eventTone(b.event)] ?? CHART_COLORS.neutral,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return {
+      trend,
+      mix,
+      inflow,
+      other,
+      journalTotal: stats?.journals.total ?? raw.length,
+    };
+  }, [journals.data, stats, t]);
 
   const closeDetail = () => setDetail(null);
 
@@ -517,6 +594,46 @@ export function AdminLedgerScreen() {
         )}
       </div>
 
+      {/* ── Trends + event circle ── */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <ChartCard
+          action={
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#1B5EA4]/35 bg-[#1B5EA4]/15 px-2.5 py-1 text-[11px] font-bold text-[#9EC5F0]">
+                <span className="size-2 rounded-full" style={{ background: CHART_COLORS.blue }} />
+                {t("admin.ledger.trend.inflow")} · {formatTzs(series.inflow)}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FBA102]/35 bg-[#FBA102]/15 px-2.5 py-1 text-[11px] font-bold text-[#F5C96A]">
+                <span className="size-2 rounded-full" style={{ background: CHART_COLORS.gold }} />
+                {t("admin.ledger.trend.other")} · {formatTzs(series.other)}
+              </span>
+            </div>
+          }
+          className="xl:col-span-8"
+          description={t("admin.ledger.trend.description", { days: TREND_DAYS })}
+          title={t("admin.ledger.trend.title")}
+        >
+          <DualAreaChart
+            data={series.trend}
+            primaryLabel={t("admin.ledger.trend.inflow")}
+            secondaryLabel={t("admin.ledger.trend.other")}
+          />
+        </ChartCard>
+
+        <ChartCard
+          className="xl:col-span-4"
+          description={t("admin.ledger.mix.description")}
+          title={t("admin.ledger.mix.title")}
+        >
+          <MixDonut
+            centerLabel={t("admin.ledger.mix.center")}
+            centerValue={String(series.journalTotal)}
+            data={series.mix}
+            height={190}
+          />
+        </ChartCard>
+      </div>
+
       {/* ── Distribution box cards ── */}
       <section>
         <SectionHeader
@@ -534,6 +651,7 @@ export function AdminLedgerScreen() {
                 icon={<ScrollText />}
                 iconTone="accent"
                 onPick={(next) => {
+                  setTab("journals");
                   setEvent(event === next ? "" : next);
                   setJournalCount(JOURNAL_PAGE_SIZE);
                 }}
@@ -548,6 +666,7 @@ export function AdminLedgerScreen() {
                 icon={<Users />}
                 iconTone="warning"
                 onPick={(next) => {
+                  setTab("accounts");
                   const alreadyPicked = owner === next && family === "OBLIGATION";
                   setOwner(alreadyPicked ? "" : next);
                   setFamily(alreadyPicked ? "" : "OBLIGATION");
@@ -566,6 +685,7 @@ export function AdminLedgerScreen() {
                 icon={<Layers />}
                 iconTone="violet"
                 onPick={(next) => {
+                  setTab("accounts");
                   setFamily(family === next ? "" : next);
                   setAccountCount(ACCOUNT_PAGE_SIZE);
                 }}
@@ -580,6 +700,7 @@ export function AdminLedgerScreen() {
                 icon={<Scale />}
                 iconTone={stats.totals.balanced ? "success" : "danger"}
                 onPick={(next) => {
+                  setTab("accounts");
                   setSide(side === next ? "" : next);
                   setAccountCount(ACCOUNT_PAGE_SIZE);
                 }}
@@ -595,408 +716,472 @@ export function AdminLedgerScreen() {
         </div>
       </section>
 
-      {/* ── Journals ── */}
-      <section>
-        <SectionHeader
-          description={t("admin.ledger.journals.description")}
-          icon={<ScrollText />}
-          iconTone="accent"
-          title={t("admin.ledger.journals.title")}
-        />
-        <Card className="mt-3 gap-3 p-3 shadow-advo-card ring-1 ring-advo-border/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-56 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-advo-muted" />
-              <Input
-                aria-label={t("admin.ledger.journals.filter.search")}
-                className="pl-9"
-                onChange={(e) => {
-                  setJournalQuery(e.target.value);
+      {/* ── Tabs ── */}
+      <div
+        className="flex flex-wrap gap-1 rounded-2xl border border-[var(--advo-border)] bg-[var(--advo-surface-sunken)] p-1.5 shadow-advo-card"
+        role="tablist"
+      >
+        {(
+          [
+            {
+              key: "journals" as const,
+              icon: <ScrollText className="size-3.5 shrink-0" />,
+              label: t("admin.ledger.tab.journals"),
+              count: stats?.journals.total ?? journalRows.length,
+            },
+            {
+              key: "accounts" as const,
+              icon: <Layers className="size-3.5 shrink-0" />,
+              label: t("admin.ledger.tab.accounts"),
+              count: stats?.accounts.total ?? allAccountRows.length,
+            },
+          ] as const
+        ).map((item) => {
+          const active = tab === item.key;
+          return (
+            <button
+              aria-selected={active}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
+                active
+                  ? "bg-[#1B5EA4] text-white shadow-advo-card"
+                  : "text-[#E8EAEE] hover:bg-[#2A2D33] hover:text-white"
+              }`}
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              role="tab"
+              type="button"
+            >
+              {item.icon}
+              {item.label}
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                  active ? "bg-white/25 text-white" : "border border-white/15 bg-[#101113] text-[#F4F6F8]"
+                }`}
+              >
+                {item.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "journals" ? (
+        <>
+          <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
+            <SectionHeader
+              action={
+                <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
+                  {t("admin.ledger.journals.count", {
+                    shown: shownJournals.length,
+                    total: journalRows.length,
+                  })}
+                </span>
+              }
+              description={t("admin.ledger.journals.description")}
+              icon={<Filter />}
+              iconTone="accent"
+              title={t("admin.ledger.journals.filterTitle")}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-56 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-[#8B939E]" />
+                <Input
+                  aria-label={t("admin.ledger.journals.filter.search")}
+                  className="border border-[var(--advo-border)] !bg-[var(--advo-surface-sunken)] pl-9 !text-[var(--advo-text)]"
+                  onChange={(e) => {
+                    setJournalQuery(e.target.value);
+                    setJournalCount(JOURNAL_PAGE_SIZE);
+                  }}
+                  placeholder={t("admin.ledger.journals.filter.search")}
+                  value={journalQuery}
+                />
+              </div>
+              {event || journalQuery ? (
+                <Button
+                  onPress={() => {
+                    setEvent("");
+                    setJournalQuery("");
+                    setJournalCount(JOURNAL_PAGE_SIZE);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <X className="size-3.5" />
+                  {t("admin.ledger.journals.filter.clear")}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.ledger.journals.filter.event")}>
+              <FilterPill
+                active={!event}
+                count={stats?.journals.total ?? journalRows.length}
+                label={t("admin.ledger.journals.filter.allEvents")}
+                onClick={() => {
+                  setEvent("");
                   setJournalCount(JOURNAL_PAGE_SIZE);
                 }}
-                placeholder={t("admin.ledger.journals.filter.search")}
-                value={journalQuery}
               />
-            </div>
-            <AdvoSelect
-              aria-label={t("admin.ledger.journals.filter.event")}
-              className="w-auto"
-              onChange={(e) => {
-                setEvent(e.target.value);
-                setJournalCount(JOURNAL_PAGE_SIZE);
-              }}
-              value={event}
-            >
-              <option value="">{t("admin.ledger.journals.filter.allEvents")}</option>
               {(stats?.journals.bySource ?? []).map((bucket) => (
-                <option key={bucket.event} value={bucket.event}>
-                  {eventLabel(t, bucket.event)}
-                </option>
+                <FilterPill
+                  active={event === bucket.event}
+                  count={bucket.journals}
+                  key={bucket.event}
+                  label={eventLabel(t, bucket.event)}
+                  onClick={() => {
+                    setEvent(event === bucket.event ? "" : bucket.event);
+                    setJournalCount(JOURNAL_PAGE_SIZE);
+                  }}
+                />
               ))}
-            </AdvoSelect>
-            {event || journalQuery ? (
-              <Button
-                onPress={() => {
-                  setEvent("");
-                  setJournalQuery("");
-                }}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                <X className="size-3.5" />
-                {t("admin.ledger.journals.filter.clear")}
-              </Button>
-            ) : null}
-            <span className="ml-auto shrink-0 text-xs font-semibold text-advo-muted tabular-nums">
-              {t("admin.ledger.journals.count", {
-                shown: shownJournals.length,
-                total: journalRows.length,
-              })}
-            </span>
-          </div>
+            </div>
+          </Card>
 
           <ResourceView resource={journals}>
-            {() => (
-              <>
-                <AdvoTable
-                  empty={
-                    (journals.data?.rows.length ?? 0) === 0
-                      ? t("admin.ledger.journals.empty")
-                      : t("admin.ledger.journals.noMatch")
-                  }
-                  label={t("admin.ledger.journals.title")}
-                  rowKey={(row) => row.id}
-                  rows={shownJournals}
-                  columns={[
-                    {
-                      key: "entry",
-                      header: t("admin.ledger.journals.col.entry"),
-                      render: (row) => (
-                        <div className="flex min-w-44 max-w-72 items-start gap-2.5">
-                          <SoftIcon size="sm" tone={row.reversesJournalId ? "warning" : "accent"}>
-                            {row.reversesJournalId ? <TriangleAlert /> : <ScrollText />}
-                          </SoftIcon>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-advo-text">{row.description}</p>
-                            <p className="truncate font-mono text-[11px] text-advo-muted">{row.sourceKey}</p>
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "event",
-                      header: t("admin.ledger.journals.col.event"),
-                      render: (row) => (
-                        <div className="flex min-w-32 flex-wrap items-center gap-1.5">
-                          <StatusChip tone={chipTone(eventTone(row.event))}>{eventLabel(t, row.event)}</StatusChip>
-                          {row.reversesJournalId ? (
-                            <StatusChip tone="warning">{t("admin.ledger.journals.reversal")}</StatusChip>
-                          ) : null}
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "legs",
-                      header: t("admin.ledger.journals.col.legs"),
-                      render: (row) => (
-                        <div className="min-w-32 max-w-52">
-                          <p className="text-xs font-bold text-advo-text tabular-nums">
-                            {t("admin.ledger.journals.legs", { count: row.lines.length })}
-                          </p>
-                          <p className="mt-0.5 truncate text-[11px] text-advo-muted">
-                            {[...new Set(row.lines.map((line) => accountTypeLabel(t, line.accountType)))].join(", ")}
-                          </p>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "amount",
-                      header: t("admin.ledger.journals.col.amount"),
-                      render: (row) => (
-                        <div className="min-w-24">
-                          <p className="text-sm font-bold text-advo-text tabular-nums">{formatTzs(row.debitTzs)}</p>
-                          {row.debitTzs === row.creditTzs ? (
-                            <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-[#166534]">
-                              <CircleCheck className="size-3" />
-                              {t("admin.ledger.journals.balanced")}
-                            </p>
-                          ) : (
-                            <p className="mt-0.5 text-[11px] font-semibold text-[var(--advo-danger)]">
-                              {t("admin.ledger.detail.unbalanced")}
-                            </p>
-                          )}
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "posted",
-                      header: t("admin.ledger.journals.col.posted"),
-                      render: (row) => (
-                        <span className="text-xs whitespace-nowrap text-advo-muted tabular-nums">
-                          {formatDateTime(row.createdAt)}
-                        </span>
-                      ),
-                    },
-                    {
-                      key: "actions",
-                      header: t("admin.ledger.journals.col.actions"),
-                      render: (row) => (
-                        <Button
-                          className="text-xs"
-                          onPress={() => setDetail(row)}
-                          size="sm"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Info className="size-3.5" />
-                          {t("admin.ledger.journals.action.detail")}
-                        </Button>
-                      ),                    },
-                  ]}
-                />
-                {journalLoadTruncated ? (
-                  <p className="px-1 text-[11px] text-advo-muted">
-                    {t("admin.ledger.journals.truncated", { total: JOURNALS_LOADED })}
-                  </p>
-                ) : null}
-                {journalCount < journalRows.length ? (
-                  <div className="flex justify-center pt-1">
-                    <Button
-                      onPress={() => setJournalCount((n) => n + JOURNAL_PAGE_SIZE)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {t("admin.ledger.journals.showMore", {
-                        count: Math.min(JOURNAL_PAGE_SIZE, journalRows.length - journalCount),
-                      })}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
+            {() =>
+              journalRows.length === 0 ? (
+                <Card className="shadow-advo-card ring-1 ring-advo-border/70">
+                  <EmptyState
+                    text={
+                      (journals.data?.rows.length ?? 0) === 0
+                        ? t("admin.ledger.journals.empty")
+                        : t("admin.ledger.journals.noMatch")
+                    }
+                  />
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {shownJournals.map((row) => (
+                    <JournalCard key={row.id} onDetail={() => setDetail(row)} row={row} t={t} />
+                  ))}
+                  {journalLoadTruncated ? (
+                    <p className="px-1 text-[11px] text-[var(--advo-muted)]">
+                      {t("admin.ledger.journals.truncated", { total: JOURNALS_LOADED })}
+                    </p>
+                  ) : null}
+                  {journalCount < journalRows.length ? (
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        onPress={() => setJournalCount((n) => n + JOURNAL_PAGE_SIZE)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {t("admin.ledger.journals.showMore", {
+                          count: Math.min(JOURNAL_PAGE_SIZE, journalRows.length - journalCount),
+                        })}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
           </ResourceView>
-        </Card>
-      </section>
-
-      {/* ── Chart of accounts ── */}
-      <section>
-        <SectionHeader
-          description={t("admin.ledger.accounts.description")}
-          icon={<Layers />}
-          iconTone="teal"
-          title={t("admin.ledger.accounts.title")}
-        />
-        <Card className="mt-3 gap-3 p-3 shadow-advo-card ring-1 ring-advo-border/70">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative min-w-56 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-advo-muted" />
-              <Input
-                aria-label={t("admin.ledger.accounts.filter.search")}
-                className="pl-9"
-                onChange={(e) => {
-                  setAccountQuery(e.target.value);
+        </>
+      ) : (
+        <>
+          <Card className="gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
+            <SectionHeader
+              action={
+                <span className="rounded-full border border-white/15 bg-[#2A2D33] px-2.5 py-1 text-[11px] font-bold text-[#E8EAEE] tabular-nums">
+                  {t("admin.ledger.accounts.count", {
+                    shown: shownAccounts.length,
+                    total: filteredAccounts.length,
+                  })}
+                </span>
+              }
+              description={t("admin.ledger.accounts.description")}
+              icon={<Filter />}
+              iconTone="teal"
+              title={t("admin.ledger.accounts.filterTitle")}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-56 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-[#8B939E]" />
+                <Input
+                  aria-label={t("admin.ledger.accounts.filter.search")}
+                  className="border border-[var(--advo-border)] !bg-[var(--advo-surface-sunken)] pl-9 !text-[var(--advo-text)]"
+                  onChange={(e) => {
+                    setAccountQuery(e.target.value);
+                    setAccountCount(ACCOUNT_PAGE_SIZE);
+                  }}
+                  placeholder={t("admin.ledger.accounts.filter.search")}
+                  value={accountQuery}
+                />
+              </div>
+              {filtersActive ? (
+                <Button
+                  onPress={() => {
+                    setOwner("");
+                    setFamily("");
+                    setSide("");
+                    setAccountQuery("");
+                    setAccountCount(ACCOUNT_PAGE_SIZE);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <X className="size-3.5" />
+                  {t("admin.ledger.journals.filter.clear")}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.ledger.accounts.filter.owner")}>
+              <FilterPill
+                active={!owner}
+                count={stats?.accounts.total ?? allAccountRows.length}
+                label={t("admin.ledger.accounts.filter.allOwners")}
+                onClick={() => {
+                  setOwner("");
                   setAccountCount(ACCOUNT_PAGE_SIZE);
                 }}
-                placeholder={t("admin.ledger.accounts.filter.search")}
-                value={accountQuery}
               />
-            </div>
-            <AdvoSelect
-              aria-label={t("admin.ledger.accounts.filter.owner")}
-              className="w-auto"
-              onChange={(e) => {
-                setOwner(e.target.value);
-                setAccountCount(ACCOUNT_PAGE_SIZE);
-              }}
-              value={owner}
-            >
-              <option value="">{t("admin.ledger.accounts.filter.allOwners")}</option>
               {OWNER_TYPES.map((value) => (
-                <option key={value} value={value}>
-                  {ownerLabel(t, value)}
-                </option>
+                <FilterPill
+                  active={owner === value}
+                  count={stats?.accounts.byOwner.find((b) => b.ownerType === value)?.accounts ?? 0}
+                  key={value}
+                  label={ownerLabel(t, value)}
+                  onClick={() => {
+                    setOwner(owner === value ? "" : value);
+                    setAccountCount(ACCOUNT_PAGE_SIZE);
+                  }}
+                />
               ))}
-            </AdvoSelect>
-            <AdvoSelect
-              aria-label={t("admin.ledger.accounts.filter.family")}
-              className="w-auto"
-              onChange={(e) => {
-                setFamily(e.target.value);
-                setAccountCount(ACCOUNT_PAGE_SIZE);
-              }}
-              value={family}
-            >
-              <option value="">{t("admin.ledger.accounts.filter.allFamilies")}</option>
-              {FAMILIES.map((value) => (
-                <option key={value} value={value}>
-                  {familyLabel(t, value)}
-                </option>
-              ))}
-            </AdvoSelect>
-            <AdvoSelect
-              aria-label={t("admin.ledger.accounts.filter.side")}
-              className="w-auto"
-              onChange={(e) => {
-                setSide(e.target.value);
-                setAccountCount(ACCOUNT_PAGE_SIZE);
-              }}
-              value={side}
-            >
-              <option value="">{t("admin.ledger.accounts.filter.allSides")}</option>
-              {SIDES.map((value) => (
-                <option key={value} value={value}>
-                  {sideLabel(t, value)}
-                </option>
-              ))}
-            </AdvoSelect>
-            {filtersActive ? (
-              <Button
-                onPress={() => {
-                  setOwner("");
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.ledger.accounts.filter.family")}>
+              <FilterPill
+                active={!family}
+                count={stats?.accounts.total ?? allAccountRows.length}
+                label={t("admin.ledger.accounts.filter.allFamilies")}
+                onClick={() => {
                   setFamily("");
-                  setSide("");
-                  setAccountQuery("");
+                  setAccountCount(ACCOUNT_PAGE_SIZE);
                 }}
-                size="sm"
-                type="button"
-                variant="ghost"
-              >
-                <X className="size-3.5" />
-                {t("admin.ledger.journals.filter.clear")}
-              </Button>
-            ) : null}
-            <span className="ml-auto shrink-0 text-xs font-semibold text-advo-muted tabular-nums">
-              {t("admin.ledger.accounts.count", {
-                shown: shownAccounts.length,
-                total: accountRows.length,
-              })}
-            </span>
-          </div>
+              />
+              {FAMILIES.map((value) => (
+                <FilterPill
+                  active={family === value}
+                  count={stats?.accounts.byFamily.find((b) => b.family === value)?.accounts ?? 0}
+                  key={value}
+                  label={familyLabel(t, value)}
+                  onClick={() => {
+                    setFamily(family === value ? "" : value);
+                    setAccountCount(ACCOUNT_PAGE_SIZE);
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("admin.ledger.accounts.filter.side")}>
+              <FilterPill
+                active={!side}
+                count={stats?.accounts.total ?? allAccountRows.length}
+                label={t("admin.ledger.accounts.filter.allSides")}
+                onClick={() => {
+                  setSide("");
+                  setAccountCount(ACCOUNT_PAGE_SIZE);
+                }}
+              />
+              {SIDES.map((value) => (
+                <FilterPill
+                  active={side === value}
+                  count={stats?.accounts.bySide.find((b) => b.normalBalance === value)?.accounts ?? 0}
+                  key={value}
+                  label={sideLabel(t, value)}
+                  onClick={() => {
+                    setSide(side === value ? "" : value);
+                    setAccountCount(ACCOUNT_PAGE_SIZE);
+                  }}
+                />
+              ))}
+            </div>
+          </Card>
 
           <ResourceView resource={accounts}>
-            {() => (
-              <>
-                <AdvoTable
-                  empty={
-                    (accounts.data?.rows.length ?? 0) === 0
-                      ? t("admin.ledger.accounts.empty")
-                      : t("admin.ledger.accounts.noMatch")
-                  }
-                  label={t("admin.ledger.accounts.title")}
-                  rowKey={(row) => row.id}
-                  rows={shownAccounts}
-                  columns={[
-                    {
-                      key: "account",
-                      header: t("admin.ledger.accounts.col.account"),
-                      render: (row) => (
-                        <div className="flex min-w-56 items-start gap-2.5">
-                          <SoftIcon
-                            size="sm"
-                            tone={row.ownerType === "RESELLER" ? "teal" : row.ownerType === "AGENT" ? "violet" : "accent"}
-                          >
-                            {row.ownerType === "PLATFORM" ? <Building2 /> : <Users />}
-                          </SoftIcon>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-advo-text">
-                              {row.owner?.name ?? t("admin.ledger.owner.PLATFORM")}
-                            </p>
-                            <p className="truncate text-xs text-advo-muted">
-                              {accountTypeLabel(t, row.type)}
-                            </p>
-                            <p className="truncate text-[11px] text-advo-muted tabular-nums">
-                              {row.owner?.handle ?? row.ownerId}
-                              {row.owner?.status ? ` · ${humanise(row.owner.status)}` : ""}
-                            </p>
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "side",
-                      header: t("admin.ledger.accounts.col.side"),
-                      render: (row) => (
-                        <StatusChip tone={row.normalBalance === "DEBIT" ? "accent" : "success"}>
-                          {sideLabel(t, row.normalBalance)}
-                        </StatusChip>
-                      ),
-                    },
-                    {
-                      key: "debits",
-                      header: t("admin.ledger.accounts.col.debits"),
-                      render: (row) => (
-                        <span className="text-xs text-advo-muted tabular-nums">{formatTzs(row.debitTzs)}</span>
-                      ),
-                    },
-                    {
-                      key: "credits",
-                      header: t("admin.ledger.accounts.col.credits"),
-                      render: (row) => (
-                        <span className="text-xs text-advo-muted tabular-nums">{formatTzs(row.creditTzs)}</span>
-                      ),
-                    },
-                    {
-                      key: "balance",
-                      header: t("admin.ledger.accounts.col.balance"),
-                      render: (row) => (
-                        <div className="min-w-28">
-                          <p
-                            className={`text-sm font-bold tabular-nums ${
-                              isNegative(row.balanceTzs) ? "text-[var(--advo-danger)]" : "text-advo-text"
-                            }`}
-                          >
-                            {formatTzs(row.balanceTzs)}
-                          </p>
-                          {row.balanceTzs === "0" ? (
-                            <p className="mt-0.5 text-[11px] font-semibold text-advo-muted">
-                              {t("admin.ledger.accounts.zero")}
-                            </p>
-                          ) : null}
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "postings",
-                      header: t("admin.ledger.accounts.col.postings"),
-                      render: (row) => (
-                        <span className="text-xs font-semibold text-advo-text tabular-nums">{row.lineCount}</span>
-                      ),
-                    },
-                    {
-                      key: "last",
-                      header: t("admin.ledger.accounts.col.lastMovement"),
-                      render: (row) => (
-                        <span className="text-xs whitespace-nowrap text-advo-muted tabular-nums">
-                          {row.lastLineAt ? formatDateTime(row.lastLineAt) : t("admin.ledger.none")}
-                        </span>
-                      ),
-                    },
-                  ]}
-                />
-                {accountCount < accountRows.length ? (
-                  <div className="flex justify-center pt-1">
-                    <Button
-                      onPress={() => setAccountCount((n) => n + ACCOUNT_PAGE_SIZE)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {t("admin.ledger.journals.showMore", {
-                        count: Math.min(ACCOUNT_PAGE_SIZE, accountRows.length - accountCount),
-                      })}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            )}
+            {() =>
+              filteredAccounts.length === 0 ? (
+                <Card className="shadow-advo-card ring-1 ring-advo-border/70">
+                  <EmptyState
+                    text={
+                      allAccountRows.length === 0
+                        ? t("admin.ledger.accounts.empty")
+                        : t("admin.ledger.accounts.noMatch")
+                    }
+                  />
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {shownAccounts.map((row) => (
+                    <AccountCard key={row.id} row={row} t={t} />
+                  ))}
+                  {accountCount < filteredAccounts.length ? (
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        onPress={() => setAccountCount((n) => n + ACCOUNT_PAGE_SIZE)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {t("admin.ledger.journals.showMore", {
+                          count: Math.min(ACCOUNT_PAGE_SIZE, filteredAccounts.length - accountCount),
+                        })}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
           </ResourceView>
-        </Card>
-      </section>
+        </>
+      )}
 
       <JournalDetailDialog journal={detail} onClose={closeDetail} />
     </div>
+  );
+}
+
+/* ── List cards & filters ────────────────────────────────────────────────── */
+
+function JournalCard({
+  row,
+  t,
+  onDetail,
+}: {
+  row: JournalRow;
+  t: T;
+  onDetail: () => void;
+}) {
+  const balanced = row.debitTzs === row.creditTzs;
+  return (
+    <Card className="gap-0 overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <SoftIcon size="sm" tone={row.reversesJournalId ? "warning" : "accent"}>
+            {row.reversesJournalId ? <TriangleAlert /> : <ScrollText />}
+          </SoftIcon>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-sm font-bold text-[var(--advo-text)]">{row.description}</p>
+              <StatusChip tone={chipTone(eventTone(row.event))}>{eventLabel(t, row.event)}</StatusChip>
+              {row.reversesJournalId ? (
+                <StatusChip tone="warning">{t("admin.ledger.journals.reversal")}</StatusChip>
+              ) : null}
+            </div>
+            <p className="truncate font-mono text-[11px] text-[var(--advo-muted)]">{row.sourceKey}</p>
+            <p className="text-sm font-bold text-[var(--advo-text)] tabular-nums">
+              {formatTzs(row.debitTzs)}
+              <span className="ml-2 text-xs font-semibold text-[var(--advo-muted)]">
+                {t("admin.ledger.journals.legs", { count: row.lines.length })}
+              </span>
+            </p>
+            <p className="truncate text-[11px] text-[var(--advo-muted)]">
+              {[...new Set(row.lines.map((line) => accountTypeLabel(t, line.accountType)))].join(", ")}
+              {" · "}
+              {formatDateTime(row.createdAt)}
+            </p>
+            {balanced ? (
+              <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-300">
+                <CircleCheck className="size-3" />
+                {t("admin.ledger.journals.balanced")}
+              </p>
+            ) : (
+              <p className="text-[11px] font-semibold text-red-300">{t("admin.ledger.detail.unbalanced")}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 sm:justify-end">
+          <Button className="text-xs" onPress={onDetail} size="sm" type="button" variant="primary">
+            <Eye className="size-3.5" />
+            {t("admin.ledger.journals.action.detail")}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function AccountCard({ row, t }: { row: AccountRow; t: T }) {
+  return (
+    <Card className="gap-0 overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <SoftIcon
+            size="sm"
+            tone={row.ownerType === "RESELLER" ? "teal" : row.ownerType === "AGENT" ? "violet" : "accent"}
+          >
+            {row.ownerType === "PLATFORM" ? <Building2 /> : <Users />}
+          </SoftIcon>
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-sm font-bold text-[var(--advo-text)]">
+                {row.owner?.name ?? t("admin.ledger.owner.PLATFORM")}
+              </p>
+              <StatusChip tone={row.normalBalance === "DEBIT" ? "accent" : "success"}>
+                {sideLabel(t, row.normalBalance)}
+              </StatusChip>
+            </div>
+            <p className="truncate text-xs text-[var(--advo-muted)]">{accountTypeLabel(t, row.type)}</p>
+            <p className="truncate text-[11px] text-[var(--advo-muted)] tabular-nums">
+              {row.owner?.handle ?? row.ownerId}
+              {row.owner?.status ? ` · ${humanise(row.owner.status)}` : ""}
+            </p>
+            <p
+              className={`text-sm font-bold tabular-nums ${
+                isNegative(row.balanceTzs) ? "text-red-300" : "text-[var(--advo-text)]"
+              }`}
+            >
+              {formatTzs(row.balanceTzs)}
+              <span className="ml-2 text-xs font-semibold text-[var(--advo-muted)]">
+                {t("admin.ledger.accounts.col.postings")} {row.lineCount}
+              </span>
+            </p>
+            <p className="text-[11px] text-[var(--advo-muted)] tabular-nums">
+              {t("admin.ledger.accounts.col.debits")} {formatTzs(row.debitTzs)}
+              {" · "}
+              {t("admin.ledger.accounts.col.credits")} {formatTzs(row.creditTzs)}
+              {" · "}
+              {row.lastLineAt ? formatDateTime(row.lastLineAt) : t("admin.ledger.none")}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function FilterPill({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+        active
+          ? "border-transparent bg-[#1B5EA4] text-white"
+          : "border-white/15 bg-[#2A2D33] text-[#E8EAEE] hover:border-[#1B5EA4]/60 hover:text-white"
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+      <span className={`ml-1.5 tabular-nums ${active ? "text-white/85" : "text-white"}`}>{count}</span>
+    </button>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <span className="flex flex-col items-center gap-1.5 py-8">
+      <span className="text-sm font-bold text-[var(--advo-text)]">{text}</span>
+    </span>
   );
 }
 

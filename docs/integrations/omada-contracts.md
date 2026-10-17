@@ -59,6 +59,15 @@ Older than 5.0.15: refused.
 
 **Time semantics** (`portalTimeSemantics` on the Controller: `absolute_epoch` or `duration`) must be set by an Admin after checking on the lab Controller whether `time` means "authorized until this epoch" or "authorized for this long". **There is no default.** The live adapter will not authorize anyone until it is set.
 
+### When a package ends
+
+Two clocks must agree:
+
+- **The authorization's own `time` field.** This is the only mechanism that can end a session on the live Controller: the Hotspot Operator API exposes `login` and `extPortal/auth` only, with no revoke or disconnect call, and `revokeAuthorization` / `disconnectClient` are absent from the shipped Open API contract.
+- **Advo's sweeper.** `sweepGrants` moves an ended grant to `EXPIRED` and enqueues `grant.revoke` for every device still holding access, so the database and the Controller converge instead of the database simply forgetting the session. If the Controller reports revoke unsupported, the device is closed as `REVOKED` with a note that the signed authorization time is authoritative, rather than parked in a permanent manual-action queue. An authorization that completes after the grant lapsed is revoked immediately by the same rule.
+
+`TOTAL` quota is sent as `totalTrafficLimitBytes`; the Controller enforces it and ends the session when the cap is reached. Advo does not poll usage (`readUsage` is unsupported), so the grant row stays `ACTIVE` until its time expiry and `QUOTA_EXHAUSTED` is never set. `DAILY`/`MONTHLY` windows, `afterLimitRedirect` and `afterLimitReduceSpeed` are unsupported: there is no reset-and-reauthorize loop and no post-limit redirect. A guest whose package ends is captured again by the Controller's external portal, which is the redirect seen in practice.
+
 ## Transport
 
 - HTTPS, 10 s timeout per request, and an optional private CA via `OMADA_CA_CERT_PATH`. Production requires an `https://` Controller URL.

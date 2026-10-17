@@ -581,7 +581,13 @@ export const wifiPackageInputSchema = z.object({
   durationSeconds: z.number().int().min(60).max(366 * 86400),
   downloadKbps: z.number().int().min(64).max(10_000_000).optional(),
   uploadKbps: z.number().int().min(64).max(10_000_000).optional(),
-  quotaType: z.enum(["UNLIMITED", "TOTAL", "DAILY", "MONTHLY"]).default("UNLIMITED"),
+  /**
+   * Only the policies a Controller can currently enforce: no cap, or one total
+   * cap sent on the authorization. Daily/monthly windows need a
+   * reset-and-reauthorize loop no adapter implements, so they are not sellable —
+   * the form must never offer a package that cannot be enforced.
+   */
+  quotaType: z.enum(["UNLIMITED", "TOTAL"]).default("UNLIMITED"),
   quotaBytes: z.union([z.number().int(), z.string().regex(/^\d{1,18}$/)]).transform((v) => BigInt(v)).optional(),
   maxDevices: z.number().int().min(1).max(10).default(1),
   activationWindowSeconds: z.number().int().min(300).max(30 * 86400).default(86400),
@@ -637,7 +643,8 @@ export const portalOrderInputSchema = z.object({
 
 export const voucherRedeemSchema = z.object({
   contextToken: z.string().min(20).max(200),
-  code: z.string().trim().min(8).max(20),
+  /** Six-digit numeric (new) or legacy 12-symbol codes, with optional dashes/spaces. */
+  code: z.string().trim().min(6).max(20),
 });
 
 export const grantRecoverySchema = z.object({

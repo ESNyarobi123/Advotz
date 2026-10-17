@@ -16,7 +16,7 @@ import { createPolicy, evaluateSubscriptionCommission } from "./commissions/comm
 import { setSetting, SettingKey } from "./settings/settings.service.js";
 import { createPortalContext, createPortalOrder, joinWithRecoveryToken, portalBootstrap, portalOrderStatus, redeemVoucher, submitPromotion } from "./portal/portal.service.js";
 import { createPlatformListing, listPromotionRequests, updatePromotionRequestState } from "./platform/listings.service.js";
-import { joinGrant, revokeGrant } from "./access/grants.service.js";
+import { joinGrant, revokeGrant, sweepGrants } from "./access/grants.service.js";
 import { accountBalance, agentAccount, platformAccount, postJournal, resellerAccount, trialBalance } from "./ledger/ledger.service.js";
 import { createDestination, requestWithdrawal, reviewWithdrawal, verifyDestination } from "./withdrawals/withdrawals.service.js";
 import { reconcilePaymentAttempt, settlePendingSale } from "./payments/payments.service.js";
@@ -398,6 +398,32 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     expect(grant.state).toBe("PENDING_ACTIVATION");
     expect(grant.candidateExpiresAt).toBeNull();
     expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).fulfillmentState).toBe("FAILED");
+  });
+
+  it("sweeping an ended grant deauthorizes its devices on the Controller", async () => {
+    const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:e1", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
+    await createPortalOrder({ contextToken: ctx.contextToken, packageId: packageA, idempotencyKey: "portal-order-expiry", ...payer("+255712000556") }, IP);
+    const order = await prisma.order.findFirstOrThrow({ where: { requestIdempotencyKey: "portal-order-expiry" } });
+    await payAttempt((await latestAttempt(order.id)).providerReference!, PRICE, 100);
+    await drainAll();
+
+    const before = await prisma.accessGrant.findFirstOrThrow({ where: { orderId: order.id }, include: { devices: true } });
+    expect(before.state).toBe("ACTIVE");
+    expect(before.devices[0]!.authState).toBe("AUTHORIZED");
+
+    // The Controller's own authorization timer is not the guarantee: the sweep
+    // revokes the device too, so a timer that is ignored cannot leave access open.
+    await prisma.accessGrant.update({ where: { id: before.id }, data: { expiresAt: new Date(Date.now() - 1_000) } });
+    await sweepGrants();
+
+    const lapsed = await prisma.accessGrant.findUniqueOrThrow({ where: { id: before.id }, include: { devices: true } });
+    expect(lapsed.state).toBe("EXPIRED");
+    expect(lapsed.devices[0]!.authState).toBe("REVOKE_PENDING");
+    expect(await prisma.outboxEvent.count({ where: { eventType: "grant.revoke", aggregateId: lapsed.devices[0]!.id } })).toBe(1);
+
+    await drainAll();
+    const revoked = await prisma.accessGrant.findUniqueOrThrow({ where: { id: before.id }, include: { devices: true } });
+    expect(revoked.devices[0]!.authState).toBe("REVOKED");
   });
 
   it("amount mismatch is quarantined and never grants access", async () => {

@@ -57,6 +57,8 @@ ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY --from=web-build --chown=node:node /repo/apps/web/.next/standalone ./
 COPY --from=web-build --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
+# Standalone does not include `public`. Brand logos and other static files live there.
+COPY --from=web-build --chown=node:node /repo/apps/web/public ./apps/web/public
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
@@ -67,6 +69,7 @@ ENV NODE_ENV=production PORT=3001 HOSTNAME=0.0.0.0 NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 COPY --from=portal-build --chown=node:node /repo/apps/portal/.next/standalone ./
 COPY --from=portal-build --chown=node:node /repo/apps/portal/.next/static ./apps/portal/.next/static
+COPY --from=portal-build --chown=node:node /repo/apps/portal/public ./apps/portal/public
 USER node
 EXPOSE 3001
 CMD ["node", "apps/portal/server.js"]
