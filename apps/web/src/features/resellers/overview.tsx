@@ -16,6 +16,7 @@ import {
 } from "@/features/common/charts";
 import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { accountStatusLabel, paymentStateLabel, subscriptionStateLabel } from "@/features/common/labels";
+import { SiteScopeSwitcher, useSiteScope } from "@/features/resellers/site-scope";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { useResource } from "@/lib/hooks";
 import {
@@ -57,6 +58,9 @@ type ResellerOverview = {
   pendingClaims: number;
   packageCount: number;
   ordersNeedingReview: number;
+  scope: { siteId: string | null; siteName: string | null };
+  /** Always reseller-wide — used by the setup checklist so scoping never regresses it. */
+  totals: { sites: number; devices: number; packages: number };
 };
 
 type OrderItem = {
@@ -148,8 +152,9 @@ function RankedBars({
 }
 
 export function ResellerOverviewScreen() {
-  const overview = useResource<ResellerOverview>("/reseller/overview");
-  const orders = useResource<OrderItem[]>("/reseller/orders");
+  const { scoped } = useSiteScope();
+  const overview = useResource<ResellerOverview>(scoped("/reseller/overview"));
+  const orders = useResource<OrderItem[]>(scoped("/reseller/orders"));
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -164,7 +169,18 @@ export function ResellerOverviewScreen() {
 
   return (
     <ResourceView resource={overview}>
-      {(o) => <OverviewBody o={o} orders={orders} searchQuery={searchQuery} setSearchQuery={setSearchQuery} statusFilter={statusFilter} setStatusFilter={setStatusFilter} isRefreshing={isRefreshing} onRefresh={handleRefresh} />}
+      {(o) => (
+        <OverviewBody
+          isRefreshing={isRefreshing}
+          o={o}
+          onRefresh={handleRefresh}
+          orders={orders}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          setStatusFilter={setStatusFilter}
+          statusFilter={statusFilter}
+        />
+      )}
     </ResourceView>
   );
 }
@@ -189,11 +205,15 @@ function OverviewBody({
   onRefresh: () => void;
 }) {
   const { t } = useI18n();
+  const { siteId, site } = useSiteScope();
+  const scopedSite = Boolean(siteId && o.scope.siteId);
+  // Checklist always reflects the whole account so filtering a site never
+  // makes a completed setup look unfinished.
   const steps = [
     { done: ["ACTIVE", "TRIALING"].includes(o.subscription.state), label: t("reseller.overview.step.plan"), href: "/reseller/subscription" },
-    { done: o.sites.length > 0, label: t("reseller.overview.step.site"), href: "/reseller/sites" },
-    { done: o.deviceCount > 0, label: t("reseller.overview.step.device"), href: "/reseller/devices" },
-    { done: o.packageCount > 0, label: t("reseller.overview.step.package"), href: "/reseller/packages" },
+    { done: o.totals.sites > 0, label: t("reseller.overview.step.site"), href: "/reseller/sites" },
+    { done: o.totals.devices > 0, label: t("reseller.overview.step.device"), href: "/reseller/devices" },
+    { done: o.totals.packages > 0, label: t("reseller.overview.step.package"), href: "/reseller/packages" },
   ];
   const pendingStepsCount = steps.filter((s) => !s.done).length;
 
@@ -259,6 +279,15 @@ function OverviewBody({
   const sparkRevenue = trend.map((d) => d.amount);
   const sparkSales = trend.map((d) => d.count);
 
+  const paidInWindow = trend.reduce((sum, d) => sum + d.count, 0);
+  const avgSale = paidInWindow > 0 ? windowTotal / paidInWindow : 0;
+  const bestDay = trend.reduce<(typeof trend)[number] | null>(
+    (best, d) => (!best || d.amount > best.amount ? d : best),
+    null,
+  );
+  const topPackage = packageSales[0] ?? null;
+  const topSite = siteSales[0] ?? null;
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
       {/* ── Header ── */}
@@ -281,7 +310,6 @@ function OverviewBody({
             </Button>
           </>
         }
-        description={t("reseller.overview.subtitle")}
         eyebrow={t("nav.overview")}
         icon={<LayoutDashboard />}
         iconTone="accent"
@@ -296,6 +324,45 @@ function OverviewBody({
         }
         title={o.reseller.businessName}
       />
+
+      {/* ── Site scope + analysis ── */}
+      <Card className="space-y-4 p-4 shadow-advo-card ring-1 ring-advo-border/70 sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <SiteScopeSwitcher variant="hero" />
+          <span className="text-[11px] font-semibold text-advo-muted">
+            {t("reseller.analysis.window", { days: trend.length })}
+            {scopedSite && site ? ` · ${site.name}` : ""}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <AnalysisChip
+            label={t("reseller.analysis.avgSale")}
+            value={avgSale > 0 ? formatTzs(Math.round(avgSale)) : "—"}
+          />
+          <AnalysisChip
+            label={t("reseller.analysis.bestDay")}
+            value={bestDay && bestDay.amount > 0 ? formatTzs(bestDay.amount) : "—"}
+            hint={bestDay && bestDay.amount > 0 ? bestDay.day : undefined}
+          />
+          <AnalysisChip
+            label={t("reseller.analysis.topPackage")}
+            value={topPackage ? topPackage.package : "—"}
+            hint={topPackage ? formatTzs(topPackage.amountTzs) : undefined}
+          />
+          {!scopedSite ? (
+            <AnalysisChip
+              label={t("reseller.analysis.topSite")}
+              value={topSite ? topSite.site : "—"}
+              hint={topSite ? formatTzs(topSite.amountTzs) : undefined}
+            />
+          ) : (
+            <AnalysisChip
+              label={t("reseller.analysis.window", { days: trend.length })}
+              value={formatTzs(windowTotal)}
+            />
+          )}
+        </div>
+      </Card>
 
       {/* ── Status alerts ── */}
       {o.reseller.status !== "ACTIVE" ? (
@@ -398,7 +465,11 @@ function OverviewBody({
               <ArrowUpRight className="size-3" />
             </Link>
           }
-          hint={t("reseller.overview.kpi.walletHint", { amount: formatTzs(o.wallet.pendingTzs) })}
+          hint={
+            scopedSite
+              ? t("reseller.scope.walletWide")
+              : t("reseller.overview.kpi.walletHint", { amount: formatTzs(o.wallet.pendingTzs) })
+          }
           icon={<Wallet />}
           iconTone="gold"
           label={t("reseller.overview.kpi.wallet")}
@@ -415,7 +486,17 @@ function OverviewBody({
           value={o.salesToday.count}
         />
         <AdvoKpi
-          hint={t("reseller.overview.kpi.activeUsersHint", { sites: o.sites.length, devices: o.deviceCount })}
+          hint={
+            scopedSite && (o.scope.siteName || site?.name)
+              ? t("reseller.overview.kpi.activeUsersHintSite", {
+                  site: o.scope.siteName ?? site?.name ?? "",
+                  devices: o.deviceCount,
+                })
+              : t("reseller.overview.kpi.activeUsersHint", {
+                  sites: o.sites.length,
+                  devices: o.deviceCount,
+                })
+          }
           icon={<Radio />}
           iconTone="teal"
           label={t("reseller.overview.kpi.activeUsers")}
@@ -469,21 +550,23 @@ function OverviewBody({
       </div>
 
       {/* ── Rankings ── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ChartCard
-          description={t("reseller.overview.bySite.description")}
-          title={t("reseller.overview.bySite.title")}
-        >
-          <RankedBars
-            emptyText={t("reseller.overview.rankings.empty")}
-            rows={siteSales.map((s) => ({
-              key: s.site,
-              label: s.site,
-              count: s.count,
-              amount: formatTzs(s.amountTzs),
-            }))}
-          />
-        </ChartCard>
+      <div className={`grid grid-cols-1 gap-4 ${scopedSite ? "" : "lg:grid-cols-2"}`}>
+        {!scopedSite ? (
+          <ChartCard
+            description={t("reseller.overview.bySite.description")}
+            title={t("reseller.overview.bySite.title")}
+          >
+            <RankedBars
+              emptyText={t("reseller.overview.rankings.empty")}
+              rows={siteSales.map((s) => ({
+                key: s.site,
+                label: s.site,
+                count: s.count,
+                amount: formatTzs(s.amountTzs),
+              }))}
+            />
+          </ChartCard>
+        ) : null}
 
         <ChartCard
           description={t("reseller.overview.byPackage.description")}
@@ -639,6 +722,26 @@ function OverviewBody({
         <Download className="size-3" />
         {t("reseller.overview.printHint")}
       </p>
+    </div>
+  );
+}
+
+function AnalysisChip({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-advo-border/70 bg-advo-page px-3 py-2.5">
+      <p className="text-[10px] font-bold tracking-wide text-advo-muted uppercase">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-black text-advo-text" title={value}>
+        {value}
+      </p>
+      {hint ? <p className="mt-0.5 truncate text-[10px] text-advo-muted">{hint}</p> : null}
     </div>
   );
 }

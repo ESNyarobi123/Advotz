@@ -156,6 +156,7 @@ const baseEn = {
   "nav.auditLog": "Audit log",
   "nav.leadsAndInvitations": "Leads & invitations",
   "nav.listings": "Jobs & Opportunities",
+  "nav.hotspots": "Our Hotspots",
   "nav.campaigns": "Ad campaigns",
 
   // ── Session shell ────────────────────────────────────────────────────────
@@ -491,10 +492,22 @@ const baseEn = {
   "reseller.customers.remaining.minutes": "{minutes}m left",
   "reseller.customers.remaining.hours": "{hours}h {minutes}m left",
 
+  // ── Reseller · site scope ────────────────────────────────────────────────
+  "reseller.scope.label": "Site",
+  "reseller.scope.all": "All sites",
+  "reseller.scope.allWithCount": "All sites ({count})",
+  "reseller.scope.siteCount": "Showing {name}",
+  "reseller.scope.resellerWide": "Reseller-wide",
+  "reseller.scope.walletWide": "Wallet is reseller-wide",
+  "reseller.scope.noSites": "Register a site to filter",
+  "reseller.analysis.avgSale": "Avg sale",
+  "reseller.analysis.bestDay": "Best day",
+  "reseller.analysis.topPackage": "Top package",
+  "reseller.analysis.topSite": "Top site",
+  "reseller.analysis.window": "Last {days} days",
+
   // ── Reseller · overview ──────────────────────────────────────────────────
   "reseller.overview.activePortal": "Active portal",
-  "reseller.overview.subtitle":
-    "Measured on Dar es Salaam time (EAT). Sales are the guest's gross payment; net earnings land in your wallet.",
   "reseller.overview.accountStatus": "Account status: {status}.",
   "reseller.overview.accountStatusNote":
     "Some services unlock once the account is verified.",
@@ -524,6 +537,8 @@ const baseEn = {
   "reseller.overview.kpi.activeUsers": "Active users",
   "reseller.overview.kpi.activeUsersHint":
     "{sites} sites · {devices} AP devices",
+  "reseller.overview.kpi.activeUsersHintSite":
+    "{site} · {devices} AP devices",
   "reseller.overview.trend.title": "Sales trend",
   "reseller.overview.trend.description": "Paid transactions per day",
   "reseller.overview.trend.window": "{amount} · {days} days",
@@ -566,7 +581,9 @@ const baseEn = {
   "marketing.nav.howItWorks": "How it works",
   "marketing.nav.customers": "Our customers",
   "marketing.nav.calculator": "Revenue calculator",
-  "marketing.nav.pricing": "Packages & pricing",
+  "marketing.nav.pricing": "Price",
+  "marketing.nav.hotspots": "Our Hotspots",
+  "marketing.nav.services": "Services",
   "marketing.nav.contact": "Contact us",
   "marketing.header.login": "Log in",
   "marketing.header.loginDashboard": "Log in to dashboard",
@@ -847,6 +864,7 @@ const baseSw: Record<BaseMessageKey, string> = {
   "nav.auditLog": "Kumbukumbu za ukaguzi",
   "nav.leadsAndInvitations": "Wateja tarajali & mialiko",
   "nav.listings": "Kazi & Fursa",
+  "nav.hotspots": "Hotspots Zetu",
   "nav.campaigns": "Kampeni za matangazo",
 
   "shell.sessionFailed": "Imeshindwa kupakia kipindi chako: {reason}",
@@ -1178,9 +1196,20 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.customers.remaining.minutes": "Dakika {minutes} zimebaki",
   "reseller.customers.remaining.hours": "Saa {hours} dakika {minutes} zimebaki",
 
+  "reseller.scope.label": "Eneo",
+  "reseller.scope.all": "Maeneo yote",
+  "reseller.scope.allWithCount": "Maeneo yote ({count})",
+  "reseller.scope.siteCount": "Inaonyesha {name}",
+  "reseller.scope.resellerWide": "Akaunti nzima",
+  "reseller.scope.walletWide": "Wallet ni ya akaunti nzima",
+  "reseller.scope.noSites": "Sajili eneo ili kuchuja",
+  "reseller.analysis.avgSale": "Wastani wa mauzo",
+  "reseller.analysis.bestDay": "Siku bora",
+  "reseller.analysis.topPackage": "Kifurushi cha juu",
+  "reseller.analysis.topSite": "Eneo la juu",
+  "reseller.analysis.window": "Siku {days} zilizopita",
+
   "reseller.overview.activePortal": "Portal hai",
-  "reseller.overview.subtitle":
-    "Leo inapimwa kwa saa za Dar es Salaam (EAT). Mauzo ni malipo ghafi ya wateja; mapato halisi yanaingia kwenye wallet.",
   "reseller.overview.accountStatus": "Hali ya akaunti: {status}.",
   "reseller.overview.accountStatusNote":
     "Baadhi ya huduma zitafunguka pindi akaunti inapothibitishwa.",
@@ -1211,6 +1240,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.overview.kpi.activeUsers": "Watumiaji Hai",
   "reseller.overview.kpi.activeUsersHint":
     "{sites} maeneo · {devices} vifaa vya AP",
+  "reseller.overview.kpi.activeUsersHintSite":
+    "{site} · {devices} vifaa vya AP",
   "reseller.overview.trend.title": "Mwenendo wa Mauzo",
   "reseller.overview.trend.description": "Malipo yaliyolipwa kwa siku",
   "reseller.overview.trend.window": "{amount} · siku {days}",
@@ -1253,7 +1284,9 @@ const baseSw: Record<BaseMessageKey, string> = {
   "marketing.nav.howItWorks": "Jinsi Inavyofanya Kazi",
   "marketing.nav.customers": "Wateja Wetu",
   "marketing.nav.calculator": "Kikokotoo cha Mapato",
-  "marketing.nav.pricing": "Vifurushi & Bei",
+  "marketing.nav.pricing": "Bei",
+  "marketing.nav.hotspots": "Hotspots Zetu",
+  "marketing.nav.services": "Huduma",
   "marketing.nav.contact": "Wasiliana Nasi",
   "marketing.header.login": "Ingia",
   "marketing.header.loginDashboard": "Ingia kwenye Dashboard",

@@ -7,6 +7,7 @@ import { Card } from "@heroui/react";
 import { Notice, StatusChip, statusTone } from "@advo/ui";
 import { Field, PageHero, ResourceView } from "@/features/common/components";
 import { useSessionUser } from "@/features/shell/DashboardShell";
+import type { MessageKey } from "@advo/i18n";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { api, newIdempotencyKey } from "@/lib/api";
 import { formValues, useAction, useResource } from "@/lib/hooks";
@@ -78,13 +79,13 @@ function formatCap(t: I18n["t"], value: number | null): string {
 }
 
 function subscriptionStateLabel(t: I18n["t"], state: string): string {
-  const key = `reseller.subscription.state.${state}` as const;
+  const key = `reseller.subscription.state.${state}` as MessageKey;
   const translated = t(key);
   return translated === key ? state.replace(/_/g, " ") : translated;
 }
 
 function invoiceStatusLabel(t: I18n["t"], status: string): string {
-  const key = `reseller.subscription.invoice.${status}` as const;
+  const key = `reseller.subscription.invoice.${status}` as MessageKey;
   const translated = t(key);
   return translated === key ? status.replace(/_/g, " ") : translated;
 }
@@ -286,12 +287,12 @@ export function ResellerSubscriptionScreen() {
               </span>
               <div>
                 <h2 className="text-sm font-bold text-advo-text">
-                  {t("reseller.subscription.trial.title", { days: trialPlan.trialDays })}
+                  {t("reseller.subscription.trial.title", { days: trialPlan.trialDays ?? 0 })}
                 </h2>
                 <p className="mt-0.5 max-w-xl text-xs text-slate-600">
                   {t("reseller.subscription.trial.body", {
                     plan: trialPlan.name,
-                    days: trialPlan.trialDays,
+                    days: trialPlan.trialDays ?? 0,
                   })}
                 </p>
               </div>
@@ -305,7 +306,7 @@ export function ResellerSubscriptionScreen() {
               <Sparkles className="h-3.5 w-3.5" />
               {trial.pending
                 ? t("reseller.subscription.trial.starting")
-                : t("reseller.subscription.trial.cta", { days: trialPlan.trialDays })}
+                : t("reseller.subscription.trial.cta", { days: trialPlan.trialDays ?? 0 })}
             </button>
           </div>
           {trial.error ? <p className="mt-3 text-xs font-semibold text-red-600">{trial.error}</p> : null}
@@ -452,7 +453,7 @@ export function ResellerSubscriptionScreen() {
                             className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-advo-page"
                           >
                             <Sparkles className="h-3.5 w-3.5 text-advo-gold" />
-                            {t("reseller.subscription.plans.startTrial", { days: p.trialDays })}
+                            {t("reseller.subscription.plans.startTrial", { days: p.trialDays ?? 0 })}
                           </button>
                         ) : null}
                       </div>

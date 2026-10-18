@@ -6,6 +6,7 @@ import { Card } from "@heroui/react";
 import { StatusChip, statusTone } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
 import { ResourceView } from "@/features/common/components";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { api, errorMessage } from "@/lib/api";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { formValues, useAction, useResource } from "@/lib/hooks";
@@ -78,6 +79,7 @@ function needsAttention(site: SiteRow): boolean {
 
 export function ResellerSitesScreen() {
   const { t } = useI18n();
+  const { siteId: scopedSiteId } = useSiteScope();
   const sites = useResource<SiteRow[]>("/reseller/sites");
   // The reseller's registered business name is the default name for a new site.
   const overview = useResource<{ reseller: { businessName: string } }>("/reseller/overview");
@@ -331,6 +333,7 @@ export function ResellerSitesScreen() {
                     onDelete={() => setDeletingSite(site)}
                     onEdit={() => setEditingSite(site)}
                     onReload={sites.reload}
+                    selected={scopedSiteId === site.id}
                     site={site}
                     t={t}
                   />
@@ -468,6 +471,7 @@ function SiteCard({
   onReload,
   onEdit,
   onDelete,
+  selected,
 }: {
   site: SiteRow;
   t: I18n["t"];
@@ -476,13 +480,20 @@ function SiteCard({
   onReload: () => void | Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
+  selected?: boolean;
 }) {
   const attention = needsAttention(site);
   const ready = site.state === "READY";
   const portalUrl = `${PORTAL_URL}/${site.slug}`;
 
   return (
-    <Card className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-4.5 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg">
+    <Card
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-2xl border bg-white p-4.5 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+        selected
+          ? "border-advo-blue/50 ring-2 ring-advo-blue/20 hover:border-advo-blue/60"
+          : "border-slate-200/90 hover:border-slate-300"
+      }`}
+    >
       {/* Top status accent gradient strip */}
       <span
         aria-hidden="true"

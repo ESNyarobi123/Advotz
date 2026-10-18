@@ -39,6 +39,7 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const justRegistered = params.get("registered") === "1";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -101,6 +102,12 @@ function LoginForm() {
             {needsCode ? t("auth.login.subtitleMfa") : t("auth.login.subtitle")}
           </p>
         </header>
+
+        {!needsCode && justRegistered ? (
+          <div className="relative mb-4">
+            <Notice tone="success">{t("auth.register.info.readyToLogin")}</Notice>
+          </div>
+        ) : null}
 
         {!needsCode && (
           <div className="relative mb-6">

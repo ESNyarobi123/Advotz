@@ -161,11 +161,10 @@ export async function seedDemo(): Promise<DemoSeedResult> {
       referralCode: agent.referralCode,
       acceptTerms: true,
     });
-    if (reg.devVerificationToken) await auth.verifyContact(reg.devVerificationToken);
     await startTrial(reg.resellerId, plan.id, reg.userId);
     resellerId = reg.resellerId;
     ownerUserId = reg.userId;
-    result.created.push("reseller Demo Café (verified, trial started, attributed to DEMO01)");
+    result.created.push("reseller Demo Café (trial started, attributed to DEMO01)");
     result.credentials.push({ role: "RESELLER", email: resellerEmail, password });
   }
 

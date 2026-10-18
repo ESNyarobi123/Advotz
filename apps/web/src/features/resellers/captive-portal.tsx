@@ -33,6 +33,7 @@ import {
 import { Field, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { BackgroundUploader, LogoUploader } from "./logo-uploader";
 import { api, errorDetails, type ErrorDetail } from "@/lib/api";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { useI18n } from "@/lib/i18n";
 import { useAction, useResource } from "@/lib/hooks";
 import {
@@ -143,6 +144,7 @@ type PreviewStage = "packages" | "connected";
 
 export function ResellerCaptivePortalScreen() {
   const { t } = useI18n();
+  const { siteId: scopeSiteId } = useSiteScope();
   const entitlements = useResource<ResellerEntitlementsView>("/reseller/entitlements");
   const sites = useResource<SiteOption[]>("/reseller/sites");
   const packages = useResource<PackageRow[]>("/reseller/packages");
@@ -194,10 +196,19 @@ export function ResellerCaptivePortalScreen() {
     return assigned;
   }, [sellablePackages]);
 
-  // Default to the first site so the editor has something to load.
+  // Prefer URL ?siteId=, then the dashboard site scope, then the first site.
   useEffect(() => {
-    if (!siteId && sites.data && sites.data.length > 0) setSiteId(sites.data[0].id);
-  }, [sites.data, siteId]);
+    if (siteId || !sites.data || sites.data.length === 0) return;
+    const fromUrl =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("siteId")
+        : null;
+    const preferred =
+      (fromUrl && sites.data.some((s) => s.id === fromUrl) ? fromUrl : null) ??
+      (scopeSiteId && sites.data.some((s) => s.id === scopeSiteId) ? scopeSiteId : null) ??
+      sites.data[0].id;
+    setSiteId(preferred);
+  }, [sites.data, siteId, scopeSiteId]);
 
   /**
    * Whether the site the designer opened on already carries the reseller's work.

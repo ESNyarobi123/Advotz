@@ -6,6 +6,7 @@ import { Card, Skeleton } from "@heroui/react";
 import { Notice, StatusChip } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
 import { Field, PageHero, ResourceView } from "@/features/common/components";
+import type { MessageKey } from "@advo/i18n";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { api, newIdempotencyKey } from "@/lib/api";
 import { formValues, useAction, useResource } from "@/lib/hooks";
@@ -92,7 +93,7 @@ type FilterState = (typeof FILTER_STATES)[number];
 type Sheet = "withdraw" | "destination" | null;
 
 function stateLabel(t: I18n["t"], state: string): string {
-  const key = `wallet.state.${state}` as const;
+  const key = `wallet.state.${state}` as MessageKey;
   const translated = t(key);
   return translated === key ? state.replace(/_/g, " ") : translated;
 }

@@ -6,6 +6,7 @@ import { Card } from "@heroui/react";
 import { StatusChip } from "@advo/ui";
 import { PageHero, ResourceView } from "@/features/common/components";
 import { fulfillmentStateLabel, grantStateLabel, paymentStateLabel } from "@/features/common/labels";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { useResource } from "@/lib/hooks";
 import {
@@ -61,7 +62,8 @@ function customerInitial(o: Order): string {
 
 export function ResellerOrdersScreen() {
   const { t } = useI18n();
-  const orders = useResource<Order[]>("/reseller/orders");
+  const { scoped } = useSiteScope();
+  const orders = useResource<Order[]>(scoped("/reseller/orders"));
   const [filterState, setFilterState] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);

@@ -59,3 +59,26 @@ export type PublicPlan = z.infer<typeof publicPlanSchema>;
 
 /** The response body of `GET /api/v1/marketing/plans`. */
 export const publicPlanListSchema = z.array(publicPlanSchema);
+
+/**
+ * One curated WiFi location on the public "Our Hotspots" page.
+ * Coordinates are numbers (not Decimal strings) so the map client can plot them.
+ */
+export const publicHotspotSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  address: z.string(),
+  city: z.string(),
+  region: z.string(),
+  latitude: z.number(),
+  longitude: z.number(),
+  category: z.string(),
+  description: z.string(),
+  imageUrl: z.string().nullable(),
+  portalSlug: z.string().nullable(),
+});
+
+export type PublicHotspot = z.infer<typeof publicHotspotSchema>;
+
+/** The response body of `GET /api/v1/marketing/hotspots`. */
+export const publicHotspotListSchema = z.array(publicHotspotSchema);

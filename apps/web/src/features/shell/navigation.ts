@@ -11,6 +11,7 @@ import {
   HelpCircle,
   Layers,
   LayoutDashboard,
+  MapPin,
   Megaphone,
   Package,
   Palette,
@@ -60,6 +61,7 @@ const ICONS: Record<string, LucideIcon> = {
   "/admin/withdrawals": ArrowUpRight,
   "/admin/ledger": BookOpen,
   "/admin/listings": Briefcase,
+  "/admin/hotspots": MapPin,
   "/admin/campaigns": Megaphone,
   "/admin/settings": Settings,
   "/admin/support": HelpCircle,
@@ -125,6 +127,7 @@ export const SECTIONS: Record<Role, NavSection[]> = {
     ]),
     section("system", "nav.group.system", [
       item("/admin/listings", "nav.listings"),
+      item("/admin/hotspots", "nav.hotspots"),
       item("/admin/campaigns", "nav.campaigns"),
       item("/admin/settings", "nav.settings"),
       item("/admin/support", "nav.support"),

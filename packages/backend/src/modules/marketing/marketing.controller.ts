@@ -1,4 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
+import { listPublicHotspots } from "../platform/hotspots.service.js";
 import { listPublicPlans } from "./marketing.service.js";
 
 /**
@@ -14,5 +15,11 @@ export class MarketingController {
   @Get("plans")
   plans() {
     return listPublicPlans();
+  }
+
+  /** Curated WiFi locations for the public "Our Hotspots" map (active only). */
+  @Get("hotspots")
+  hotspots() {
+    return listPublicHotspots();
   }
 }

@@ -5,6 +5,7 @@ import { Button, Card, Modal, useOverlayState } from "@heroui/react";
 import { formatDateTime } from "@advo/api-client";
 import { Notice, StatusChip, statusTone } from "@advo/ui";
 import { PageHero, ResourceView } from "@/features/common/components";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { api } from "@/lib/api";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { formValues, useAction, useResource } from "@/lib/hooks";
@@ -95,7 +96,8 @@ function deviceStatusLabel(t: I18n["t"], status: string | null): string {
 
 export function ResellerDevicesScreen() {
   const { t } = useI18n();
-  const devices = useResource<DeviceRow[]>("/reseller/devices");
+  const { scoped } = useSiteScope();
+  const devices = useResource<DeviceRow[]>(scoped("/reseller/devices"));
   const sites = useResource<SiteOption[]>("/reseller/sites");
 
   const [showForm, setShowForm] = useState(false);

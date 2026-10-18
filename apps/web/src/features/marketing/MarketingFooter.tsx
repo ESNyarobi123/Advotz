@@ -119,6 +119,12 @@ export function MarketingFooter() {
             <Link href="/pricing" className="transition-colors hover:text-white">
               {t("marketing.footer.bottom.pricing")}
             </Link>
+            <Link href="/hotspots" className="transition-colors hover:text-white">
+              {t("marketing.footer.bottom.hotspots")}
+            </Link>
+            <Link href="/services" className="transition-colors hover:text-white">
+              {t("marketing.footer.bottom.services")}
+            </Link>
             <Link href="/contact" className="transition-colors hover:text-white">
               {t("nav.support")}
             </Link>

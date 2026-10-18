@@ -94,9 +94,13 @@ async function assertEnforceable(input: WifiPackageInput) {
   }
 }
 
-export async function listPackages(resellerId: string) {
+export async function listPackages(resellerId: string, siteId?: string) {
   return prisma.wifiPackage.findMany({
-    where: { resellerId, status: "ACTIVE" },
+    where: {
+      resellerId,
+      status: "ACTIVE",
+      ...(siteId ? { assignments: { some: { siteId } } } : {}),
+    },
     include: { currentRevision: true, assignments: { include: { site: { select: { id: true, name: true } } } } },
     orderBy: { createdAt: "asc" },
     take: 200,

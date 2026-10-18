@@ -1,234 +1,169 @@
-import Link from "next/link";
 import {
-  Wifi,
-  ShieldCheck,
-  Zap,
   ArrowRight,
-  Radio,
-  QrCode,
-  Users,
-  BarChart3,
-  Clock,
-  Sparkles,
-  Lock,
   Layers,
+  QrCode,
+  Radio,
+  ShieldCheck,
   Smartphone,
-  RefreshCw,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
+import type { MessageKey } from "@advo/i18n";
 import { getServerI18n } from "@/lib/i18n.server";
+import { ButtonLink, Section, SectionHeading } from "@/features/marketing/ui";
+
+type FeatureBlock = {
+  id?: string;
+  icon: LucideIcon;
+  accent: string;
+  titleKey: MessageKey;
+  descKey: MessageKey;
+  bullets: [MessageKey, MessageKey, MessageKey];
+};
+
+const FEATURES: FeatureBlock[] = [
+  {
+    id: "captive-portal",
+    icon: Smartphone,
+    accent: "#FBA102",
+    titleKey: "marketing.features.portal.title",
+    descKey: "marketing.features.portal.desc",
+    bullets: [
+      "marketing.features.portal.feature1",
+      "marketing.features.portal.feature2",
+      "marketing.features.portal.feature3",
+    ],
+  },
+  {
+    id: "omada-integration",
+    icon: Radio,
+    accent: "#F16304",
+    titleKey: "marketing.features.omada.title",
+    descKey: "marketing.features.omada.desc",
+    bullets: [
+      "marketing.features.omada.feature1",
+      "marketing.features.omada.feature2",
+      "marketing.features.omada.feature3",
+    ],
+  },
+  {
+    id: "vouchers",
+    icon: QrCode,
+    accent: "#FBA102",
+    titleKey: "marketing.features.vouchers.title",
+    descKey: "marketing.features.vouchers.desc",
+    bullets: [
+      "marketing.features.vouchers.feature1",
+      "marketing.features.vouchers.feature2",
+      "marketing.features.vouchers.feature3",
+    ],
+  },
+  {
+    id: "ledger",
+    icon: ShieldCheck,
+    accent: "#34D399",
+    titleKey: "marketing.features.ledger.title",
+    descKey: "marketing.features.ledger.desc",
+    bullets: [
+      "marketing.features.ledger.feature1",
+      "marketing.features.ledger.feature2",
+      "marketing.features.ledger.feature3",
+    ],
+  },
+  {
+    icon: Layers,
+    accent: "#F16304",
+    titleKey: "marketing.features.devices.title",
+    descKey: "marketing.features.devices.desc",
+    bullets: [
+      "marketing.features.devices.feature1",
+      "marketing.features.devices.feature2",
+      "marketing.features.devices.feature3",
+    ],
+  },
+  {
+    id: "agents",
+    icon: Users,
+    accent: "#FBA102",
+    titleKey: "marketing.features.agents.title",
+    descKey: "marketing.features.agents.desc",
+    bullets: [
+      "marketing.features.agents.feature1",
+      "marketing.features.agents.feature2",
+      "marketing.features.agents.feature3",
+    ],
+  },
+];
 
 export default async function FeaturesPage() {
   const { t } = await getServerI18n();
+
   return (
-    <div className="w-full bg-[#F7F9FC] py-16 lg:py-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span
-            className="inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3"
-            style={{
-              background: "linear-gradient(135deg, rgba(251, 161, 2, 0.15) 0%, rgba(241, 99, 4, 0.15) 100%)",
-              color: "#b15f00",
-              border: "1px solid rgba(251, 161, 2, 0.35)",
-            }}
-          >
-            {t("marketing.features.badge")}
-          </span>
-          <h1 className="text-3xl sm:text-5xl font-black text-[#18212F] tracking-tight">
-            {t("marketing.features.title")}
-          </h1>
-          <p className="text-base sm:text-lg text-[#526174] mt-4">
-            {t("marketing.features.subtitle")}
-          </p>
-        </div>
+    <Section tone="dark" aria-labelledby="features-page-title" className="overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(251,161,2,0.12),_transparent_55%)]"
+      />
 
-        {/* Feature Highlights Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* 1. Mobile Money Integration */}
-          <div
-            id="captive-portal"
-            className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-[#fff4e0] border border-[#FBA102]/30 flex items-center justify-center text-[#b15f00]">
-              <Smartphone className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-[#18212F]">
-              {t("marketing.features.portal.title")}
-            </h3>
-            <p className="text-sm text-[#526174] leading-relaxed">
-              {t("marketing.features.portal.desc")}
-            </p>
-            <ul className="space-y-2 text-xs text-[#18212F] pt-2">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FBA102]" /> {t("marketing.features.portal.feature1")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FBA102]" /> {t("marketing.features.portal.feature2")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#FBA102]" /> {t("marketing.features.portal.feature3")}
-              </li>
-            </ul>
-          </div>
+      <SectionHeading
+        tone="dark"
+        eyebrow={t("marketing.features.badge")}
+        title={t("marketing.features.title")}
+        lead={t("marketing.features.subtitle")}
+        titleId="features-page-title"
+      />
 
-          {/* 2. TP-Link Omada SDN */}
-          <div
-            id="omada-integration"
-            className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[#F16304]">
-              <Radio className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-[#18212F]">
-              {t("marketing.features.omada.title")}
-            </h3>
-            <p className="text-sm text-[#526174] leading-relaxed">
-              {t("marketing.features.omada.desc")}
-            </p>
-            <ul className="space-y-2 text-xs text-[#18212F] pt-2">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.omada.feature1")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.omada.feature2")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.omada.feature3")}
-              </li>
-            </ul>
-          </div>
-
-          {/* 3. Vouchers & Printing */}
-          <div
-            id="vouchers"
-            className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-[#FBA102]">
-              <QrCode className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-[#18212F]">
-              {t("marketing.features.vouchers.title")}
-            </h3>
-            <p className="text-sm text-[#526174] leading-relaxed">
-              {t("marketing.features.vouchers.desc")}
-            </p>
-            <ul className="space-y-2 text-xs text-[#18212F] pt-2">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.vouchers.feature1")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.vouchers.feature2")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.vouchers.feature3")}
-              </li>
-            </ul>
-          </div>
-
-          {/* 4. Append-Only Financial Ledger */}
-          <div
-            id="ledger"
-            className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-[#18212F]">
-              {t("marketing.features.ledger.title")}
-            </h3>
-            <p className="text-sm text-[#526174] leading-relaxed">
-              {t("marketing.features.ledger.desc")}
-            </p>
-            <ul className="space-y-2 text-xs text-[#18212F] pt-2">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> {t("marketing.features.ledger.feature1")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> {t("marketing.features.ledger.feature2")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> {t("marketing.features.ledger.feature3")}
-              </li>
-            </ul>
-          </div>
-
-          {/* 5. Device Limit & Roaming */}
-          <div className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl">
-            <div className="w-12 h-12 rounded-2xl bg-[#fff0e9] border border-[#F16304]/25 flex items-center justify-center text-[#F16304]">
-              <Layers className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-[#18212F]">
-              {t("marketing.features.devices.title")}
-            </h3>
-            <p className="text-sm text-[#526174] leading-relaxed">
-              {t("marketing.features.devices.desc")}
-            </p>
-            <ul className="space-y-2 text-xs text-[#18212F] pt-2">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.devices.feature1")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.devices.feature2")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.devices.feature3")}
-              </li>
-            </ul>
-          </div>
-
-          {/* 6. Mawakala & Commissions */}
-          <div
-            id="agents"
-            className="rounded-3xl border border-[#DFE5EC] bg-white p-8 shadow-sm space-y-4 transition-all duration-300 hover:shadow-xl"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-[#fff4e0] border border-[#FBA102]/30 flex items-center justify-center text-[#b15f00]">
-              <Users className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-[#18212F]">
-              {t("marketing.features.agents.title")}
-            </h3>
-            <p className="text-sm text-[#526174] leading-relaxed">
-              {t("marketing.features.agents.desc")}
-            </p>
-            <ul className="space-y-2 text-xs text-[#18212F] pt-2">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.agents.feature1")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.agents.feature2")}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#F16304]" /> {t("marketing.features.agents.feature3")}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom CTA */}
-        <div className="mt-16 rounded-3xl bg-[#111213] text-white p-10 text-center relative overflow-hidden border border-white/10">
-          <h2 className="text-2xl sm:text-3xl font-bold">
-            {t("marketing.features.cta.title")}
-          </h2>
-          <p className="text-sm text-white/70 max-w-xl mx-auto mt-2 mb-6">
-            {t("marketing.features.cta.body")}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-2 text-sm font-bold text-[#111213] px-7 py-3.5 rounded-xl shadow-lg transition bg-[linear-gradient(135deg,#FBA102_0%,#F16304_100%)] hover:brightness-105"
+      <div className="relative mt-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+        {FEATURES.map((feature) => {
+          const Icon = feature.icon;
+          return (
+            <article
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 sm:p-7"
+              id={feature.id}
+              key={feature.titleKey}
             >
-              <span>{t("marketing.features.cta.register")}</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-white/90 px-6 py-3.5 rounded-xl border border-white/20 hover:bg-white/10 transition"
-            >
-              {t("marketing.features.cta.pricing")}
-            </Link>
-          </div>
+              <span
+                className="grid h-12 w-12 place-items-center rounded-2xl text-advo-charcoal"
+                style={{ background: feature.accent }}
+              >
+                <Icon aria-hidden className="h-5 w-5" />
+              </span>
+              <h3 className="mt-5 text-lg font-black tracking-tight text-white">
+                {t(feature.titleKey)}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">{t(feature.descKey)}</p>
+              <ul className="mt-4 space-y-2">
+                {feature.bullets.map((bullet) => (
+                  <li className="flex items-start gap-2 text-xs text-white/80" key={bullet}>
+                    <span
+                      aria-hidden
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: feature.accent }}
+                    />
+                    <span>{t(bullet)}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="relative mt-14 rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-10 text-center sm:px-10">
+        <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+          {t("marketing.features.cta.title")}
+        </h2>
+        <p className="mx-auto mt-2 max-w-xl text-sm text-white/65">{t("marketing.features.cta.body")}</p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <ButtonLink href="/register" size="lg" variant="gold">
+            {t("marketing.features.cta.register")}
+            <ArrowRight className="h-4 w-4" />
+          </ButtonLink>
+          <ButtonLink href="/pricing" size="lg" variant="onDark">
+            {t("marketing.features.cta.pricing")}
+          </ButtonLink>
         </div>
       </div>
-    </div>
+    </Section>
   );
 }

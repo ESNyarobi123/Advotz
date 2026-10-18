@@ -7,6 +7,7 @@ import { formatDateTime, formatDuration, formatTzs } from "@advo/api-client";
 import { Card } from "@heroui/react";
 import { Notice, StatusChip, statusTone } from "@advo/ui";
 import { PageHero, ResourceView } from "@/features/common/components";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { api, errorMessage } from "@/lib/api";
 import { useResource } from "@/lib/hooks";
 import {
@@ -44,7 +45,8 @@ type FilterKey = "all" | VoucherLifecycle;
 
 export function ResellerVoucherGroupDetailScreen({ groupId }: { groupId: string }) {
   const router = useRouter();
-  const groups = useResource<VoucherGroup[]>("/reseller/voucher-groups");
+  const { scoped } = useSiteScope();
+  const groups = useResource<VoucherGroup[]>(scoped("/reseller/voucher-groups"));
   const vouchers = useResource<VoucherRow[]>(`/reseller/voucher-groups/${groupId}/vouchers`);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [query, setQuery] = useState("");

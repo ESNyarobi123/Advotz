@@ -106,10 +106,13 @@ export class AuthService extends AuthLookup {
     const passwordHash = await argon2.hash(input.password, {
       type: argon2.argon2id,
     });
-    const verifyToken = generateOpaqueToken();
-    const verifyHash = hashToken(verifyToken);
     const slug = slugifyBusinessName(input.businessName);
 
+    /**
+     * Self-registration creates an ACTIVE account immediately — no email/SMS
+     * verification step. The reseller can sign in with the password they just set.
+     * (OTP/verification for payout destinations remains separate, after login.)
+     */
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -118,7 +121,8 @@ export class AuthService extends AuthLookup {
           phone: input.phone,
           name: input.ownerName,
           passwordHash,
-          status: "PENDING_VERIFICATION",
+          status: "ACTIVE",
+          emailVerifiedAt: new Date(),
         },
       });
 
@@ -127,7 +131,7 @@ export class AuthService extends AuthLookup {
           ownerUserId: user.id,
           businessName: input.businessName,
           slug,
-          status: "PENDING_VERIFICATION",
+          status: "ACTIVE",
           registrationSource: "SELF",
           onboardingStep: "PROFILE",
         },
@@ -143,16 +147,6 @@ export class AuthService extends AuthLookup {
         });
       }
 
-      await tx.verificationToken.create({
-        data: {
-          userId: user.id,
-          purpose: "EMAIL_VERIFY",
-          subject: user.email,
-          tokenHash: verifyHash,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-      });
-
       await tx.auditEvent.create({
         data: {
           actorUserId: user.id,
@@ -162,6 +156,7 @@ export class AuthService extends AuthLookup {
           metadata: {
             hasReferral: Boolean(agentId),
             source: "SELF",
+            verificationSkipped: true,
           },
         },
       });
@@ -182,24 +177,11 @@ export class AuthService extends AuthLookup {
       return { user, reseller };
     });
 
-    await this.notifications.send({
-      channel: "email",
-      to: input.email,
-      subject: "Verify your Advo TZ account",
-      body: `Verification token (dev/fake transport): ${verifyToken}`,
-      dedupKey: `verify:${result.user.id}`,
-    });
-
     return {
       userId: result.user.id,
       resellerId: result.reseller.id,
       slug: result.reseller.slug,
-      verificationRequired: true,
-      notificationSimulated: true,
-      // Dev-only exposure when fake notification provider is used
-      ...(process.env.NODE_ENV !== "production"
-        ? { devVerificationToken: verifyToken }
-        : {}),
+      verificationRequired: false,
     };
   }
 

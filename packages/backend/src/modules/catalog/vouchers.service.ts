@@ -4,16 +4,19 @@ import { conflict, forbidden, isUniqueViolation, tenantDenied } from "../../comm
 import { audit } from "../../common/events.js";
 import { currentEntitlements } from "../subscriptions/subscriptions.service.js";
 
-export async function listVoucherGroups(resellerId: string) {
+export async function listVoucherGroups(resellerId: string, siteId?: string) {
+  const sitePackageFilter = siteId
+    ? { packageRevision: { package: { assignments: { some: { siteId } } } } }
+    : {};
   const groups = await prisma.voucherGroup.findMany({
-    where: { resellerId },
+    where: { resellerId, ...sitePackageFilter },
     include: { packageRevision: true },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
   const counts = await prisma.voucher.groupBy({
     by: ["groupId", "state"],
-    where: { resellerId, state: { not: "DELETED" } },
+    where: { resellerId, state: { not: "DELETED" }, ...sitePackageFilter },
     _count: true,
   });
   // Redeemed + grant still live = "in use"; redeemed after grant ends = "used".
@@ -22,6 +25,7 @@ export async function listVoucherGroups(resellerId: string) {
       resellerId,
       state: "REDEEMED",
       grant: { state: { in: ["ACTIVE", "PENDING_ACTIVATION"] } },
+      ...sitePackageFilter,
     },
     select: { groupId: true },
   });

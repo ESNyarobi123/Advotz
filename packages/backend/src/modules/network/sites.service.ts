@@ -53,6 +53,16 @@ export async function getSite(resellerId: string, siteId: string) {
   return site;
 }
 
+/** Confirms the site belongs to this reseller before any scoped report/list query. */
+export async function requireOwnedSite(resellerId: string, siteId: string) {
+  const site = await prisma.site.findFirst({
+    where: { id: siteId, resellerId },
+    select: { id: true, name: true },
+  });
+  if (!site) notFound("Site not found");
+  return site;
+}
+
 export async function createSite(resellerId: string, actorUserId: string, input: SiteInput) {
   if (!validTimezone(input.timezone)) badRequest("Unknown IANA timezone");
   const ent = await currentEntitlements(resellerId);
@@ -784,9 +794,9 @@ export async function createDeviceWifi(
   }
 }
 
-export async function listDevices(resellerId: string) {
+export async function listDevices(resellerId: string, siteId?: string) {
   const devices = await prisma.device.findMany({
-    where: { resellerId },
+    where: { resellerId, ...(siteId ? { siteId } : {}) },
     include: {
       site: {
         select: {

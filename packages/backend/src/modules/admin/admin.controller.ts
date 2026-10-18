@@ -13,6 +13,7 @@ import {
   planDeleteSchema,
   planMigrationInputSchema,
   platformListingInputSchema,
+  publicHotspotInputSchema,
   platformPlanInputSchema,
   platformPlanUpdateSchema,
   reviewDecisionSchema,
@@ -72,6 +73,12 @@ import {
   listPlatformListings,
   updatePlatformListing,
 } from "../platform/listings.service.js";
+import {
+  createPublicHotspot,
+  deletePublicHotspot,
+  listAdminHotspots,
+  updatePublicHotspot,
+} from "../platform/hotspots.service.js";
 import { adminAgents, adminAgentDetail, adminOverview, adminResellerDetail, adminResellers, auditLog } from "../reports/reports.service.js";
 import { getSetting, setSetting, settingsOverview, SettingKey } from "../settings/settings.service.js";
 import { archivePlan, deletePlan, listPlans, previewPlan, publishPlan, setPlanActive, updatePlan, upsertPlan } from "../subscriptions/subscriptions.service.js";
@@ -666,6 +673,27 @@ export class AdminController {
   @Delete("listings/:id")
   deleteListing(@Param("id") listingId: string) {
     return deletePlatformListing(id(listingId));
+  }
+
+  // ── Public marketing hotspots ──
+  @Get("hotspots")
+  hotspots() {
+    return listAdminHotspots();
+  }
+
+  @Post("hotspots")
+  createHotspot(@Body() body: unknown) {
+    return createPublicHotspot(parse(publicHotspotInputSchema, body));
+  }
+
+  @Put("hotspots/:id")
+  updateHotspot(@Param("id") hotspotId: string, @Body() body: unknown) {
+    return updatePublicHotspot(id(hotspotId), parse(publicHotspotInputSchema, body));
+  }
+
+  @Delete("hotspots/:id")
+  deleteHotspot(@Param("id") hotspotId: string) {
+    return deletePublicHotspot(id(hotspotId));
   }
 
   // ── Operations ──

@@ -37,7 +37,7 @@ import {
   renameVoucherGroup,
 } from "../catalog/vouchers.service.js";
 import { accountHistory, walletSummary } from "../ledger/ledger.service.js";
-import { archiveSite, createDeviceWifi, createSite, getSite, listDeviceClaims, listDevices, listSites, removeDevice as forgetResellerDevice, renameDevice as renameResellerDevice, requestReprovision, retryDeviceAdopt, submitDeviceClaim, updateSite } from "../network/sites.service.js";
+import { archiveSite, createDeviceWifi, createSite, getSite, listDeviceClaims, listDevices, listSites, removeDevice as forgetResellerDevice, renameDevice as renameResellerDevice, requestReprovision, requireOwnedSite, retryDeviceAdopt, submitDeviceClaim, updateSite } from "../network/sites.service.js";
 import { kickOutbox } from "../outbox/outbox.dispatcher.js";
 import { listPromotionRequests, updatePromotionRequestState } from "../platform/listings.service.js";
 import { resellerCustomers, resellerOrders, resellerOverview } from "../reports/reports.service.js";
@@ -69,6 +69,13 @@ function beneficiary(actor: RequestActor): Beneficiary {
   return { type: "RESELLER", id: requireResellerId(actor), userId: actor.id };
 }
 
+/** Validates an optional `?siteId=` so scoped list/report queries stay tenant-safe. */
+async function optionalSiteId(resellerId: string, siteId?: string) {
+  if (!siteId) return undefined;
+  const owned = await requireOwnedSite(resellerId, id(siteId));
+  return owned.id;
+}
+
 /** Turns a policy rejection into the documented 403 with every violated key. */
 function preferenceViolation(error: unknown): never {
   if (error instanceof PreferenceRejected) {
@@ -87,8 +94,9 @@ function preferenceViolation(error: unknown): never {
 @Roles(UserRole.RESELLER)
 export class ResellerController {
   @Get("overview")
-  overview(@CurrentUser() a: RequestActor) {
-    return resellerOverview(requireResellerId(a));
+  async overview(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return resellerOverview(resellerId, await optionalSiteId(resellerId, siteId));
   }
 
   // ── Subscription ──
@@ -176,8 +184,9 @@ export class ResellerController {
   }
 
   @Get("devices")
-  devices(@CurrentUser() a: RequestActor) {
-    return listDevices(requireResellerId(a));
+  async devices(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return listDevices(resellerId, await optionalSiteId(resellerId, siteId));
   }
 
   @Post("devices/:id/rename")
@@ -223,8 +232,9 @@ export class ResellerController {
 
   // ── Packages ──
   @Get("packages")
-  packages(@CurrentUser() a: RequestActor) {
-    return listPackages(requireResellerId(a));
+  async packages(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return listPackages(resellerId, await optionalSiteId(resellerId, siteId));
   }
 
   @Post("packages")
@@ -255,8 +265,9 @@ export class ResellerController {
 
   // ── Vouchers ──
   @Get("voucher-groups")
-  voucherGroups(@CurrentUser() a: RequestActor) {
-    return listVoucherGroups(requireResellerId(a));
+  async voucherGroups(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return listVoucherGroups(resellerId, await optionalSiteId(resellerId, siteId));
   }
 
   @Post("voucher-groups")
@@ -298,8 +309,12 @@ export class ResellerController {
 
   // ── Access grants / sessions ──
   @Get("grants")
-  grants(@CurrentUser() a: RequestActor, @Query("state") state?: string, @Query("siteId") siteId?: string) {
-    return listGrants(requireResellerId(a), { state: enumQuery(state, GrantState), siteId: siteId ? id(siteId) : undefined });
+  async grants(@CurrentUser() a: RequestActor, @Query("state") state?: string, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return listGrants(resellerId, {
+      state: enumQuery(state, GrantState),
+      siteId: await optionalSiteId(resellerId, siteId),
+    });
   }
 
   @Get("grants/:id")
@@ -323,13 +338,15 @@ export class ResellerController {
 
   // ── Sales ──
   @Get("orders")
-  orders(@CurrentUser() a: RequestActor) {
-    return resellerOrders(requireResellerId(a));
+  async orders(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return resellerOrders(resellerId, 100, await optionalSiteId(resellerId, siteId));
   }
 
   @Get("customers")
-  customers(@CurrentUser() a: RequestActor) {
-    return resellerCustomers(requireResellerId(a));
+  async customers(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+    const resellerId = requireResellerId(a);
+    return resellerCustomers(resellerId, await optionalSiteId(resellerId, siteId));
   }
 
   // ── Wallet & withdrawals ──

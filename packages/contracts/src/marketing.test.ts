@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicPlanListSchema, publicPlanSchema } from "./marketing.js";
+import { publicHotspotListSchema, publicHotspotSchema, publicPlanListSchema, publicPlanSchema } from "./marketing.js";
 
 /** A plan exactly as `GET /api/v1/marketing/plans` returns one. */
 const PLAN = {
@@ -61,5 +61,33 @@ describe("public plan contract", () => {
   it("validates the list response", () => {
     expect(publicPlanListSchema.parse([PLAN, { ...PLAN, id: "22222222-2222-4222-8222-222222222222" }])).toHaveLength(2);
     expect(publicPlanListSchema.safeParse([{ ...PLAN, code: undefined }]).success).toBe(false);
+  });
+});
+
+describe("public hotspot catalog", () => {
+  const HOTSPOT = {
+    id: "33333333-3333-4333-8333-333333333333",
+    name: "Palm Beach Lounge",
+    address: "Samora Avenue",
+    city: "Dar es Salaam",
+    region: "Dar es Salaam",
+    latitude: -6.8161,
+    longitude: 39.2803,
+    category: "Cafe",
+    description: "Guest WiFi",
+    imageUrl: null,
+    portalSlug: null,
+  };
+
+  it("accepts a plotted hotspot", () => {
+    expect(publicHotspotSchema.parse(HOTSPOT).name).toBe("Palm Beach Lounge");
+  });
+
+  it("rejects a hotspot without coordinates", () => {
+    expect(publicHotspotSchema.safeParse({ ...HOTSPOT, latitude: undefined }).success).toBe(false);
+  });
+
+  it("validates the list response", () => {
+    expect(publicHotspotListSchema.parse([HOTSPOT])).toHaveLength(1);
   });
 });

@@ -469,6 +469,27 @@ export const platformListingInputSchema = z.object({
 
 export type PlatformListingInput = z.infer<typeof platformListingInputSchema>;
 
+/**
+ * Admin create/update body for a curated marketing hotspot.
+ * Latitude/longitude are required so the public map always has a pin.
+ */
+export const publicHotspotInputSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  address: z.string().trim().max(200).default(""),
+  city: z.string().trim().max(80).default(""),
+  region: z.string().trim().max(80).default(""),
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+  category: z.string().trim().max(60).default(""),
+  description: z.string().trim().max(2000).default(""),
+  imageUrl: z.union([z.string().trim().url().max(500), z.literal(""), z.null()]).optional(),
+  portalSlug: z.union([z.string().trim().max(80), z.literal(""), z.null()]).optional(),
+  sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
+  active: z.boolean().default(true),
+});
+
+export type PublicHotspotInput = z.infer<typeof publicHotspotInputSchema>;
+
 export const siteInputSchema = z.object({
   /** Optional: a site with no name takes the reseller's registered business name. */
   name: z.string().trim().min(2).max(80).optional(),

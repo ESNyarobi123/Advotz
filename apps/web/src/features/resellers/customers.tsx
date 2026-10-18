@@ -6,6 +6,7 @@ import { Card } from "@heroui/react";
 import { StatusChip, statusTone } from "@advo/ui";
 import { PageHero, ResourceView } from "@/features/common/components";
 import { deviceStateLabel, grantStateLabel } from "@/features/common/labels";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/hooks";
@@ -83,8 +84,9 @@ function primaryMac(g: Grant): string {
 
 export function ResellerCustomersScreen() {
   const { t } = useI18n();
-  const grants = useResource<Grant[]>("/reseller/grants");
-  const customers = useResource<Customer[]>("/reseller/customers");
+  const { scoped } = useSiteScope();
+  const grants = useResource<Grant[]>(scoped("/reseller/grants"));
+  const customers = useResource<Customer[]>(scoped("/reseller/customers"));
   const [filter, setFilter] = useState<ClientFilter>("all");
   const [query, setQuery] = useState("");
 

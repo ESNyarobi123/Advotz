@@ -446,6 +446,75 @@ export const marketingEn = {
   "marketing.footer.rights": "All rights reserved.",
   "marketing.footer.bottom.pricing": "Packages & Pricing",
   "marketing.footer.bottom.login": "Log In To Your Account",
+  "marketing.footer.bottom.hotspots": "Our Hotspots",
+  "marketing.footer.bottom.services": "Services",
+
+  // ── Our Hotspots page ────────────────────────────────────────────────────
+  "marketing.hotspots.badge": "Find Advo WiFi",
+  "marketing.hotspots.title": "Our Hotspots",
+  "marketing.hotspots.subtitle":
+    "Places across Tanzania where Advo WiFi is live — explore the map or browse by city.",
+  "marketing.hotspots.searchPlaceholder": "Search by name, city, or category…",
+  "marketing.hotspots.allCities": "All cities",
+  "marketing.hotspots.count": "{count} hotspots",
+  "marketing.hotspots.countOne": "1 hotspot",
+  "marketing.hotspots.empty": "No hotspots to show yet. Check back soon.",
+  "marketing.hotspots.emptyFilter": "No hotspots match your search.",
+  "marketing.hotspots.selectHint": "Select a location on the map or in the list.",
+  "marketing.hotspots.visitPortal": "Open guest portal",
+  "marketing.hotspots.mapLabel": "Hotspot map",
+  "marketing.hotspots.listLabel": "Hotspot list",
+
+  // ── Services (guest Explore menu) ────────────────────────────────────────
+  "marketing.services.badge": "Guest WiFi Explore",
+  "marketing.services.title": "Services",
+  "marketing.services.subtitle":
+    "Everything guests can discover after they connect — the same Explore menu on every Advo WiFi hotspot.",
+  "marketing.services.explore.eyebrow": "On the captive portal",
+  "marketing.services.explore.title": "Explore menu",
+  "marketing.services.explore.lead":
+    "Once a guest is online, Explore opens local discovery, opportunities and support without leaving the portal.",
+  "marketing.services.items.businesses.title": "Local Businesses & Offers",
+  "marketing.services.items.businesses.body":
+    "Browse curated shops, cafés and services near the hotspot. Guests tap a business to see what it offers before they walk over.",
+  "marketing.services.items.advotz.title": "Visit Advotz.com",
+  "marketing.services.items.advotz.body":
+    "A direct path to the Advo TZ platform — learn about packages, hotspots and how operators run paid guest WiFi.",
+  "marketing.services.items.events.title": "Local Events",
+  "marketing.services.items.events.body":
+    "Surface concerts, markets, sports and community happenings around the venue so guests always know what’s on nearby.",
+  "marketing.services.items.holidays.title": "Holidays",
+  "marketing.services.items.holidays.body":
+    "Highlight travel deals, weekend getaways and holiday packages partners promote to guests already on your network.",
+  "marketing.services.items.jobs.title": "Jobs & Opportunities",
+  "marketing.services.items.jobs.body":
+    "Live vacancies and training programmes from platform partners — title, employer, location and full description in one place.",
+  "marketing.services.items.promote.title": "Promote your business",
+  "marketing.services.items.promote.body":
+    "Local owners can request a banner on the guest portal. They pick a duration, leave contact details, and the reseller follows up.",
+  "marketing.services.items.help.title": "Help",
+  "marketing.services.items.help.body":
+    "Quick support for connection issues — WhatsApp or in-portal help so guests are not stuck after payment.",
+  "marketing.services.local.eyebrow": "Inside Local Businesses",
+  "marketing.services.local.title": "Example local services",
+  "marketing.services.local.lead":
+    "When a site has not added its own businesses yet, guests still see useful essentials like these.",
+  "marketing.services.local.mpesa.name": "M-Pesa & Banking Agent",
+  "marketing.services.local.mpesa.category": "Tech & Finance",
+  "marketing.services.local.mpesa.body":
+    "Cash deposit, withdrawal, M-Pesa, Tigo Pesa and Airtel Money services.",
+  "marketing.services.local.cafe.name": "Local Cafe & Fresh Bites",
+  "marketing.services.local.cafe.category": "Food & Dining",
+  "marketing.services.local.cafe.body":
+    "Freshly brewed coffee, tea, pastries, chilled juices and wholesome meals.",
+  "marketing.services.local.phones.name": "Mobile Tech & Accessories",
+  "marketing.services.local.phones.category": "Tech & Phones",
+  "marketing.services.local.phones.body":
+    "Fast chargers, cables, screen protectors, earphones, power banks and cases.",
+  "marketing.services.local.pharmacy.name": "Pharmacy & Wellness",
+  "marketing.services.local.pharmacy.category": "Shops & Services",
+  "marketing.services.local.pharmacy.body":
+    "Prescription refills, first aid supplies, wellness vitamins and consultation.",
 } as const;
 
 export type MarketingKey = keyof typeof marketingEn;
@@ -893,6 +962,75 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.footer.rights": "Haki zote zimehifadhiwa.",
   "marketing.footer.bottom.pricing": "Vifurushi & Bei",
   "marketing.footer.bottom.login": "Ingia kwenye Akaunti",
+  "marketing.footer.bottom.hotspots": "Hotspots Zetu",
+  "marketing.footer.bottom.services": "Huduma",
+
+  // ── Our Hotspots page ────────────────────────────────────────────────────
+  "marketing.hotspots.badge": "Tafuta Advo WiFi",
+  "marketing.hotspots.title": "Hotspots Zetu",
+  "marketing.hotspots.subtitle":
+    "Maeneo nchini Tanzania ambapo Advo WiFi inapatikana — chunguza ramani au tafuta kwa jiji.",
+  "marketing.hotspots.searchPlaceholder": "Tafuta kwa jina, jiji, au aina…",
+  "marketing.hotspots.allCities": "Miji yote",
+  "marketing.hotspots.count": "Hotspots {count}",
+  "marketing.hotspots.countOne": "Hotspot 1",
+  "marketing.hotspots.empty": "Bado hakuna hotspots za kuonyesha. Rudi baadaye.",
+  "marketing.hotspots.emptyFilter": "Hakuna hotspots zinazolingana na utafutaji wako.",
+  "marketing.hotspots.selectHint": "Chagua eneo kwenye ramani au kwenye orodha.",
+  "marketing.hotspots.visitPortal": "Fungua portal ya wageni",
+  "marketing.hotspots.mapLabel": "Ramani ya hotspots",
+  "marketing.hotspots.listLabel": "Orodha ya hotspots",
+
+  // ── Services (guest Explore menu) ────────────────────────────────────────
+  "marketing.services.badge": "Explore ya WiFi ya wageni",
+  "marketing.services.title": "Huduma",
+  "marketing.services.subtitle":
+    "Kila kitu wageni wanaweza kugundua baada ya kuunganishwa — menyu ile ile ya Explore kwenye kila hotspot ya Advo WiFi.",
+  "marketing.services.explore.eyebrow": "Kwenye captive portal",
+  "marketing.services.explore.title": "Menyu ya Explore",
+  "marketing.services.explore.lead":
+    "Mgeni akiwa mtandaoni, Explore inafungua ugunduzi wa karibu, fursa na msaada bila kuondoka kwenye portal.",
+  "marketing.services.items.businesses.title": "Biashara na ofa za karibu",
+  "marketing.services.items.businesses.body":
+    "Angalia maduka, mikahawa na huduma zilizochaguliwa karibu na hotspot. Mgeni anabonyeza biashara kuona inachotoa kabla ya kwenda.",
+  "marketing.services.items.advotz.title": "Tembelea Advotz.com",
+  "marketing.services.items.advotz.body":
+    "Njia ya moja kwa moja kwenye jukwaa la Advo TZ — jifunze kuhusu vifurushi, hotspots na jinsi waendeshaji wanavyoendesha WiFi ya wageni yenye malipo.",
+  "marketing.services.items.events.title": "Matukio ya karibu",
+  "marketing.services.items.events.body":
+    "Onyesha matamasha, masoko, michezo na matukio ya jamii karibu na eneo ili wageni wajue kinachoendelea.",
+  "marketing.services.items.holidays.title": "Likizo",
+  "marketing.services.items.holidays.body":
+    "Angazia ofa za usafiri, weekend getaways na vifurushi vya likizo vinavyotangazwa kwa wageni walioko kwenye mtandao wako.",
+  "marketing.services.items.jobs.title": "Kazi & Fursa",
+  "marketing.services.items.jobs.body":
+    "Nafasi za kazi na programu za mafunzo kutoka kwa washirika — kichwa, mwajiri, eneo na maelezo kamili mahali pamoja.",
+  "marketing.services.items.promote.title": "Tangaza biashara yako",
+  "marketing.services.items.promote.body":
+    "Wamiliki wa biashara wanaweza kuomba banner kwenye portal ya wageni. Wanachagua muda, kuacha mawasiliano, na reseller anafuata.",
+  "marketing.services.items.help.title": "Msaada",
+  "marketing.services.items.help.body":
+    "Msaada wa haraka kwa matatizo ya muunganisho — WhatsApp au msaada ndani ya portal ili mgeni asinaswe baada ya malipo.",
+  "marketing.services.local.eyebrow": "Ndani ya Biashara za Karibu",
+  "marketing.services.local.title": "Mfano wa huduma za karibu",
+  "marketing.services.local.lead":
+    "Site ikiwa bado haijaongeza biashara zake, wageni bado wanaona muhimu kama hizi.",
+  "marketing.services.local.mpesa.name": "Wakala wa M-Pesa & Kibenki",
+  "marketing.services.local.mpesa.category": "Teknolojia & Fedha",
+  "marketing.services.local.mpesa.body":
+    "Wakala wa M-Pesa, Tigo Pesa, Airtel Money na huduma za kutoa na kuweka pesa.",
+  "marketing.services.local.cafe.name": "Kahawa & Vyakula vya Karibu",
+  "marketing.services.local.cafe.category": "Vyakula & Mikahawa",
+  "marketing.services.local.cafe.body":
+    "Kahawa moto, chai, vitafunio vitamu, juisi asilia na vyakula vya mchana.",
+  "marketing.services.local.phones.name": "Duka la Vifaa vya Simu",
+  "marketing.services.local.phones.category": "Teknolojia & Simu",
+  "marketing.services.local.phones.body":
+    "Chaja za haraka za simu, vioo vya kinga, earphone na kava.",
+  "marketing.services.local.pharmacy.name": "Duka la Dawa & Afya",
+  "marketing.services.local.pharmacy.category": "Maduka & Huduma",
+  "marketing.services.local.pharmacy.body":
+    "Dawa muhimu, huduma ya kwanza, vitamini na ushauri wa afya kwa wateja.",
 };
 
 export const marketingCatalog = { en: marketingEn, sw: marketingSw };

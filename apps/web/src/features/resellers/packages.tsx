@@ -6,6 +6,7 @@ import { Card } from "@heroui/react";
 import { AdvoTable } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
 import { Mono, ResourceView } from "@/features/common/components";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAction, useResource } from "@/lib/hooks";
@@ -57,7 +58,8 @@ type SiteOption = { id: string; name: string; state: string };
 
 export function ResellerPackagesScreen() {
   const { t } = useI18n();
-  const packages = useResource<PackageRow[]>("/reseller/packages");
+  const { scoped } = useSiteScope();
+  const packages = useResource<PackageRow[]>(scoped("/reseller/packages"));
   const sites = useResource<SiteOption[]>("/reseller/sites");
   // Which caps each site can enforce; the form locks options the Controller would reject.
   const options = useResource<{ sites: PackageFormSiteOptions[] }>("/reseller/package-options");

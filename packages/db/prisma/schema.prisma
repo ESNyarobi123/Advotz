@@ -1398,6 +1398,31 @@ model PlatformListing {
   @@index([kind, active, sortOrder])
 }
 
+/**
+ * Curated public WiFi locations for the marketing "Our Hotspots" page.
+ * Platform-managed by Admin — not derived from reseller Site rows.
+ */
+model PublicHotspot {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  address     String   @default("")
+  city        String   @default("")
+  region      String   @default("")
+  latitude    Decimal  @db.Decimal(9, 6)
+  longitude   Decimal  @db.Decimal(9, 6)
+  category    String   @default("")
+  description String   @default("")
+  imageUrl    String?
+  /// Optional captive-portal brand slug (Site.slug) for a deep link.
+  portalSlug  String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, sortOrder])
+}
+
 enum PromotionRequestState {
   NEW
   CONTACTED

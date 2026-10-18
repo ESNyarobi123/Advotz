@@ -7,6 +7,7 @@ import { formatDateTime, formatDuration, formatTzs } from "@advo/api-client";
 import { Button, Card, Modal, useOverlayState } from "@heroui/react";
 import { Notice, StatusChip, statusTone } from "@advo/ui";
 import { Field, ResourceView, SelectField } from "@/features/common/components";
+import { useSiteScope } from "@/features/resellers/site-scope";
 import { api, errorMessage } from "@/lib/api";
 import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
 import {
@@ -42,8 +43,9 @@ const COUNT_PRESETS = [10, 20, 50, 100, 200] as const;
 
 export function ResellerVouchersScreen() {
   const router = useRouter();
-  const groups = useResource<VoucherGroup[]>("/reseller/voucher-groups");
-  const packages = useResource<PackageOption[]>("/reseller/packages");
+  const { scoped } = useSiteScope();
+  const groups = useResource<VoucherGroup[]>(scoped("/reseller/voucher-groups"));
+  const packages = useResource<PackageOption[]>(scoped("/reseller/packages"));
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
 

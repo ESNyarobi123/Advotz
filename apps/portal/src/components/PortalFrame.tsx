@@ -206,20 +206,61 @@ function LanguageSwitcher({ locale, onSelect }: { locale: Locale; onSelect: (nex
     >
       {(Object.keys(LOCALE_META) as Locale[]).map((code) => {
         const active = code === locale;
+        const meta = LOCALE_META[code];
         return (
           <button
+            aria-label={meta.englishName}
             aria-pressed={active}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
-              active ? "bg-[var(--advo-blue)] text-white" : "text-[var(--advo-portal-muted)] hover:text-[var(--advo-blue)]"
+            className={`rounded-full p-1.5 transition ${
+              active ? "bg-[var(--advo-blue)]/15 ring-1 ring-[var(--advo-blue)]/40" : "opacity-55 hover:opacity-90"
             }`}
             key={code}
+            lang={meta.htmlLang}
             onClick={() => onSelect(code)}
+            title={meta.englishName}
             type="button"
           >
-            {code.toUpperCase()}
+            <LocaleFlag code={code} />
           </button>
         );
       })}
     </div>
+  );
+}
+
+function LocaleFlag({ code }: { code: Locale }) {
+  if (code === "en") {
+    return (
+      <svg aria-hidden="true" className="block h-3.5 w-5 rounded-[2px]" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+        <rect fill="#B22234" height="40" width="60" />
+        <path
+          d="M0 4.6h60M0 9.2h60M0 13.8h60M0 18.5h60M0 23.1h60M0 27.7h60M0 32.3h60M0 36.9h60"
+          stroke="#fff"
+          strokeWidth="2.3"
+        />
+        <rect fill="#3C3B6E" height="21.5" width="24" />
+        <g fill="#fff">
+          {Array.from({ length: 9 }, (_, row) =>
+            Array.from({ length: row % 2 === 0 ? 6 : 5 }, (_, col) => (
+              <circle
+                cx={row % 2 === 0 ? 2.2 + col * 4 : 4.2 + col * 4}
+                cy={2.2 + row * 2.3}
+                key={`${row}-${col}`}
+                r="0.7"
+              />
+            )),
+          )}
+        </g>
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" className="block h-3.5 w-5 rounded-[2px]" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+      <rect fill="#1EB53A" height="40" width="60" />
+      <polygon fill="#00A3DD" points="60,0 60,40 0,40" />
+      <polygon fill="#000" points="0,8 0,0 12,0 60,32 60,40 48,40" />
+      <polygon fill="#FCD116" points="0,12 0,8 14,0 18,0 60,28 60,32 46,40 42,40" />
+    </svg>
   );
 }

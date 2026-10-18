@@ -1,21 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Globe } from "lucide-react";
 import { LOCALES, LOCALE_META, type Locale } from "@advo/i18n";
 import { useI18n } from "@/lib/i18n";
 
 /**
- * Language switch, rendered as a two-option segmented control.
+ * Language switch as flag-only buttons: US flag for English, Tanzania for Swahili.
  *
- * A segmented control beats a dropdown here: there are exactly two languages,
- * both names fit, and the active one stays visible instead of being hidden
- * behind a click. `role="group"` + `aria-pressed` gives assistive tech the same
- * "which one is on" answer the highlight gives the eye.
+ * Labels stay on `aria-label` / `title` so assistive tech and hover still name
+ * the language; the visible control is just the flags.
  */
 export function LocaleSwitcher({
   variant = "light",
-  showIcon = true,
+  showIcon: _showIcon = true,
   compact = false,
   /** No outer border/box — sits flush inside a parent row (sidebar footer). */
   flush = false,
@@ -23,12 +20,14 @@ export function LocaleSwitcher({
 }: {
   /** `dark` sits on the charcoal sidebar, `light` on white marketing surfaces. */
   variant?: "light" | "dark";
+  /** Kept for call-site compatibility; the globe icon is no longer shown. */
   showIcon?: boolean;
-  /** Short codes (`EN` / `SW`) for the narrow icon rail instead of full names. */
+  /** Slightly smaller flag buttons for the narrow icon rail. */
   compact?: boolean;
   flush?: boolean;
   className?: string;
 }) {
+  void _showIcon;
   const { locale, setLocale, t } = useI18n();
   const router = useRouter();
 
@@ -50,47 +49,88 @@ export function LocaleSwitcher({
     : variant === "dark"
       ? "border border-white/10 bg-white/[0.06] p-0.5"
       : "border border-[var(--advo-border)] bg-[var(--advo-page)] p-0.5";
-  const inactive = variant === "dark" ? "text-slate-400 hover:text-white" : "text-[var(--advo-muted)] hover:text-[var(--advo-text)]";
+  const inactive = variant === "dark" ? "opacity-55 hover:opacity-90" : "opacity-55 hover:opacity-90";
   const active = variant === "dark"
     ? flush
-      ? "bg-white/12 font-bold text-white"
-      : "bg-white/15 font-bold text-white"
-    : "bg-white font-bold text-advo-blue shadow-sm";
+      ? "bg-white/12 ring-1 ring-white/25"
+      : "bg-white/15 ring-1 ring-white/30"
+    : "bg-white shadow-sm ring-1 ring-advo-blue/25";
+
+  const flagSize = compact ? "h-3.5 w-[1.15rem]" : "h-4 w-6";
 
   return (
     <div
       aria-label={t("common.languageSwitch")}
-      className={`inline-flex items-center gap-1 rounded-xl ${shell} ${className}`}
+      className={`inline-flex items-center gap-0.5 rounded-xl ${shell} ${className}`}
       role="group"
       title={t("common.languageCurrent", { language: LOCALE_META[locale].nativeName })}
     >
-      {showIcon ? (
-        <Globe
-          aria-hidden="true"
-          className={`ml-1.5 h-3.5 w-3.5 shrink-0 ${variant === "dark" ? "text-slate-400" : "text-[var(--advo-muted)]"}`}
-        />
-      ) : null}
       {LOCALES.map((code: Locale) => {
         const isActive = code === locale;
         const meta = LOCALE_META[code];
         return (
           <button
+            aria-label={meta.englishName}
             aria-pressed={isActive}
-            className={`rounded-lg py-1 text-[11px] font-semibold transition-colors ${
-              compact ? "min-w-7 px-1.5 text-center" : "px-2"
-            } ${isActive ? active : inactive}`}
+            className={`rounded-lg p-1.5 transition ${isActive ? active : inactive}`}
             key={code}
             lang={meta.htmlLang}
             onClick={() => changeLocale(code)}
             type="button"
-            /* The native name is what a reader recognises; the English name is
-               the accessible fallback so an English speaker can still navigate. */
             title={meta.englishName}
           >
-            {compact ? meta.code.toUpperCase() : meta.nativeName}
+            <LocaleFlag code={code} className={flagSize} />
           </button>
         );
       })}
     </div>
+  );
+}
+
+function LocaleFlag({ code, className }: { code: Locale; className?: string }) {
+  if (code === "en") {
+    return (
+      <svg
+        aria-hidden="true"
+        className={`block rounded-[2px] ${className ?? ""}`}
+        viewBox="0 0 60 40"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect fill="#B22234" height="40" width="60" />
+        <path
+          d="M0 4.6h60M0 9.2h60M0 13.8h60M0 18.5h60M0 23.1h60M0 27.7h60M0 32.3h60M0 36.9h60"
+          stroke="#fff"
+          strokeWidth="2.3"
+        />
+        <rect fill="#3C3B6E" height="21.5" width="24" />
+        <g fill="#fff">
+          {Array.from({ length: 9 }, (_, row) =>
+            Array.from({ length: row % 2 === 0 ? 6 : 5 }, (_, col) => (
+              <circle
+                cx={row % 2 === 0 ? 2.2 + col * 4 : 4.2 + col * 4}
+                cy={2.2 + row * 2.3}
+                key={`${row}-${col}`}
+                r="0.7"
+              />
+            )),
+          )}
+        </g>
+      </svg>
+    );
+  }
+
+  // Tanzania
+  return (
+    <svg
+      aria-hidden="true"
+      className={`block rounded-[2px] ${className ?? ""}`}
+      viewBox="0 0 60 40"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect fill="#1EB53A" height="40" width="60" />
+      <polygon fill="#00A3DD" points="60,0 60,40 0,40" />
+      <polygon fill="#000" points="0,8 0,0 12,0 60,32 60,40 48,40" />
+      <polygon fill="#FCD116" points="0,12 0,8 14,0 18,0 60,28 60,32 46,40 42,40" />
+    </svg>
   );
 }

@@ -109,6 +109,8 @@ export const authEn = {
     "Registered. Dev verification token: {token} (fake notification transport)",
   "auth.register.info.checkEmail":
     "Registered. Check your email to verify (when a real provider is configured).",
+  "auth.register.info.readyToLogin":
+    "Your account is ready. Sign in with the email and password you just created.",
   "auth.register.info.agentEmail":
     "Your agent account is open. Please verify your email.",
 
@@ -284,6 +286,8 @@ export const authSw: Record<AuthKey, string> = {
     "Usajili umekamilika. Token ya uthibitisho ya dev: {token} (usafirishaji wa arifa wa majaribio)",
   "auth.register.info.checkEmail":
     "Usajili umekamilika. Angalia barua pepe yako ili kuthibitisha (mtoa huduma halisi anaposanidiwa).",
+  "auth.register.info.readyToLogin":
+    "Akaunti yako iko tayari. Ingia kwa barua pepe na nenosiri ulivyoweka sasa hivi.",
   "auth.register.info.agentEmail":
     "Akaunti ya Wakala imefunguliwa. Tafadhali thibitisha barua pepe yako.",
 

@@ -157,23 +157,16 @@ export default function RegisterPage() {
         ...(form.referralCode.trim() ? { referralCode: form.referralCode.trim() } : {}),
       };
 
-      const res = await apiFetch<{
+      await apiFetch<{
         verificationRequired: boolean;
-        notificationSimulated?: boolean;
-        devVerificationToken?: string;
+        resellerId: string;
       }>("/auth/register", {
         method: "POST",
         body: JSON.stringify(body),
       });
 
-      if (res.devVerificationToken) {
-        setInfo(t("auth.register.info.devToken", { token: res.devVerificationToken }));
-        router.push(`/verify?token=${encodeURIComponent(res.devVerificationToken)}`);
-        return;
-      }
-
-      setInfo(t("auth.register.info.checkEmail"));
-      router.push("/verify");
+      // Account is ACTIVE immediately — send them to sign in with the password they set.
+      router.push("/login?registered=1");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.register.error.registrationFailed"));
     } finally {

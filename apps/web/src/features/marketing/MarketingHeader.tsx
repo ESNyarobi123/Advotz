@@ -22,6 +22,8 @@ const NAV_ITEMS: NavItem[] = [
   { labelKey: "marketing.nav.solutions", href: "/#solutions", sectionId: "solutions" },
   { labelKey: "marketing.nav.howItWorks", href: "/#how-it-works", sectionId: "how-it-works" },
   { labelKey: "marketing.nav.pricing", href: "/pricing" },
+  { labelKey: "marketing.nav.hotspots", href: "/hotspots" },
+  { labelKey: "marketing.nav.services", href: "/services" },
   { labelKey: "marketing.nav.contact", href: "/contact" },
 ];
 

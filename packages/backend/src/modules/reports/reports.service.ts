@@ -11,12 +11,13 @@ function startOfDarDay(now = new Date()) {
   return new Date(local.getTime() - offsetMs);
 }
 
-async function paidSales(where: { resellerId?: string; since?: Date }) {
+async function paidSales(where: { resellerId?: string; since?: Date; siteId?: string }) {
   const agg = await prisma.order.aggregate({
     where: {
       purpose: "WIFI_PACKAGE",
       paymentState: { in: ["PAID", "OVERPAID"] },
       resellerId: where.resellerId,
+      siteId: where.siteId,
       paidAt: where.since ? { gte: where.since } : undefined,
     },
     _sum: { amountTzs: true },
@@ -52,10 +53,15 @@ type Ranked = { count: number; amountTzs: bigint };
  * 100 rows — so a reseller with more history saw a payment mix and site ranking
  * that silently disagreed with the KPI totals above them.
  */
-async function paidSalesBySite(resellerId: string) {
+async function paidSalesBySite(resellerId: string, siteId?: string) {
   const rows = await prisma.order.groupBy({
     by: ["siteId"],
-    where: { purpose: "WIFI_PACKAGE", paymentState: { in: ["PAID", "OVERPAID"] }, resellerId },
+    where: {
+      purpose: "WIFI_PACKAGE",
+      paymentState: { in: ["PAID", "OVERPAID"] },
+      resellerId,
+      ...(siteId ? { siteId } : {}),
+    },
     _sum: { amountTzs: true },
     _count: true,
   });
@@ -77,10 +83,15 @@ async function paidSalesBySite(resellerId: string) {
   }));
 }
 
-async function paidSalesByPackage(resellerId: string) {
+async function paidSalesByPackage(resellerId: string, siteId?: string) {
   const rows = await prisma.order.groupBy({
     by: ["packageRevisionId"],
-    where: { purpose: "WIFI_PACKAGE", paymentState: { in: ["PAID", "OVERPAID"] }, resellerId },
+    where: {
+      purpose: "WIFI_PACKAGE",
+      paymentState: { in: ["PAID", "OVERPAID"] },
+      resellerId,
+      ...(siteId ? { siteId } : {}),
+    },
     _sum: { amountTzs: true },
     _count: true,
   });
@@ -103,10 +114,10 @@ async function paidSalesByPackage(resellerId: string) {
 }
 
 /** Every payment state in scope, including the ones that are not paid. */
-async function orderPaymentMix(resellerId: string) {
+async function orderPaymentMix(resellerId: string, siteId?: string) {
   const rows = await prisma.order.groupBy({
     by: ["paymentState"],
-    where: { purpose: "WIFI_PACKAGE", resellerId },
+    where: { purpose: "WIFI_PACKAGE", resellerId, ...(siteId ? { siteId } : {}) },
     _sum: { amountTzs: true },
     _count: true,
   });
@@ -125,7 +136,7 @@ async function orderPaymentMix(resellerId: string) {
  * Every day in the window is emitted, including days with no sales, so the
  * chart has a continuous axis instead of collapsing the gaps.
  */
-async function paidSalesDaily(resellerId: string, days: number) {
+async function paidSalesDaily(resellerId: string, days: number, siteId?: string) {
   const today = startOfDarDay();
   const from = new Date(today.getTime() - (days - 1) * 86_400_000);
   const rows = await prisma.order.findMany({
@@ -133,6 +144,7 @@ async function paidSalesDaily(resellerId: string, days: number) {
       purpose: "WIFI_PACKAGE",
       paymentState: { in: ["PAID", "OVERPAID"] },
       resellerId,
+      ...(siteId ? { siteId } : {}),
       paidAt: { gte: from },
     },
     select: { amountTzs: true, paidAt: true },
@@ -155,31 +167,73 @@ async function paidSalesDaily(resellerId: string, days: number) {
   });
 }
 
-export async function resellerOverview(resellerId: string) {
+export async function resellerOverview(resellerId: string, siteId?: string) {
   const today = startOfDarDay();
-  const [reseller, subscription, wallet, salesToday, salesAll, salesDaily, sites, packages, attention, salesBySite, salesByPackage, paymentMix] =
-    await Promise.all([
-      prisma.reseller.findUniqueOrThrow({ where: { id: resellerId }, select: { businessName: true, status: true, onboardingStep: true, slug: true } }),
-      getSubscriptionView(resellerId),
-      walletSummary("RESELLER", resellerId),
-      paidSales({ resellerId, since: today }),
-      paidSales({ resellerId }),
-      paidSalesDaily(resellerId, TREND_DAYS),
-      prisma.site.findMany({ where: { resellerId, archivedAt: null }, select: { id: true, name: true, state: true, slug: true } }),
-      prisma.wifiPackage.count({ where: { resellerId, status: "ACTIVE" } }),
-      prisma.order.count({ where: { resellerId, OR: [{ fulfillmentState: "NEEDS_REVIEW" }, { paymentState: "NEEDS_REVIEW" }] } }),
-      paidSalesBySite(resellerId),
-      paidSalesByPackage(resellerId),
-      orderPaymentMix(resellerId),
-    ]);
-  const [activeGrants, devices, pendingClaims] = await Promise.all([
-    prisma.accessGrant.count({ where: { resellerId, state: "ACTIVE", expiresAt: { gt: new Date() } } }),
+  const siteFilter = siteId ? { siteId } : {};
+  const [
+    reseller,
+    subscription,
+    wallet,
+    salesToday,
+    salesAll,
+    salesDaily,
+    sites,
+    packages,
+    attention,
+    salesBySite,
+    salesByPackage,
+    paymentMix,
+    totalDevices,
+    totalPackages,
+  ] = await Promise.all([
+    prisma.reseller.findUniqueOrThrow({
+      where: { id: resellerId },
+      select: { businessName: true, status: true, onboardingStep: true, slug: true },
+    }),
+    getSubscriptionView(resellerId),
+    walletSummary("RESELLER", resellerId),
+    paidSales({ resellerId, since: today, siteId }),
+    paidSales({ resellerId, siteId }),
+    paidSalesDaily(resellerId, TREND_DAYS, siteId),
+    prisma.site.findMany({
+      where: { resellerId, archivedAt: null },
+      select: { id: true, name: true, state: true, slug: true },
+    }),
+    prisma.wifiPackage.count({
+      where: {
+        resellerId,
+        status: "ACTIVE",
+        ...(siteId ? { assignments: { some: { siteId } } } : {}),
+      },
+    }),
+    prisma.order.count({
+      where: {
+        resellerId,
+        ...siteFilter,
+        OR: [{ fulfillmentState: "NEEDS_REVIEW" }, { paymentState: "NEEDS_REVIEW" }],
+      },
+    }),
+    paidSalesBySite(resellerId, siteId),
+    paidSalesByPackage(resellerId, siteId),
+    orderPaymentMix(resellerId, siteId),
     prisma.device.count({ where: { resellerId } }),
-    prisma.deviceClaim.count({ where: { resellerId, state: "SUBMITTED" } }),
+    prisma.wifiPackage.count({ where: { resellerId, status: "ACTIVE" } }),
   ]);
+  const [activeGrants, devices, pendingClaims] = await Promise.all([
+    prisma.accessGrant.count({
+      where: { resellerId, state: "ACTIVE", expiresAt: { gt: new Date() }, ...siteFilter },
+    }),
+    prisma.device.count({ where: { resellerId, ...siteFilter } }),
+    prisma.deviceClaim.count({ where: { resellerId, state: "SUBMITTED", ...siteFilter } }),
+  ]);
+  const scopedSite = siteId ? sites.find((s) => s.id === siteId) ?? null : null;
   return {
     reseller,
-    subscription: { state: subscription.state, plan: subscription.plan?.name ?? null, currentPeriodEnd: subscription.currentPeriodEnd },
+    subscription: {
+      state: subscription.state,
+      plan: subscription.plan?.name ?? null,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+    },
     wallet,
     salesToday,
     salesAllTime: salesAll,
@@ -193,12 +247,14 @@ export async function resellerOverview(resellerId: string) {
     pendingClaims,
     packageCount: packages,
     ordersNeedingReview: attention,
+    scope: { siteId: scopedSite?.id ?? null, siteName: scopedSite?.name ?? null },
+    totals: { sites: sites.length, devices: totalDevices, packages: totalPackages },
   };
 }
 
-export async function resellerOrders(resellerId: string, take = 100) {
+export async function resellerOrders(resellerId: string, take = 100, siteId?: string) {
   return prisma.order.findMany({
-    where: { resellerId, purpose: "WIFI_PACKAGE" },
+    where: { resellerId, purpose: "WIFI_PACKAGE", ...(siteId ? { siteId } : {}) },
     include: {
       customer: { select: { phone: true, firstName: true, lastName: true } },
       site: { select: { name: true } },
@@ -210,10 +266,32 @@ export async function resellerOrders(resellerId: string, take = 100) {
   });
 }
 
-export async function resellerCustomers(resellerId: string) {
+export async function resellerCustomers(resellerId: string, siteId?: string) {
   const customers = await prisma.customer.findMany({
-    where: { resellerId },
-    include: { orders: { where: { paymentState: { in: ["PAID", "OVERPAID"] } }, select: { amountTzs: true, paidAt: true } } },
+    where: {
+      resellerId,
+      ...(siteId
+        ? {
+            orders: {
+              some: {
+                siteId,
+                purpose: "WIFI_PACKAGE" as const,
+                paymentState: { in: ["PAID", "OVERPAID"] },
+              },
+            },
+          }
+        : {}),
+    },
+    include: {
+      orders: {
+        where: {
+          purpose: "WIFI_PACKAGE",
+          paymentState: { in: ["PAID", "OVERPAID"] },
+          ...(siteId ? { siteId } : {}),
+        },
+        select: { amountTzs: true, paidAt: true },
+      },
+    },
     orderBy: { updatedAt: "desc" },
     take: 500,
   });
