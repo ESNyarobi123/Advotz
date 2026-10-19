@@ -469,52 +469,52 @@ export const marketingEn = {
   "marketing.services.badge": "Guest WiFi Explore",
   "marketing.services.title": "Services",
   "marketing.services.subtitle":
-    "Everything guests can discover after they connect — the same Explore menu on every Advo WiFi hotspot.",
+    "Discover local businesses, events, offers and opportunities once you’re connected to AdvoWiFi.",
   "marketing.services.explore.eyebrow": "On the captive portal",
   "marketing.services.explore.title": "Explore menu",
   "marketing.services.explore.lead":
-    "Once a guest is online, Explore opens local discovery, opportunities and support without leaving the portal.",
+    "Explore what’s around you — from local businesses and events to useful opportunities and support.",
   "marketing.services.items.businesses.title": "Local Businesses & Offers",
   "marketing.services.items.businesses.body":
-    "Browse curated shops, cafés and services near the hotspot. Guests tap a business to see what it offers before they walk over.",
+    "Discover nearby shops, cafés and services. Explore what they offer and find places worth visiting.",
   "marketing.services.items.advotz.title": "Visit Advotz.com",
   "marketing.services.items.advotz.body":
-    "A direct path to the Advo TZ platform — learn about packages, hotspots and how operators run paid guest WiFi.",
+    "Visit Advotz to discover more businesses, services and opportunities.",
   "marketing.services.items.events.title": "Local Events",
   "marketing.services.items.events.body":
-    "Surface concerts, markets, sports and community happenings around the venue so guests always know what’s on nearby.",
+    "Find concerts, festivals, markets, sports and community events happening near you.",
   "marketing.services.items.holidays.title": "Holidays",
   "marketing.services.items.holidays.body":
-    "Highlight travel deals, weekend getaways and holiday packages partners promote to guests already on your network.",
+    "Explore holiday ideas, weekend getaways, travel offers and exciting places to visit.",
   "marketing.services.items.jobs.title": "Jobs & Opportunities",
   "marketing.services.items.jobs.body":
-    "Live vacancies and training programmes from platform partners — title, employer, location and full description in one place.",
+    "Discover job vacancies, training programmes and other opportunities. View the details and learn how to apply.",
   "marketing.services.items.promote.title": "Promote your business",
   "marketing.services.items.promote.body":
-    "Local owners can request a banner on the guest portal. They pick a duration, leave contact details, and the reseller follows up.",
+    "Want more customers to discover your business? Enquire about advertising on AdvoWiFi and our team will get in touch.",
   "marketing.services.items.help.title": "Help",
   "marketing.services.items.help.body":
-    "Quick support for connection issues — WhatsApp or in-portal help so guests are not stuck after payment.",
+    "Need help connecting or using AdvoWiFi? Contact our support team for assistance.",
   "marketing.services.local.eyebrow": "Inside Local Businesses",
   "marketing.services.local.title": "Example local services",
   "marketing.services.local.lead":
-    "When a site has not added its own businesses yet, guests still see useful essentials like these.",
+    "Explore local services and everyday essentials near you.",
   "marketing.services.local.mpesa.name": "M-Pesa & Banking Agent",
   "marketing.services.local.mpesa.category": "Tech & Finance",
   "marketing.services.local.mpesa.body":
-    "Cash deposit, withdrawal, M-Pesa, Tigo Pesa and Airtel Money services.",
+    "Find nearby mobile money and banking agents for deposits, withdrawals and other transactions.",
   "marketing.services.local.cafe.name": "Local Cafe & Fresh Bites",
   "marketing.services.local.cafe.category": "Food & Dining",
   "marketing.services.local.cafe.body":
-    "Freshly brewed coffee, tea, pastries, chilled juices and wholesome meals.",
+    "Enjoy freshly brewed coffee, tea, pastries, refreshing juices and tasty meals.",
   "marketing.services.local.phones.name": "Mobile Tech & Accessories",
   "marketing.services.local.phones.category": "Tech & Phones",
   "marketing.services.local.phones.body":
-    "Fast chargers, cables, screen protectors, earphones, power banks and cases.",
+    "Shop for phone chargers, cables, screen protectors, earphones, power banks and accessories.",
   "marketing.services.local.pharmacy.name": "Pharmacy & Wellness",
   "marketing.services.local.pharmacy.category": "Shops & Services",
   "marketing.services.local.pharmacy.body":
-    "Prescription refills, first aid supplies, wellness vitamins and consultation.",
+    "Find pharmacies offering medicines, first-aid essentials and everyday health products.",
 } as const;
 
 export type MarketingKey = keyof typeof marketingEn;
@@ -985,52 +985,53 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.services.badge": "Explore ya WiFi ya wageni",
   "marketing.services.title": "Huduma",
   "marketing.services.subtitle":
-    "Kila kitu wageni wanaweza kugundua baada ya kuunganishwa — menyu ile ile ya Explore kwenye kila hotspot ya Advo WiFi.",
+    "Gundua biashara, matukio, ofa na fursa za karibu ukishaunganishwa kwenye AdvoWiFi.",
   "marketing.services.explore.eyebrow": "Kwenye captive portal",
   "marketing.services.explore.title": "Menyu ya Explore",
   "marketing.services.explore.lead":
-    "Mgeni akiwa mtandaoni, Explore inafungua ugunduzi wa karibu, fursa na msaada bila kuondoka kwenye portal.",
+    "Gundua yaliyo karibu nawe — kutoka biashara na matukio hadi fursa muhimu na msaada.",
   "marketing.services.items.businesses.title": "Biashara na ofa za karibu",
   "marketing.services.items.businesses.body":
-    "Angalia maduka, mikahawa na huduma zilizochaguliwa karibu na hotspot. Mgeni anabonyeza biashara kuona inachotoa kabla ya kwenda.",
+    "Gundua maduka, mikahawa na huduma za karibu. Angalia wanachotoa na upate sehemu zinazostahili kutembelewa.",
   "marketing.services.items.advotz.title": "Tembelea Advotz.com",
   "marketing.services.items.advotz.body":
-    "Njia ya moja kwa moja kwenye jukwaa la Advo TZ — jifunze kuhusu vifurushi, hotspots na jinsi waendeshaji wanavyoendesha WiFi ya wageni yenye malipo.",
+    "Tembelea Advotz ugundue biashara, huduma na fursa zaidi.",
   "marketing.services.items.events.title": "Matukio ya karibu",
   "marketing.services.items.events.body":
-    "Onyesha matamasha, masoko, michezo na matukio ya jamii karibu na eneo ili wageni wajue kinachoendelea.",
+    "Pata matamasha, sherehe, masoko, michezo na matukio ya jamii yanayoendelea karibu nawe.",
   "marketing.services.items.holidays.title": "Likizo",
   "marketing.services.items.holidays.body":
-    "Angazia ofa za usafiri, weekend getaways na vifurushi vya likizo vinavyotangazwa kwa wageni walioko kwenye mtandao wako.",
+    "Gundua mawazo ya likizo, safari za wikendi, ofa za usafiri na sehemu za kuvutia za kutembelea.",
   "marketing.services.items.jobs.title": "Kazi & Fursa",
   "marketing.services.items.jobs.body":
-    "Nafasi za kazi na programu za mafunzo kutoka kwa washirika — kichwa, mwajiri, eneo na maelezo kamili mahali pamoja.",
+    "Gundua nafasi za kazi, programu za mafunzo na fursa nyingine. Soma maelezo na jifunze jinsi ya kuomba.",
   "marketing.services.items.promote.title": "Tangaza biashara yako",
   "marketing.services.items.promote.body":
-    "Wamiliki wa biashara wanaweza kuomba banner kwenye portal ya wageni. Wanachagua muda, kuacha mawasiliano, na reseller anafuata.",
+    "Unataka wateja zaidi wagundue biashara yako? Uliza kuhusu matangazo kwenye AdvoWiFi na timu yetu itawasiliana nawe.",
   "marketing.services.items.help.title": "Msaada",
   "marketing.services.items.help.body":
-    "Msaada wa haraka kwa matatizo ya muunganisho — WhatsApp au msaada ndani ya portal ili mgeni asinaswe baada ya malipo.",
+    "Unahitaji msaada kuunganishwa au kutumia AdvoWiFi? Wasiliana na timu yetu ya msaada.",
   "marketing.services.local.eyebrow": "Ndani ya Biashara za Karibu",
   "marketing.services.local.title": "Mfano wa huduma za karibu",
   "marketing.services.local.lead":
-    "Site ikiwa bado haijaongeza biashara zake, wageni bado wanaona muhimu kama hizi.",
+    "Gundua huduma za karibu na mahitaji ya kila siku yaliyo karibu nawe.",
   "marketing.services.local.mpesa.name": "Wakala wa M-Pesa & Kibenki",
   "marketing.services.local.mpesa.category": "Teknolojia & Fedha",
   "marketing.services.local.mpesa.body":
-    "Wakala wa M-Pesa, Tigo Pesa, Airtel Money na huduma za kutoa na kuweka pesa.",
+    "Pata mawakala wa simu na benki wa karibu kwa kuweka, kutoa pesa na miamala mingine.",
   "marketing.services.local.cafe.name": "Kahawa & Vyakula vya Karibu",
   "marketing.services.local.cafe.category": "Vyakula & Mikahawa",
   "marketing.services.local.cafe.body":
-    "Kahawa moto, chai, vitafunio vitamu, juisi asilia na vyakula vya mchana.",
+    "Furahia kahawa iliyochemshwa upya, chai, vitafunio vitamu, juisi za kuburudisha na vyakula vitamu.",
   "marketing.services.local.phones.name": "Duka la Vifaa vya Simu",
   "marketing.services.local.phones.category": "Teknolojia & Simu",
   "marketing.services.local.phones.body":
-    "Chaja za haraka za simu, vioo vya kinga, earphone na kava.",
+    "Nunua chaja za simu, kebo, vioo vya kinga, earphone, power bank na vifaa vingine.",
   "marketing.services.local.pharmacy.name": "Duka la Dawa & Afya",
   "marketing.services.local.pharmacy.category": "Maduka & Huduma",
   "marketing.services.local.pharmacy.body":
-    "Dawa muhimu, huduma ya kwanza, vitamini na ushauri wa afya kwa wateja.",
+    "Pata maduka ya dawa yenye dawa, huduma ya kwanza na bidhaa za afya za kila siku.",
+
 };
 
 export const marketingCatalog = { en: marketingEn, sw: marketingSw };
