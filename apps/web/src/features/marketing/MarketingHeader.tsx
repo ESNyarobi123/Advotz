@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AdvoLogo } from "./AdvoLogo";
-import { Menu, X, ArrowRight, Sparkles } from "lucide-react";
+import { LayoutDashboard, Menu, X, Sparkles } from "lucide-react";
 import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
 import { useI18n } from "@/lib/i18n";
 import type { MessageKey } from "@advo/i18n";
+import { useOptionalSession } from "@/lib/session";
 import { ButtonLink, Container, cx } from "./ui";
 
 type NavItem = {
@@ -33,6 +34,8 @@ export function MarketingHeader() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const pathname = usePathname();
   const { t } = useI18n();
+  const { user, dashboardHref } = useOptionalSession();
+  const signedIn = Boolean(user && dashboardHref);
 
   /*
    * One scroll/resize handler drives both header behaviours:
@@ -120,9 +123,15 @@ export function MarketingHeader() {
           </span>
           <span className="hidden truncate sm:inline">{t("marketing.banner.body")}</span>
           <span className="sm:hidden">{t("marketing.banner.bodyShort")}</span>
-          <Link href="/register" className="shrink-0 font-bold text-[#FBA102] underline hover:text-white">
-            {t("marketing.banner.cta")} &rarr;
-          </Link>
+          {signedIn && dashboardHref ? (
+            <Link href={dashboardHref} className="shrink-0 font-bold text-[#FBA102] underline hover:text-white">
+              {t("marketing.banner.dashboardCta")} &rarr;
+            </Link>
+          ) : (
+            <Link href="/register" className="shrink-0 font-bold text-[#FBA102] underline hover:text-white">
+              {t("marketing.banner.cta")} &rarr;
+            </Link>
+          )}
         </Container>
       </div>
 
@@ -165,18 +174,27 @@ export function MarketingHeader() {
 
           <div className="hidden items-center gap-2 lg:flex">
             <LocaleSwitcher variant={onDark ? "dark" : "light"} />
-            <Link
-              href="/login"
-              className={cx(
-                "rounded-field px-3.5 py-2.5 text-sm font-semibold transition-colors",
-                onDark ? "text-white/85 hover:bg-white/10 hover:text-white" : "text-advo-text hover:bg-advo-page",
-              )}
-            >
-              {t("marketing.header.login")}
-            </Link>
-            <ButtonLink href="/register" size="md" arrow>
-              {t("marketing.header.register")}
-            </ButtonLink>
+            {signedIn && dashboardHref ? (
+              <ButtonLink href={dashboardHref} size="md" arrow>
+                <LayoutDashboard className="size-4" aria-hidden="true" />
+                {t("marketing.header.backToDashboard")}
+              </ButtonLink>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={cx(
+                    "rounded-field px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                    onDark ? "text-white/85 hover:bg-white/10 hover:text-white" : "text-advo-text hover:bg-advo-page",
+                  )}
+                >
+                  {t("marketing.header.login")}
+                </Link>
+                <ButtonLink href="/register" size="md" arrow>
+                  {t("marketing.header.register")}
+                </ButtonLink>
+              </>
+            )}
           </div>
 
           {/* Mobile / tablet trigger */}
@@ -225,16 +243,29 @@ export function MarketingHeader() {
             </nav>
 
             <div className="mt-6 flex flex-col gap-3 border-t border-white/10 pt-6">
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-field border border-white/20 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/5"
-              >
-                {t("marketing.header.loginDashboard")}
-              </Link>
-              <ButtonLink href="/register" size="lg" arrow className="w-full">
-                {t("marketing.header.registerFree")}
-              </ButtonLink>
+              {signedIn && dashboardHref ? (
+                <Link
+                  href={dashboardHref}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-field bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)] px-5 py-3.5 text-base font-bold text-advo-charcoal"
+                >
+                  <LayoutDashboard className="size-4" aria-hidden="true" />
+                  {t("marketing.header.backToDashboard")}
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-field border border-white/20 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white/5"
+                  >
+                    {t("marketing.header.loginDashboard")}
+                  </Link>
+                  <ButtonLink href="/register" size="lg" arrow className="w-full">
+                    {t("marketing.header.registerFree")}
+                  </ButtonLink>
+                </>
+              )}
             </div>
           </div>
         ) : null}

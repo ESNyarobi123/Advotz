@@ -78,7 +78,8 @@ function SidebarBody({
       <div className="h-1 shrink-0" style={{ background: system ? RESELLER_BAR : BRAND_BAR }} />
 
       <div className={`flex items-center gap-2.5 pt-3.5 ${collapsed ? "justify-center px-2" : "px-3.5"}`}>
-        <Link href={home} className="group flex min-w-0 items-center" onClick={onNavigate}>
+        {/* Brand opens the public landing page; "Back to dashboard" lives on that header. */}
+        <Link href="/" className="group flex min-w-0 items-center" onClick={onNavigate} title={t("auth.common.home")}>
           {collapsed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img alt="Advowifi" className="h-9 w-9" draggable={false} src="/brand/advo-mark.png" />
@@ -479,7 +480,7 @@ export function FloatingSidebar({ role, user, version, onLogout }: SidebarCommon
         <Button aria-label={t("nav.openMenu")} isIconOnly onPress={mobileNav.open} size="sm" variant="ghost">
           <Menu className="h-5 w-5" />
         </Button>
-        <Link className="flex min-w-0 items-center" href={home}>
+        <Link className="flex min-w-0 items-center" href="/" title={t("auth.common.home")}>
           <AdvoLogo size="sm" variant="dark" withLink={false} />
         </Link>
         <div className="ml-auto flex shrink-0 items-center gap-2">

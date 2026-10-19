@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Notice } from "@advo/ui";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -11,6 +11,7 @@ import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 import { AuthShowcasePanel } from "@/features/auth/AuthShowcasePanel";
 import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
 import { buttonClasses, cx } from "@/features/marketing/ui";
+import { dashboardHomeFor } from "@/lib/session";
 import {
   Lock,
   Mail,
@@ -40,6 +41,20 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const justRegistered = params.get("registered") === "1";
+
+  // Already signed in → skip the form and land on the role home.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .me()
+      .then(({ user }) => {
+        if (!cancelled) router.replace(dashboardHomeFor(user));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -589,6 +589,8 @@ const baseEn = {
   "marketing.header.loginDashboard": "Log in to dashboard",
   "marketing.header.register": "Register your WiFi",
   "marketing.header.registerFree": "Start using Advo TZ free",
+  "marketing.header.backToDashboard": "Back to dashboard",
+  "marketing.banner.dashboardCta": "Open dashboard",
   "marketing.nav.solutions": "Solutions",
   "marketing.nav.primary": "Primary navigation",
   "marketing.home.integrations.label": "Works with the tools you already use",
@@ -1292,6 +1294,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "marketing.header.loginDashboard": "Ingia kwenye Dashboard",
   "marketing.header.register": "Sajili WiFi Yako",
   "marketing.header.registerFree": "Anza Kutumia Advo TZ Bure",
+  "marketing.header.backToDashboard": "Rudi kwenye dashboard",
+  "marketing.banner.dashboardCta": "Fungua dashboard",
   "marketing.nav.solutions": "Suluhisho",
   "marketing.nav.primary": "Menyu kuu",
   "marketing.home.integrations.label":

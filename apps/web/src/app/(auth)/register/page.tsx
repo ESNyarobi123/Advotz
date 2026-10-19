@@ -4,13 +4,14 @@ import Link from "next/link";
 import { Notice } from "@advo/ui";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { api, apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { AdvoLogo } from "@/features/marketing/AdvoLogo";
 import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 import { AuthShowcasePanel } from "@/features/auth/AuthShowcasePanel";
 import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
 import { buttonClasses, cx } from "@/features/marketing/ui";
+import { dashboardHomeFor } from "@/lib/session";
 import {
   User,
   Mail,
@@ -84,6 +85,20 @@ export default function RegisterPage() {
     const roleParam = params.get("role");
     if (roleParam === "agent") setAccountType("agent");
   }, []);
+
+  // Signed-in users should not open a second account through this form.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .me()
+      .then(({ user }) => {
+        if (!cancelled) router.replace(dashboardHomeFor(user));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
