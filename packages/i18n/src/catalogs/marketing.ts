@@ -447,27 +447,29 @@ export const marketingEn = {
   "marketing.footer.bottom.pricing": "Packages & Pricing",
   "marketing.footer.bottom.login": "Log In To Your Account",
   "marketing.footer.bottom.hotspots": "Our Hotspots",
-  "marketing.footer.bottom.services": "Services",
+  "marketing.footer.bottom.services": "Our Explore",
 
   // ── Our Hotspots page ────────────────────────────────────────────────────
   "marketing.hotspots.badge": "Find Advo WiFi",
   "marketing.hotspots.title": "Our Hotspots",
   "marketing.hotspots.subtitle":
-    "Places across Tanzania where Advo WiFi is live — explore the map or browse by city.",
-  "marketing.hotspots.searchPlaceholder": "Search by name, city, or category…",
+    "Places across Tanzania where Advo WiFi is live — browse by region, city, or search.",
+  "marketing.hotspots.searchPlaceholder": "Search by name, city, region, or category…",
+  "marketing.hotspots.allRegions": "All regions",
   "marketing.hotspots.allCities": "All cities",
   "marketing.hotspots.count": "{count} hotspots",
   "marketing.hotspots.countOne": "1 hotspot",
   "marketing.hotspots.empty": "No hotspots to show yet. Check back soon.",
   "marketing.hotspots.emptyFilter": "No hotspots match your search.",
-  "marketing.hotspots.selectHint": "Select a location on the map or in the list.",
+  "marketing.hotspots.selectHint": "Tap a card to see more details.",
+  "marketing.hotspots.noDescription": "More details about this hotspot coming soon.",
+  "marketing.hotspots.openMaps": "Open in Google Maps",
   "marketing.hotspots.visitPortal": "Open guest portal",
-  "marketing.hotspots.mapLabel": "Hotspot map",
   "marketing.hotspots.listLabel": "Hotspot list",
 
   // ── Services (guest Explore menu) ────────────────────────────────────────
   "marketing.services.badge": "Guest WiFi Explore",
-  "marketing.services.title": "Services",
+  "marketing.services.title": "Our Explore",
   "marketing.services.subtitle":
     "Discover local businesses, events, offers and opportunities once you’re connected to AdvoWiFi.",
   "marketing.services.explore.eyebrow": "On the captive portal",
@@ -963,27 +965,29 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.footer.bottom.pricing": "Vifurushi & Bei",
   "marketing.footer.bottom.login": "Ingia kwenye Akaunti",
   "marketing.footer.bottom.hotspots": "Hotspots Zetu",
-  "marketing.footer.bottom.services": "Huduma",
+  "marketing.footer.bottom.services": "Explore Yetu",
 
   // ── Our Hotspots page ────────────────────────────────────────────────────
   "marketing.hotspots.badge": "Tafuta Advo WiFi",
   "marketing.hotspots.title": "Hotspots Zetu",
   "marketing.hotspots.subtitle":
-    "Maeneo nchini Tanzania ambapo Advo WiFi inapatikana — chunguza ramani au tafuta kwa jiji.",
-  "marketing.hotspots.searchPlaceholder": "Tafuta kwa jina, jiji, au aina…",
+    "Maeneo nchini Tanzania ambapo Advo WiFi inapatikana — tafuta kwa mkoa, jiji, au jina.",
+  "marketing.hotspots.searchPlaceholder": "Tafuta kwa jina, jiji, mkoa, au aina…",
+  "marketing.hotspots.allRegions": "Mikoa yote",
   "marketing.hotspots.allCities": "Miji yote",
   "marketing.hotspots.count": "Hotspots {count}",
   "marketing.hotspots.countOne": "Hotspot 1",
   "marketing.hotspots.empty": "Bado hakuna hotspots za kuonyesha. Rudi baadaye.",
   "marketing.hotspots.emptyFilter": "Hakuna hotspots zinazolingana na utafutaji wako.",
-  "marketing.hotspots.selectHint": "Chagua eneo kwenye ramani au kwenye orodha.",
+  "marketing.hotspots.selectHint": "Bofya kadi kuona maelezo zaidi.",
+  "marketing.hotspots.noDescription": "Maelezo zaidi ya hotspot hii yatakuja hivi karibuni.",
+  "marketing.hotspots.openMaps": "Fungua Google Maps",
   "marketing.hotspots.visitPortal": "Fungua portal ya wageni",
-  "marketing.hotspots.mapLabel": "Ramani ya hotspots",
   "marketing.hotspots.listLabel": "Orodha ya hotspots",
 
   // ── Services (guest Explore menu) ────────────────────────────────────────
   "marketing.services.badge": "Explore ya WiFi ya wageni",
-  "marketing.services.title": "Huduma",
+  "marketing.services.title": "Explore Yetu",
   "marketing.services.subtitle":
     "Gundua biashara, matukio, ofa na fursa za karibu ukishaunganishwa kwenye AdvoWiFi.",
   "marketing.services.explore.eyebrow": "Kwenye captive portal",

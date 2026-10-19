@@ -203,9 +203,6 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.87.4
         version: 5.104.0(react@19.3.0)
-      leaflet:
-        specifier: ^1.9.4
-        version: 1.9.4
       lucide-react:
         specifier: ^0.544.0
         version: 0.544.0(react@19.3.0)
@@ -237,9 +234,6 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.1.13
         version: 4.3.3
-      '@types/leaflet':
-        specifier: ^1.9.22
-        version: 1.9.22
       '@types/node':
         specifier: ^24.5.2
         version: 24.19.0
@@ -2113,12 +2107,6 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
-  '@types/geojson@7946.0.16':
-    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
-
-  '@types/leaflet@1.9.22':
-    resolution: {integrity: sha512-h3lhECYEKDasG7LFHu+GiHqAvsgLuQvlJvVZzJDGONo3sEL+wUOqSFLnwkZlK0qVxnxbuGFW8iBlJNYs5wgndA==}
-
   '@types/node@24.19.0':
     resolution: {integrity: sha512-zY+5tKxXdhGh1PYI0ac+7juvEu4OI6vWtVVoj5i2m42jxAY1U+zHGt6QCyOFwykdP62sM3MJ9stoYYUw5aCWew==}
 
@@ -2588,9 +2576,6 @@ packages:
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
-
-  leaflet@1.9.4:
-    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
 
   light-my-request@6.6.0:
     resolution: {integrity: sha512-CHYbu8RtboSIoVsHZ6Ye4cj4Aw/yg2oAFimlF7mNvfDV192LR7nDiKtSIfCuLT7KokPSTn/9kfVLm5OGN0A28A==}
@@ -4505,12 +4490,6 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
-  '@types/geojson@7946.0.16': {}
-
-  '@types/leaflet@1.9.22':
-    dependencies:
-      '@types/geojson': 7946.0.16
-
   '@types/node@24.19.0':
     dependencies:
       undici-types: 7.24.6
@@ -4992,8 +4971,6 @@ snapshots:
       dequal: 2.0.3
 
   json-schema-traverse@1.0.0: {}
-
-  leaflet@1.9.4: {}
 
   light-my-request@6.6.0:
     dependencies:

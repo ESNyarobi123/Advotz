@@ -4,7 +4,8 @@ import { HotspotsExplorer } from "@/features/marketing/HotspotsExplorer";
 import { Section, SectionHeading } from "@/features/marketing/ui";
 
 /**
- * Public "Our Hotspots" directory — curated by Admin, plotted on an OSM map.
+ * Public "Our Hotspots" directory — curated by Admin, shown as expandable cards
+ * with search, region/city filters, and a Google Maps deep-link per location.
  */
 export default async function HotspotsPage() {
   const { t } = await getServerI18n();
