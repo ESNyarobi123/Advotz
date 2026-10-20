@@ -27,6 +27,23 @@ export const LISTING_AI_SETTING_KEY = "portal.listingAi";
 
 const DEFAULT_MODEL = "gemini-3.8-flash";
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+
+/**
+ * Flash models that take over when the configured one is unavailable.
+ *
+ * `gemini-flash-latest` is deliberately not used: it currently resolves to the
+ * newest flash, so it inherits the same overload. Older, still-served ids keep
+ * discovery working through a provider incident.
+ */
+const FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash"];
+/** Abort a model attempt when no bytes arrive for this long (overloaded models stall). */
+const IDLE_TIMEOUT_MS = 10_000;
+/** Hard cap for one model attempt. */
+const ATTEMPT_TIMEOUT_MS = 40_000;
+/** Budget for one whole discovery call across every model attempt. */
+const TOTAL_BUDGET_MS = 70_000;
+/** While the configured model is failing, still retry it this often. */
+const CONFIGURED_RETRY_MINUTES = 60;
 /** A tick fires inside this window after a configured slot. */
 const SLOT_WINDOW_MINUTES = 20;
 /** A run that never finished is marked failed after this long. */
@@ -154,56 +171,306 @@ function buildPrompt(settings: ListingAiSettings, limit: number, now: Date): str
   ].join("\n");
 }
 
-async function callGemini(model: string, prompt: string): Promise<unknown> {
-  const key = listingAiApiKey();
-  if (!key) badRequest("GEMINI_API_KEY is not configured on the server");
+type GeminiEnvelope = {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string; thought?: boolean }> };
+    finishReason?: string;
+  }>;
+  promptFeedback?: { blockReason?: string };
+};
 
-  const body = {
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 8192, responseMimeType: "application/json" },
+/** A Gemini failure we can classify: retry elsewhere, or stop and explain. */
+class GeminiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+
+  /** 0 is a network/stall failure; 429 and 5xx mean "try another model". */
+  get retryable() {
+    return this.status === 0 || this.status === 429 || this.status >= 500;
+  }
+}
+
+/** Concatenated answer text, ignoring the thought parts of thinking models. */
+function envelopeText(payload: GeminiEnvelope): string {
+  const parts = payload.candidates?.[0]?.content?.parts ?? [];
+  return parts
+    .filter((part) => part.text && part.thought !== true)
+    .map((part) => part.text ?? "")
+    .join("");
+}
+
+/**
+ * One streaming call.
+ *
+ * Streaming is what keeps long answers alive: the bytes arrive as the model
+ * writes them, so a slow-but-working model never trips a single total timeout
+ * the way one long `generateContent` request did.
+ */
+async function requestGemini(model: string, payload: Record<string, unknown>): Promise<string> {
+  const key = listingAiApiKey();
+  const url = `${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`;
+
+  const controller = new AbortController();
+  let stalled = false;
+  let expired = false;
+  const stall = () => {
+    stalled = true;
+    controller.abort();
+  };
+  let idle = setTimeout(stall, IDLE_TIMEOUT_MS);
+  const hard = setTimeout(() => {
+    expired = true;
+    controller.abort();
+  }, ATTEMPT_TIMEOUT_MS);
+  const bump = () => {
+    clearTimeout(idle);
+    idle = setTimeout(stall, IDLE_TIMEOUT_MS);
   };
 
-  // Grounding first (real sources), then a plain JSON-schema attempt when the
-  // model/endpoint rejects the tool combination. Both paths end in JSON.
-  const attempts: Array<Record<string, unknown>> = [
-    { ...body, tools: [{ google_search: {} }] },
-    { ...body, generationConfig: { ...body.generationConfig, responseSchema } },
-  ];
-
-  let lastError = "Gemini request failed";
-  for (const payload of attempts) {
-    const res = await fetch(`${GEMINI_ENDPOINT}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
+  try {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(60_000),
+      signal: controller.signal,
     });
-    const text = await res.text();
+
     if (!res.ok) {
-      lastError = `Gemini ${res.status}: ${text.slice(0, 300)}`;
+      const detail = await res.text();
+      const message = (() => {
+        try {
+          const body = JSON.parse(detail) as { error?: { message?: string } };
+          return body.error?.message ?? detail.slice(0, 200);
+        } catch {
+          return detail.slice(0, 200);
+        }
+      })();
+      throw new GeminiError(res.status, message);
+    }
+    if (!res.body) throw new GeminiError(0, "Gemini returned an empty stream");
+
+    const decoder = new TextDecoder();
+    let pending = "";
+    let answer = "";
+    let envelope = "";
+
+    const consume = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) return;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === "[DONE]") return;
+      try {
+        answer += envelopeText(JSON.parse(data) as GeminiEnvelope);
+      } catch {
+        // A malformed chunk is not fatal; the next one may still carry text.
+      }
+    };
+
+    for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+      bump();
+      const text = decoder.decode(chunk, { stream: true });
+      envelope += text;
+      pending += text;
+      const lines = pending.split("\n");
+      pending = lines.pop() ?? "";
+      for (const line of lines) consume(line);
+    }
+    if (pending) consume(pending);
+
+    if (answer.trim()) return answer;
+
+    // Some keys get a single JSON envelope instead of SSE; accept that too.
+    const whole = (() => {
+      try {
+        return JSON.parse(envelope) as GeminiEnvelope;
+      } catch {
+        return null;
+      }
+    })();
+    const fromEnvelope = whole ? envelopeText(whole) : "";
+    if (fromEnvelope.trim()) return fromEnvelope;
+
+    const blocked = whole?.promptFeedback?.blockReason;
+    const finish = whole?.candidates?.[0]?.finishReason;
+    throw new GeminiError(
+      0,
+      blocked ? `Gemini blocked the request (${blocked})` : `Gemini returned no text${finish ? ` (${finish})` : ""}`,
+    );
+  } catch (error) {
+    if (stalled) throw new GeminiError(0, `${model} stopped sending data for ${IDLE_TIMEOUT_MS / 1000}s`);
+    if (expired) throw new GeminiError(0, `${model} did not finish within ${ATTEMPT_TIMEOUT_MS / 1000}s`);
+    throw error;
+  } finally {
+    clearTimeout(idle);
+    clearTimeout(hard);
+  }
+}
+
+/**
+ * Every complete `{...}` block in a text, strings and escapes respected.
+ *
+ * Used as a last resort: it keeps the items that survived even when the model
+ * wrote a trailing comma, extra prose or a stream cut mid-object.
+ */
+function balancedObjects(text: string): string[] {
+  const found: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
       continue;
     }
-    let json: unknown;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      lastError = "Gemini returned a non-JSON envelope";
+    if (char === '"') {
+      inString = true;
       continue;
     }
-    const candidate = (json as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }).candidates?.[0];
-    const raw = candidate?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
-    if (!raw.trim()) {
-      lastError = "Gemini returned an empty answer (possibly blocked)";
+    if (char === "{") {
+      if (depth === 0) start = index;
+      depth += 1;
       continue;
     }
-    const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-    try {
-      return JSON.parse(cleaned);
-    } catch {
-      lastError = "Gemini answer was not valid JSON";
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        found.push(text.slice(start, index + 1));
+        start = -1;
+      }
     }
   }
-  throw new Error(lastError);
+  return found;
+}
+
+/** Turns a raw answer into listings, tolerating a stray markdown fence. */
+export function parseAnswer(raw: string): unknown {
+  const cleaned = raw.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  try {
+    return JSON.parse(cleaned) as unknown;
+  } catch {
+    /* keep going: the answer needs repair */
+  }
+
+  // The model sometimes wraps the array in prose; keep the outermost array.
+  const start = cleaned.indexOf("[");
+  const end = cleaned.lastIndexOf("]");
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(cleaned.slice(start, end + 1)) as unknown;
+    } catch {
+      /* fall through to the per-object repair */
+    }
+  }
+
+  // Last resort: keep whichever objects are individually valid.
+  const objects = balancedObjects(cleaned)
+    .map((block) => {
+      try {
+        return JSON.parse(block) as unknown;
+      } catch {
+        return null;
+      }
+    })
+    .filter((value): value is unknown => value !== null);
+  if (objects.length > 0) return objects;
+
+  throw new GeminiError(0, `Gemini answer was not valid JSON (starts with: ${cleaned.slice(0, 80)})`);
+}
+
+function itemCount(payload: unknown): number {
+  if (Array.isArray(payload)) return payload.length;
+  const nested = (payload as { listings?: unknown })?.listings;
+  return Array.isArray(nested) ? nested.length : 0;
+}
+
+/** Admin-facing explanation, so the run log says what actually went wrong. */
+function explain(error: unknown): string {
+  if (!(error instanceof GeminiError)) return error instanceof Error ? error.message : String(error);
+  if (error.status === 429) return `Gemini quota reached for this key: ${error.message}`;
+  if (error.status === 503) return "Gemini is overloaded right now (503). Try again in a few minutes.";
+  if (error.status === 404) return `Gemini model is not available to this key: ${error.message}`;
+  if (error.status === 400) return `Gemini rejected the request: ${error.message}`;
+  return error.message;
+}
+
+/**
+ * Asks Gemini for listings, walking a short fallback chain of flash models.
+ *
+ * The plain JSON-schema attempt runs first because it is the fastest and most
+ * reliable. A grounded attempt (Google Search) only runs when that one produced
+ * nothing, since search grounding is rate limited on free keys and is much slower.
+ */
+async function callGemini(model: string, prompt: string): Promise<{ payload: unknown; model: string }> {
+  const key = listingAiApiKey();
+  if (!key) badRequest("GEMINI_API_KEY is not configured on the server");
+
+  // Prefer a model that answered recently. When the configured model is having
+  // an incident we lead with the healthy one, but retry the configured model at
+  // least hourly so a recovered model is picked back up automatically.
+  const recent = await prisma.listingAiRun.findMany({
+    where: { finishedAt: { not: null } },
+    orderBy: { startedAt: "desc" },
+    take: 12,
+    select: { status: true, model: true, startedAt: true },
+  });
+  const healthy = recent.find((run) => run.status === "SUCCEEDED" && run.model && run.model !== model);
+  const configuredAttempt = recent.find((run) => run.model === model);
+  const configuredStale =
+    !configuredAttempt || Date.now() - configuredAttempt.startedAt.getTime() > CONFIGURED_RETRY_MINUTES * 60_000;
+  const configuredFailed = configuredAttempt ? configuredAttempt.status !== "SUCCEEDED" : false;
+  const leadWithHealthy = configuredFailed && !configuredStale && Boolean(healthy);
+  const leading = leadWithHealthy ? [healthy!.model, model] : [model, healthy?.model];
+  const chain = [...new Set([...leading, ...FALLBACK_MODELS].filter((id): id is string => Boolean(id)))];
+
+  const base = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+      // This is an extraction task; thinking only adds latency and cost.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  };
+  const schemaAttempt = { ...base, generationConfig: { ...base.generationConfig, responseSchema } };
+  const groundedAttempt = { ...base, tools: [{ google_search: {} }] };
+
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  let lastError: unknown = "Gemini request failed";
+
+  for (const candidate of chain) {
+    if (Date.now() > deadline) break;
+    let emptyAnswer: unknown = null;
+
+    for (const payload of [schemaAttempt, groundedAttempt]) {
+      if (Date.now() > deadline) break;
+      try {
+        const payloadJson = parseAnswer(await requestGemini(candidate, payload));
+        if (itemCount(payloadJson) > 0) return { payload: payloadJson, model: candidate };
+        // A valid but empty answer: the grounded attempt may still find something.
+        emptyAnswer = payloadJson;
+        lastError = new GeminiError(0, "Gemini returned no listings");
+      } catch (error) {
+        lastError = error;
+        // Missing model, quota or overload: retrying this model is wasted time,
+        // and the grounded variant shares the same per-model quota.
+        if (error instanceof GeminiError && (error.status === 404 || error.retryable)) break;
+      }
+    }
+
+    if (emptyAnswer) return { payload: emptyAnswer, model: candidate };
+  }
+
+  throw new Error(explain(lastError));
 }
 
 function normaliseItems(payload: unknown): Array<ReturnType<typeof listingAiItemSchema.parse>> {
@@ -231,7 +498,7 @@ function dedupeKey(item: ReturnType<typeof listingAiItemSchema.parse>): string {
 /** Tanzania is UTC+3 all year, so a local calendar day starts three hours early in UTC. */
 const TANZANIA_OFFSET_MS = 3 * 60 * 60 * 1000;
 
-function parseDate(value: string): Date | null {
+export function parseDate(value: string): Date | null {
   const raw = value.trim();
   if (!raw) return null;
   // A bare date (YYYY-MM-DD) means the local calendar day in Tanzania. Parsing it
@@ -278,7 +545,9 @@ async function runDiscovery(
   });
 
   try {
-    const payload = await callGemini(model, buildPrompt(settings, limit, now));
+    const answer = await callGemini(model, buildPrompt(settings, limit, now));
+    const payload = answer.payload;
+    const usedModel = answer.model;
     const rawItems = normaliseItems(payload);
     const items = rawItems
       .filter((item) => item.score >= settings.minScore)
@@ -310,7 +579,7 @@ async function runDiscovery(
         active: autoPublish,
         source: "AI" as const,
         sourceUrl: item.sourceUrl,
-        aiModel: model,
+        aiModel: usedModel,
         aiRunId: run.id,
         dedupeKey: dedupeKey(item),
       };
@@ -337,6 +606,8 @@ async function runDiscovery(
       where: { id: run.id },
       data: {
         status: "SUCCEEDED",
+        // Record the model that actually answered, not just the configured one.
+        model: usedModel,
         analysedCount: analysed,
         postedCount: posted,
         skippedCount: skipped,
@@ -348,6 +619,8 @@ async function runDiscovery(
           kinds: settings.kinds,
           regions: settings.regions,
           skippedDuplicates: prepared.length - fresh.length,
+          requestedModel: model,
+          usedModel,
         } as Prisma.InputJsonValue,
       },
     });

@@ -2221,7 +2221,8 @@ export const adminScreensEn = {
   "admin.listings.ai.enabledHint": "It searches at the times below and saves what it finds.",
   "admin.listings.ai.assistantName": "Assistant name",
   "admin.listings.ai.model": "Gemini model",
-  "admin.listings.ai.modelHint": "gemini-3.8-flash is a good balance of quality and cost.",
+  "admin.listings.ai.modelHint":
+    "gemini-3.8-flash is a good balance of quality and cost. If it is busy or out of quota, the assistant falls back to another flash model automatically.",
   "admin.listings.ai.analysesPerDay": "Searches per day",
   "admin.listings.ai.postsPerDay": "Maximum posts per day",
   "admin.listings.ai.times": "Run times",
@@ -4501,7 +4502,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.listings.ai.enabledHint": "Hutafuta kwa nyakati zilizo hapa chini na kuhifadhi anachopata.",
   "admin.listings.ai.assistantName": "Jina la msaidizi",
   "admin.listings.ai.model": "Modeli ya Gemini",
-  "admin.listings.ai.modelHint": "gemini-3.8-flash ina uwiano mzuri wa ubora na gharama.",
+  "admin.listings.ai.modelHint":
+    "gemini-3.8-flash ina uwiano mzuri wa ubora na gharama. Ikishindwa kwa msongamano au kikomo, msaidizi hutumia modeli nyingine ya flash kiotomatiki.",
   "admin.listings.ai.analysesPerDay": "Utafutaji kwa siku",
   "admin.listings.ai.postsPerDay": "Matangazo mengi kwa siku",
   "admin.listings.ai.times": "Nyakati za kuanza",
