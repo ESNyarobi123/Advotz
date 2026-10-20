@@ -33,7 +33,7 @@ export type PortalPackage = {
   cardStyle: PortalCardStyle;
 };
 
-export type PortalListingKind = "JOB" | "OPPORTUNITY";
+export type PortalListingKind = "JOB" | "OPPORTUNITY" | "LOCAL_EVENT" | "HOLIDAY";
 
 export type PortalListing = {
   id: string;
@@ -44,6 +44,14 @@ export type PortalListing = {
   employmentType: string;
   summary: string;
   description: string;
+  venue?: string;
+  region?: string;
+  link?: string;
+  contactPhone?: string;
+  priceLabel?: string;
+  /** ISO timestamps; null when the source did not give a date. */
+  startsAt?: string | null;
+  endsAt?: string | null;
 };
 
 export type PortalSite = {

@@ -1372,30 +1372,102 @@ model SystemSetting {
 
 // ────────────────────────── Portal extras ────────────────────────────────
 
+/**
+ * Everything the guest "Explore" menu can show: jobs, opportunities, local
+ * events and holiday ideas. One row shape keeps the portal, the admin screen
+ * and the AI feed on the same model.
+ */
 enum ListingKind {
   JOB
   OPPORTUNITY
+  LOCAL_EVENT
+  HOLIDAY
+}
+
+/** Whether an operator typed the listing or the listing AI found it. */
+enum ListingSource {
+  MANUAL
+  AI
+}
+
+enum ListingAiRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+enum ListingAiTrigger {
+  SCHEDULE
+  MANUAL
 }
 
 /**
- * Jobs & opportunities shown on the guest "connected" page. Platform-managed
- * by Admin (a shared recruitment-partner feed), not per reseller.
+ * Jobs, opportunities, events and holidays shown on the guest "connected" page.
+ * Platform-managed by Admin (a shared feed), not per reseller.
  */
 model PlatformListing {
-  id             String      @id @default(uuid()) @db.Uuid
+  id             String        @id @default(uuid()) @db.Uuid
   kind           ListingKind
   title          String
-  organization   String      @default("")
-  location       String      @default("")
-  employmentType String      @default("")
-  summary        String      @default("")
-  description    String      @default("")
-  sortOrder      Int         @default(0)
-  active         Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  organization   String        @default("")
+  location       String        @default("")
+  employmentType String        @default("")
+  summary        String        @default("")
+  description    String        @default("")
+  /// Venue for events, destination hint for holidays, workplace for jobs.
+  venue          String        @default("")
+  region         String        @default("")
+  /// Apply / register / read-more link supplied by the source.
+  link           String        @default("")
+  /// Phone a guest can call about the listing.
+  contactPhone   String        @default("")
+  /// Human price hint: "Free", "TZS 20,000", "From TZS 250,000".
+  priceLabel     String        @default("")
+  imageUrl       String?
+  /// Free-form tags used by the admin filters ("Dar es Salaam", "Tech").
+  tags           String[]      @default([])
+  startsAt       DateTime?
+  endsAt         DateTime?
+  /// When the listing becomes visible to guests. Null means "as soon as active".
+  publishedAt    DateTime?
+  source         ListingSource @default(MANUAL)
+  sourceUrl      String        @default("")
+  aiModel        String?
+  aiRunId        String?       @db.Uuid
+  /// Hash of the source facts so a re-run never inserts the same item twice.
+  dedupeKey      String?       @unique
+  sortOrder      Int           @default(0)
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([kind, active, sortOrder])
+  @@index([source, createdAt])
+  @@index([active, publishedAt])
+}
+
+/**
+ * One listing-AI discovery run. Admin reads these as the "what did the AI do
+ * today" history; the scheduler uses the newest rows to respect the daily caps.
+ */
+model ListingAiRun {
+  id             String             @id @default(uuid()) @db.Uuid
+  trigger        ListingAiTrigger   @default(SCHEDULE)
+  status         ListingAiRunStatus @default(RUNNING)
+  model          String             @default("")
+  analysedCount  Int                @default(0)
+  postedCount    Int                @default(0)
+  skippedCount   Int                @default(0)
+  error          String?
+  /// Per-kind counts and the sources the model cited, for the run history.
+  detail         Json?
+  startedAt      DateTime           @default(now())
+  finishedAt     DateTime?
+  createdAt      DateTime           @default(now())
+
+  @@index([startedAt])
+  @@index([status, startedAt])
 }
 
 /**

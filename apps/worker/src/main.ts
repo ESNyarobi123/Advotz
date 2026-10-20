@@ -5,7 +5,7 @@ import { Logger } from "@nestjs/common";
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
 import { loadServerEnv } from "@advo/config";
 import { prisma } from "@advo/db";
-import { closeRateLimiter, drainOutbox, isProduction, leaseOutboxEvents, runOutboxEvent, runSweepers } from "@advo/backend";
+import { closeRateLimiter, drainOutbox, isProduction, leaseOutboxEvents, runListingAiTick, runOutboxEvent, runSweepers } from "@advo/backend";
 import { WorkerAppModule } from "./worker-app.module.js";
 
 const EVENTS_QUEUE = "advo-events";
@@ -97,6 +97,18 @@ async function bootstrap() {
   }
 
   logger.log("Advo TZ worker started");
+
+  // Listing AI heartbeat: cheap unless a configured slot just passed, and it
+  // swallows its own failures so discovery can never stall outbox delivery.
+  timers.push(
+    setInterval(() => {
+      void runListingAiTick()
+        .then((result) => {
+          if (result) logger.log(`Listing AI: ${result.status} — ${result.message}`);
+        })
+        .catch((err) => logger.warn(`Listing AI tick: ${err instanceof Error ? err.message : err}`));
+    }, 60_000),
+  );
 
   const shutdown = async () => {
     timers.forEach(clearInterval);

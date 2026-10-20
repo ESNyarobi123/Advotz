@@ -48,6 +48,7 @@ export {
   outboxInlineEnabled,
 } from "./modules/outbox/outbox.dispatcher.js";
 export { runSweepers } from "./modules/outbox/sweepers.js";
+export { runListingAiTick } from "./modules/platform/listing-ai.service.js";
 export { closeRateLimiter } from "./common/rate-limit.js";
 export { isProduction } from "./common/providers.js";
 export { seedDemo } from "./demo/seed-demo.js";

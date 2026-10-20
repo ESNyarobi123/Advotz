@@ -9,6 +9,10 @@ import {
   controllerInputSchema,
   createResellerSchema,
   impersonateInputSchema,
+  LISTING_KINDS,
+  LISTING_SOURCES,
+  listingAiRunInputSchema,
+  listingAiSettingsSchema,
   planActiveSchema,
   planDeleteSchema,
   planMigrationInputSchema,
@@ -32,7 +36,6 @@ import {
   InboxState,
   LedgerAccountType,
   LedgerOwnerType,
-  ListingKind,
   NormalBalance,
   OperationState,
   OrderPaymentState,
@@ -70,9 +73,16 @@ import { paymentsSummary, reconcilePaymentAttempt, settlePendingSale } from "../
 import {
   createPlatformListing,
   deletePlatformListing,
-  listPlatformListings,
+  bulkPlatformListings,
+  listAdminListings,
+  setPlatformListingActive,
   updatePlatformListing,
 } from "../platform/listings.service.js";
+import {
+  listingAiOverview,
+  runListingAiNow,
+  saveListingAiSettings,
+} from "../platform/listing-ai.service.js";
 import {
   createPublicHotspot,
   deletePublicHotspot,
@@ -112,6 +122,18 @@ const settleSchema = z.object({
   reason: z.string().trim().min(3).max(300),
 });
 const ticketStateSchema = z.object({ state: z.enum(["open", "pending", "resolved", "closed"]) });
+const listingFiltersSchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  kind: z.enum(LISTING_KINDS).optional(),
+  source: z.enum(LISTING_SOURCES).optional(),
+  status: z.enum(["LIVE", "DRAFT", "SCHEDULED", "EXPIRED"]).optional(),
+  sort: z.enum(["newest", "oldest", "order", "soonest"]).optional(),
+});
+const listingBulkSchema = z.object({
+  ids: z.array(uuidSchema).min(1).max(200),
+  action: z.enum(["activate", "deactivate", "delete"]),
+});
+const listingActiveSchema = z.object({ active: z.boolean() });
 /** A page size from the query string, clamped so a hand-written URL cannot ask for everything. */
 const pageSize = (value: string | undefined) => {
   const parsed = Number(value);
@@ -654,15 +676,26 @@ export class AdminController {
     return setTicketState(a.id, id(ticketId), parse(ticketStateSchema, body).state);
   }
 
-  // ── Jobs & opportunities (guest portal feed) ──
+  // ── Guest Explore feed (jobs, opportunities, events, holidays) ──
   @Get("listings")
-  listings(@Query("kind") kind?: string) {
-    return listPlatformListings(enumQuery(kind, ListingKind));
+  listings(@Query() query: Record<string, string | undefined>) {
+    return listAdminListings(parse(listingFiltersSchema, query));
   }
 
   @Post("listings")
   createListing(@Body() body: unknown) {
     return createPlatformListing(parse(platformListingInputSchema, body));
+  }
+
+  @Post("listings/bulk")
+  bulkListings(@Body() body: unknown) {
+    const input = parse(listingBulkSchema, body);
+    return bulkPlatformListings(input.ids, input.action);
+  }
+
+  @Post("listings/:id/active")
+  setListingActive(@Param("id") listingId: string, @Body() body: unknown) {
+    return setPlatformListingActive(id(listingId), parse(listingActiveSchema, body).active);
   }
 
   @Put("listings/:id")
@@ -673,6 +706,22 @@ export class AdminController {
   @Delete("listings/:id")
   deleteListing(@Param("id") listingId: string) {
     return deletePlatformListing(id(listingId));
+  }
+
+  // ── Listing AI ("Advowifi AI") schedule and runs ──
+  @Get("listing-ai")
+  listingAi() {
+    return listingAiOverview();
+  }
+
+  @Put("listing-ai")
+  saveListingAi(@CurrentUser() a: RequestActor, @Body() body: unknown) {
+    return saveListingAiSettings(parse(listingAiSettingsSchema, body), a.id);
+  }
+
+  @Post("listing-ai/run")
+  runListingAi(@Body() body: unknown) {
+    return runListingAiNow(parse(listingAiRunInputSchema, body));
   }
 
   // ── Public marketing hotspots ──

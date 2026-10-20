@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@heroui/react";
 import { PROMOTION_PACKAGES, type EffectivePortalConfig } from "@advo/contracts";
 import { JobsModal } from "@/components/JobsModal";
+import { ExploreListingsModal } from "@/components/ExploreListingsModal";
 import { PortalModal } from "@/components/PortalModal";
 import { PromotionModal } from "@/components/PromotionModal";
 import { SupportModal } from "@/components/SupportModal";
@@ -36,6 +37,33 @@ const PREVIEW_FALLBACK_LISTINGS: PortalListing[] = [
     employmentType: "Mafunzo ya Vitendo (Internship)",
     summary: "Jifunze kuanzisha biashara mtandaoni, networking na digital marketing bure.",
     description: "Fursa ya wiki 4 kwa vijana wenye nia ya kujifunza ujuzi mpya wa kiteknolojia.",
+  },
+  {
+    id: "preview-event-1",
+    kind: "LOCAL_EVENT",
+    title: "Sauti za Busara — Weekend Showcase",
+    organization: "Busara Promotions",
+    location: "Old Fort, Zanzibar",
+    venue: "Old Fort",
+    region: "Zanzibar",
+    employmentType: "",
+    summary: "Live music from East African artists, food stalls and a night market.",
+    description: "",
+    priceLabel: "TZS 20,000",
+    startsAt: "2026-11-14T19:00:00.000Z",
+  },
+  {
+    id: "preview-holiday-1",
+    kind: "HOLIDAY",
+    title: "Zanzibar Beach Getaway",
+    organization: "Coastline Tours",
+    location: "Nungwi, Zanzibar",
+    region: "Zanzibar",
+    employmentType: "",
+    summary: "Two nights by the beach with breakfast and a sunset dhow cruise.",
+    description: "",
+    priceLabel: "From TZS 250,000",
+    startsAt: "2026-12-05T00:00:00.000Z",
   },
 ];
 
@@ -177,6 +205,7 @@ export function ConnectedStage({
       : [];
 
   const [jobsOpen, setJobsOpen] = useState(false);
+  const [exploreListing, setExploreListing] = useState<"LOCAL_EVENT" | "HOLIDAY" | null>(null);
   const [promoOpen, setPromoOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [explored, setExplored] = useState<PortalBusiness | CuratedLocalItem | null>(null);
@@ -266,8 +295,8 @@ export function ConnectedStage({
             <ExploreRow icon="📍" label={t("portal.exploreBusinesses")} onClick={() => { setSelectedCategory("all"); setSeeAllOpen(true); }} />
           ) : null}
           <ExploreRow icon="🌐" label={t("portal.visitAdvotz")} onClick={() => undefined} />
-          <ExploreRow icon="🎟️" label={t("portal.localEvents")} onClick={() => undefined} />
-          <ExploreRow icon="🌴" label={t("portal.holidays")} onClick={() => undefined} />
+          <ExploreRow icon="🎟️" label={t("portal.localEvents")} onClick={() => setExploreListing("LOCAL_EVENT")} />
+          <ExploreRow icon="🌴" label={t("portal.holidays")} onClick={() => setExploreListing("HOLIDAY")} />
           {jobsVisible ? (
             <ExploreRow icon="💼" label={t("portal.jobsOpportunities")} onClick={() => setJobsOpen(true)} />
           ) : null}
@@ -289,6 +318,13 @@ export function ConnectedStage({
         listings={effectiveListings}
         onClose={() => setJobsOpen(false)}
         open={jobsOpen}
+        theme={theme}
+      />
+      <ExploreListingsModal
+        kind={exploreListing ?? "LOCAL_EVENT"}
+        listings={effectiveListings}
+        onClose={() => setExploreListing(null)}
+        open={exploreListing !== null}
         theme={theme}
       />
       <PromotionModal

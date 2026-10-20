@@ -72,6 +72,13 @@ export const serverEnvSchema = z
     OMADA_CA_CERT_PATH: z.string().optional().default(""),
     NOTIFICATION_PROVIDER: z.enum(["fake", "sms", "email"]).default("fake"),
     PUBLIC_SUPPORT_CONTACT: z.string().optional().default(""),
+    /**
+     * Google AI Studio key for the listing assistant ("Advowifi AI").
+     * Optional: without it the Admin AI panel stays disabled and the worker
+     * simply skips its discovery ticks.
+     */
+    GEMINI_API_KEY: z.string().optional().default(""),
+    GEMINI_MODEL: z.string().optional().default("gemini-3.8-flash"),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     SNIPPE_ACCOUNT_ID: z.string().optional().default(""),
     /**

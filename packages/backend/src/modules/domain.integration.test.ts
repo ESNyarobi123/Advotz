@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@advo/db";
+import { platformListingInputSchema } from "@advo/contracts";
 import { computeSnippeSignature, FakePaymentProvider, FAKE_SCENARIO_PHONES } from "@advo/payments";
 import { FAKE_CLIENT_SCENARIOS, FakeOmadaAdapter } from "@advo/omada";
 import { resetTestDatabase } from "../test/db.js";
@@ -232,8 +233,10 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     expect((reloaded.portalContent as { businesses: unknown[] }).businesses).toHaveLength(1);
 
     // Admin publishes one active job and one hidden opportunity; only the job reaches guests.
-    await createPlatformListing({ kind: "JOB", title: "Shop Assistant", organization: "Retail partner", location: "Kimara", employmentType: "Full-time", summary: "Serve customers", description: "", sortOrder: 1, active: true });
-    await createPlatformListing({ kind: "OPPORTUNITY", title: "Hidden training", organization: "", location: "", employmentType: "", summary: "", description: "", sortOrder: 2, active: false });
+    const jobInput = platformListingInputSchema.parse({ kind: "JOB", title: "Shop Assistant", organization: "Retail partner", location: "Kimara", employmentType: "Full-time", summary: "Serve customers", description: "", sortOrder: 1, active: true });
+    const opportunityInput = platformListingInputSchema.parse({ kind: "OPPORTUNITY", title: "Hidden training", organization: "", location: "", employmentType: "", summary: "", description: "", sortOrder: 2, active: false });
+    await createPlatformListing(jobInput);
+    await createPlatformListing(opportunityInput);
 
     const bootstrap = await portalBootstrap(slugA);
     expect(bootstrap.site.content.adverts).toHaveLength(2);

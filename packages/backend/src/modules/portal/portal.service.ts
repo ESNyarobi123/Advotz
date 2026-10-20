@@ -17,6 +17,7 @@ import { badRequest, conflict, forbidden, notFound, unprocessable } from "../../
 import { emitOutbox, OutboxEventType } from "../../common/events.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
 import { enforcementGaps, siteCapabilities } from "../catalog/packages.service.js";
+import { listGuestListings } from "../platform/listings.service.js";
 import { ensurePaymentAttempt } from "../payments/payments.service.js";
 import { saleFeeBasisPoints } from "../settings/settings.service.js";
 import { assertCanSell } from "../subscriptions/subscriptions.service.js";
@@ -111,12 +112,11 @@ async function buildPortalBootstrapPayload(
   // visibility first, then whether an eligible campaign actually exists, so an
   // empty placement collapses instead of rendering an empty card.
   const jobsVisible = config?.visibility["discovery.jobs"]?.visible ?? false;
+  const exploreVisible = config?.visibility["ads.explore"]?.visible ?? false;
   const bannerVisible = config?.visibility["ads.banner"]?.visible ?? false;
-  const listings = jobsVisible
-    ? await prisma.platformListing
-        .findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }], take: 40 })
-        .catch(() => [])
-    : [];
+  // One feed serves Jobs & Opportunities and the Local Events / Holidays rows;
+  // the guest filter drops drafts, scheduled rows and anything already ended.
+  const listings = jobsVisible || exploreVisible ? await listGuestListings(60).catch(() => []) : [];
   // An ads lookup failure must never break checkout: an empty placement is the
   // honest fallback and the guest keeps buying.
   const banner = bannerVisible
@@ -171,6 +171,13 @@ async function buildPortalBootstrapPayload(
         employmentType: l.employmentType,
         summary: l.summary,
         description: l.description,
+        venue: l.venue,
+        region: l.region,
+        link: l.link,
+        contactPhone: l.contactPhone,
+        priceLabel: l.priceLabel,
+        startsAt: l.startsAt?.toISOString() ?? null,
+        endsAt: l.endsAt?.toISOString() ?? null,
       })),
       campaigns: banner.campaigns,
       promotionsAvailable: config?.visibility["discovery.promote_business"]?.visible ?? false,

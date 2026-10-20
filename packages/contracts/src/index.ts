@@ -446,28 +446,115 @@ export const promotionRequestInputSchema = z.object({
 export type PromotionRequestInput = z.infer<typeof promotionRequestInputSchema>;
 
 /**
- * Jobs & opportunities feed. This is platform-managed (Admin) rather than
- * per-reseller, because it reads as a recruitment-partner feed shared across
- * the whole network.
+ * Guest Explore feed. Jobs and opportunities are a recruitment feed; local
+ * events and holidays share the same row shape so one admin screen (and one AI
+ * feed) can manage everything the portal's Explore menu shows.
  */
-export const LISTING_KINDS = ["JOB", "OPPORTUNITY"] as const;
+export const LISTING_KINDS = ["JOB", "OPPORTUNITY", "LOCAL_EVENT", "HOLIDAY"] as const;
+export const LISTING_SOURCES = ["MANUAL", "AI"] as const;
+
+/** Empty strings from a form mean "no date", not epoch. */
+const listingDate = z
+  .union([z.string(), z.date(), z.null()])
+  .transform((value) => {
+    if (value == null) return null;
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (!value.trim()) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  })
+  .optional()
+  .default(null);
 
 export const platformListingInputSchema = z.object({
   kind: z.enum(LISTING_KINDS),
   title: z.string().trim().min(2).max(120),
-  /** Employer, agency or programme behind the listing. */
+  /** Employer, organizer or programme behind the listing. */
   organization: z.string().trim().max(120).default(""),
   location: z.string().trim().max(120).default(""),
   /** "Full-time", "Shift work", "Training", … */
   employmentType: z.string().trim().max(40).default(""),
   summary: z.string().trim().max(300).default(""),
   description: z.string().trim().max(2000).default(""),
-  /** Lower numbers sort first on the portal. */
+  /** Venue (events), destination hint (holidays) or workplace (jobs). */
+  venue: z.string().trim().max(150).default(""),
+  region: z.string().trim().max(80).default(""),
+  link: z.string().trim().max(500).default(""),
+  contactPhone: z.string().trim().max(40).default(""),
+  priceLabel: z.string().trim().max(60).default(""),
+  imageUrl: z.string().trim().max(500).nullable().default(null),
+  tags: z.array(z.string().trim().max(40)).max(12).default([]),
+  startsAt: listingDate,
+  endsAt: listingDate,
+  publishedAt: listingDate,
+  source: z.enum(LISTING_SOURCES).default("MANUAL"),
+  sourceUrl: z.string().trim().max(500).default(""),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   active: z.boolean().default(true),
 });
 
 export type PlatformListingInput = z.infer<typeof platformListingInputSchema>;
+
+/**
+ * The Admin-managed schedule for the listing assistant ("Advowifi AI").
+ * Stored as a `SystemSetting`, so switching it on is an audited action.
+ */
+export const listingAiSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  assistantName: z.string().trim().min(1).max(60).default("Advowifi AI"),
+  /** Gemini model id used for discovery. */
+  model: z.string().trim().min(3).max(80).default("gemini-3.8-flash"),
+  /** How many discovery runs may happen per day (bounded by `times`). */
+  analysesPerDay: z.coerce.number().int().min(1).max(24).default(2),
+  /** Hard cap on listings published per day, across all runs. */
+  postsPerDay: z.coerce.number().int().min(1).max(50).default(6),
+  /** Preferred run times in the configured timezone, HH:MM. */
+  times: z
+    .array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/))
+    .min(1)
+    .max(24)
+    .default(["08:00", "17:00"]),
+  timezone: z.string().trim().min(3).max(60).default("Africa/Dar_es_Salaam"),
+  kinds: z.array(z.enum(LISTING_KINDS)).min(1).default([...LISTING_KINDS]),
+  /** Regions the assistant should search. Empty means "all Tanzania". */
+  regions: z.array(z.string().trim().max(80)).max(30).default(["Dar es Salaam"]),
+  /** Off keeps AI finds as drafts for review; on publishes them. */
+  autoPublish: z.boolean().default(false),
+  /** Delay between publishing and going live to guests, in minutes. */
+  publishDelayMinutes: z.coerce.number().int().min(0).max(1440).default(0),
+  /** 0–100 quality bar the model has to clear for an item to be stored. */
+  minScore: z.coerce.number().int().min(0).max(100).default(60),
+});
+
+export type ListingAiSettingsInput = z.infer<typeof listingAiSettingsSchema>;
+
+export const listingAiRunInputSchema = z.object({
+  /** Optional per-run cap; defaults to the daily remaining allowance. */
+  postsLimit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+export type ListingAiRunInput = z.infer<typeof listingAiRunInputSchema>;
+
+/** Structured item the model must return; validated again before insert. */
+export const listingAiItemSchema = z.object({
+  kind: z.enum(LISTING_KINDS),
+  title: z.string().trim().min(3).max(120),
+  organization: z.string().trim().max(120).default(""),
+  location: z.string().trim().max(120).default(""),
+  region: z.string().trim().max(80).default(""),
+  employmentType: z.string().trim().max(40).default(""),
+  summary: z.string().trim().max(300).default(""),
+  description: z.string().trim().max(2000).default(""),
+  venue: z.string().trim().max(150).default(""),
+  link: z.string().trim().max(500).default(""),
+  contactPhone: z.string().trim().max(40).default(""),
+  priceLabel: z.string().trim().max(60).default(""),
+  tags: z.array(z.string().trim().max(40)).max(12).default([]),
+  startsAt: z.string().trim().max(40).default(""),
+  endsAt: z.string().trim().max(40).default(""),
+  sourceUrl: z.string().trim().max(500).default(""),
+  score: z.coerce.number().int().min(0).max(100).default(0),
+});
 
 /**
  * Admin create/update body for a curated marketing hotspot.
