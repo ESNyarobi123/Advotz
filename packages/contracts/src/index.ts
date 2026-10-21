@@ -571,6 +571,12 @@ export const publicHotspotInputSchema = z.object({
   description: z.string().trim().max(2000).default(""),
   imageUrl: z.union([z.string().trim().url().max(500), z.literal(""), z.null()]).optional(),
   portalSlug: z.union([z.string().trim().max(80), z.literal(""), z.null()]).optional(),
+  /**
+   * The site this location operates. Optional: a curated marketing entry need
+   * not be an AdvoWiFi-run location, and a hotspot without a site simply has no
+   * performance data.
+   */
+  siteId: z.union([uuidSchema, z.literal(""), z.null()]).optional(),
   sortOrder: z.coerce.number().int().min(0).max(9999).default(0),
   active: z.boolean().default(true),
 });
@@ -587,6 +593,18 @@ export const siteInputSchema = z.object({
   landingUrl: z.string().url().max(300).optional(),
   portalTheme: portalThemeSchema.optional(),
   portalContent: portalContentSchema.optional(),
+});
+
+/**
+ * Admin body for adding a site to an owner account from the Hotspots screen.
+ *
+ * Site creation normally starts from a signed-in Reseller, which supplies the
+ * `resellerId`. Here an Admin picks the owner account explicitly, so both halves
+ * travel together and the service still applies every plan limit and
+ * provisioning step a reseller's own request would.
+ */
+export const adminSiteCreateSchema = siteInputSchema.extend({
+  resellerId: uuidSchema,
 });
 
 export const deviceClaimInputSchema = z

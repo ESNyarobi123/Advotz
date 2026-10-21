@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from "@nestjs/common";
 import {
+  adminSiteCreateSchema,
   capabilityEvidenceSchema,
   commissionPolicyDeleteSchema,
   commissionPolicyEndSchema,
@@ -66,7 +67,7 @@ import {
   trialBalance,
 } from "../ledger/ledger.service.js";
 import { deleteController, inspectController, listControllers, recordCapabilityEvidence, saveController, updateControllerFlags } from "../network/controllers.service.js";
-import { listDeviceClaims, networkSummary, reviewDeviceClaim } from "../network/sites.service.js";
+import { createSite, listDeviceClaims, networkSummary, reviewDeviceClaim } from "../network/sites.service.js";
 import { drainOutbox, kickOutbox } from "../outbox/outbox.dispatcher.js";
 import { runSweepers } from "../outbox/sweepers.js";
 import { paymentsSummary, reconcilePaymentAttempt, settlePendingSale } from "../payments/payments.service.js";
@@ -86,6 +87,8 @@ import {
 import {
   createPublicHotspot,
   deletePublicHotspot,
+  hotspotPerformance,
+  hotspotPerformanceCsv,
   listAdminHotspots,
   updatePublicHotspot,
 } from "../platform/hotspots.service.js";
@@ -402,6 +405,21 @@ export class AdminController {
       orderBy: { createdAt: "desc" },
       take: 500,
     });
+  }
+
+  /**
+   * Add a site to an owner account on their behalf.
+   *
+   * The Hotspots screen links a location to a real site, and AdvoWiFi's own
+   * locations need sites that no signed-in reseller is going to create. This
+   * reuses `createSite`, so plan limits, the controller mapping and the
+   * provisioning outbox event all behave exactly as they do for a reseller.
+   */
+  @Post("sites")
+  createSiteForOwner(@CurrentUser() a: RequestActor, @Body() body: unknown) {
+    const input = parse(adminSiteCreateSchema, body);
+    const { resellerId, ...siteInput } = input;
+    return createSite(resellerId, a.id, siteInput);
   }
 
   /** Counts for the network overview: sites, mappings, claims, devices and operations. */
@@ -743,6 +761,27 @@ export class AdminController {
   @Delete("hotspots/:id")
   deleteHotspot(@Param("id") hotspotId: string) {
     return deletePublicHotspot(id(hotspotId));
+  }
+
+  /**
+   * Revenue and traffic for the site a hotspot operates.
+   *
+   * `days` is clamped server-side to 7/30/90 so the trend length is bounded and
+   * the aggregation cost cannot be driven by the query string.
+   */
+  @Get("hotspots/:id/performance")
+  performance(@Param("id") hotspotId: string, @Query("days") days?: string) {
+    return hotspotPerformance(id(hotspotId), days ? Number(days) : undefined);
+  }
+
+  @Get("hotspots/:id/performance/export.csv")
+  async performanceCsv(@Param("id") hotspotId: string, @Query("days") days: string | undefined, @Res() res: HttpReply) {
+    const { filename, csv } = await hotspotPerformanceCsv(id(hotspotId), days ? Number(days) : undefined);
+    res
+      .header("Content-Type", "text/csv; charset=utf-8")
+      .header("Content-Disposition", `attachment; filename="${filename}"`)
+      .header("Cache-Control", "no-store")
+      .send(csv);
   }
 
   // ── Operations ──

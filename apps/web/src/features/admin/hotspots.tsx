@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button, Card, Label, Modal, useOverlayState } from "@heroui/react";
 import { Notice } from "@advo/ui";
-import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
-import { Field, PageHero, ResourceView } from "@/features/common/components";
+import { BarChart3, Link2, MapPin, Pencil, Plus, Store, Trash2 } from "lucide-react";
+import { Field, PageHero, ResourceView, SelectField } from "@/features/common/components";
 import { ActionButton } from "@/features/common/actions";
 import { api } from "@/lib/api";
 import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
+
+/** The owner account and site a hotspot reports on. */
+type SiteSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  state: string;
+  location: string | null;
+  owner: { resellerId: string; businessName: string; status: string; email: string | null };
+};
 
 /**
  * Row shape returned by `GET /admin/hotspots`.
@@ -26,15 +37,39 @@ type HotspotRow = {
   description: string;
   imageUrl: string | null;
   portalSlug: string | null;
+  /** The site this location operates; `null` for a curated pin with no data. */
+  siteId: string | null;
+  site: SiteSummary | null;
   sortOrder: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
 };
 
+/** One row of `GET /admin/sites`, used by the link picker. */
+type SiteOption = {
+  id: string;
+  name: string;
+  slug: string;
+  state: string;
+  location: string | null;
+  resellerId: string;
+  reseller: { businessName: string };
+};
+
+/** One row of `GET /admin/resellers`, used when adding a site to an owner. */
+type OwnerOption = {
+  id: string;
+  businessName: string;
+  status: string;
+  owner: { email: string } | null;
+};
+
 export function AdminHotspotsScreen() {
   const { t } = useI18n();
   const hotspots = useResource<HotspotRow[]>("/admin/hotspots");
+  const sites = useResource<SiteOption[]>("/admin/sites");
+  const owners = useResource<OwnerOption[]>("/admin/resellers");
   const [filter, setFilter] = useState<"ALL" | "ACTIVE" | "HIDDEN">("ALL");
   const [editing, setEditing] = useState<HotspotRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -45,6 +80,8 @@ export function AdminHotspotsScreen() {
     if (filter === "HIDDEN") return all.filter((row) => !row.active);
     return all;
   }, [hotspots.data, filter]);
+
+  const linked = useMemo(() => (hotspots.data ?? []).filter((row) => row.siteId).length, [hotspots.data]);
 
   function openCreate() {
     setEditing(null);
@@ -72,28 +109,33 @@ export function AdminHotspotsScreen() {
         title={t("admin.hotspots.title")}
       />
 
-      <div className="inline-flex items-center gap-0.5 rounded-xl border border-[var(--advo-border)] bg-white p-0.5">
-        {(
-          [
-            ["ALL", "admin.hotspots.filter.all"],
-            ["ACTIVE", "admin.hotspots.filter.active"],
-            ["HIDDEN", "admin.hotspots.filter.hidden"],
-          ] as const
-        ).map(([id, labelKey]) => {
-          const active = filter === id;
-          return (
-            <button
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                active ? "bg-advo-blue text-white shadow-xs" : "text-advo-muted hover:text-advo-text"
-              }`}
-              key={id}
-              onClick={() => setFilter(id)}
-              type="button"
-            >
-              {t(labelKey)}
-            </button>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex items-center gap-0.5 rounded-xl border border-[var(--advo-border)] bg-white p-0.5">
+          {(
+            [
+              ["ALL", "admin.hotspots.filter.all"],
+              ["ACTIVE", "admin.hotspots.filter.active"],
+              ["HIDDEN", "admin.hotspots.filter.hidden"],
+            ] as const
+          ).map(([id, labelKey]) => {
+            const active = filter === id;
+            return (
+              <button
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  active ? "bg-advo-blue text-white shadow-xs" : "text-advo-muted hover:text-advo-text"
+                }`}
+                key={id}
+                onClick={() => setFilter(id)}
+                type="button"
+              >
+                {t(labelKey)}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-advo-muted">
+          {t("admin.hotspots.owner.linkedCount", { linked: String(linked), total: String(hotspots.data?.length ?? 0) })}
+        </p>
       </div>
 
       <ResourceView resource={hotspots}>
@@ -132,11 +174,44 @@ export function AdminHotspotsScreen() {
                       {[row.address, row.city, row.region].filter(Boolean).join(", ") ||
                         `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`}
                     </p>
+
+                    {row.site ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-advo-muted">
+                        <span className="inline-flex items-center gap-1">
+                          <Store className="h-3 w-3 shrink-0" />
+                          {t("admin.hotspots.owner.card", { owner: row.site.owner.businessName })}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Link2 className="h-3 w-3 shrink-0" />
+                          {t("admin.hotspots.owner.cardSite", { site: row.site.name })}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] text-advo-muted">{t("admin.hotspots.owner.none")}</p>
+                    )}
+
                     {row.description ? (
                       <p className="mt-1 max-w-xl text-xs text-advo-muted line-clamp-2">{row.description}</p>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {row.siteId ? (
+                      <Link
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--advo-border)] bg-white px-3 py-2 text-xs font-bold text-advo-text transition-colors hover:border-advo-blue hover:text-advo-blue"
+                        href={`/admin/hotspots/${row.id}`}
+                      >
+                        <BarChart3 className="size-3.5" />
+                        {t("admin.hotspots.performance")}
+                      </Link>
+                    ) : (
+                      <span
+                        className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-dashed border-[var(--advo-border)] px-3 py-2 text-xs font-bold text-advo-muted"
+                        title={t("admin.hotspots.performanceUnavailable")}
+                      >
+                        <BarChart3 className="size-3.5" />
+                        {t("admin.hotspots.performance")}
+                      </span>
+                    )}
                     <Button onPress={() => openEdit(row)} size="sm" type="button" variant="outline">
                       <Pencil className="size-3.5" />
                       {t("admin.hotspots.edit")}
@@ -162,7 +237,10 @@ export function AdminHotspotsScreen() {
         hotspot={editing}
         onClose={() => setFormOpen(false)}
         onSaved={() => hotspots.reload()}
+        onSiteCreated={() => sites.reload()}
         open={formOpen}
+        owners={owners.data ?? []}
+        sites={sites.data ?? []}
       />
     </div>
   );
@@ -171,17 +249,25 @@ export function AdminHotspotsScreen() {
 function HotspotFormModal({
   open,
   hotspot,
+  sites,
+  owners,
   onClose,
   onSaved,
+  onSiteCreated,
 }: {
   open: boolean;
   hotspot: HotspotRow | null;
+  sites: SiteOption[];
+  owners: OwnerOption[];
   onClose: () => void;
   onSaved: () => Promise<void> | void;
+  onSiteCreated: () => Promise<void> | void;
 }) {
   const { t } = useI18n();
   const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
   const [done, setDone] = useState(false);
+  const [siteId, setSiteId] = useState("");
+  const [addingSite, setAddingSite] = useState(false);
 
   const save = useAction(async (form: HTMLFormElement) => {
     const v = formValues(form);
@@ -196,6 +282,7 @@ function HotspotFormModal({
       description: v.description ?? "",
       imageUrl: v.imageUrl || null,
       portalSlug: v.portalSlug || null,
+      siteId: siteId || null,
       sortOrder: toInt(v.sortOrder) ?? 0,
       active: v.active === "on",
     };
@@ -206,18 +293,58 @@ function HotspotFormModal({
     setDone(true);
   });
 
+  /**
+   * Creates a site under the chosen owner account and links it immediately.
+   *
+   * Reusing `POST /admin/sites` rather than writing the row here keeps plan
+   * limits, the controller mapping and the provisioning operation in one place,
+   * so an Admin-created site is indistinguishable from a reseller's own.
+   */
+  const createSite = useAction(
+    async (form: HTMLFormElement) => {
+      const v = formValues(form);
+      return api.post<{ site: { id: string; name: string; slug: string } }>("/admin/sites", {
+        resellerId: v.resellerId,
+        name: v.siteName || undefined,
+        location: v.location || undefined,
+      });
+    },
+    async (result) => {
+      await onSiteCreated();
+      setSiteId(result.site.id);
+      setAddingSite(false);
+    },
+  );
+
   useEffect(() => {
     if (open) {
       setDone(false);
+      setSiteId(hotspot?.siteId ?? "");
+      setAddingSite(false);
       save.setError(null);
+      createSite.setError(null);
     }
-  }, [open, save.setError]);
+    // `save`/`createSite` setters are stable; re-running on every render of the
+    // action object would clear errors the moment they are shown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, hotspot]);
 
   function close() {
     setDone(false);
     save.setError(null);
+    createSite.setError(null);
     onClose();
   }
+
+  const siteOptions = sites.map((site) => ({
+    value: site.id,
+    label: `${site.name} — ${site.reseller?.businessName ?? "—"}`,
+  }));
+  const ownerOptions = owners
+    .map((owner) => ({
+      value: owner.id,
+      label: `${owner.businessName}${owner.owner?.email ? ` — ${owner.owner.email}` : ""}`,
+    }));
 
   return (
     <Modal.Root state={overlay}>
@@ -240,15 +367,73 @@ function HotspotFormModal({
                   </div>
                 </div>
               ) : (
-                <form
-                  className="space-y-4"
-                  key={hotspot?.id ?? "create"}
+                <div className="space-y-4">
+                  {addingSite ? (
+                    <form
+                      className="space-y-3 rounded-xl border border-advo-blue/30 bg-advo-page/60 p-3"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void createSite.run(event.currentTarget);
+                      }}
+                    >
+                      <p className="text-xs font-bold text-advo-text">{t("admin.hotspots.owner.createTitle")}</p>
+                      <p className="text-[11px] text-advo-muted">{t("admin.hotspots.owner.createHint")}</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <SelectField
+                          label={t("admin.hotspots.owner.account")}
+                          name="resellerId"
+                          options={ownerOptions}
+                          required
+                        />
+                        <Field
+                          label={t("admin.hotspots.owner.siteName")}
+                          name="siteName"
+                          placeholder={t("admin.hotspots.name")}
+                        />
+                      </div>
+                      <Field label={t("admin.hotspots.owner.siteLocation")} name="location" />
+                      {createSite.error ? <Notice tone="danger">{createSite.error}</Notice> : null}
+                      <div className="flex items-center justify-end gap-2">
+                        <Button onPress={() => setAddingSite(false)} size="sm" type="button" variant="outline">
+                          {t("admin.hotspots.cancel")}
+                        </Button>
+                        <Button isDisabled={createSite.pending} size="sm" type="submit" variant="primary">
+                          {createSite.pending
+                            ? t("admin.hotspots.owner.creating")
+                            : t("admin.hotspots.owner.createSubmit")}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : null}
+
+                  <form
+                    className="space-y-4"
+                    key={hotspot?.id ?? "create"}
                   onSubmit={(event) => {
                     event.preventDefault();
                     void save.run(event.currentTarget);
                   }}
                 >
                   <p className="text-xs text-advo-muted">{t("admin.hotspots.formHint")}</p>
+
+                  {/* ── Owner account + site link ── */}
+                  <div className="space-y-3 rounded-xl border border-[var(--advo-border)] bg-advo-page/60 p-3">
+                    <SelectField
+                      label={t("admin.hotspots.owner.site")}
+                      name="siteId"
+                      onChange={(event) => setSiteId(event.target.value)}
+                      options={siteOptions}
+                      value={siteId}
+                    />
+                    <p className="text-[11px] text-advo-muted">{t("admin.hotspots.owner.siteHint")}</p>
+
+                    {!addingSite ? (
+                      <Button onPress={() => setAddingSite(true)} size="sm" type="button" variant="outline">
+                        <Plus className="size-3.5" />
+                        {t("admin.hotspots.owner.create")}
+                      </Button>
+                    ) : null}
+                  </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field defaultValue={hotspot?.name} label={t("admin.hotspots.name")} name="name" required />
@@ -335,6 +520,7 @@ function HotspotFormModal({
                     </Button>
                   </div>
                 </form>
+                </div>
               )}
             </Modal.Body>
             <Modal.CloseTrigger aria-label={t("common.close")} />

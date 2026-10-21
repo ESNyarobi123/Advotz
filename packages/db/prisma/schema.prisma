@@ -546,6 +546,8 @@ model Site {
   orders           Order[]
   promotions       PromotionRequest[]
   portalPreference SitePortalPreference?
+  /// Marketing locations that operate this site (usually zero or one).
+  publicHotspots   PublicHotspot[]
 
   @@unique([id, resellerId])
   @@index([resellerId, state])
@@ -1487,12 +1489,25 @@ model PublicHotspot {
   imageUrl    String?
   /// Optional captive-portal brand slug (Site.slug) for a deep link.
   portalSlug  String?
+  /**
+   * The site this location actually operates, when it is an AdvoWiFi-run
+   * location rather than a curated marketing entry alone.
+   *
+   * The link is what makes the performance screen possible: paid Wi-Fi orders
+   * are recorded against a `Site`, so without it there is nothing to report.
+   * `SetNull` on delete because losing the site must not erase the marketing
+   * pin — the hotspot simply stops having performance data.
+   */
+  siteId      String?  @db.Uuid
   sortOrder   Int      @default(0)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  site Site? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
   @@index([active, sortOrder])
+  @@index([siteId])
 }
 
 enum PromotionRequestState {
