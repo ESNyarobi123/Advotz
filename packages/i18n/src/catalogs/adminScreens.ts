@@ -2104,7 +2104,7 @@ export const adminScreensEn = {
 
   // ── Guest Explore feed (jobs, opportunities, events, holidays) ───────────
   "admin.listings.badge": "Guest portal content",
-  "admin.listings.title": "Explore listings",
+  "admin.listings.title": "Our Explore",
   "admin.listings.subtitle":
     "Jobs, opportunities, local events and holiday offers shown to guests in the WiFi portal — created by hand or found by Advowifi AI.",
   "admin.listings.new": "Add listing",
@@ -4385,7 +4385,7 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Guest Explore feed (jobs, opportunities, events, holidays) ───────────
   "admin.listings.badge": "Maudhui ya portal ya wageni",
-  "admin.listings.title": "Matangazo ya Explore",
+  "admin.listings.title": "Explore Yetu",
   "admin.listings.subtitle":
     "Kazi, fursa, matukio ya karibu na ofa za likizo zinazoonyeshwa kwa wageni kwenye portal ya WiFi — zilizoongezwa kwa mkono au zilizopatikana na Advowifi AI.",
   "admin.listings.new": "Ongeza tangazo",

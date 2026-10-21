@@ -155,7 +155,7 @@ const baseEn = {
   "nav.operations": "Operations",
   "nav.auditLog": "Audit log",
   "nav.leadsAndInvitations": "Leads & invitations",
-  "nav.listings": "Jobs & Opportunities",
+  "nav.listings": "Explore Post",
   "nav.hotspots": "Our Hotspots",
   "nav.campaigns": "Ad campaigns",
 
@@ -874,7 +874,7 @@ const baseSw: Record<BaseMessageKey, string> = {
   "nav.operations": "Uendeshaji",
   "nav.auditLog": "Kumbukumbu za ukaguzi",
   "nav.leadsAndInvitations": "Wateja tarajali & mialiko",
-  "nav.listings": "Kazi & Fursa",
+  "nav.listings": "Explore Post",
   "nav.hotspots": "Hotspots Zetu",
   "nav.campaigns": "Kampeni za matangazo",
 
