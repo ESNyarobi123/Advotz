@@ -35,11 +35,10 @@
  * those builds, and the guard exits before it needs `lsof`.
  */
 
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { get } from "node:http";
-import { connect } from "node:net";
 import { join, relative, resolve } from "node:path";
+import { findListener, probePort, resolveAppPort } from "./lib/dev-ports.mjs";
 
 const BYPASS = process.env.ALLOW_BUILD_WITH_DEV === "1";
 const appDir = resolve(process.cwd());
@@ -62,10 +61,12 @@ function readPackageJson() {
  *
  * Precedence:
  *   1. GUARD_DEV_PORT — explicit override for tests and unusual setups.
- *   2. `--port` in this app's `dev` script — the repository's source of truth.
- *   3. PORT           — only when the dev script does not pin a port.
+ *   2. WEB_PORT / PORTAL_PORT — resolved exactly as `scripts/next-run.mjs`
+ *      resolves it, so the guard always looks at the port the dev server
+ *      actually bound (shell wins over root `.env`).
+ *   3. PORT           — only for apps without a configured port.
  *
- * The dev script deliberately outranks PORT: a stray PORT exported by an
+ * WEB_PORT / PORTAL_PORT deliberately outrank PORT: a stray PORT exported by an
  * unrelated process in the shell must not send the guard after the wrong
  * service.
  */
@@ -73,75 +74,16 @@ function readDevPort() {
   const explicit = process.env.GUARD_DEV_PORT;
   if (explicit && /^\d+$/.test(explicit)) return Number(explicit);
 
-  const fromScript = String(pkg?.scripts?.dev ?? "").match(/--port[\s=]+(\d+)/);
-  if (fromScript) return Number(fromScript[1]);
+  try {
+    const resolved = resolveAppPort(appDir);
+    if (resolved) return resolved.port;
+  } catch {
+    /* A malformed port is next-run's problem to report; the guard stays silent. */
+  }
 
   const fromEnv = process.env.PORT;
   if (fromEnv && /^\d+$/.test(fromEnv)) return Number(fromEnv);
 
-  return null;
-}
-
-function probePort(port, timeoutMs = 700) {
-  return new Promise((settle) => {
-    const socket = connect({ host: "127.0.0.1", port });
-    const done = (isOpen) => {
-      socket.destroy();
-      settle(isOpen);
-    };
-    socket.setTimeout(timeoutMs);
-    socket.once("connect", () => done(true));
-    socket.once("timeout", () => done(false));
-    socket.once("error", () => done(false));
-  });
-}
-
-/** Best-effort listener lookup. Returns null when `lsof` is unavailable. */
-function findListener(port) {
-  let pid;
-  try {
-    const out = execFileSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-Fpc"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 4000,
-    });
-    for (const line of out.split("\n")) {
-      if (line.startsWith("p")) pid = line.slice(1).trim();
-    }
-  } catch {
-    return null;
-  }
-  if (!pid) return null;
-
-  return { pid, command: processCommand(pid), cwd: processCwd(pid) };
-}
-
-function processCommand(pid) {
-  try {
-    const out = execFileSync("ps", ["-o", "command=", "-p", pid], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 4000,
-    });
-    return out.trim() || null;
-  } catch {
-    return null;
-  }
-}
-
-function processCwd(pid) {
-  try {
-    const out = execFileSync("lsof", ["-a", "-p", pid, "-d", "cwd", "-Fn"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 4000,
-    });
-    for (const line of out.split("\n")) {
-      if (line.startsWith("n")) return line.slice(1).trim();
-    }
-  } catch {
-    /* ignore */
-  }
   return null;
 }
 

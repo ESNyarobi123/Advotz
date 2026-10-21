@@ -3,8 +3,10 @@ import { createHmac } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 export const API_URL = process.env.E2E_API_URL ?? "http://localhost:4100";
-export const WEB_URL = process.env.E2E_WEB_URL ?? "http://localhost:3000";
-export const PORTAL_URL = process.env.E2E_PORTAL_URL ?? "http://localhost:3001";
+// Fall back to the configured public URLs so a moved dev port (WEB_PORT /
+// PORTAL_PORT in the root `.env`) does not leave e2e pointing at 3000/3001.
+export const WEB_URL = process.env.E2E_WEB_URL ?? process.env.WEB_PUBLIC_URL ?? "http://localhost:3000";
+export const PORTAL_URL = process.env.E2E_PORTAL_URL ?? process.env.PORTAL_PUBLIC_URL ?? "http://localhost:3001";
 export const STATE_FILE = fileURLToPath(new URL("./.state/smoke.json", import.meta.url));
 
 export type SmokeState = {

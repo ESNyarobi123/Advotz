@@ -121,6 +121,21 @@ function refererOrigin(referer: string | undefined): string | undefined {
 }
 
 bootstrap().catch((err) => {
+  // A taken API port is a routine local mistake (an earlier `pnpm dev`, or the
+  // worker from another checkout), not an application fault — say so plainly
+  // instead of dumping a stack that reads like a crash.
+  if (err && typeof err === "object" && (err as { code?: string }).code === "EADDRINUSE") {
+    const port = (err as { port?: number }).port ?? process.env.API_PORT ?? "the configured";
+    console.error(
+      `\n✖ Port ${port} is already in use, so the API cannot start.\n\n` +
+        `  Another API is already listening there. Find it and stop it:\n\n` +
+        `      lsof -nP -iTCP:${port} -sTCP:LISTEN\n` +
+        `      kill <pid>\n\n` +
+        `  Or set API_PORT in the root .env to a free port and move API_PUBLIC_URL,\n` +
+        `  API_INTERNAL_URL, NEXT_PUBLIC_API_URL and CSRF_TRUSTED_ORIGINS with it.\n`,
+    );
+    process.exit(1);
+  }
   console.error(err);
   process.exit(1);
 });

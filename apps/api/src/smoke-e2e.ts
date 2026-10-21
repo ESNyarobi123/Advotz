@@ -11,7 +11,10 @@ import { prisma } from "@advo/db";
 import { AuthService, totpCode } from "@advo/backend";
 
 const API = (process.env.SMOKE_API_URL ?? "http://localhost:4100") + "/api/v1";
-const ORIGIN = "http://localhost:3000";
+// Browser origins are CSRF-checked against CSRF_TRUSTED_ORIGINS, so they must
+// follow the ports in the root `.env` rather than assume 3000/3001.
+const ORIGIN = process.env.WEB_PUBLIC_URL ?? "http://localhost:3000";
+const PORTAL_ORIGIN = process.env.PORTAL_PUBLIC_URL ?? "http://localhost:3001";
 const results: Array<{ step: string; ok: boolean; detail?: string }> = [];
 
 type Session = { cookie?: string };
@@ -140,10 +143,10 @@ async function main() {
   // ── Guest portal purchase ──
   r = await call({}, "GET", `/portal/sites/${slug}`, undefined, { origin: null });
   check("portal lists sellable package", r.status === 200 && r.json.available === true && r.json.packages.length === 1, r.json);
-  r = await call({}, "POST", `/portal/sites/${slug}/context`, { clientMac: "5C-CF-7F-00-00-01", apMac: "AC:84:C6:00:00:01", ssidName: "Smoke WiFi", radioId: "1", clientIp: "10.1.0.20" }, { origin: "http://localhost:3001" });
+  r = await call({}, "POST", `/portal/sites/${slug}/context`, { clientMac: "5C-CF-7F-00-00-01", apMac: "AC:84:C6:00:00:01", ssidName: "Smoke WiFi", radioId: "1", clientIp: "10.1.0.20" }, { origin: PORTAL_ORIGIN });
   check("portal context created", r.status === 201 && Boolean(r.json.contextToken), r.json);
   const contextToken = r.json.contextToken;
-  r = await call({}, "POST", "/portal/orders", { contextToken, packageId, phone: "0754000111", firstName: "Juma", lastName: "K", email: "juma@example.com", idempotencyKey: "smoke-portal-001" }, { origin: "http://localhost:3001" });
+  r = await call({}, "POST", "/portal/orders", { contextToken, packageId, phone: "0754000111", firstName: "Juma", lastName: "K", email: "juma@example.com", idempotencyKey: "smoke-portal-001" }, { origin: PORTAL_ORIGIN });
   check("portal order pending payment", r.status === 201 && r.json.payment.state === "PENDING", r.json);
   const orderToken = r.json.orderToken;
   r = await call({}, "POST", `/dev/simulate/orders/${orderToken}/payment`, { outcome: "completed", feeTzs: 20 });

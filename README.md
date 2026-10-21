@@ -15,6 +15,8 @@ All money is in whole Tanzanian shillings (TZS). All times are stored in UTC and
 | `apps/api` | 4000 | HTTP API (NestJS on Fastify), under `/api/v1` |
 | `apps/worker` | none | Outbox relay, BullMQ consumers and the 60-second sweeper (NestJS, no HTTP) |
 
+Dev ports are not pinned in the app scripts: `apps/web` and `apps/portal` start through `scripts/next-run.mjs`, which reads `WEB_PORT` and `PORTAL_PORT` from the root `.env` (the values above are the defaults). If you move them, keep `WEB_PUBLIC_URL`, `PORTAL_PUBLIC_URL`, `NEXT_PUBLIC_*` and `CSRF_TRUSTED_ORIGINS` in step — the API refuses unsafe requests from an origin that is not trusted.
+
 Shared code lives in `packages/*`: `backend` (all business modules, imported by both API and worker), `db` (Prisma schema and migrations), `contracts` (Zod schemas), `payments` (Snippe and fake providers), `omada` (live and fake controller adapters), `config`, `ui`, `i18n`, `api-client` and `test-kit`. See [`docs/architecture.md`](docs/architecture.md).
 
 ## Stack

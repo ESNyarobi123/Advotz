@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "node ../../scripts/next-run.mjs dev",
     "build": "node ../../scripts/guard-next-build.mjs && next build",
-    "start": "next start --port 3000",
+    "start": "node ../../scripts/next-run.mjs start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo 'lint: pending eslint config'",
     "test": "vitest run --passWithNoTests"

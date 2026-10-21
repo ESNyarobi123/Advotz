@@ -223,6 +223,7 @@ cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:4100 NEXT_PUBLIC_PORTAL_URL=
 cd apps/portal && NEXT_PUBLIC_API_URL=http://localhost:4100 API_INTERNAL_URL=http://localhost:4100 pnpm dev
 
 # 4. run (the setup truncates advo_smoke and refuses any database not ending in _smoke)
+#    If the root .env moved WEB_PORT / PORTAL_PORT, pass E2E_WEB_URL and E2E_PORTAL_URL to match.
 E2E_DATABASE_URL=postgresql://advo:…@localhost:5432/advo_smoke pnpm test:e2e
 ```
 
