@@ -27,8 +27,16 @@
 	# Metrics and API docs are for the private network only. `/internal/*` holds the
 	# web app's server-to-server endpoints: the API reaches them over the Docker
 	# network, so no browser has any business there.
+	#
+	# This must be a `handle`, not a bare `respond`. A bare `respond` sorts *after*
+	# every `handle` block in the generated config, so it never ran and these paths
+	# reached the apps; the matcher was dead weight. `handle` blocks form one
+	# mutually exclusive group evaluated in file order, and this import is first in
+	# each site, so it wins before `/api/*` and the catch-all.
 	@private path /api/v1/internal/* /api/docs* /internal/*
-	respond @private 404
+	handle @private {
+		respond 404
+	}
 	log {
 		output stdout
 		format json
