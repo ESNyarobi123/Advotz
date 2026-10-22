@@ -12,12 +12,15 @@ const API_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http:
 /**
  * Seconds the pricing catalog may be served from cache.
  *
- * Admin changes a plan far less often than the page is viewed, so a short window
- * keeps the marketing site fast and still shows a repricing within minutes. It is
- * a marketing page, not a checkout: a stale price here is corrected the moment a
- * reseller signs in, where the plan is read live.
+ * This is a **backstop, not the update mechanism**. Every plan mutation in Admin
+ * posts to `/internal/revalidate` on this app, which drops the `public-plans`
+ * entry immediately; this window only bounds how long a *missed* invalidation
+ * (an unreachable web process, a restart mid-flight) can survive. Keeping it
+ * short means a deleted plan stops being advertised within a minute even when
+ * the webhook is lost, while still collapsing a burst of landing-page views into
+ * one catalog read.
  */
-const REVALIDATE_SECONDS = 300;
+const REVALIDATE_SECONDS = 60;
 
 /**
  * The public plan catalog for the pricing pages.
@@ -26,6 +29,10 @@ const REVALIDATE_SECONDS = 300;
  * must not 500 because the API restarted, and the caller decides whether an empty
  * catalog means "show the fallback" or "hide the section" — this function never
  * makes that call on the page's behalf.
+ *
+ * The cache tag is real: the API calls `/internal/revalidate` after every plan
+ * write, so a deletion or repricing disappears on the next page view instead of
+ * waiting out the window below.
  */
 export async function fetchPublicPlans(): Promise<PublicPlan[]> {
   try {

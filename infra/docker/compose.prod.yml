@@ -15,6 +15,10 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   REDIS_URL: redis://redis:6379
   API_INTERNAL_URL: http://api:4000
+  # The web container's own origin: the API posts here to drop the cached public
+  # plan catalog after an Admin changes a plan. Must match the web service below.
+  WEB_INTERNAL_URL: http://web:3000
+  REVALIDATE_TOKEN: ${REVALIDATE_TOKEN}
   API_PORT: "4000"
   TRUST_PROXY: "true"
 
@@ -117,6 +121,9 @@ services:
       # Server-side fetches stay on the Docker network. The browser still uses
       # the public origin baked in at build time.
       API_URL: http://api:4000
+      # The shared secret the API presents on POST /internal/revalidate. Read at
+      # request time, so it is passed here rather than baked in at build time.
+      REVALIDATE_TOKEN: ${REVALIDATE_TOKEN}
     read_only: true
     tmpfs: [/tmp, /app/apps/web/.next/cache]
     security_opt: [no-new-privileges:true]

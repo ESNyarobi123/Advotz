@@ -24,8 +24,10 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 	}
-	# Metrics and API docs are for the private network only.
-	@private path /api/v1/internal/* /api/docs*
+	# Metrics and API docs are for the private network only. `/internal/*` holds the
+	# web app's server-to-server endpoints: the API reaches them over the Docker
+	# network, so no browser has any business there.
+	@private path /api/v1/internal/* /api/docs* /internal/*
 	respond @private 404
 	log {
 		output stdout

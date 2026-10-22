@@ -102,6 +102,18 @@ export const serverEnvSchema = z
     RATE_LIMIT_BACKEND: z.enum(["redis", "memory"]).default("redis"),
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
     METRICS_TOKEN: z.string().optional().default(""),
+    /**
+     * The web app's own origin, reached server-to-server so plan changes can drop
+     * its cached public catalog. Optional: without it the catalog refreshes on its
+     * own 60s window instead of immediately.
+     */
+    WEB_INTERNAL_URL: z.string().optional().default(""),
+    /**
+     * Shared secret for the web app's `POST /internal/revalidate`. Empty disables
+     * revalidation, which is safe but slow; a placeholder value in production is
+     * not, because it is the only thing guarding a cache-busting endpoint.
+     */
+    REVALIDATE_TOKEN: z.string().optional().default(""),
   })
   .superRefine((data, ctx) => {
     rejectPlaceholdersInProduction(data.NODE_ENV, data.DATABASE_URL, ctx, "DATABASE_URL");
@@ -135,6 +147,16 @@ export const serverEnvSchema = z
       }
       if (data.METRICS_TOKEN && (data.METRICS_TOKEN.length < 24 || placeholderPattern.test(data.METRICS_TOKEN))) {
         ctx.addIssue({ code: "custom", message: "METRICS_TOKEN must be a generated secret (24+ chars)", path: ["METRICS_TOKEN"] });
+      }
+      // Unlike METRICS_TOKEN, an empty value is allowed: it only disables on-demand
+      // revalidation, which is slow rather than unsafe. A *placeholder* is refused
+      // because it would leave the endpoint guarded by a published string.
+      if (data.REVALIDATE_TOKEN && (data.REVALIDATE_TOKEN.length < 24 || placeholderPattern.test(data.REVALIDATE_TOKEN))) {
+        ctx.addIssue({
+          code: "custom",
+          message: "REVALIDATE_TOKEN must be a generated secret (24+ chars), or empty to disable it",
+          path: ["REVALIDATE_TOKEN"],
+        });
       }
       if (data.OUTBOX_INLINE) {
         ctx.addIssue({ code: "custom", message: "OUTBOX_INLINE must be off in production (run the worker)", path: ["OUTBOX_INLINE"] });

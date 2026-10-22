@@ -68,6 +68,7 @@ The API and worker validate the environment at startup and **refuse to start** i
 - Any secret still has a placeholder value (`replace_…`, `change_me`, …).
 - `RATE_LIMIT_BACKEND=memory`.
 - `METRICS_TOKEN` is set but shorter than 24 characters or a placeholder.
+- `REVALIDATE_TOKEN` is set but shorter than 24 characters or a placeholder.
 
 Generate secrets with `openssl rand -hex 32`:
 
@@ -75,6 +76,7 @@ Generate secrets with `openssl rand -hex 32`:
 - `SECRETS_ENCRYPTION_KEY` (encrypts TOTP secrets, Controller credentials and voucher codes; **losing it makes those unreadable**)
 - `VOUCHER_LOOKUP_HMAC_KEY`
 - `METRICS_TOKEN` (also written to `infra/observability/metrics-token` for Prometheus; git-ignored)
+- `REVALIDATE_TOKEN` (shared by the API and the web app; guards `POST /internal/revalidate`, which drops the cached marketing plan catalog so an Admin's plan change shows up immediately). Empty disables on-demand revalidation and the marketing pages then refresh on their own 60-second window instead.
 
 Also set `CSRF_TRUSTED_ORIGINS` to the exact web and portal origins, `AUTH_COOKIE_SECURE=true`, `TRUST_PROXY=true` (already forced by Compose) and the three `*_PUBLIC_URL`s.
 

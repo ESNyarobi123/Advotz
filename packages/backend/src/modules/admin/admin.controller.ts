@@ -52,6 +52,7 @@ import { badRequest, notFound } from "../../common/errors.js";
 import { CurrentUser, Roles, RolesGuard, SessionAuthGuard, type RequestActor } from "../../common/guards/session.guard.js";
 import { IMPERSONATION_COOKIE } from "../../common/guards/session.guard.js";
 import { enumQuery, headerString, parse, type HttpReply, type HttpRequest } from "../../common/http.js";
+import { revalidatePublicPlans } from "../../common/revalidate.js";
 import {
   commissionSummary,
   createPolicy,
@@ -280,31 +281,41 @@ export class AdminController {
 
   /** Creating a code that already exists publishes the next version, exactly like before. */
   @Post("plans")
-  savePlan(@CurrentUser() a: RequestActor, @Body() body: unknown) {
-    return upsertPlan(a.id, parse(platformPlanInputSchema, body));
+  async savePlan(@CurrentUser() a: RequestActor, @Body() body: unknown) {
+    const plan = await upsertPlan(a.id, parse(platformPlanInputSchema, body));
+    void revalidatePublicPlans(`plan created: ${plan.code}`);
+    return plan;
   }
 
   /** Full replacement of one row; the service decides in-place edit vs. new version. */
   @Put("plans/:id")
-  updatePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string, @Body() body: unknown) {
-    return updatePlan(a.id, id(planId), parse(platformPlanUpdateSchema, body));
+  async updatePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string, @Body() body: unknown) {
+    const plan = await updatePlan(a.id, id(planId), parse(platformPlanUpdateSchema, body));
+    void revalidatePublicPlans(`plan updated: ${plan.code}`);
+    return plan;
   }
 
   @Delete("plans/:id")
-  deletePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string, @Body() body: unknown) {
-    return deletePlan(a.id, id(planId), parse(planDeleteSchema, body).reason);
+  async deletePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string, @Body() body: unknown) {
+    const result = await deletePlan(a.id, id(planId), parse(planDeleteSchema, body).reason);
+    void revalidatePublicPlans(`plan deleted: ${planId}`);
+    return result;
   }
 
   @Post("plans/:id/active")
-  setPlanActive(@CurrentUser() a: RequestActor, @Param("id") planId: string, @Body() body: unknown) {
+  async setPlanActive(@CurrentUser() a: RequestActor, @Param("id") planId: string, @Body() body: unknown) {
     const input = parse(planActiveSchema, body);
-    return setPlanActive(a.id, id(planId), input.active, input.reason);
+    const plan = await setPlanActive(a.id, id(planId), input.active, input.reason);
+    void revalidatePublicPlans(`plan ${input.active ? "activated" : "archived"}: ${plan.code}`);
+    return plan;
   }
 
   /** Publishes the plan's current draft as an immutable version. */
   @Post("plans/:id/publish")
-  publish(@CurrentUser() a: RequestActor, @Param("id") planId: string) {
-    return publishPlan(a.id, id(planId));
+  async publish(@CurrentUser() a: RequestActor, @Param("id") planId: string) {
+    const plan = await publishPlan(a.id, id(planId));
+    void revalidatePublicPlans(`plan published: ${plan.code}`);
+    return plan;
   }
 
   /** Read-only preview of a plan (including its draft) for the editor. */
@@ -315,8 +326,10 @@ export class AdminController {
 
   /** Kept for the old client and smoke tests; equivalent to deactivating. */
   @Post("plans/:id/archive")
-  archivePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string) {
-    return archivePlan(a.id, id(planId));
+  async archivePlan(@CurrentUser() a: RequestActor, @Param("id") planId: string) {
+    const plan = await archivePlan(a.id, id(planId));
+    void revalidatePublicPlans(`plan archived: ${plan.code}`);
+    return plan;
   }
 
   // ── Plan version migrations (publish never moves a live subscriber on its own) ──
