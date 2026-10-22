@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Field, PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { OperatorDialog, resellerOperatorCopy, useOperatorActions } from "@/features/admin/operator-dialog";
+import { ResellerEditDialog } from "@/features/admin/reseller-edit";
 import { api, errorMessage } from "@/lib/api";
 import { formValues, useAction, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
@@ -338,6 +339,7 @@ function ResellerCard({
           <ExternalLink className="size-3.5" />
           {t("admin.resellers.action.open")}
         </Link>
+        <ResellerEditDialog onSaved={onChanged} reseller={row} variant="ghost" />
         <Button
           isDisabled={operator.busy !== null}
           onPress={() => operator.open("impersonate")}

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { OperatorDialog, resellerOperatorCopy, useOperatorActions } from "@/features/admin/operator-dialog";
+import { PlanEditDialog, ResellerEditDialog, type PlanOption } from "@/features/admin/reseller-edit";
 import { useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 
@@ -55,10 +56,17 @@ type Plan = {
 
 type Subscription = {
   state: string;
+  planId: string | null;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
+  trialUsedAt: string | null;
   suspendedReason: string | null;
-  entitlements: unknown;
+  entitlements: {
+    maxSites?: number | null;
+    maxDevices?: number | null;
+    maxPackages?: number | null;
+    maxPackagesPerSite?: number | null;
+  } | null;
   plan: Plan;
 } | null;
 
@@ -139,6 +147,8 @@ export type ResellerDetail = {
     owner: Owner;
     attribution: { source: string; reason: string | null; agent: { referralCode: string; user: { name: string; email: string } } } | null;
     subscription: Subscription;
+    /** True when this reseller's caps were set by hand and differ from the plan's. */
+    subscriptionOverridden: boolean;
     sites: Site[];
     devices: Device[];
     _count: { sites: number; devices: number; customers: number; orders: number; packages: number; voucherGroups: number };
@@ -172,6 +182,9 @@ const TAB_LABEL = {
 export function AdminResellerDetailScreen({ resellerId }: { resellerId: string }) {
   const { t } = useI18n();
   const resource = useResource<ResellerDetail | null>(`/admin/resellers/${resellerId}`);
+  // Plans feed only the plan dialog's picker. Loaded with the screen so opening
+  // the dialog never shows an empty select while a second request is in flight.
+  const plans = useResource<PlanOption[]>("/admin/plans");
   const [tab, setTab] = useState<TabKey>("profile");
 
   const detail = resource.data;
@@ -217,6 +230,13 @@ export function AdminResellerDetailScreen({ resellerId }: { resellerId: string }
               <PageHero
                 actions={
                   <>
+                    <ResellerEditDialog
+                      onSaved={async () => {
+                        await resource.reload();
+                      }}
+                      reseller={reseller}
+                      variant="outline"
+                    />
                     <Button
                       isDisabled={operator.busy !== null}
                       onPress={() => operator.open("impersonate")}
@@ -346,7 +366,16 @@ export function AdminResellerDetailScreen({ resellerId }: { resellerId: string }
               </div>
 
               {tab === "profile" ? <ProfileTab detail={detail} /> : null}
-              {tab === "plan" ? <PlanTab detail={detail} /> : null}
+              {tab === "plan" ? (
+                <PlanTab
+                  detail={detail}
+                  onChanged={async () => {
+                    await resource.reload();
+                  }}
+                  plans={plans.data ?? []}
+                  resellerId={resellerId}
+                />
+              ) : null}
               {tab === "devices" ? <DevicesTab detail={detail} /> : null}
               {tab === "payments" ? <PaymentsTab detail={detail} /> : null}
               {tab === "activity" ? <ActivityTab detail={detail} /> : null}
@@ -508,9 +537,43 @@ function ProfileTab({ detail }: { detail: ResellerDetail }) {
   );
 }
 
-function PlanTab({ detail }: { detail: ResellerDetail }) {
+function PlanTab({
+  detail,
+  plans,
+  resellerId,
+  onChanged,
+}: {
+  detail: ResellerDetail;
+  plans: PlanOption[];
+  resellerId: string;
+  onChanged: () => void | Promise<void>;
+}) {
   const { t } = useI18n();
   const sub = detail.reseller.subscription;
+
+  // The edit dialog is rendered in both branches: with no subscription the
+  // operator still has to be able to attach the first plan, which is exactly the
+  // case where a read-only panel would leave them stuck.
+  const edit = (
+    <PlanEditDialog
+      onSaved={onChanged}
+      plans={plans}
+      resellerId={resellerId}
+      subscription={
+        sub
+          ? {
+              state: sub.state,
+              planId: sub.planId,
+              currentPeriodStart: sub.currentPeriodStart,
+              currentPeriodEnd: sub.currentPeriodEnd,
+              trialUsedAt: sub.trialUsedAt,
+              suspendedReason: sub.suspendedReason,
+              entitlements: sub.entitlements,
+            }
+          : null
+      }
+    />
+  );
 
   if (!sub) {
     return (
@@ -520,15 +583,35 @@ function PlanTab({ detail }: { detail: ResellerDetail }) {
         iconTone="violet"
         title={t("admin.resellers.plan.title")}
       >
-        <p className="rounded-xl bg-advo-surface-soft p-4 text-xs text-advo-muted">{t("admin.resellers.plan.none")}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-advo-surface-soft p-4">
+          <p className="text-xs text-advo-muted">{t("admin.resellers.plan.none")}</p>
+          {edit}
+        </div>
       </Panel>
     );
   }
 
   const plan = sub.plan;
 
+  /* The caps actually enforced come from the entitlement snapshot, not the plan:
+     a per-reseller override lives only there. Falling back to the plan keeps the
+     row readable for a subscription written before snapshots existed. */
+  const limits = {
+    sites: sub.entitlements?.maxSites ?? plan?.maxSites ?? null,
+    devices: sub.entitlements?.maxDevices ?? plan?.maxDevices ?? null,
+    packages: sub.entitlements?.maxPackagesPerSite ?? sub.entitlements?.maxPackages ?? plan?.maxPackages ?? null,
+  };
+  // The API decides this: a plan stores its limits in two shapes and only the
+  // backend knows which one applies, so comparing columns here would be wrong.
+  const override = detail.reseller.subscriptionOverridden;
+
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-advo-muted">{t("admin.resellers.planEdit.description")}</p>
+        {edit}
+      </div>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Panel
           description={t("admin.resellers.plan.description")}
@@ -573,11 +656,21 @@ function PlanTab({ detail }: { detail: ResellerDetail }) {
           title={t("admin.resellers.profile.limits")}
         >
           <div className="grid grid-cols-2 gap-3">
-            <Mini label={t("admin.resellers.plan.maxSites")} value={plan ? String(plan.maxSites) : "—"} />
-            <Mini label={t("admin.resellers.plan.maxDevices")} value={plan ? String(plan.maxDevices) : "—"} />
-            <Mini label={t("admin.resellers.plan.maxPackages")} value={plan ? String(plan.maxPackages) : "—"} />
-            <Mini label={t("admin.resellers.plan.trial")} value={plan?.trialEligible ? "Yes" : "No"} />
+            <Mini label={t("admin.resellers.plan.maxSites")} value={limits.sites ?? t("admin.resellers.plan.unlimited")} />
+            <Mini label={t("admin.resellers.plan.maxDevices")} value={limits.devices ?? t("admin.resellers.plan.unlimited")} />
+            <Mini label={t("admin.resellers.plan.maxPackages")} value={limits.packages ?? t("admin.resellers.plan.unlimited")} />
+            <Mini
+              label={t("admin.resellers.plan.trial")}
+              value={sub.trialUsedAt ? t("admin.resellers.plan.yes") : t("admin.resellers.plan.no")}
+            />
           </div>
+          <p
+            className={`mt-3 rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${
+              override ? "bg-advo-gold-soft text-[#8a5a00]" : "bg-advo-surface-soft text-advo-muted"
+            }`}
+          >
+            {override ? t("admin.resellers.plan.sourceCustom") : t("admin.resellers.plan.sourcePlan")}
+          </p>
         </Panel>
 
         <Panel
@@ -587,10 +680,18 @@ function PlanTab({ detail }: { detail: ResellerDetail }) {
           title={t("admin.resellers.detail.kpi.subscription")}
         >
           <p className="text-2xl font-black tabular-nums text-advo-text">{formatTzs(detail.kpis.subscriptionPaidTzs)}</p>
-          <p className="text-xs text-advo-muted">
-            {detail.reseller._count.sites} / {plan ? plan.maxSites : "—"} sites · {detail.reseller._count.devices} /{" "}
-            {plan ? plan.maxDevices : "—"} devices
-          </p>
+          {/* Usage against the caps that are actually enforced, so an override is
+              visible as a number here rather than only in the limits panel. */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Mini
+              label={t("admin.resellers.plan.maxSites")}
+              value={`${detail.reseller._count.sites} / ${limits.sites ?? "∞"}`}
+            />
+            <Mini
+              label={t("admin.resellers.plan.maxDevices")}
+              value={`${detail.reseller._count.devices} / ${limits.devices ?? "∞"}`}
+            />
+          </div>
         </Panel>
       </div>
 
