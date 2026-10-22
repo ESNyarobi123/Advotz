@@ -854,3 +854,77 @@ export const createResellerSchema = z.object({
     .optional(),
 });
 export type CreateResellerInput = z.infer<typeof createResellerSchema>;
+
+/**
+ * Admin edit of a reseller account.
+ *
+ * Same identity fields as creation minus the password: resetting a password is a
+ * separate, deliberately distinct action so it cannot happen by accident while
+ * someone is fixing a phone number. `emailVerified` is here because an operator
+ * who has confirmed the address by phone is the only remaining way to clear it.
+ */
+export const adminResellerUpdateSchema = z.object({
+  businessName: z.string().trim().min(2).max(120),
+  ownerName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().toLowerCase(),
+  phone: tzPhoneSchema,
+  emailVerified: z.boolean(),
+  reason: z.string().trim().min(3).max(300),
+});
+export type AdminResellerUpdateInput = z.infer<typeof adminResellerUpdateSchema>;
+
+/**
+ * The subscription states an operator may set by hand.
+ *
+ * This mirrors the Prisma enum on purpose: importing the client enum into a
+ * browser bundle would drag the generated Prisma types into the web app, and the
+ * two lists drifting is what tests should catch, not what the schema hides.
+ */
+export const SUBSCRIPTION_STATE_VALUES = [
+  "NONE",
+  "TRIALING",
+  "ACTIVE",
+  "PAST_DUE",
+  "EXPIRED",
+  "SUSPENDED",
+  "CANCELLED",
+] as const;
+export type SubscriptionStateValue = (typeof SUBSCRIPTION_STATE_VALUES)[number];
+
+/**
+ * A calendar day (`YYYY-MM-DD`), read in the business timezone.
+ *
+ * Dates are sent as days rather than instants because that is what an operator is
+ * choosing in a date picker: "until 31 December" must not silently expire at
+ * 03:00 local because the browser converted midnight UTC. The API anchors the day
+ * to Dar es Salaam opening/closing time.
+ */
+const calendarDaySchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in YYYY-MM-DD form")
+  .nullable();
+
+/**
+ * Admin edit of a reseller's platform plan.
+ *
+ * `planId: null` detaches the plan; `limits` is the per-reseller override and
+ * `null` on any of its fields means "follow the plan again". Every field is
+ * required so a partial body cannot be mistaken for "leave the rest alone" —
+ * an operator submits what should be true after the change.
+ */
+export const adminSubscriptionUpdateSchema = z.object({
+  planId: uuidSchema.nullable(),
+  state: z.enum(SUBSCRIPTION_STATE_VALUES),
+  currentPeriodStart: calendarDaySchema,
+  currentPeriodEnd: calendarDaySchema,
+  trialUsed: z.boolean(),
+  suspendedReason: z.string().trim().max(300).nullable(),
+  limits: z.object({
+    maxSites: z.number().int().min(1).max(10000).nullable(),
+    maxDevices: z.number().int().min(1).max(100000).nullable(),
+    maxPackagesPerSite: z.number().int().min(1).max(10000).nullable(),
+  }),
+  reason: z.string().trim().min(3).max(300),
+});
+export type AdminSubscriptionUpdateInput = z.infer<typeof adminSubscriptionUpdateSchema>;

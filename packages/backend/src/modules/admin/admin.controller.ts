@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from "@nestjs/common";
 import {
+  adminResellerUpdateSchema,
   adminSiteCreateSchema,
+  adminSubscriptionUpdateSchema,
   capabilityEvidenceSchema,
   commissionPolicyDeleteSchema,
   commissionPolicyEndSchema,
@@ -113,7 +115,7 @@ import {
 import { listAllTickets, replyToTicket, setTicketState } from "../support/support.service.js";
 import { listWithdrawalsForAdmin, reviewWithdrawal as reviewWithdrawalRequest, withdrawalDetail, withdrawalsSummary as summaryWithdrawals } from "../withdrawals/withdrawals.service.js";
 import { reconcileWithdrawal as reconcilePayout } from "../withdrawals/payouts.service.js";
-import { createReseller, setAgentStatus, setResellerStatus, startAgentImpersonation, startImpersonation } from "./admin.service.js";
+import { createReseller, setAgentStatus, setResellerStatus, startAgentImpersonation, startImpersonation, updateResellerProfile, updateResellerSubscription } from "./admin.service.js";
 import { correctAttribution } from "./admin.service.js";
 
 const id = (v: string) => parse(uuidSchema, v);
@@ -203,6 +205,20 @@ export class AdminController {
   resellerStatus(@CurrentUser() a: RequestActor, @Param("id") resellerId: string, @Body() body: unknown) {
     const input = parse(statusSchema, body);
     return setResellerStatus(a.id, id(resellerId), input.status, input.reason);
+  }
+
+  /** Edits the business identity and the owner's contact details. Audited with a reason. */
+  @Put("resellers/:id")
+  resellerUpdate(@CurrentUser() a: RequestActor, @Param("id") resellerId: string, @Body() body: unknown) {
+    const input = parse(adminResellerUpdateSchema, body);
+    return updateResellerProfile(a.id, id(resellerId), input);
+  }
+
+  /** Sets the platform plan, its state and period, and the per-reseller limit overrides. */
+  @Put("resellers/:id/subscription")
+  resellerSubscription(@CurrentUser() a: RequestActor, @Param("id") resellerId: string, @Body() body: unknown) {
+    const input = parse(adminSubscriptionUpdateSchema, body);
+    return updateResellerSubscription(a.id, id(resellerId), input);
   }
 
   @Post("resellers/:id/attribution")

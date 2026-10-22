@@ -1,7 +1,7 @@
 import { prisma } from "@advo/db";
 import { walletSummary } from "../ledger/ledger.service.js";
 import { outboxStats } from "../outbox/outbox.dispatcher.js";
-import { getSubscriptionView } from "../subscriptions/subscriptions.service.js";
+import { getSubscriptionView, entitlementsOf, type Entitlements } from "../subscriptions/subscriptions.service.js";
 
 /** Start of "today" in Africa/Dar_es_Salaam (UTC+3, no DST). */
 function startOfDarDay(now = new Date()) {
@@ -465,8 +465,27 @@ export async function adminResellerDetail(resellerId: string) {
     _count: true,
   });
 
+  /* Whether the stored caps still match the plan's own numbers.
+   *
+   * This is computed here, not in the browser, because a plan carries its limits
+   * twice — the feature catalog's `limits` object and the legacy columns — and
+   * only `entitlementsOf` knows which one a given row follows. Comparing the raw
+   * plan columns client-side would report a false override on every catalog plan. */
+  const overridden = (() => {
+    const plan = reseller.subscription?.plan;
+    const stored = reseller.subscription?.entitlements as Partial<Entitlements> | null;
+    if (!plan || !stored) return false;
+    const expected = entitlementsOf(plan);
+    return (
+      (stored.maxSites ?? null) !== expected.maxSites ||
+      (stored.maxDevices ?? null) !== expected.maxDevices ||
+      (stored.maxPackages ?? null) !== expected.maxPackages ||
+      (stored.maxPackagesPerSite ?? null) !== expected.maxPackagesPerSite
+    );
+  })();
+
   return {
-    reseller,
+    reseller: { ...reseller, subscriptionOverridden: overridden },
     wallet,
     kpis: {
       guestRevenueTzs: lifetime._sum.amountTzs ?? 0n,
