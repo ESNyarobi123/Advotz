@@ -309,6 +309,58 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     expect(await accountBalance(prisma, resellerAccount(A.resellerId, "RESELLER_PAYABLE"))).toBe(8_900n);
   });
 
+  it("confirms payment from a Snippe status lookup while the guest is waiting", async () => {
+    const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:c2", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
+    const order = await createPortalOrder(
+      { contextToken: ctx.contextToken, packageId: packageA, idempotencyKey: "portal-order-lookup", phone: "+255678165524" },
+      IP,
+    );
+    const dbOrder = await prisma.order.findFirstOrThrow({
+      where: { requestIdempotencyKey: "portal-order-lookup" },
+      include: { customer: true },
+    });
+    const attempt = await latestAttempt(dbOrder.id);
+    expect(attempt.state).toBe("PENDING");
+    expect(dbOrder.customer?.firstName).toBeNull();
+
+    const waiting = await portalOrderStatus(order.orderToken);
+    expect(waiting.paymentState).toBe("UNPAID");
+
+    provider.setPaymentStatus(attempt.providerReference!, "completed", { feeTzs: 100, customerName: "Neema Mushi" });
+    const insideInterval = await portalOrderStatus(order.orderToken);
+    expect(insideInterval.paymentState).toBe("UNPAID");
+
+    await prisma.paymentAttempt.update({ where: { id: attempt.id }, data: { lastCheckedAt: new Date(Date.now() - 10_000) } });
+    const paid = await portalOrderStatus(order.orderToken);
+    expect(paid.paymentState).toBe("PAID");
+    const refreshed = await latestAttempt(dbOrder.id);
+    expect(refreshed.state).toBe("COMPLETED");
+    expect(refreshed.feeTzs).toBe(100n);
+    const customer = await prisma.customer.findUniqueOrThrow({ where: { id: dbOrder.customerId! } });
+    expect(customer.firstName).toBe("Neema");
+    expect(customer.lastName).toBe("Mushi");
+  });
+
+  it("records a failed Snippe lookup on the waiting page and does not grant access", async () => {
+    const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:c3", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
+    const order = await createPortalOrder(
+      { contextToken: ctx.contextToken, packageId: packageA, idempotencyKey: "portal-order-lookup-fail", phone: "+255678165525" },
+      IP,
+    );
+    const dbOrder = await prisma.order.findFirstOrThrow({ where: { requestIdempotencyKey: "portal-order-lookup-fail" } });
+    const attempt = await latestAttempt(dbOrder.id);
+    provider.setPaymentStatus(attempt.providerReference!, "failed");
+    const status = await portalOrderStatus(order.orderToken);
+    expect(status.paymentState).toBe("UNPAID");
+    expect(status.paymentAttempt?.state).toBe("FAILED");
+    expect(status.access).toBeNull();
+
+    provider.setPaymentStatus(attempt.providerReference!, "completed", { feeTzs: 100 });
+    const still = await portalOrderStatus(order.orderToken);
+    expect(still.paymentState).toBe("UNPAID");
+    expect(still.paymentAttempt?.state).toBe("FAILED");
+  });
+
   it("takes a phone number as the whole form, then learns the payer's name from the provider", async () => {
     const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:99", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
     const order = await createPortalOrder(

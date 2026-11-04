@@ -70,13 +70,19 @@ export class SnippePaymentProvider implements PaymentProvider {
 
   async getPayment(reference: string): Promise<PaymentLookupResult> {
     try {
-      const payment = await this.client.payments.get(reference);
+      const payment = (await this.client.payments.get(reference)) as SnippePaymentRecord;
+      const status = knownStatus(payment.status);
+      const completed = status === "completed";
       return {
         reference: payment.reference,
-        status: payment.status,
+        status,
         amountTzs: payment.amount.value,
         currency: payment.amount.currency,
         expiresAt: payment.expiresAt,
+        ...(completed && typeof payment.settlement?.fees?.value === "number"
+          ? { feeTzs: payment.settlement.fees.value }
+          : {}),
+        ...(completed ? optionalName(reportedPayerName(payment.customer)) : {}),
       };
     } catch (err) {
       throw mapError(err);
@@ -132,6 +138,44 @@ export class SnippePaymentProvider implements PaymentProvider {
       throw mapError(err);
     }
   }
+}
+
+const PAYMENT_STATUSES = new Set(["pending", "completed", "failed", "voided", "expired"]);
+
+/** Snippe's documented payment statuses. Anything else is not treated as success or failure. */
+function knownStatus(status: string): PaymentLookupResult["status"] {
+  const normalised = status.toLowerCase();
+  if (!PAYMENT_STATUSES.has(normalised)) {
+    throw new PaymentProviderError(`Unrecognised Snippe payment status: ${status}`, "unknown", true);
+  }
+  return normalised as PaymentLookupResult["status"];
+}
+
+type SnippePaymentRecord = {
+  reference: string;
+  status: string;
+  amount: { value: number; currency: string };
+  expiresAt?: string;
+  settlement?: { fees?: { value?: number } };
+  customer?: { name?: string; firstName?: string; lastName?: string };
+};
+
+/**
+ * The lookup echoes the placeholder name we sent (`Advo Guest`). Only a different
+ * name is the mobile-money account holder.
+ */
+function reportedPayerName(customer: SnippePaymentRecord["customer"]): string | undefined {
+  const explicit = customer?.name?.trim();
+  if (explicit) return explicit;
+  const first = customer?.firstName?.trim() ?? "";
+  const last = customer?.lastName?.trim() ?? "";
+  if (first === "Advo" && (last === "Guest" || last === "")) return undefined;
+  const joined = [first, last].filter(Boolean).join(" ");
+  return joined || undefined;
+}
+
+function optionalName(name: string | undefined): { customerName: string } | Record<string, never> {
+  return name ? { customerName: name } : {};
 }
 
 function assertKey(key: string) {

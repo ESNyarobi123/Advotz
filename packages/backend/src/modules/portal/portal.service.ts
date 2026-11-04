@@ -18,7 +18,7 @@ import { emitOutbox, OutboxEventType } from "../../common/events.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
 import { enforcementGaps, siteCapabilities } from "../catalog/packages.service.js";
 import { listGuestListings } from "../platform/listings.service.js";
-import { ensurePaymentAttempt } from "../payments/payments.service.js";
+import { ensurePaymentAttempt, reconcilePaymentAttempt } from "../payments/payments.service.js";
 import { saleFeeBasisPoints } from "../settings/settings.service.js";
 import { assertCanSell } from "../subscriptions/subscriptions.service.js";
 import { eligibleCampaignsForSite, resolveSiteConfig } from "../subscriptions/entitlements.service.js";
@@ -362,17 +362,54 @@ function suppliedPayerDetails(input: { firstName?: string; lastName?: string; em
 function orderResponse(orderId: string, paymentState: string | null, lastError?: string | null) {  return { orderToken: derivePublicToken("order", orderId), payment: { state: paymentState, lastError: lastError ?? null } };
 }
 
+/**
+ * Snippe's checkout guide polls payment status every 2–3 seconds. The waiting
+ * page already does that against us; this is how often that poll may ask Snippe
+ * `GET /v1/payments/{reference}` for an order that is still unpaid.
+ */
+const PAYMENT_LOOKUP_INTERVAL_MS = 2_500;
+
+/**
+ * Confirms an open attempt with the provider. A webhook is not required: Snippe
+ * documents the lookup as the way to verify `completed` before granting access.
+ * Concurrent polls share one lookup.
+ */
+async function confirmOpenPayment(attempt: { id: string; state: string; lastCheckedAt: Date | null }) {
+  if (!["PENDING", "UNKNOWN", "DISPATCHING"].includes(attempt.state)) return;
+  const staleBefore = new Date(Date.now() - PAYMENT_LOOKUP_INTERVAL_MS);
+  if (attempt.lastCheckedAt && attempt.lastCheckedAt >= staleBefore) return;
+  const claimed = await prisma.paymentAttempt.updateMany({
+    where: {
+      id: attempt.id,
+      state: { in: ["PENDING", "UNKNOWN", "DISPATCHING"] },
+      OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: staleBefore } }],
+    },
+    data: { lastCheckedAt: new Date() },
+  });
+  if (claimed.count !== 1) return;
+  await reconcilePaymentAttempt(attempt.id);
+}
+
 /** Customer-facing status via the unguessable order token (no internal IDs exposed). */
 export async function portalOrderStatus(orderToken: string) {
-  const order = await prisma.order.findUnique({
+  const include = {
+    attempts: { orderBy: { createdAt: "desc" as const }, take: 1 },
+    grant: { include: { devices: { select: { clientMac: true, authState: true, lastError: true } } } },
+    site: { select: { slug: true, landingUrl: true } },
+  };
+  let order = await prisma.order.findUnique({
     where: { publicTokenHash: hashToken(orderToken) },
-    include: {
-      attempts: { orderBy: { createdAt: "desc" }, take: 1 },
-      grant: { include: { devices: { select: { clientMac: true, authState: true, lastError: true } } } },
-      site: { select: { slug: true, landingUrl: true } },
-    },
+    include,
   });
   if (!order) notFound("Order not found");
+  const open = order.attempts[0];
+  if (order.paymentState === "UNPAID" && open) {
+    await confirmOpenPayment(open);
+    order = await prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include,
+    });
+  }
   const snapshot = order.priceSnapshot as { name?: string; durationSeconds?: number };
   const attempt = order.attempts[0];
   return {

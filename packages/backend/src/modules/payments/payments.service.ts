@@ -191,6 +191,8 @@ export async function reconcilePaymentAttempt(attemptId: string) {
       status: found.status,
       amountTzs: BigInt(found.amountTzs),
       currency: found.currency,
+      feeTzs: typeof found.feeTzs === "number" ? BigInt(found.feeTzs) : null,
+      customerName: found.customerName,
       source: "lookup",
     });
     return outcome.kind;

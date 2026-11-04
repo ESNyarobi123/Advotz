@@ -30,6 +30,7 @@ Sources to re-read before going live:
   - Timeout, network error, HTTP 5xx and unrecognised errors are **retryable**. For a payment create or payout send they leave the attempt `UNKNOWN`. Reconciliation looks it up by reference, or, if no reference was saved, re-sends the original body with the **original** `Idempotency-Key` so the provider returns the first result. It never uses a new key.
   - 401/403 (auth), 404, 409, 429 and other 4xx are **not retryable** and become `FAILED` with the provider message, truncated to 300 characters.
 - **Idempotency window:** the same-key re-send is attempted only within 23 hours of creation, as a safety margin inside the provider's de-duplication window. After that the payment or withdrawal is marked `NEEDS_REVIEW` for a human.
+- **Waiting page:** the guest portal polls its own order every 3 seconds. While the order is unpaid, that poll calls `GET /v1/payments/{reference}` at most once every 2.5 seconds (Snippe's documented checkout interval). `completed` with a matching amount marks the order paid and starts access; `failed`, `voided` and `expired` stop the wait. A webhook is still accepted, and the sweeper still looks up attempts nobody is watching. Settlement fees and the account-holder name on the lookup are applied the same way as on a webhook. A status outside Snippe's five documented values is not treated as success or failure.
 
 ## Webhooks (`POST /api/v1/webhooks/snippe`)
 

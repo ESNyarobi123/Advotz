@@ -102,9 +102,13 @@ export class FakePaymentProvider implements PaymentProvider {
   }
 
   /** Test helpers — mutate simulated provider state. */
-  setPaymentStatus(reference: string, status: PaymentLookupResult["status"]) {
+  setPaymentStatus(
+    reference: string,
+    status: PaymentLookupResult["status"],
+    patch?: Pick<PaymentLookupResult, "feeTzs" | "customerName">,
+  ) {
     const found = this.payments.get(reference);
-    if (found) this.payments.set(reference, { ...found, status });
+    if (found) this.payments.set(reference, { ...found, status, ...patch });
   }
 
   setPayoutStatus(reference: string, status: PayoutResult["status"]) {

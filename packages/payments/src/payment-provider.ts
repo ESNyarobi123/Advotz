@@ -24,6 +24,10 @@ export type PaymentLookupResult = {
   amountTzs: number;
   currency: string;
   expiresAt?: string;
+  /** Present when Snippe's lookup includes settlement.fees. Absent means the fee is still unknown. */
+  feeTzs?: number;
+  /** Account-holder name from the lookup, when it is a real name rather than our placeholder. */
+  customerName?: string;
 };
 
 export type MobilePayoutRequest = {
