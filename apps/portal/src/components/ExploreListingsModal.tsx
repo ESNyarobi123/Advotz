@@ -15,12 +15,15 @@ export function ExploreListingsModal({
   onClose,
   listings,
   kind,
+  refreshing = false,
   theme,
 }: {
   open: boolean;
   onClose: () => void;
   listings: PortalListing[];
   kind: "LOCAL_EVENT" | "HOLIDAY";
+  /** A fresh list is on its way; the current one stays readable meanwhile. */
+  refreshing?: boolean;
   theme?: PortalTheme;
 }) {
   const { locale, t } = useLocale();
@@ -79,6 +82,9 @@ export function ExploreListingsModal({
 
   return (
     <PortalModal onClose={onClose} open={open} theme={theme} title={title} size="wide">
+      {refreshing ? (
+        <p className="mb-2 text-center text-[11px] font-semibold text-[var(--advo-muted)]">{t("portal.sessionUpdating")}</p>
+      ) : null}
       <p className="mb-3 text-center text-sm text-[var(--advo-muted)]">
         {kind === "LOCAL_EVENT" ? t("portal.eventsLead") : t("portal.holidaysLead")}
       </p>

@@ -76,7 +76,21 @@ export function bandFromOmada(value: unknown): WifiBand {
   return "both";
 }
 
-export type RemoteClient = { mac: string; apMac?: string; ssidName?: string; connected: boolean };
+export type RemoteClient = {
+  mac: string;
+  apMac?: string;
+  ssidName?: string;
+  connected: boolean;
+  /**
+   * Traffic counters, only when the Controller includes them in the client row.
+   * Omada's OpenAPI contract does not guarantee these fields, so they are
+   * optional and the usage sampler falls back to an estimate when absent.
+   * `bytesIn` is downloaded to the client; `bytesOut` is uploaded from it.
+   */
+  bytesIn?: bigint;
+  bytesOut?: bigint;
+  bytesTotal?: bigint;
+};
 
 /** Values exactly as supplied by the Controller redirect, re-validated server-side. */
 export type PortalClientTarget =
@@ -132,6 +146,8 @@ export type RemoteOperationResult = {
 export type UsageReadInput = ClientLocator;
 export type UsageObservation = {
   bytesTotal?: bigint;
+  bytesIn?: bigint;
+  bytesOut?: bigint;
   counterEpoch?: string;
   confidence: "high" | "low" | "unknown";
 };

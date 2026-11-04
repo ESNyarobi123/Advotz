@@ -10,6 +10,7 @@ import { z } from "zod";
 import { clientIp, parse, type HttpRequest } from "../../common/http.js";
 import { kickOutbox } from "../outbox/outbox.dispatcher.js";
 import {
+  activateGrant,
   createPortalContext,
   createPortalOrder,
   grantStatus,
@@ -17,6 +18,7 @@ import {
   portalAds,
   portalBootstrap,
   portalConfig,
+  portalExplore,
   portalOrderStatus,
   redeemVoucher,
   retryPortalPayment,
@@ -51,6 +53,15 @@ export class PortalController {
   @Get("sites/:slug/ads/:placement")
   ads(@Param("slug") slug: string, @Param("placement") placement: string) {
     return portalAds(parse(slugSchema, slug), placement);
+  }
+
+  /**
+   * The connected page's Explore feed. A guest who has just been authorized
+   * opens a menu and gets the current listings, not the ones cached at page load.
+   */
+  @Get("sites/:slug/explore")
+  explore(@Param("slug") slug: string) {
+    return portalExplore(parse(slugSchema, slug));
   }
 
   @Post("sites/:slug/context")
@@ -93,6 +104,14 @@ export class PortalController {
   @Get("access/:token")
   access(@Param("token") token: string) {
     return grantStatus(parse(tokenSchema, token));
+  }
+
+  /** The guest tapped "Connect" — call the Controller now instead of waiting out the hold. */
+  @Post("access/:token/activate")
+  async activate(@Param("token") token: string) {
+    const result = await activateGrant(parse(tokenSchema, token));
+    kickOutbox();
+    return result;
   }
 
   @Post("access/join")

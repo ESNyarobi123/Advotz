@@ -25,12 +25,16 @@ type OrderStatus = {
     activatedAt: string | null;
     expiresAt: string | null;
     maxDevices: number;
+    /** When a held session opens itself; null once it is live. */
+    connectBy?: string | null;
     devices: Array<{ mac: string; state: string }>;
   } | null;
   landingUrl: string | null;
 };
 
 const POLL_MS = 3000;
+/** Where "Start browsing" lands when the site has no landing page configured. */
+const BROWSE_URL = "https://www.google.com";
 
 export function PaymentStatus({
   slug,
@@ -48,6 +52,8 @@ export function PaymentStatus({
   const [now, setNow] = useState(() => Date.now());
   const [extras, setExtras] = useState<PortalBootstrap | null>(null);
   const [clockEnded, setClockEnded] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const paidAt = useRef<number | null>(null);
   const rechecked = useRef(false);
 
@@ -167,8 +173,97 @@ export function PaymentStatus({
     status?.paymentState === "PAID" &&
     (!status.access || status.access.state === "PENDING_ACTIVATION") &&
     status.fulfillmentState !== "FAILED";
+  /**
+   * The session is paid for but the device is deliberately not on the network
+   * yet, so this page can be read and the Explore menus used before the phone's
+   * captive window decides to close itself.
+   */
+  const held = status?.access?.state === "PENDING_ACTIVATION";
+
+  // A hold is not slowness: the guest asked for the time, so the "still
+  // activating" warning only applies after the hold has run out.
   const slowActivation =
-    activating && paidAt.current !== null && now - paidAt.current > 45_000;
+    activating && !held && paidAt.current !== null && now - paidAt.current > 45_000;
+  const connectSecondsLeft =
+    held && status?.access?.connectBy
+      ? Math.max(0, Math.ceil((new Date(status.access.connectBy).getTime() - now) / 1000))
+      : null;
+  const browseUrl = status?.landingUrl ?? BROWSE_URL;
+
+  // Seconds only matter during the hold.
+  useEffect(() => {
+    if (!held) return;
+    const id = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(id);
+  }, [held]);
+
+  async function startBrowsing() {
+    setStarting(true);
+    setConnectError(null);
+    try {
+      await portalApi.post(
+        `/portal/access/${encodeURIComponent(orderToken)}/activate`,
+        {},
+      );
+      await load();
+    } catch (err) {
+      setStarting(false);
+      setConnectError(
+        err instanceof Error && err.message ? err.message : t("portal.connectFailed"),
+      );
+    }
+  }
+
+  // Only leave once the Controller has actually let the device on.
+  useEffect(() => {
+    if (starting && status?.access?.state === "ACTIVE") window.location.assign(browseUrl);
+  }, [starting, status?.access?.state, browseUrl]);
+
+  /**
+   * The connected stage. While the session is held it renders *above* the
+   * receipt card: the button that opens the internet, and the menus it is
+   * holding the connection for, must be reachable with one thumb.
+   */
+  const stage =
+    extras && status && status.access && (status.access.state === "ACTIVE" || held) ? (
+      <ConnectedStage
+        business={extras.site.business}
+        businesses={extras.site.content?.businesses ?? []}
+        config={extras.config}
+        connection={
+          held
+            ? {
+                state: starting ? "connecting" : "held",
+                secondsLeft: connectSecondsLeft,
+                onStart: () => void startBrowsing(),
+                error: connectError,
+              }
+            : null
+        }
+        experienceOnly={false}
+        landingUrl={browseUrl}
+        listings={extras.listings}
+        promotionPackages={extras.promotionPackages}
+        reopenUrl={`/${slug}/status?token=${encodeURIComponent(orderToken)}`}
+        session={{
+          packageName: status.package.name ?? null,
+          expiresAt: status.access.expiresAt,
+          devices: status.access.devices.length,
+          maxDevices: status.access.maxDevices,
+        }}
+        sessionLabel={status.package.name ?? null}
+        showHeader={false}
+        siteTitle={extras.site.title}
+        slug={slug}
+        theme={extras.site.theme}
+      />
+    ) : null;
+
+  // A failed or ended activation has nothing left to wait for.
+  useEffect(() => {
+    if (starting && status?.access && ["ACTIVATION_FAILED", "EXPIRED", "REVOKED"].includes(status.access.state))
+      setStarting(false);
+  }, [starting, status?.access]);
 
   return (
     <PortalFrame
@@ -181,6 +276,7 @@ export function PaymentStatus({
       title={t("accessStatus")}
     >
       {error && !status ? <Notice tone="danger">{error}</Notice> : null}
+      {held ? <div className="mt-2">{stage}</div> : null}
       {status && unpaid && !paymentFailed ? (
         <PaymentWaitingStage
           amount={formatTzs(status.amountTzs)}
@@ -235,7 +331,7 @@ export function PaymentStatus({
               <Notice tone={slowActivation ? "warning" : "accent"}>
                 {slowActivation
                   ? t("paymentReceivedActivating")
-                  : t("paymentReceivedConnecting")}
+                  : t("portal.holdStatus")}
               </Notice>
             ) : null}
             {status.access?.state === "ACTIVE" ? (
@@ -285,24 +381,7 @@ export function PaymentStatus({
       ) : null}
       {!status && !error ? <Notice tone="accent">{t("paymentPending")}</Notice> : null}
 
-      {status?.access?.state === "ACTIVE" && extras ? (
-        <div className="mt-4">
-          <ConnectedStage
-            business={extras.site.business}
-            businesses={extras.site.content?.businesses ?? []}
-            config={extras.config}
-            experienceOnly={false}
-            landingUrl={status.landingUrl}
-            listings={extras.listings}
-            promotionPackages={extras.promotionPackages}
-            sessionLabel={status.package.name ?? null}
-            showHeader={false}
-            siteTitle={extras.site.title}
-            slug={slug}
-            theme={extras.site.theme}
-          />
-        </div>
-      ) : null}
+      {!held ? <div className="mt-4">{stage}</div> : null}
 
       {status && unpaid && !paymentFailed ? null : (
       <Card className="mt-4">

@@ -1,10 +1,13 @@
 import { ErrorCode, type WifiPackageInput } from "@advo/contracts";
-import { prisma, type PackageRevision } from "@advo/db";
+import { prisma, type PackageRevision, type Prisma } from "@advo/db";
 import { canEnforce, type ControllerCapabilities } from "@advo/omada";
 import { badRequest, forbidden, tenantDenied, unprocessable } from "../../common/errors.js";
 import { audit } from "../../common/events.js";
 import { allowSimulated, getControllerAdapter } from "../../common/providers.js";
-import { currentEntitlements } from "../subscriptions/subscriptions.service.js";
+import { currentEntitlements, type Entitlements } from "../subscriptions/subscriptions.service.js";
+import { invalidatePortalCache } from "../subscriptions/portal-cache.js";
+
+type Tx = Prisma.TransactionClient;
 
 /** Reasons a package revision cannot be enforced by a site's Controller (empty = sellable). */
 export function enforcementGaps(rev: Pick<PackageRevision, "downloadKbps" | "uploadKbps" | "quotaType">, caps: ControllerCapabilities | null): string[] {
@@ -94,17 +97,61 @@ async function assertEnforceable(input: WifiPackageInput) {
   }
 }
 
-export async function listPackages(resellerId: string, siteId?: string) {
+export async function listPackages(resellerId: string, siteId?: string, includePaused = false) {
   return prisma.wifiPackage.findMany({
     where: {
       resellerId,
-      status: "ACTIVE",
+      // Dropdowns (vouchers, captive portal) must only ever offer something a
+      // guest can actually buy, so ACTIVE stays the default. The packages screen
+      // asks for paused ones too, because otherwise a pause is a one-way door.
+      ...(includePaused ? {} : { status: "ACTIVE" as const }),
       ...(siteId ? { assignments: { some: { siteId } } } : {}),
     },
     include: { currentRevision: true, assignments: { include: { site: { select: { id: true, name: true } } } } },
-    orderBy: { createdAt: "asc" },
+    // Postgres orders the enum by declaration, so ACTIVE sorts before ARCHIVED:
+    // sellable packages lead, paused ones sit underneath them.
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
     take: 200,
   });
+}
+
+/**
+ * Guards the plan's package allowances.
+ *
+ * Shared by create and re-activate so the two cannot drift: pausing a package
+ * frees its slot, and resuming has to take one again — otherwise a
+ * pause/create/resume cycle would end up over `maxPackages` with every
+ * individual step looking legal.
+ */
+async function assertPackageSlot(
+  tx: Tx,
+  resellerId: string,
+  ent: Entitlements,
+  siteIds: string[],
+  excludePackageId?: string,
+) {
+  const other = excludePackageId ? { id: { not: excludePackageId } } : {};
+  const count = await tx.wifiPackage.count({ where: { resellerId, status: "ACTIVE", ...other } });
+  if (ent.maxPackages !== null && count >= ent.maxPackages) forbidden(`Your plan allows ${ent.maxPackages} package(s)`);
+  // New plans cap packages per site. A package assigned to several sites counts
+  // in each, because that is what the guest sees at each location.
+  if (ent.maxPackagesPerSite !== null) {
+    const sites = [...new Set(siteIds)];
+    if (sites.length > 0) {
+      const assigned = await tx.packageSiteAssignment.findMany({
+        where: { siteId: { in: sites }, package: { status: "ACTIVE", ...other } },
+        select: { siteId: true },
+      });
+      const counts = new Map<string, number>();
+      for (const row of assigned) counts.set(row.siteId, (counts.get(row.siteId) ?? 0) + 1);
+      if ([...counts.values()].some((n) => n >= (ent.maxPackagesPerSite as number))) {
+        // Reached by create and by resume alike, so the advice names both exits.
+        forbidden(
+          `Your plan allows ${ent.maxPackagesPerSite} package(s) per site — pause one, or upgrade your plan`,
+        );
+      }
+    }
+  }
 }
 
 export async function createPackage(resellerId: string, actorUserId: string, input: WifiPackageInput) {
@@ -118,24 +165,7 @@ export async function createPackage(resellerId: string, actorUserId: string, inp
     // Serialise package creation per reseller: without the lock two concurrent
     // requests both count the same packages and both pass the plan limit.
     await tx.$queryRaw`SELECT id FROM "Reseller" WHERE id = ${resellerId}::uuid FOR UPDATE`;
-    const count = await tx.wifiPackage.count({ where: { resellerId, status: "ACTIVE" } });
-    if (ent.maxPackages !== null && count >= ent.maxPackages) forbidden(`Your plan allows ${ent.maxPackages} package(s)`);
-    // New plans cap packages per site. A package assigned to several sites counts
-    // in each, because that is what the guest sees at each location.
-    if (ent.maxPackagesPerSite !== null) {
-      const sites = [...new Set(input.siteIds)];
-      if (sites.length > 0) {
-        const assigned = await tx.packageSiteAssignment.findMany({
-          where: { siteId: { in: sites }, package: { status: "ACTIVE" } },
-          select: { siteId: true },
-        });
-        const counts = new Map<string, number>();
-        for (const row of assigned) counts.set(row.siteId, (counts.get(row.siteId) ?? 0) + 1);
-        if ([...counts.values()].some((n) => n >= (ent.maxPackagesPerSite as number))) {
-          forbidden(`Your plan allows ${ent.maxPackagesPerSite} package(s) per site`);
-        }
-      }
-    }
+    await assertPackageSlot(tx, resellerId, ent, input.siteIds);
     const pkg = await tx.wifiPackage.create({ data: { resellerId, name: input.name } });
     const rev = await tx.packageRevision.create({ data: revisionData(pkg.id, resellerId, 1, input) });
     await tx.wifiPackage.update({ where: { id: pkg.id }, data: { currentRevisionId: rev.id } });
@@ -164,10 +194,16 @@ function revisionData(packageId: string, resellerId: string, revision: number, i
   };
 }
 
-/** Edits create a new immutable revision; past orders and vouchers keep theirs. */
+/**
+ * Edits create a new immutable revision; past orders and vouchers keep theirs.
+ *
+ * A paused package is still editable: the usual reason to pause is to fix a price
+ * or a quota before resuming, and forcing a resume first would publish the wrong
+ * tariff to guests in between.
+ */
 export async function updatePackage(resellerId: string, actorUserId: string, packageId: string, input: WifiPackageInput) {
   validatePackage(input);
-  const pkg = await prisma.wifiPackage.findFirst({ where: { id: packageId, resellerId, status: "ACTIVE" } });
+  const pkg = await prisma.wifiPackage.findFirst({ where: { id: packageId, resellerId } });
   if (!pkg) tenantDenied();
   await assertSitesOwned(resellerId, input.siteIds);
   await assertEnforceable(input);
@@ -191,7 +227,61 @@ export async function archivePackage(resellerId: string, actorUserId: string, pa
   const res = await prisma.wifiPackage.updateMany({ where: { id: packageId, resellerId }, data: { status: "ARCHIVED" } });
   if (res.count === 0) tenantDenied();
   await prisma.$transaction((tx) => audit(tx, { actorUserId, action: "package.archived", targetType: "WifiPackage", targetId: packageId, resellerId }));
+  // The portal caches a package list for a minute; a guest must not still be
+  // offered a tariff the reseller just retired.
+  invalidatePortalCache();
   return { archived: true };
+}
+
+/**
+ * Pause or resume a package.
+ *
+ * Pausing is the reversible counterpart of archiving: the tariff disappears from
+ * every guest portal at once, while vouchers already sold and orders already paid
+ * keep working. Resuming puts it back, subject to the plan's package allowances
+ * because it occupies a slot again.
+ */
+export async function setPackageStatus(
+  resellerId: string,
+  actorUserId: string,
+  packageId: string,
+  status: "ACTIVE" | "ARCHIVED",
+) {
+  const ent = status === "ACTIVE" ? await currentEntitlements(resellerId) : null;
+  if (status === "ACTIVE" && !ent) forbidden("An active trial or subscription is required");
+
+  await prisma.$transaction(async (tx) => {
+    const pkg = await tx.wifiPackage.findFirst({
+      where: { id: packageId, resellerId },
+      include: { assignments: { select: { siteId: true } } },
+    });
+    if (!pkg) tenantDenied();
+    // Already in the requested state: no audit row, no cache flush, no error.
+    if (pkg.status === status) return;
+    if (ent) {
+      // Same lock create takes, so two resumes racing cannot both claim the slot.
+      await tx.$queryRaw`SELECT id FROM "Reseller" WHERE id = ${resellerId}::uuid FOR UPDATE`;
+      await assertPackageSlot(
+        tx,
+        resellerId,
+        ent,
+        pkg.assignments.map((a) => a.siteId),
+        packageId,
+      );
+    }
+    await tx.wifiPackage.update({ where: { id: packageId }, data: { status } });
+    await audit(tx, {
+      actorUserId,
+      action: status === "ACTIVE" ? "package.activated" : "package.paused",
+      targetType: "WifiPackage",
+      targetId: packageId,
+      resellerId,
+    });
+  });
+  // The portal holds a package list for up to a minute; a pause has to land on
+  // the next request, not at the end of a TTL.
+  invalidatePortalCache();
+  return { id: packageId, status };
 }
 
 export async function packageRevisions(resellerId: string, packageId: string) {

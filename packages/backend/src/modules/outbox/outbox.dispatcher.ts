@@ -13,12 +13,18 @@ export function outboxBackoffMs(attempt: number) {
  * The lease (nextAttemptAt pushed forward) makes a crashed relay's events reappear later.
  */
 export async function leaseOutboxEvents(limit = 50): Promise<OutboxEvent[]> {
-  // nextAttemptAt is written with the application clock, so compare against it (not DB now()).
-  const now = new Date();
+  // nextAttemptAt is written from the application clock, so compare against it (not DB now()).
+  // The column is `timestamp without time zone` holding UTC wall time; a JS Date
+  // parameter arrives as timestamptz and would be reinterpreted in the session's
+  // time zone, which on a +03 database makes every future event look due — and a
+  // scheduled delay (a backoff, or the 90s "take your time" hold before a device
+  // is let online) would silently collapse to "now". The clock is passed as an
+  // ISO string cast to the column's own type to keep that comparison exact.
+  const now = new Date().toISOString();
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM "OutboxEvent"
-      WHERE "dispatchedAt" IS NULL AND "nextAttemptAt" <= ${now} AND attempts < ${MAX_ATTEMPTS}
+      WHERE "dispatchedAt" IS NULL AND "nextAttemptAt" <= ${now}::timestamp AND attempts < ${MAX_ATTEMPTS}
       ORDER BY "nextAttemptAt" ASC
       LIMIT ${limit}
       FOR UPDATE SKIP LOCKED`;

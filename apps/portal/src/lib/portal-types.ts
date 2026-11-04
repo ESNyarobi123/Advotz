@@ -104,4 +104,29 @@ export type PortalExtras = {
   promotionPackages: PromotionPackage[];
 };
 
+/**
+ * The connected page's Explore feed.
+ *
+ * Fetched on its own request when a menu is opened, so a guest sees the list as
+ * it is now rather than as it was when the portal first loaded.
+ */
+export type PortalExplore = {
+  businesses: PortalBusiness[];
+  jobs: PortalListing[];
+  opportunities: PortalListing[];
+  events: PortalListing[];
+  holidays: PortalListing[];
+  promotionPackages: PromotionPackage[];
+  /** Which surfaces the site's plan shows; a hidden surface returns empty. */
+  visibility: { explore: boolean; jobs: boolean; promote: boolean };
+};
+
+/** The live session shown on the connected page. */
+export type PortalSession = {
+  packageName: string | null;
+  expiresAt: string | null;
+  devices: number;
+  maxDevices: number;
+};
+
 export type { DeliveredAdCampaign, EffectivePortalConfig, PortalAdvert, PortalBusiness, PortalCardLayout, PortalCardStyle, PortalContent, PortalTheme, PromotionPackage };

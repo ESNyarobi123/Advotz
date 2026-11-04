@@ -6,6 +6,7 @@ import { reconcilePaymentAttempt } from "../payments/payments.service.js";
 import { applyDuePlanMigrations } from "../subscriptions/plan-migrations.service.js";
 import { expireSubscriptions } from "../subscriptions/subscriptions.service.js";
 import { reconcilePayoutAttempt } from "../withdrawals/payouts.service.js";
+import { sampleActiveUsage } from "../usage/usage.service.js";
 
 const STALE_MS = 2 * 60_000;
 
@@ -57,6 +58,13 @@ export async function runSweepers(now = new Date()) {
   if (typeof grants === "object") {
     report.grantsExpired = grants.expired;
     report.grantsActivationFailed = grants.activationFailed;
+  }
+  // Read-only Controller sample. Never authorizes, disconnects or throttles.
+  const usage = await safe(() => sampleActiveUsage(now));
+  if (typeof usage === "object") {
+    report.usageSampled = usage.sampled;
+    report.usageFromController = usage.controller;
+    report.usageEstimated = usage.estimated;
   }
   await prisma.portalContext.deleteMany({ where: { expiresAt: { lt: new Date(now.getTime() - 24 * 3600_000) } } });
   return report;

@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { formatBytes, formatDuration, formatSpeed, formatTzs } from "@advo/api-client";
 import { Card } from "@heroui/react";
 import { AdvoTable } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
 import { Mono, ResourceView } from "@/features/common/components";
 import { useSiteScope } from "@/features/resellers/site-scope";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAction, useResource } from "@/lib/hooks";
 import {
@@ -31,6 +31,8 @@ import {
   Sparkles,
   MapPin,
   Archive,
+  PauseCircle,
+  Play,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,16 +58,22 @@ type PackageRow = {
 };
 type SiteOption = { id: string; name: string; state: string };
 
+/** A paused package is stored as `ARCHIVED` but is nothing like a deleted one. */
+type PackageFilter = "active" | "paused" | "all";
+
 export function ResellerPackagesScreen() {
   const { t } = useI18n();
   const { scoped } = useSiteScope();
-  const packages = useResource<PackageRow[]>(scoped("/reseller/packages"));
+  // Paused rows come back too — without them a pause would be a one-way door,
+  // because the reseller could never see the package again to switch it back on.
+  const packages = useResource<PackageRow[]>(scoped("/reseller/packages?includePaused=true"));
   const sites = useResource<SiteOption[]>("/reseller/sites");
   // Which caps each site can enforce; the form locks options the Controller would reject.
   const options = useResource<{ sites: PackageFormSiteOptions[] }>("/reseller/package-options");
   const [editing, setEditing] = useState<PackageRow | null>(null);
   const [viewMode, setViewMode] = useState<"rows" | "table">("rows");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [filter, setFilter] = useState<PackageFilter>("active");
 
   const save = useAction(async (draft: PackageDraft) => {
     const body = packageBodyFromDraft(draft);
@@ -106,21 +114,40 @@ export function ResellerPackagesScreen() {
     setIsFormOpen(false);
   };
 
-  const packageList = packages.data ?? [];
+  /**
+   * Pause or resume. Kept as a plain promise so each row can own its busy state
+   * and show its own error — a single shared pending flag would grey out every
+   * row and blame the wrong one.
+   */
+  const setStatus = async (row: PackageRow, status: "ACTIVE" | "ARCHIVED") => {
+    await api.patch(`/reseller/packages/${row.id}/status`, { status });
+    await packages.reload();
+  };
 
-  // Summary Metrics
-  const totalPackages = packageList.length;
+  const allPackages = packages.data ?? [];
+  const selling = allPackages.filter((p) => p.status === "ACTIVE");
+  const pausedCount = allPackages.length - selling.length;
+  const visible = allPackages.filter((p) =>
+    filter === "all" ? true : filter === "active" ? p.status === "ACTIVE" : p.status !== "ACTIVE",
+  );
+
+  /**
+   * The headline figures describe what guests can buy right now, so they are
+   * computed from sellable packages only — a paused tariff must not raise the
+   * average price or claim the top speed.
+   */
+  const totalPackages = selling.length;
   const avgPrice =
     totalPackages > 0
       ? Math.round(
-          packageList.reduce((acc, p) => acc + (Number(p.currentRevision?.priceTzs) || 0), 0) / totalPackages,
+          selling.reduce((acc, p) => acc + (Number(p.currentRevision?.priceTzs) || 0), 0) / totalPackages,
         )
       : 0;
-  const maxDownloadMbps = packageList.reduce((max, p) => {
+  const maxDownloadMbps = selling.reduce((max, p) => {
     const kbps = p.currentRevision?.downloadKbps ?? 0;
     return Math.max(max, Math.round(kbps / 1024));
   }, 0);
-  const unlimitedCount = packageList.filter((p) => p.currentRevision?.quotaType === "UNLIMITED").length;
+  const unlimitedCount = selling.filter((p) => p.currentRevision?.quotaType === "UNLIMITED").length;
 
   return (
     <div className="space-y-6">
@@ -237,32 +264,49 @@ export function ResellerPackagesScreen() {
       />
 
       {/* Package Display Header with View Switcher */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-advo-text">{t("reseller.packages.list.title")}</h2>
           <p className="text-xs text-slate-500">{t("reseller.packages.list.subtitle")}</p>
         </div>
-        <div className="flex items-center rounded-xl border border-advo-border bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setViewMode("rows")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-              viewMode === "rows" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <List className="h-3.5 w-3.5" />
-            {t("reseller.packages.view.cards")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-              viewMode === "table" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Table2 className="h-3.5 w-3.5" />
-            {t("reseller.packages.view.table")}
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Paused packages are only interesting when you go looking for them. */}
+          <div className="flex items-center rounded-xl border border-advo-border bg-white p-1 shadow-sm">
+            <FilterTab active={filter === "active"} onPress={() => setFilter("active")}>
+              {t("reseller.packages.filter.active")}
+              <span className="tabular-nums opacity-70">{selling.length}</span>
+            </FilterTab>
+            <FilterTab active={filter === "paused"} onPress={() => setFilter("paused")}>
+              {t("reseller.packages.filter.paused")}
+              <span className="tabular-nums opacity-70">{pausedCount}</span>
+            </FilterTab>
+            <FilterTab active={filter === "all"} onPress={() => setFilter("all")}>
+              {t("reseller.packages.filter.all")}
+              <span className="tabular-nums opacity-70">{allPackages.length}</span>
+            </FilterTab>
+          </div>
+          <div className="flex items-center rounded-xl border border-advo-border bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setViewMode("rows")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                viewMode === "rows" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              {t("reseller.packages.view.cards")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                viewMode === "table" ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Table2 className="h-3.5 w-3.5" />
+              {t("reseller.packages.view.table")}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -289,15 +333,35 @@ export function ResellerPackagesScreen() {
             );
           }
 
+          if (visible.length === 0) {
+            return (
+              <Card className="border-dashed p-10 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                  <PauseCircle className="h-6 w-6" />
+                </div>
+                <h3 className="mt-3 text-sm font-bold text-advo-text">{t("reseller.packages.filter.emptyTitle")}</h3>
+                <p className="mt-1 text-xs text-slate-500">{t("reseller.packages.filter.emptyBody")}</p>
+                <button
+                  type="button"
+                  onClick={() => setFilter(filter === "paused" ? "active" : "all")}
+                  className="mt-4 text-xs font-semibold text-advo-blue hover:underline"
+                >
+                  {t("reseller.packages.filter.showAll")}
+                </button>
+              </Card>
+            );
+          }
+
           if (viewMode === "rows") {
             return (
               <div className="flex flex-col gap-2.5">
-                {rows.map((p) => (
+                {visible.map((p) => (
                   <PackageDetailRow
                     key={p.id}
                     onArchive={() => api.del(`/reseller/packages/${p.id}`)}
                     onArchived={packages.reload}
                     onEdit={() => openEdit(p)}
+                    onSetStatus={(next) => setStatus(p, next)}
                     pkg={p}
                     t={t}
                   />
@@ -311,7 +375,7 @@ export function ResellerPackagesScreen() {
             <Card className="overflow-hidden">
               <AdvoTable
                 label={t("reseller.packages.tableLabel")}
-                rows={rows}
+                rows={visible}
                 rowKey={(p) => p.id}
                 empty={t("reseller.packages.table.empty")}
                 columns={[
@@ -368,12 +432,35 @@ export function ResellerPackagesScreen() {
                       ),
                   },
                   {
+                    key: "st",
+                    header: t("reseller.packages.col.status"),
+                    render: (p) =>
+                      p.status === "ACTIVE" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {t("reseller.packages.card.live")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                          <PauseCircle className="h-3 w-3" />
+                          {t("reseller.packages.card.paused")}
+                        </span>
+                      ),
+                  },
+                  {
                     key: "a",
                     header: "",
                     render: (p) => (
                       <div className="flex gap-2">
                         <ActionButton onRun={async () => openEdit(p)}>
                           {t("reseller.packages.card.edit")}
+                        </ActionButton>
+                        <ActionButton
+                          onRun={() => setStatus(p, p.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE")}
+                        >
+                          {p.status === "ACTIVE"
+                            ? t("reseller.packages.card.pause")
+                            : t("reseller.packages.card.resume")}
                         </ActionButton>
                         <ActionButton
                           variant="danger"
@@ -398,21 +485,25 @@ export function ResellerPackagesScreen() {
 
 type Translate = ReturnType<typeof useI18n>["t"];
 
-/** Horizontal detail row — package facts left, edit/archive pinned far right. */
+/** Horizontal detail row — package facts left, edit/pause/archive pinned far right. */
 function PackageDetailRow({
   pkg,
   t,
   onEdit,
   onArchive,
   onArchived,
+  onSetStatus,
 }: {
   pkg: PackageRow;
   t: Translate;
   onEdit: () => void;
   onArchive: () => Promise<unknown>;
   onArchived: () => void | Promise<void>;
+  onSetStatus: (status: "ACTIVE" | "ARCHIVED") => Promise<unknown>;
 }) {
-  const [archiving, setArchiving] = useState(false);
+  const [busy, setBusy] = useState<"archive" | "status" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const paused = pkg.status !== "ACTIVE";
   const r = pkg.currentRevision;
   const title = r?.name ?? pkg.name;
   const speed = r?.downloadKbps
@@ -427,28 +518,65 @@ function PackageDetailRow({
 
   async function archive() {
     if (!window.confirm(t("reseller.packages.card.archiveConfirm"))) return;
-    setArchiving(true);
+    setBusy("archive");
+    setError(null);
     try {
       await onArchive();
       await onArchived();
+    } catch (err) {
+      // A refused archive (an open voucher group, a plan limit) must say why.
+      setError(errorMessage(err));
     } finally {
-      setArchiving(false);
+      setBusy(null);
+    }
+  }
+
+  async function toggleStatus() {
+    setBusy("status");
+    setError(null);
+    try {
+      await onSetStatus(paused ? "ACTIVE" : "ARCHIVED");
+    } catch (err) {
+      // The usual refusal is the plan's package allowance, which the reseller
+      // can only fix by pausing something else — so the message must survive.
+      setError(errorMessage(err));
+    } finally {
+      setBusy(null);
     }
   }
 
   return (
-    <Card className="overflow-hidden p-0 transition-shadow hover:shadow-advo-lift">
+    <Card
+      className={`overflow-hidden p-0 transition-shadow hover:shadow-advo-lift ${
+        paused ? "border-amber-200/70 bg-amber-50/25" : ""
+      }`}
+    >
       <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-advo-blue/10 text-advo-blue ring-1 ring-advo-blue/20">
+          <span
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ${
+              paused
+                ? "bg-amber-100/70 text-amber-600 ring-amber-200"
+                : "bg-advo-blue/10 text-advo-blue ring-advo-blue/20"
+            }`}
+          >
             <Package className="h-5 w-5" />
           </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-sm font-black tracking-tight text-advo-text" title={title}>
+              <h3
+                className={`truncate text-sm font-black tracking-tight ${paused ? "text-slate-500" : "text-advo-text"}`}
+                title={title}
+              >
                 {title}
               </h3>
+              {paused ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  <PauseCircle className="h-3 w-3" />
+                  {t("reseller.packages.card.paused")}
+                </span>
+              ) : null}
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-advo-blue">
                 <Clock className="h-3 w-3" />
                 {r ? formatDuration(r.durationSeconds) : t("reseller.packages.card.custom")}
@@ -491,6 +619,15 @@ function PackageDetailRow({
                 </span>
               )}
             </dl>
+
+            {paused ? (
+              <p className="mt-1.5 text-[11px] font-medium text-amber-700">
+                {t("reseller.packages.card.pausedNote")}
+              </p>
+            ) : null}
+            {error ? (
+              <p className="mt-1.5 max-w-prose text-[11px] font-semibold text-[var(--advo-danger)]">{error}</p>
+            ) : null}
           </div>
         </div>
 
@@ -501,7 +638,14 @@ function PackageDetailRow({
             onPress={onEdit}
           />
           <RowIconButton
-            disabled={archiving}
+            disabled={busy !== null}
+            icon={paused ? Play : PauseCircle}
+            label={paused ? t("reseller.packages.card.resume") : t("reseller.packages.card.pause")}
+            onPress={() => void toggleStatus()}
+            tone={paused ? "success" : "warn"}
+          />
+          <RowIconButton
+            disabled={busy !== null}
             icon={Archive}
             label={t("reseller.packages.card.archive")}
             onPress={() => void archive()}
@@ -533,6 +677,15 @@ function FactChip({
   );
 }
 
+const ROW_ICON_TONES = {
+  default: "text-advo-muted hover:bg-advo-page hover:text-advo-text",
+  danger: "text-rose-500 hover:bg-rose-50 hover:text-rose-600",
+  /** Hide from portal — a state change, so it reads as a caution not a delete. */
+  warn: "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
+  /** Show on portal again — the package returns to sale. */
+  success: "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700",
+} as const;
+
 function RowIconButton({
   icon: Icon,
   label,
@@ -543,23 +696,43 @@ function RowIconButton({
   icon: LucideIcon;
   label: string;
   onPress: () => void;
-  tone?: "default" | "danger";
+  tone?: keyof typeof ROW_ICON_TONES;
   disabled?: boolean;
 }) {
   return (
     <button
       aria-label={label}
-      className={`grid size-9 place-items-center rounded-xl transition disabled:opacity-50 ${
-        tone === "danger"
-          ? "text-rose-500 hover:bg-rose-50 hover:text-rose-600"
-          : "text-advo-muted hover:bg-advo-page hover:text-advo-text"
-      }`}
+      className={`grid size-9 place-items-center rounded-xl transition disabled:opacity-50 ${ROW_ICON_TONES[tone]}`}
       disabled={disabled}
       onClick={onPress}
       title={label}
       type="button"
     >
       <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
+/** A count-carrying pill in the Active / Paused / All switch above the list. */
+function FilterTab({
+  active,
+  onPress,
+  children,
+}: {
+  active: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+        active ? "bg-advo-blue text-white" : "text-slate-600 hover:text-slate-900"
+      }`}
+      onClick={onPress}
+      type="button"
+    >
+      {children}
     </button>
   );
 }

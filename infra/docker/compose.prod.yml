@@ -139,6 +139,7 @@ services:
       target: portal
       args:
         NEXT_PUBLIC_API_URL: ${PORTAL_PUBLIC_URL}
+        NEXT_PUBLIC_WEB_URL: ${WEB_PUBLIC_URL}
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:4000

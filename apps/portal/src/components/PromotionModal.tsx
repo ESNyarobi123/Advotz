@@ -21,12 +21,15 @@ export function PromotionModal({
   onClose,
   slug,
   packages,
+  refreshing = false,
   theme,
 }: {
   open: boolean;
   onClose: () => void;
   slug: string;
   packages: PromotionPackage[];
+  /** A fresh price list is on its way; the current one stays readable. */
+  refreshing?: boolean;
   theme?: PortalTheme;
 }) {
   const { t } = useLocale();
@@ -79,6 +82,9 @@ export function PromotionModal({
     <PortalModal onClose={close} open={open} theme={theme} title={t("portal.promotionTitle")} size="wide">
       {panel === "packages" ? (
         <div className="space-y-4">
+          {refreshing ? (
+            <p className="text-center text-[11px] font-semibold text-[var(--advo-muted)]">{t("portal.sessionUpdating")}</p>
+          ) : null}
           <p className="text-center text-sm text-[var(--advo-muted)]">{t("portal.promotionLead")}</p>
           <p className="rounded-lg bg-amber-50 p-2 text-center text-[11px] font-semibold text-amber-700">
             {t("portal.promotionPriceNote")}

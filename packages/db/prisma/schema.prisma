@@ -559,20 +559,20 @@ model Site {
 /// reseller's choices, narrowing only their *effect*. The shape is validated by
 /// `sitePortalPreferenceSchema` in `@advo/contracts`.
 model SitePortalPreference {
-  id           String   @id @default(uuid()) @db.Uuid
-  siteId       String   @unique @db.Uuid
+  id            String   @id @default(uuid()) @db.Uuid
+  siteId        String   @unique @db.Uuid
   /// `{ primary_color, accent_color, background_color, theme_preset, logo_url, background_url, show_platform_badge }`
-  branding     Json     @default("{}")
+  branding      Json     @default("{}")
   /// The chosen package-card look; NULL means "use the plan's default style".
-  packageStyle String?
+  packageStyle  String?
   /// The chosen arrangement; NULL means "use the plan's default layout".
   packageLayout String?
   /// Ordered package ids; ignored unless the plan allows reordering.
-  packageOrder Json     @default("[]")
+  packageOrder  Json     @default("[]")
   /// `{ banner?, explore?, promote_business?, platform_link?, jobs? }`
-  visibility   Json     @default("{}")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  visibility    Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 }
@@ -1005,6 +1005,23 @@ model AccessGrantDevice {
   lastError          String?
   controllerResponse Json?
   authorizedAt       DateTime?
+  /**
+   * Rolling traffic totals for this client device, maintained by the usage
+   * sampler. `usageBytesIn` is downloaded to the guest, `usageBytesOut` is
+   * uploaded from the guest.
+   */
+  usageBytesIn       BigInt               @default(0)
+  usageBytesOut      BigInt               @default(0)
+  /**
+   * When the sampler last read (or estimated) this device's counters.
+   */
+  usageCheckedAt     DateTime?
+  /**
+   * Last raw counter from the Controller. Stored so the next sample can take a
+   * delta instead of adding the whole lifetime total again.
+   */
+  usageCounterTotal  BigInt?
+  usageSource        UsageSource?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 
@@ -1029,6 +1046,66 @@ model NetworkSession {
   device AccessGrantDevice @relation(fields: [grantDeviceId], references: [id], onDelete: Restrict)
 
   @@index([grantId])
+}
+
+// ──────────────────────────── Data usage ────────────────────────────────
+
+/**
+ * How a traffic figure was obtained.
+ * `CONTROLLER` means the Controller reported the bytes; `ESTIMATED` means the
+ * Controller could not report them (`readUsage` is not verified for every
+ * Omada version), so the sampler derived a conservative figure from the
+ * package's speed limit and the time the device was online. The dashboard
+ * always labels which share is estimated.
+ */
+enum UsageSource {
+  CONTROLLER
+  ESTIMATED
+}
+
+/**
+ * Hourly traffic bucket for one client device.
+ * Guest internet traffic never passes through Advo, so this table is the only
+ * place the platform records how much data a device used. Samples are
+ * append/accumulate only: one row per device per UTC hour, so a month of
+ * history is 720 rows per device instead of 43 200. The sampler is read-only
+ * against the Controller and never re-authorizes, disconnects or throttles a
+ * client — counting usage must not disturb the guest.
+ */
+model TrafficUsageSample {
+  id              String   @id @default(uuid()) @db.Uuid
+  resellerId      String   @db.Uuid
+  siteId          String   @db.Uuid
+  /**
+   * Nullable: a voucher guest may not have a customer row.
+   */
+  customerId      String?  @db.Uuid
+  grantId         String   @db.Uuid
+  grantDeviceId   String   @db.Uuid
+  clientMac       String
+  /**
+   * Start of the UTC hour this row accumulates into.
+   */
+  bucketStart     DateTime
+  bytesIn         BigInt   @default(0)
+  bytesOut        BigInt   @default(0)
+  /**
+   * Portion of the bytes that came from exact Controller counters.
+   */
+  controllerBytes BigInt   @default(0)
+  /**
+   * Portion of the bytes that came from the conservative estimate.
+   */
+  estimatedBytes  BigInt   @default(0)
+  lastSampledAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([grantDeviceId, bucketStart])
+  @@index([resellerId, bucketStart])
+  @@index([siteId, bucketStart])
+  @@index([customerId, bucketStart])
+  @@index([clientMac, bucketStart])
 }
 
 // ───────────────────────────── Commission ───────────────────────────────
@@ -1386,7 +1463,9 @@ enum ListingKind {
   HOLIDAY
 }
 
-/** Whether an operator typed the listing or the listing AI found it. */
+/**
+ * Whether an operator typed the listing or the listing AI found it.
+ */
 enum ListingSource {
   MANUAL
   AI
@@ -1454,19 +1533,19 @@ model PlatformListing {
  * today" history; the scheduler uses the newest rows to respect the daily caps.
  */
 model ListingAiRun {
-  id             String             @id @default(uuid()) @db.Uuid
-  trigger        ListingAiTrigger   @default(SCHEDULE)
-  status         ListingAiRunStatus @default(RUNNING)
-  model          String             @default("")
-  analysedCount  Int                @default(0)
-  postedCount    Int                @default(0)
-  skippedCount   Int                @default(0)
-  error          String?
+  id            String             @id @default(uuid()) @db.Uuid
+  trigger       ListingAiTrigger   @default(SCHEDULE)
+  status        ListingAiRunStatus @default(RUNNING)
+  model         String             @default("")
+  analysedCount Int                @default(0)
+  postedCount   Int                @default(0)
+  skippedCount  Int                @default(0)
+  error         String?
   /// Per-kind counts and the sources the model cited, for the run history.
-  detail         Json?
-  startedAt      DateTime           @default(now())
-  finishedAt     DateTime?
-  createdAt      DateTime           @default(now())
+  detail        Json?
+  startedAt     DateTime           @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime           @default(now())
 
   @@index([startedAt])
   @@index([status, startedAt])
@@ -1492,7 +1571,6 @@ model PublicHotspot {
   /**
    * The site this location actually operates, when it is an AdvoWiFi-run
    * location rather than a curated marketing entry alone.
-   *
    * The link is what makes the performance screen possible: paid Wi-Fi orders
    * are recorded against a `Site`, so without it there is nothing to report.
    * `SetNull` on delete because losing the site must not erase the marketing
@@ -1594,12 +1672,10 @@ enum MediaAssetKind {
 
 /**
  * An uploaded image that has already been through the optimiser.
- *
  * Assets live in Postgres rather than on disk on purpose: the API and worker run
  * as four separate containers with no shared volume, so a file written by one
  * replica would 404 from the next. A row survives every deploy and every replica
  * reads the same bytes.
- *
  * `bytes` holds *only* the optimised image — the raw upload is never written, so
  * the column cannot be used to store an un-processed payload. `originalBytes` and
  * `width`/`height` are kept so the dashboard can show the saving it made.

@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { AdminControllersScreen } from "@/features/admin/controllers";
 
-/** Controllers admin UI is parked — keep the route dark and the sidebar entry as a ghost. */
 export default function Page() {
-  redirect("/admin");
+  return <AdminControllersScreen />;
 }

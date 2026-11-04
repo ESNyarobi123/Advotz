@@ -721,6 +721,15 @@ export const wifiPackageInputSchema = z.object({
 });
 export type WifiPackageInput = z.infer<typeof wifiPackageInputSchema>;
 
+/**
+ * Pausing a package hides it from every guest portal while leaving its orders,
+ * vouchers and grants intact — it is not a delete and must be reversible.
+ */
+export const packageStatusInputSchema = z.object({
+  status: z.enum(["ACTIVE", "ARCHIVED"]),
+});
+export type PackageStatusInput = z.infer<typeof packageStatusInputSchema>;
+
 export const voucherGroupInputSchema = z.object({
   name: z.string().trim().min(2).max(60),
   packageId: uuidSchema,

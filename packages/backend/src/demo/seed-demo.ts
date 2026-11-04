@@ -8,7 +8,7 @@ import { saveController } from "../modules/network/controllers.service.js";
 import { SettingKey, getSetting, setSetting } from "../modules/settings/settings.service.js";
 import { startTrial, upsertPlan } from "../modules/subscriptions/subscriptions.service.js";
 import { isProduction } from "../common/providers.js";
-import { backfillSettledReceipts, seedDemoActivity, seedDemoPayments, seedDemoWithdrawals } from "./seed-demo-activity.js";
+import { backfillSettledReceipts, refreshDemoUsage, seedDemoActivity, seedDemoPayments, seedDemoUsage, seedDemoWithdrawals } from "./seed-demo-activity.js";
 
 const DEMO_TAG = "DEMO SEED — sample value, not a business decision";
 
@@ -169,6 +169,10 @@ export async function seedDemo(): Promise<DemoSeedResult> {
   }
 
   result.created.push(...(await seedDemoActivity(resellerId, ownerUserId)));
+  // Data-usage history for the dashboard card; also creates client devices for
+  // the grants above so the live sampler has something to accrue into.
+  result.created.push(...(await seedDemoUsage(resellerId)));
+  result.created.push(...(await refreshDemoUsage(resellerId)));
   // Runs on its own guard so an environment seeded before payments existed still gets them.
   result.created.push(...(await seedDemoPayments(resellerId)));
   // The payments seed only covers the newest sales; the rest still need receipts

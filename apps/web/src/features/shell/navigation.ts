@@ -117,7 +117,7 @@ export const SECTIONS: Record<Role, NavSection[]> = {
       item("/admin/commissions", "nav.commissions"),
     ]),
     section("network", "nav.group.network", [
-      item("/admin/controllers", "nav.controllers", { disabled: true }),
+      item("/admin/controllers", "nav.controllers"),
       item("/admin/network", "nav.sitesAndDevices"),
     ]),
     section("finance", "nav.group.finance", [

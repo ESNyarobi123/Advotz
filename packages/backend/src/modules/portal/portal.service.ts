@@ -14,7 +14,6 @@ import { prisma, type PortalContext } from "@advo/db";
 import { normalizeMac } from "@advo/omada";
 import { derivePublicToken, generateOpaqueToken, hashToken, normalizeVoucherCode, voucherLookupHash } from "../../common/crypto.js";
 import { badRequest, conflict, forbidden, notFound, unprocessable } from "../../common/errors.js";
-import { emitOutbox, OutboxEventType } from "../../common/events.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
 import { enforcementGaps, siteCapabilities } from "../catalog/packages.service.js";
 import { listGuestListings } from "../platform/listings.service.js";
@@ -23,7 +22,7 @@ import { saleFeeBasisPoints } from "../settings/settings.service.js";
 import { assertCanSell } from "../subscriptions/subscriptions.service.js";
 import { eligibleCampaignsForSite, resolveSiteConfig } from "../subscriptions/entitlements.service.js";
 import { currentCampaignGeneration, portalCacheKey, readPortalCache, writePortalCache } from "../subscriptions/portal-cache.js";
-import { joinGrant, packageSnapshot } from "../access/grants.service.js";
+import { activateGrantNow, CONNECT_HOLD_MS, holdAuthorization, joinGrant, packageSnapshot } from "../access/grants.service.js";
 
 const CONTEXT_TTL_MS = 30 * 60_000;
 
@@ -195,6 +194,113 @@ function cacheTtlUntil(boundary: Date | null, now: Date = new Date()): number {
   const until = boundary.getTime() - now.getTime();
   return Math.max(0, Math.min(PORTAL_CACHE_TTL_MS, until));
 }
+
+/** One guest-facing listing, with the DB columns the portal does not need removed. */
+type ExploreListing = {
+  id: string;
+  kind: string;
+  title: string;
+  organization: string;
+  location: string;
+  employmentType: string;
+  summary: string;
+  description: string;
+  venue: string | null;
+  region: string | null;
+  link: string | null;
+  contactPhone: string | null;
+  priceLabel: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+};
+
+function exploreListing(l: {
+  id: string;
+  kind: string;
+  title: string;
+  organization: string;
+  location: string;
+  employmentType: string;
+  summary: string;
+  description: string;
+  venue: string | null;
+  region: string | null;
+  link: string | null;
+  contactPhone: string | null;
+  priceLabel: string | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
+}): ExploreListing {
+  return {
+    id: l.id,
+    kind: l.kind,
+    title: l.title,
+    organization: l.organization,
+    location: l.location,
+    employmentType: l.employmentType,
+    summary: l.summary,
+    description: l.description,
+    venue: l.venue,
+    region: l.region,
+    link: l.link,
+    contactPhone: l.contactPhone,
+    priceLabel: l.priceLabel,
+    startsAt: l.startsAt?.toISOString() ?? null,
+    endsAt: l.endsAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * The connected page's Explore feed, on its own request.
+ *
+ * The bootstrap is already heavy (packages, campaigns, config, theme) and it is
+ * fetched *before* a guest has paid. This one is fetched *after* — when each
+ * Explore tile is opened — so a menu shows live listings rather than whatever
+ * was cached at the moment the page first loaded, and a guest who leaves the
+ * page open for an hour still opens a current list.
+ *
+ * The same plan visibility that hides a surface in the bootstrap hides it here:
+ * a row the reseller's plan does not include must not be reachable by calling
+ * the API directly.
+ */
+export async function portalExplore(slug: string) {
+  const site = await activeSiteBySlug(slug);
+  const resolution = await resolveSiteConfig(site.id);
+  const config = resolution?.config ?? null;
+  const cacheKey = portalCacheKey("explore", site.slug);
+  const revision = `${resolution?.config.configRevision ?? "none"}`;
+  const cached = readPortalCache<PortalExplorePayload>(cacheKey, revision);
+  if (cached) return cached;
+
+  const exploreVisible = config?.visibility["ads.explore"]?.visible ?? false;
+  const jobsVisible = config?.visibility["discovery.jobs"]?.visible ?? false;
+  const promoteVisible = config?.visibility["discovery.promote_business"]?.visible ?? false;
+  const content = site.portalContent ? portalContentWithDefaults(site.portalContent) : PORTAL_CONTENT_STARTER;
+  const listings = exploreVisible || jobsVisible ? await listGuestListings(60).catch(() => []) : [];
+  const ofKind = (kind: string) => listings.filter((l) => l.kind === kind).map(exploreListing);
+
+  const payload: PortalExplorePayload = {
+    businesses: exploreVisible ? content.businesses : [],
+    jobs: jobsVisible ? ofKind("JOB") : [],
+    opportunities: jobsVisible ? ofKind("OPPORTUNITY") : [],
+    events: exploreVisible ? ofKind("LOCAL_EVENT") : [],
+    holidays: exploreVisible ? ofKind("HOLIDAY") : [],
+    promotionPackages: promoteVisible ? PROMOTION_PACKAGES : [],
+    visibility: { explore: exploreVisible, jobs: jobsVisible, promote: promoteVisible },
+  };
+  writePortalCache(cacheKey, revision, PORTAL_CACHE_TTL_MS, payload);
+  return payload;
+}
+
+type PortalExplorePayload = {
+  businesses: Array<{ id: string; name: string; category: string; glyph: string; color: string }>;
+  jobs: ExploreListing[];
+  opportunities: ExploreListing[];
+  events: ExploreListing[];
+  holidays: ExploreListing[];
+  promotionPackages: readonly unknown[];
+  visibility: { explore: boolean; jobs: boolean; promote: boolean };
+};
 
 /** Re-orders assigned packages by the reseller's saved order and stamps the resolved card style. */
 function applyPackageOrderAndStyle<T extends { packageId: string }>(
@@ -424,6 +530,11 @@ export async function portalOrderStatus(orderToken: string) {
           activatedAt: order.grant.activatedAt,
           expiresAt: order.grant.expiresAt,
           maxDevices: order.grant.maxDevices,
+          /** Countdown to the automatic connect; null once the session is live. */
+          connectBy:
+            order.grant.state === "PENDING_ACTIVATION"
+              ? new Date(order.grant.createdAt.getTime() + CONNECT_HOLD_MS).toISOString()
+              : null,
           devices: order.grant.devices.map((d) => ({ mac: maskMac(d.clientMac), state: d.authState })),
         }
       : null,
@@ -499,7 +610,7 @@ export async function redeemVoucher(input: { contextToken: string; code: string 
       },
     });
     const device = await tx.accessGrantDevice.create({ data: { grantId, clientMac: ctx.clientMac, portalContextId: ctx.id } });
-    await emitOutbox(tx, OutboxEventType.GRANT_AUTHORIZE, "AccessGrantDevice", device.id, { grantDeviceId: device.id });
+    await holdAuthorization(tx, device.id);
     return { recoveryToken, grantDeviceState: device.authState };
   });
   return result;
@@ -517,9 +628,31 @@ export async function grantStatus(recoveryToken: string) {
     activatedAt: grant.activatedAt,
     expiresAt: grant.expiresAt,
     maxDevices: grant.maxDevices,
+    /**
+     * When the held session opens itself. Guests see a countdown from this so
+     * "the site opens without me" is never a surprise — and a page left open in
+     * a pocket still ends up online.
+     */
+    connectBy:
+      grant.state === "PENDING_ACTIVATION"
+        ? new Date(grant.createdAt.getTime() + CONNECT_HOLD_MS).toISOString()
+        : null,
     package: grant.packageSnapshot,
     devices: grant.devices.map((d) => ({ mac: maskMac(d.clientMac), state: d.authState })),
   };
+}
+
+/**
+ * The guest tapped "Connect": call the Controller now instead of waiting out the
+ * 90s hold. Returns the grant as it stands — the Controller call itself runs in
+ * the worker, so the caller polls `grantStatus` for ACTIVE.
+ */
+export async function activateGrant(recoveryToken: string) {
+  const grant = await prisma.accessGrant.findUnique({ where: { recoveryTokenHash: hashToken(recoveryToken) } });
+  if (!grant) notFound("Access not found");
+  await enforceRateLimit("grant-activate", grant.id, 60, 60);
+  const result = await activateGrantNow(grant.id);
+  return { ...result, status: await grantStatus(recoveryToken) };
 }
 
 export async function joinWithRecoveryToken(input: { contextToken: string; recoveryToken: string }, ip: string) {

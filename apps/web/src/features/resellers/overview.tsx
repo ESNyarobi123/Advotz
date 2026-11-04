@@ -17,6 +17,7 @@ import {
 import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
 import { accountStatusLabel, paymentStateLabel, subscriptionStateLabel } from "@/features/common/labels";
 import { SiteScopeSwitcher, useSiteScope } from "@/features/resellers/site-scope";
+import { ResellerUsageCard } from "@/features/resellers/usage-card";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { useResource } from "@/lib/hooks";
 import {
@@ -656,6 +657,9 @@ function OverviewBody({
           </section>
         )}
       </ResourceView>
+
+      {/* ── Data usage (GB) ── */}
+      <ResellerUsageCard />
 
       {/* ── Sites ── */}
       <Card className="space-y-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">

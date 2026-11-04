@@ -33,6 +33,45 @@ function authBackoffMs(attempt: number) {
   return Math.min(10 * 60_000, 3_000 * 2 ** Math.max(0, attempt - 1));
 }
 
+/**
+ * How long a paid session waits for the guest to tap "Connect", before the
+ * Controller is called anyway.
+ *
+ * The device is only online once we call the Controller, and the phone's captive
+ * window is only on screen while the device is *not* online. Authorizing the
+ * instant payment clears therefore closes the window the guest is reading — the
+ * menus exist for the seconds it takes the operating system to notice. Holding
+ * the call keeps the window open while they look around, and the hold expiring
+ * guarantees nobody is left paid-but-offline because they walked away.
+ */
+export const CONNECT_HOLD_MS = 90_000;
+
+/** Schedules the Controller call after the hold instead of immediately. */
+export async function holdAuthorization(tx: Tx, grantDeviceId: string) {
+  await scheduleAuthorize(tx, grantDeviceId, CONNECT_HOLD_MS);
+}
+
+/**
+ * Brings the Controller call forward for a grant that is still waiting.
+ *
+ * Called when the guest taps "Connect": the hold exists to give them time, not
+ * to make them wait. Idempotent — an already active grant is left alone, and the
+ * worker skips a device that is already authorizing.
+ */
+export async function activateGrantNow(grantId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "AccessGrant" WHERE id = ${grantId}::uuid FOR UPDATE`;
+    const grant = await tx.accessGrant.findUniqueOrThrow({ where: { id: grantId } });
+    if (grant.state !== "PENDING_ACTIVATION") return { state: grant.state, scheduled: 0 };
+    const devices = await tx.accessGrantDevice.findMany({
+      where: { grantId, authState: { in: ["RESERVED", "UNKNOWN"] } },
+      select: { id: true },
+    });
+    for (const device of devices) await scheduleAuthorize(tx, device.id);
+    return { state: grant.state, scheduled: devices.length };
+  });
+}
+
 async function scheduleAuthorize(tx: Tx, grantDeviceId: string, delayMs = 0) {
   const ev = await emitOutbox(tx, OutboxEventType.GRANT_AUTHORIZE, "AccessGrantDevice", grantDeviceId, { grantDeviceId });
   if (delayMs > 0) {
@@ -70,7 +109,7 @@ export async function createGrantForOrder(orderId: string) {
       data: { grantId: grant.id, clientMac: order.clientMac, portalContextId: order.portalContextId },
     });
     await tx.order.update({ where: { id: orderId }, data: { fulfillmentState: "PENDING" } });
-    await scheduleAuthorize(tx, device.id);
+    await holdAuthorization(tx, device.id);
     return { status: "created" as const, grantId: grant.id, grantDeviceId: device.id };
   });
 }

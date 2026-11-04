@@ -118,8 +118,10 @@ export function AdminControllersScreen() {
   }
 
   const stats = useMemo(() => {
-    const live = rows.filter((c) => c.mode === "LIVE").length;
-    const simulated = rows.filter((c) => c.mode === "FAKE").length;
+    // Retired Controllers keep their mode but serve nothing, so the headline counts
+    // only deployed ones — otherwise "N live" disagrees with the LIVE filter below.
+    const live = rows.filter((c) => c.mode === "LIVE" && c.active).length;
+    const simulated = rows.filter((c) => c.mode === "FAKE" && c.active).length;
     const active = rows.filter((c) => c.active);
     const reachable = active.filter((c) => c.healthStatus === "reachable").length;
     const total = rows.reduce((sum, c) => sum + coverageOf(c).total, 0);

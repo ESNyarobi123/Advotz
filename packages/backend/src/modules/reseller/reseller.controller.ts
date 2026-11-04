@@ -6,6 +6,7 @@ import {
   deviceWifiSchema,
   FEATURE_LOCKED_BY_PLAN,
   payoutDestinationInputSchema,
+  packageStatusInputSchema,
   renameSchema,
   siteInputSchema,
   sitePortalPreferenceInputSchema,
@@ -26,7 +27,7 @@ import { CurrentUser, Roles, RolesGuard, SessionAuthGuard, requireResellerId, ty
 import { enumQuery, parse, type HttpReply } from "../../common/http.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
 import { getGrantForReseller, listGrants, retryGrantDevice, revokeGrant } from "../access/grants.service.js";
-import { archivePackage, createPackage, listPackages, packageRevisions, packageSiteOptions, updatePackage } from "../catalog/packages.service.js";
+import { archivePackage, createPackage, listPackages, packageRevisions, packageSiteOptions, setPackageStatus, updatePackage } from "../catalog/packages.service.js";
 import {
   archiveVoucherGroup,
   createVoucherGroup,
@@ -41,6 +42,7 @@ import { archiveSite, createDeviceWifi, createSite, getSite, listDeviceClaims, l
 import { kickOutbox } from "../outbox/outbox.dispatcher.js";
 import { listPromotionRequests, updatePromotionRequestState } from "../platform/listings.service.js";
 import { resellerCustomers, resellerOrders, resellerOverview } from "../reports/reports.service.js";
+import { USAGE_RANGES, resellerUsage } from "../usage/usage.service.js";
 import { checkoutSubscription, getSubscriptionView, listActivePlans, startTrial } from "../subscriptions/subscriptions.service.js";
 import {
   PreferenceRejected,
@@ -232,9 +234,15 @@ export class ResellerController {
 
   // ── Packages ──
   @Get("packages")
-  async packages(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+  async packages(
+    @CurrentUser() a: RequestActor,
+    @Query("siteId") siteId?: string,
+    @Query("includePaused") includePaused?: string,
+  ) {
     const resellerId = requireResellerId(a);
-    return listPackages(resellerId, await optionalSiteId(resellerId, siteId));
+    // Paused rows are opt-in: the voucher and portal pickers share this route and
+    // must never offer a tariff that is hidden from guests.
+    return listPackages(resellerId, await optionalSiteId(resellerId, siteId), includePaused === "true");
   }
 
   @Post("packages")
@@ -251,6 +259,18 @@ export class ResellerController {
   @Put("packages/:id")
   updatePackage(@CurrentUser() a: RequestActor, @Param("id") packageId: string, @Body() body: unknown) {
     return updatePackage(requireResellerId(a), a.id, id(packageId), parse(wifiPackageInputSchema, body));
+  }
+
+  /**
+   * Pause or resume a package without touching its revisions.
+   *
+   * Separate from `DELETE` on purpose: a pause is reversible and keeps the
+   * tariff's price history, while archiving is the end of the road.
+   */
+  @Patch("packages/:id/status")
+  packageStatus(@CurrentUser() a: RequestActor, @Param("id") packageId: string, @Body() body: unknown) {
+    const { status } = parse(packageStatusInputSchema, body);
+    return setPackageStatus(requireResellerId(a), a.id, id(packageId), status);
   }
 
   @Delete("packages/:id")
@@ -347,6 +367,30 @@ export class ResellerController {
   async customers(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
     const resellerId = requireResellerId(a);
     return resellerCustomers(resellerId, await optionalSiteId(resellerId, siteId));
+  }
+
+  // ── Guest data usage (GB) ──
+  /**
+   * Per-device traffic for the dashboard card.
+   *
+   * `range` is today / yesterday / week / month, `customerId` narrows it to one
+   * client, and the existing site scope still applies. The service only ever
+   * counts bytes already recorded for this reseller; it does not contact the
+   * Controller on a read, so opening the dashboard cannot disturb a guest.
+   */
+  @Get("usage")
+  async usage(
+    @CurrentUser() a: RequestActor,
+    @Query("range") range?: string,
+    @Query("customerId") customerId?: string,
+    @Query("siteId") siteId?: string,
+  ) {
+    const resellerId = requireResellerId(a);
+    return resellerUsage(resellerId, {
+      range: enumQuery(range, USAGE_RANGES, "range") ?? "today",
+      siteId: await optionalSiteId(resellerId, siteId),
+      customerId: customerId ? id(customerId) : undefined,
+    });
   }
 
   // ── Wallet & withdrawals ──

@@ -34,6 +34,31 @@ import { OmadaPortalClient } from "./portal-client.js";
 import { ControllerTransport } from "./transport.js";
 import { PORTAL_PROFILES, selectPortalProfile, type PortalTimeSemantics } from "./versions/portal-serializers.js";
 
+/**
+ * Field names different Omada builds have used for per-client traffic on the
+ * client-list row. Only one of each group is normally present; unknown fields
+ * are ignored, so a Controller that exposes none simply returns no counters.
+ */
+const CLIENT_BYTES_IN_FIELDS = ["bytesIn", "trafficDownBytes", "trafficDown", "downloadBytes", "downBytes", "rxBytes"];
+const CLIENT_BYTES_OUT_FIELDS = ["bytesOut", "trafficUpBytes", "trafficUp", "uploadBytes", "upBytes", "txBytes"];
+const CLIENT_BYTES_TOTAL_FIELDS = ["bytesTotal", "trafficTotalBytes", "totalTraffic", "totalBytes", "trafficBytes"];
+
+/** Coerces a Controller counter to `bigint`, rejecting negatives and junk. */
+function counterValue(value: unknown): bigint | undefined {
+  if (typeof value === "bigint") return value >= 0n ? value : undefined;
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) return BigInt(Math.trunc(value));
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) return BigInt(value.trim());
+  return undefined;
+}
+
+function firstCounter(row: Record<string, unknown>, keys: readonly string[]): bigint | undefined {
+  for (const key of keys) {
+    const found = counterValue(row[key]);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
 export type LiveControllerConfig = {
   baseUrl: string;
   omadacId: string;
@@ -349,6 +374,12 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
       apMac: r.apMac ? String(r.apMac) : undefined,
       ssidName: r.ssid ? String(r.ssid) : undefined,
       connected: true,
+      // Traffic fields are opportunistic: the contract does not list them, but
+      // several Omada builds expose them on the client row. Reading is harmless
+      // and lets the usage sampler use exact counters when they exist.
+      bytesIn: firstCounter(r, CLIENT_BYTES_IN_FIELDS),
+      bytesOut: firstCounter(r, CLIENT_BYTES_OUT_FIELDS),
+      bytesTotal: firstCounter(r, CLIENT_BYTES_TOTAL_FIELDS),
     }));
   }
 

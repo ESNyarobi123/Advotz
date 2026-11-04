@@ -15,7 +15,7 @@ import { archiveVoucherGroup, createVoucherGroup, deleteUnusedVouchers, exportVo
 import { assertCanSell, checkoutSubscription, expireSubscriptions, startTrial, upsertPlan } from "./subscriptions/subscriptions.service.js";
 import { createPolicy, evaluateSubscriptionCommission } from "./commissions/commissions.service.js";
 import { setSetting, SettingKey } from "./settings/settings.service.js";
-import { createPortalContext, createPortalOrder, joinWithRecoveryToken, portalBootstrap, portalOrderStatus, redeemVoucher, submitPromotion } from "./portal/portal.service.js";
+import { activateGrant, createPortalContext, createPortalOrder, joinWithRecoveryToken, portalBootstrap, portalExplore, portalOrderStatus, redeemVoucher, submitPromotion } from "./portal/portal.service.js";
 import { createPlatformListing, listPromotionRequests, updatePromotionRequestState } from "./platform/listings.service.js";
 import { joinGrant, revokeGrant, sweepGrants } from "./access/grants.service.js";
 import { accountBalance, agentAccount, platformAccount, postJournal, resellerAccount, trialBalance } from "./ledger/ledger.service.js";
@@ -46,10 +46,36 @@ async function payAttempt(attemptRef: string, amount: bigint, fee = 100, account
   });
 }
 
-/** Drains the outbox, first making backed-off events due (simulates time passing). */
+/**
+ * Drains the outbox, first making backed-off events due (simulates time passing).
+ *
+ * Repeated in passes because a pass creates events of its own — a paid order's
+ * device authorization, for instance — which are scheduled for later (a backoff,
+ * or the 90s hold before the guest is let online). Each pass advances the clock
+ * again, which is what "simulates time passing" means for the whole cascade.
+ */
 async function drainAll() {
-  await prisma.outboxEvent.updateMany({ where: { dispatchedAt: null }, data: { nextAttemptAt: new Date(0) } });
-  return drainOutbox(20);
+  const total = { processed: 0, failed: 0 };
+  for (let pass = 0; pass < 3; pass++) {
+    await prisma.outboxEvent.updateMany({ where: { dispatchedAt: null }, data: { nextAttemptAt: new Date(0) } });
+    const round = await drainOutbox(20);
+    total.processed += round.processed;
+    total.failed += round.failed;
+    if (round.processed === 0) break;
+  }
+  return total;
+}
+
+/**
+ * Ends the "Start browsing" hold on queued authorizations — what the guest's tap
+ * does, and what the 90-second fallback does if they walk away.
+ */
+async function releaseHold() {
+  const { count } = await prisma.outboxEvent.updateMany({
+    where: { dispatchedAt: null, eventType: "grant.authorize" },
+    data: { nextAttemptAt: new Date(0) },
+  });
+  return count;
 }
 
 async function latestAttempt(orderId: string) {
@@ -245,6 +271,22 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     expect(bootstrap.promotionPackages.length).toBeGreaterThan(0);
   });
 
+  /**
+   * The connected page asks for its Explore feed on its own request. It has to
+   * answer with the same curated site content the bootstrap would have used, and
+   * with the same policies: a surface the plan hides must not be reachable by
+   * calling this endpoint directly.
+   */
+  it("serves the connected page's Explore feed under the same visibility rules", async () => {
+    const explore = await portalExplore(slugA);
+    expect(explore.businesses.map((b) => b.name)).toEqual(["Kimara Cafe"]);
+    // The hidden opportunity is filtered out before it is grouped by kind.
+    expect(explore.jobs.map((l) => l.title)).toEqual(["Shop Assistant"]);
+    expect(explore.opportunities).toEqual([]);
+    expect(explore.promotionPackages.length).toBeGreaterThan(0);
+    expect(explore.visibility).toMatchObject({ explore: true, jobs: true, promote: true });
+  });
+
   it("accepts a banner-promotion request from a guest and lists it for the reseller", async () => {
     await submitPromotion(
       slugA,
@@ -307,6 +349,39 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
 
     // Ledger: 10,000 gross − 100 provider fee − 1,000 platform fee (10%) = 8,900 reseller payable.
     expect(await accountBalance(prisma, resellerAccount(A.resellerId, "RESELLER_PAYABLE"))).toBe(8_900n);
+  });
+
+  it("holds a paid session so its connected page can be read, then opens it on request", async () => {
+    const ctx = await createPortalContext(slugA, { clientMac: "11:22:33:44:55:b1", apMac: "aa:bb:cc:00:00:01", ssidName: "Cafe WiFi", radioId: "1" }, IP);
+    const order = await createPortalOrder({ contextToken: ctx.contextToken, packageId: packageA, idempotencyKey: "portal-order-hold", ...payer("+255712000444") }, IP);
+    const dbOrder = await prisma.order.findFirstOrThrow({ where: { requestIdempotencyKey: "portal-order-hold" } });
+    await payAttempt((await latestAttempt(dbOrder.id)).providerReference!, PRICE, 100);
+
+    // Payment creates the grant, but the Controller is not called yet: the phone
+    // stays off the network so the captive window survives long enough to read.
+    await drainOutbox(3);
+    const grant = await prisma.accessGrant.findFirstOrThrow({ where: { orderId: dbOrder.id }, include: { devices: true } });
+    expect(grant.state).toBe("PENDING_ACTIVATION");
+    expect(grant.devices[0]!.authState).toBe("RESERVED");
+    expect(grant.devices[0]!.authorizedAt).toBeNull();
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: dbOrder.id } })).fulfillmentState).toBe("PENDING");
+
+    // The guest sees the menus and a countdown, and the clock has not started.
+    const held = await portalOrderStatus(order.orderToken);
+    expect(held.access?.state).toBe("PENDING_ACTIVATION");
+    const holdMs = new Date(held.access!.connectBy!).getTime() - grant.createdAt.getTime();
+    expect(holdMs).toBeGreaterThan(80_000);
+    expect(holdMs).toBeLessThanOrEqual(95_000);
+
+    // Tapping "Start browsing" brings the Controller call forward.
+    const activated = await activateGrant(order.orderToken);
+    expect(activated.scheduled).toBe(1);
+    await drainOutbox(3);
+    const live = await prisma.accessGrant.findFirstOrThrow({ where: { id: grant.id }, include: { devices: true } });
+    expect(live.state).toBe("ACTIVE");
+    expect(live.devices[0]!.authState).toBe("AUTHORIZED");
+    expect(live.expiresAt!.getTime()).toBeGreaterThan(Date.now());
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: dbOrder.id } })).fulfillmentState).toBe("FULFILLED");
   });
 
   it("confirms payment from a Snippe status lookup while the guest is waiting", async () => {
@@ -431,7 +506,11 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
     await createPortalOrder({ contextToken: ctx.contextToken, packageId: packageA, idempotencyKey: "portal-order-timeout", ...payer("+255712000222") }, IP);
     const order = await prisma.order.findFirstOrThrow({ where: { requestIdempotencyKey: "portal-order-timeout" } });
     await payAttempt((await latestAttempt(order.id)).providerReference!, PRICE, 100);
+    // The 90s "take your time" hold is what stands between payment and the
+    // Controller call; ending it is what a guest does by tapping Connect.
     await drainOutbox(3);
+    await releaseHold();
+    await drainOutbox(2);
     let grant = await prisma.accessGrant.findFirstOrThrow({ where: { orderId: order.id }, include: { devices: true } });
     expect(grant.devices[0]!.authState).toBe("UNKNOWN");
     const candidate = grant.candidateExpiresAt!.getTime();

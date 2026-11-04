@@ -36,6 +36,9 @@ RUN test -n "$NEXT_PUBLIC_API_URL" && test -n "$NEXT_PUBLIC_PORTAL_URL" \
 
 FROM workspace AS portal-build
 ARG NEXT_PUBLIC_API_URL
+# The connected page links out to the platform site; without this arg the link
+# falls back to a constant, which is wrong on any other domain.
+ARG NEXT_PUBLIC_WEB_URL
 RUN test -n "$NEXT_PUBLIC_API_URL" && pnpm --filter @advo/portal build
 
 # ── backend runtime: API, worker and the one-shot migration task ────────────

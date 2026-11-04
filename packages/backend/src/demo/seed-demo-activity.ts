@@ -262,6 +262,302 @@ export async function seedDemoActivity(resellerId: string, actorUserId: string):
 }
 
 /**
+ * Demo data usage for the Reseller dashboard's "Data usage (GB)" card.
+ *
+ * The dashboard needs both an active device (so the live counters have
+ * somewhere to accrue) and history (so Today / Yesterday / 7 days / 30 days
+ * all have a shape). For every paid order in the last 30 days this ensures the
+ * grant and the client device exist, then writes a handful of hourly samples
+ * inside the grant's lifetime. A slice is marked estimated so the UI's
+ * "estimated share" path is exercised too.
+ *
+ * Idempotent: it returns early once the reseller has any usage sample.
+ */
+export async function seedDemoUsage(resellerId: string): Promise<string[]> {
+  if (await prisma.trafficUsageSample.count({ where: { resellerId } })) {
+    return ["demo data usage already present — skipped"];
+  }
+
+  const now = new Date();
+  const since = new Date(now.getTime() - 30 * 86_400_000);
+  const orders = await prisma.order.findMany({
+    where: {
+      resellerId,
+      purpose: "WIFI_PACKAGE",
+      paymentState: { in: ["PAID", "OVERPAID"] },
+      createdAt: { gte: since },
+      siteId: { not: null },
+      packageRevisionId: { not: null },
+    },
+    select: {
+      id: true,
+      siteId: true,
+      customerId: true,
+      packageRevisionId: true,
+      priceSnapshot: true,
+      clientMac: true,
+      paidAt: true,
+      createdAt: true,
+      grant: { select: { id: true, devices: { select: { id: true, clientMac: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 160,
+  });
+  if (orders.length === 0) return ["no paid orders to attach data usage to"];
+
+  const random = makeRandom(20261102);
+  type PendingSample = {
+    resellerId: string;
+    siteId: string;
+    customerId: string | null;
+    grantId: string;
+    grantDeviceId: string;
+    clientMac: string;
+    bucketStart: Date;
+    bytesIn: bigint;
+    bytesOut: bigint;
+    controllerBytes: bigint;
+    estimatedBytes: bigint;
+    lastSampledAt: Date;
+  };
+  const samples = new Map<string, PendingSample>();
+  const deviceTotals = new Map<string, { bytesIn: bigint; bytesOut: bigint; last: Date; active: boolean }>();
+  let grants = 0;
+  let devices = 0;
+
+  for (const [index, order] of orders.entries()) {
+    if (!order.siteId || !order.packageRevisionId) continue;
+    const snapshot = (order.priceSnapshot ?? {}) as { durationSeconds?: number };
+    const durationSeconds = Number(snapshot.durationSeconds) > 0 ? Number(snapshot.durationSeconds) : 86_400;
+    const paidAt = order.paidAt ?? order.createdAt;
+    const activatedAt = new Date(paidAt.getTime() + 60_000);
+    const expiresAt = new Date(activatedAt.getTime() + durationSeconds * 1000);
+
+    let grant = order.grant;
+    if (!grant) {
+      grant = await prisma.accessGrant.create({
+        data: {
+          resellerId,
+          siteId: order.siteId,
+          orderId: order.id,
+          packageRevisionId: order.packageRevisionId,
+          packageSnapshot: order.priceSnapshot as never,
+          durationSeconds,
+          maxDevices: 2,
+          state: expiresAt > now ? "ACTIVE" : "EXPIRED",
+          activationDeadline: new Date(activatedAt.getTime() + 3600_000),
+          activatedAt,
+          candidateActivatedAt: activatedAt,
+          candidateExpiresAt: expiresAt,
+          confirmedAt: activatedAt,
+          expiresAt,
+        },
+        select: { id: true, devices: { select: { id: true, clientMac: true } } },
+      });
+      grants += 1;
+    }
+
+    let device = grant.devices[0];
+    if (!device) {
+      const mac = order.clientMac ?? `02:00:${String(index % 250).padStart(2, "0")}:00:00:${String(index % 250).padStart(2, "0")}`;
+      device = await prisma.accessGrantDevice.create({
+        data: {
+          grantId: grant.id,
+          clientMac: mac,
+          authState: "AUTHORIZED",
+          authorizedAt: activatedAt,
+          usageCheckedAt: expiresAt > now ? now : null,
+          usageSource: "ESTIMATED",
+        },
+        select: { id: true, clientMac: true },
+      });
+      devices += 1;
+    }
+
+    // History is generated inside the grant's real lifetime so a filter can
+    // never show usage before the package existed or after it ended.
+    const windowStart = Math.max(activatedAt.getTime(), since.getTime());
+    const windowEnd = Math.min(expiresAt.getTime(), now.getTime());
+    if (windowEnd <= windowStart) continue;
+    const active = expiresAt > now;
+    const rowsForDevice = 2 + Math.floor(random() * 6);
+
+    for (let i = 0; i < rowsForDevice; i += 1) {
+      const at = new Date(windowStart + Math.floor(random() * (windowEnd - windowStart)));
+      const bucketStart = new Date(Math.floor(at.getTime() / 3_600_000) * 3_600_000);
+      const megabytes = 40 + Math.floor(random() * 420);
+      const bytes = BigInt(megabytes) * 1024n * 1024n;
+      const bytesOut = bytes / 10n;
+      const bytesIn = bytes - bytesOut;
+      const estimated = random() < 0.3 ? (bytes * BigInt(10 + Math.floor(random() * 35))) / 100n : 0n;
+      const key = `${device.id}|${bucketStart.toISOString()}`;
+      const existing = samples.get(key) ?? {
+        resellerId,
+        siteId: order.siteId,
+        customerId: order.customerId,
+        grantId: grant.id,
+        grantDeviceId: device.id,
+        clientMac: device.clientMac,
+        bucketStart,
+        bytesIn: 0n,
+        bytesOut: 0n,
+        controllerBytes: 0n,
+        estimatedBytes: 0n,
+        lastSampledAt: at,
+      };
+      existing.bytesIn += bytesIn;
+      existing.bytesOut += bytesOut;
+      existing.estimatedBytes += estimated;
+      existing.controllerBytes += bytes - estimated;
+      if (at > existing.lastSampledAt) existing.lastSampledAt = at;
+      samples.set(key, existing);
+
+      const total = deviceTotals.get(device.id) ?? { bytesIn: 0n, bytesOut: 0n, last: at, active };
+      total.bytesIn += bytesIn;
+      total.bytesOut += bytesOut;
+      if (at > total.last) total.last = at;
+      total.active = total.active || active;
+      deviceTotals.set(device.id, total);
+    }
+  }
+
+  if (samples.size === 0) return ["no demo data usage rows were generated"];
+  await prisma.trafficUsageSample.createMany({ data: [...samples.values()], skipDuplicates: true });
+  for (const [deviceId, totals] of deviceTotals) {
+    await prisma.accessGrantDevice.update({
+      where: { id: deviceId },
+      data: {
+        usageBytesIn: totals.bytesIn,
+        usageBytesOut: totals.bytesOut,
+        usageCheckedAt: totals.active ? now : totals.last,
+        usageSource: "ESTIMATED",
+      },
+    });
+  }
+
+  return [`${samples.size} data-usage samples across ${orders.length} client devices (${grants} grants, ${devices} devices added)`];
+}
+
+/**
+ * Keeps the data-usage card's Today / Yesterday / 7-day filters populated.
+ *
+ * `seedDemoUsage` writes history inside each package's real lifetime, but those
+ * fixtures age with the demo database: a fortnight later every recent filter
+ * reads zero. This re-opens the newest packages, keeps their device authorised,
+ * and writes hourly samples for the last 26 hours — enough for every filter to
+ * have a shape and for the live sampler to have an online device to accrue into.
+ *
+ * Only touches this reseller, and is idempotent: it stops as soon as a sample
+ * already exists in the current hour.
+ */
+export async function refreshDemoUsage(resellerId: string): Promise<string[]> {
+  const now = new Date();
+  const hourStart = new Date(Math.floor(now.getTime() / 3_600_000) * 3_600_000);
+  if (await prisma.trafficUsageSample.count({ where: { resellerId, bucketStart: { gte: hourStart } } })) {
+    return ["recent demo data usage already present — skipped"];
+  }
+
+  const orders = await prisma.order.findMany({
+    where: { resellerId, purpose: "WIFI_PACKAGE", paymentState: { in: ["PAID", "OVERPAID"] }, siteId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    take: 6,
+    select: {
+      id: true,
+      siteId: true,
+      customerId: true,
+      clientMac: true,
+      priceSnapshot: true,
+      grant: { select: { id: true, devices: { select: { id: true, clientMac: true }, take: 1 } } },
+    },
+  });
+
+  const random = makeRandom(20261102);
+  const activatedAt = new Date(now.getTime() - 26 * 3_600_000);
+  let samples = 0;
+  let devices = 0;
+
+  for (const order of orders) {
+    if (!order.siteId || !order.grant) continue;
+    const snapshot = (order.priceSnapshot ?? {}) as { durationSeconds?: number };
+    const durationSeconds = Number(snapshot.durationSeconds) > 0 ? Number(snapshot.durationSeconds) : 86_400;
+    const expiresAt = new Date(now.getTime() + durationSeconds * 1000);
+
+    // Re-open the package so "Active users" and the live sampler both have a
+    // real grant to work with instead of an expired fixture.
+    const grant = await prisma.accessGrant.update({
+      where: { id: order.grant.id },
+      data: {
+        state: "ACTIVE",
+        activatedAt,
+        candidateActivatedAt: activatedAt,
+        expiresAt,
+        candidateExpiresAt: expiresAt,
+        revokedAt: null,
+      },
+      select: { id: true, devices: { select: { id: true, clientMac: true }, take: 1 } },
+    });
+
+    let device = grant.devices[0];
+    if (!device) {
+      const mac = order.clientMac ?? `02:00:${String(samples % 250).padStart(2, "0")}:00:00:${String(devices % 250).padStart(2, "0")}`;
+      device = await prisma.accessGrantDevice.create({
+        data: { grantId: grant.id, clientMac: mac, authState: "AUTHORIZED", authorizedAt: activatedAt, usageCheckedAt: now, usageSource: "ESTIMATED" },
+        select: { id: true, clientMac: true },
+      });
+      devices += 1;
+    } else {
+      await prisma.accessGrantDevice.update({
+        where: { id: device.id },
+        data: { authState: "AUTHORIZED", authorizedAt: activatedAt, usageCheckedAt: now },
+      });
+    }
+
+    for (let offset = 0; offset < 26; offset += 1) {
+      if (random() < 0.25) continue; // quiet hours keep the trend bars uneven
+      const bucketStart = new Date(hourStart.getTime() - offset * 3_600_000);
+      const megabytes = 60 + Math.floor(random() * 900);
+      const bytes = BigInt(megabytes) * 1024n * 1024n;
+      const bytesOut = bytes / 12n;
+      const bytesIn = bytes - bytesOut;
+      // Every fourth hour is estimated, so both source paths render.
+      const estimated = offset % 4 === 0 ? (bytes * BigInt(10 + Math.floor(random() * 30))) / 100n : 0n;
+      await prisma.trafficUsageSample.upsert({
+        where: { grantDeviceId_bucketStart: { grantDeviceId: device.id, bucketStart } },
+        create: {
+          resellerId,
+          siteId: order.siteId,
+          customerId: order.customerId,
+          grantId: grant.id,
+          grantDeviceId: device.id,
+          clientMac: device.clientMac,
+          bucketStart,
+          bytesIn,
+          bytesOut,
+          controllerBytes: bytes - estimated,
+          estimatedBytes: estimated,
+          lastSampledAt: now,
+        },
+        update: {
+          bytesIn: { increment: bytesIn },
+          bytesOut: { increment: bytesOut },
+          controllerBytes: { increment: bytes - estimated },
+          estimatedBytes: { increment: estimated },
+          lastSampledAt: now,
+        },
+      });
+      await prisma.accessGrantDevice.update({
+        where: { id: device.id },
+        data: { usageBytesIn: { increment: bytesIn }, usageBytesOut: { increment: bytesOut } },
+      });
+      samples += 1;
+    }
+  }
+
+  if (samples === 0) return ["no demo packages to refresh data usage for"];
+  return [`${samples} recent data-usage samples across ${orders.length} client devices`];
+}
+
+/**
  * Payment activity for the admin payments board.
  *
  * The order seed above only records what the reseller sees; the money side

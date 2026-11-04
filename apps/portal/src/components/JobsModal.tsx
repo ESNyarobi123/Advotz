@@ -13,11 +13,14 @@ export function JobsModal({
   open,
   onClose,
   listings,
+  refreshing = false,
   theme,
 }: {
   open: boolean;
   onClose: () => void;
   listings: PortalListing[];
+  /** A fresh list is on its way; the current one stays readable meanwhile. */
+  refreshing?: boolean;
   theme?: PortalTheme;
 }) {
   const { t } = useLocale();
@@ -68,6 +71,9 @@ export function JobsModal({
         </div>
       ) : (
         <>
+          {refreshing ? (
+            <p className="mb-2 text-center text-[11px] font-semibold text-[var(--advo-muted)]">{t("portal.sessionUpdating")}</p>
+          ) : null}
           <p className="mb-3 text-center text-sm text-[var(--advo-muted)]">{t("portal.jobsLead")}</p>
           <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-black/5 p-1" role="group">
             {tabs.map((tab) => {
