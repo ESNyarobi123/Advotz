@@ -1437,6 +1437,8 @@ export const adminScreensEn = {
   "admin.network.sites.col.devices": "Devices",
   "admin.network.sites.col.created": "Created",
   "admin.network.sites.noMapping": "none",
+  "admin.network.sites.reprovision": "Retry provisioning",
+  "admin.network.sites.reprovisionHint": "Re-queues the Controller site; safe to run repeatedly.",
 
   // ── Network · operations table ───────────────────────────────────────────
   "admin.network.ops.title": "Network operations",
@@ -3848,6 +3850,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.network.sites.col.devices": "Vifaa",
   "admin.network.sites.col.created": "Kimeundwa",
   "admin.network.sites.noMapping": "hakuna",
+  "admin.network.sites.reprovision": "Jaribu kusanidi tena",
+  "admin.network.sites.reprovisionHint": "Huweka tena ombi la eneo kwa Kidhibiti; ni salama kurudia.",
 
   // ── Mtandao · jedwali la shughuli ────────────────────────────────────────
   "admin.network.ops.title": "Shughuli za mtandao",

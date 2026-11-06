@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SITE_ACCESS_REMEDY } from "@advo/omada";
-import { ControllerError, UnsupportedCapabilityError } from "@advo/omada";
+import { ControllerError, SITE_ACCESS_REMEDY, UnsupportedCapabilityError } from "@advo/omada";
 import { provisionBlocker } from "./sites.service.js";
 
 describe("site provisioning stops on Controller refusals a retry cannot fix", () => {

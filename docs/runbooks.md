@@ -109,6 +109,18 @@ Quota packages (`TOTAL`, `DAILY`, `MONTHLY`) can be sold only when the Controlle
 3. If the Controller ignores the time limit it was given, record it on the Controller's capability list (Admin → Controllers) as not verified so that packages depending on it are refused, and file it as a Controller issue.
 4. Advo cannot read usage counters from Omada yet (`readUsage` is unsupported), so data-quota complaints cannot be checked from Advo.
 
+## Stuck site provisioning (Omada `-1505` / `-33101`)
+
+A site can be created in Advo and on the Omada Controller, yet still be unusable: the Controller's Open API client only has privileges for the sites named when the client was created. Anything it creates afterwards answers **`-1505` "The current user does not have permissions to access this site"**, and the site is also hidden from `listSites`, so the next attempt creates it again and gets **`-33101` "This name already exists"**. Both codes are reported to staff and the mapping stops at `MANUAL_REQUIRED` instead of retrying.
+
+The fix is one Controller setting, not a per-site task:
+
+1. Omada → **Settings → Platform Integration → Open API → Clients**.
+2. Edit the client Advo uses and set **Site Permission = All Sites** (not a list of individual sites), then save.
+3. Nothing else is needed. The sweeper re-queues sites blocked on `CONTROLLER_FORBIDDEN` / `SITE_NAME_CONFLICT` once every 10 minutes, so they finish provisioning on their own. **Retry provisioning** (Admin → Sites & devices, or the Reseller's Sites & devices page) forces it sooner.
+
+Because `createSite` now looks the site up by name before failing, a retry reuses the site the Controller already made instead of creating a duplicate. A reseller is never shown the Controller wording — they see that the site is still being set up, while the reason stays on the admin screen and in the network operation.
+
 ## Stuck adoption
 
 Resellers submit a device claim with the MAC and model, and an Admin approves it after checking the serial or photo (Admin → Sites & devices → Device claims awaiting review). If a claim sits at `SUBMITTED`, the fix is an Admin review, not a Controller call. Approval records the device, but it does **not** mean the Controller adopted it. The fake controller reports adoption as unsupported, and a live Controller supports it only if its Open API contract declares `adoptDevice`. Adoption on real hardware has not been verified. Until it is, adopt the EAP in the Omada UI. If a site stays at `AWAITING_DEVICE` or its mapping is not `PROVISIONED`, check the network operations list for a failed site provisioning, then use **Retry provisioning** on the Reseller's Sites & devices page.

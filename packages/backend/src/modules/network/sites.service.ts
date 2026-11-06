@@ -35,6 +35,14 @@ function siteSlug(name: string) {
   return `${base}-${randomBytes(3).toString("hex")}`;
 }
 
+/**
+ * What a reseller is told while our side is still wiring their site onto the Controller.
+ * Controller/permission wording means nothing to them and cannot be acted on, so it is
+ * kept out of every reseller response and surfaced to staff instead.
+ */
+export const SITE_SETUP_PENDING_MESSAGE =
+  "Your site is still being set up on our network side. You can add devices once it is ready — check back in a few minutes.";
+
 function validTimezone(tz: string) {
   try {
     new Intl.DateTimeFormat("en", { timeZone: tz });
@@ -44,13 +52,57 @@ function validTimezone(tz: string) {
   }
 }
 
+/** Broad cause of a stall, in words a reseller UI can translate instead of quoting staff text. */
+export type SetupIssue = "CONTROLLER_ACCESS" | "CONTROLLER_CAPABILITY" | "CONTROLLER_UNREACHABLE" | "PROVISIONING_FAILED";
+
+const SETUP_ISSUE_BY_CODE: Record<string, SetupIssue> = {
+  CONTROLLER_FORBIDDEN: "CONTROLLER_ACCESS",
+  SITE_NAME_CONFLICT: "CONTROLLER_ACCESS",
+  CAPABILITY_UNSUPPORTED: "CONTROLLER_CAPABILITY",
+  timeout: "CONTROLLER_UNREACHABLE",
+  network: "CONTROLLER_UNREACHABLE",
+};
+
+function setupIssueFor(code: string | null | undefined): SetupIssue {
+  return (code && SETUP_ISSUE_BY_CODE[code]) || "PROVISIONING_FAILED";
+}
+
+/**
+ * Reseller-facing copy of a site. The Controller's own wording ("The current user does not
+ * have permissions to access this site", "Open API createSite failed…") is staff-only: a
+ * reseller cannot change Omada and it reads as if they broke something. Only the stall
+ * category travels, so the screen can explain it in their language.
+ */
+async function resellerSafeSites<T extends { id: string; mapping: { state: string; lastError: string | null } | null }>(
+  sites: T[],
+): Promise<T[]> {
+  if (sites.length === 0) return sites;
+  const stalled = sites.filter((s) => s.mapping && s.mapping.state !== "PROVISIONED");
+  if (stalled.length === 0) return sites;
+
+  const operations = await prisma.networkOperation.findMany({
+    where: { kind: "site.provision", targetId: { in: stalled.map((s) => s.id) } },
+    select: { targetId: true, lastErrorCode: true },
+  });
+  const issueBySite = new Map(operations.map((op) => [op.targetId, setupIssueFor(op.lastErrorCode)]));
+
+  return sites.map((site) => {
+    if (!site.mapping || site.mapping.state === "PROVISIONED") return site;
+    return {
+      ...site,
+      mapping: { ...site.mapping, lastError: null, setupIssue: issueBySite.get(site.id) ?? "PROVISIONING_FAILED" },
+    };
+  });
+}
+
 export async function listSites(resellerId: string) {
-  return prisma.site.findMany({
+  const sites = await prisma.site.findMany({
     where: { resellerId, archivedAt: null },
     include: { mapping: { include: { controller: { select: { id: true, name: true, mode: true } } } }, _count: { select: { devices: true } } },
     orderBy: { createdAt: "asc" },
     take: 200,
   });
+  return resellerSafeSites(sites);
 }
 
 export async function getSite(resellerId: string, siteId: string) {
@@ -59,7 +111,8 @@ export async function getSite(resellerId: string, siteId: string) {
     include: { mapping: true, devices: { take: 200 }, claims: { orderBy: { createdAt: "desc" }, take: 200 } },
   });
   if (!site) tenantDenied();
-  return site;
+  const [safe] = await resellerSafeSites([site]);
+  return safe ?? site;
 }
 
 /** Confirms the site belongs to this reseller before any scoped report/list query. */
@@ -153,6 +206,51 @@ export async function archiveSite(resellerId: string, actorUserId: string, siteI
     await audit(tx, { actorUserId, action: "site.archived", targetType: "Site", targetId: siteId, resellerId });
   });
   return { archived: true };
+}
+
+/** Staff-triggered retry: same queue path as the reseller button, without tenant scoping. */
+export async function retrySiteProvision(actorUserId: string, siteId: string) {
+  const site = await prisma.site.findUnique({ where: { id: siteId }, select: { resellerId: true } });
+  if (!site) notFound("Site not found");
+  const op = await requestReprovision(site.resellerId, siteId);
+  await prisma.$transaction((tx) =>
+    audit(tx, { actorUserId, action: "site.reprovision_requested", targetType: "Site", targetId: siteId, resellerId: site.resellerId }),
+  );
+  return op;
+}
+
+/**
+ * Re-queues sites whose provisioning stopped on a Controller permission or name clash.
+ * Those codes are permanent only until someone fixes Omada, and once they do, nobody
+ * should have to walk each site clicking Retry: the sweep takes one attempt per site per
+ * cooldown, so a fix propagates on its own.
+ */
+const BLOCKED_RETRY_COOLDOWN_MS = 10 * 60_000;
+
+export async function retryBlockedProvisions(now = new Date()): Promise<number> {
+  const due = await prisma.networkOperation.findMany({
+    where: {
+      kind: "site.provision",
+      state: "NEEDS_REVIEW",
+      lastErrorCode: { in: ["CONTROLLER_FORBIDDEN", "SITE_NAME_CONFLICT"] },
+      updatedAt: { lt: new Date(now.getTime() - BLOCKED_RETRY_COOLDOWN_MS) },
+    },
+    select: { id: true, siteId: true },
+    take: 20,
+  });
+  let queued = 0;
+  for (const op of due) {
+    const claimed = await prisma.networkOperation.updateMany({
+      where: { id: op.id, state: "NEEDS_REVIEW" },
+      data: { state: "PENDING", nextRetryAt: null },
+    });
+    if (claimed.count !== 1) continue;
+    await prisma.$transaction((tx) =>
+      emitOutbox(tx, OutboxEventType.SITE_PROVISION, "Site", op.siteId ?? op.id, { operationId: op.id, siteId: op.siteId }),
+    );
+    queued += 1;
+  }
+  return queued;
 }
 
 export async function requestReprovision(resellerId: string, siteId: string) {
@@ -351,16 +449,13 @@ export async function submitDeviceClaim(
   if (!site) tenantDenied();
   const mapping = site.mapping;
   if (!mapping?.remoteSiteId || mapping.state !== "PROVISIONED") {
-    // "Wait until provisioning finishes" was wrong for sites whose provisioning had
-    // permanently failed — it hides the real reason and loops the reseller.
-    const stalled = mapping && ["FAILED", "MANUAL_REQUIRED", "NEEDS_REVIEW"].includes(mapping.state);
-    const detail = mapping?.lastError?.trim();
-    badRequest(
-      stalled
-        ? `This site is not ready on the Controller: ${detail ?? "provisioning failed"}. Use Retry provisioning once that is resolved.`
-        : "This site is not on the controller yet. Wait until provisioning finishes, then try again.",
-      ErrorCode.CONTROLLER_UNAVAILABLE,
-    );
+    // A reseller cannot act on Omada permissions or controller settings, so the raw
+    // Controller reason stays in `details` for staff and the reseller gets a plain
+    // explanation. Provisioning retries itself in the background.
+    badRequest(SITE_SETUP_PENDING_MESSAGE, ErrorCode.CONTROLLER_UNAVAILABLE, {
+      mappingState: mapping?.state ?? "MISSING",
+      reason: mapping?.lastError ?? null,
+    });
   }
   const ent = await currentEntitlements(resellerId);
   if (!ent) forbidden("An active trial or subscription is required");

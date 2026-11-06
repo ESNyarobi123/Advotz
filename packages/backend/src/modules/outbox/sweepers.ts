@@ -6,6 +6,7 @@ import { reconcilePaymentAttempt } from "../payments/payments.service.js";
 import { applyDuePlanMigrations } from "../subscriptions/plan-migrations.service.js";
 import { expireSubscriptions } from "../subscriptions/subscriptions.service.js";
 import { reconcilePayoutAttempt } from "../withdrawals/payouts.service.js";
+import { retryBlockedProvisions } from "../network/sites.service.js";
 import { sampleActiveUsage } from "../usage/usage.service.js";
 
 const STALE_MS = 2 * 60_000;
@@ -52,6 +53,8 @@ export async function runSweepers(now = new Date()) {
 
   report.commissionsReleased = await safe(() => releaseDueCommissions(now));
   report.subscriptionsExpired = await safe(() => expireSubscriptions(now));
+  // A site blocked on a Controller permission recovers on its own once Omada is fixed.
+  report.sitesReprovisioned = await safe(() => retryBlockedProvisions(now));
   // A scheduled plan migration must land on its date even if no admin is looking.
   report.planMigrationsApplied = await safe(() => applyDuePlanMigrations(now));
   const grants = await safe(() => sweepGrants(now));

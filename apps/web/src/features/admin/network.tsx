@@ -618,7 +618,7 @@ export function AdminNetworkScreen() {
               ) : (
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   {visibleSites.map((site) => (
-                    <SiteCard key={site.id} site={site} t={t} />
+                    <SiteCard key={site.id} onReload={sites.reload} site={site} t={t} />
                   ))}
                 </div>
               )
@@ -787,8 +787,9 @@ export function AdminNetworkScreen() {
 
 /* ────────────────────────────── Bits & pieces ────────────────────────────── */
 
-function SiteCard({ site, t }: { site: SiteRow; t: T }) {
+function SiteCard({ site, onReload, t }: { site: SiteRow; onReload: () => void | Promise<void>; t: T }) {
   const tone = STATE_TONE[site.state] ?? "neutral";
+  const mappingStalled = site.mapping !== null && site.mapping.state !== "PROVISIONED";
   return (
     <Card className="gap-0 overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70">
       <div className="flex">
@@ -835,6 +836,22 @@ function SiteCard({ site, t }: { site: SiteRow; t: T }) {
               value={<span className="text-[11px]">{formatDateTime(site.createdAt)}</span>}
             />
           </div>
+
+          {/* A stalled mapping is the one thing staff can act on from here: the reason is
+              shown above, and this re-queues it without asking the reseller to do anything. */}
+          {mappingStalled ? (
+            <div className="flex items-center justify-between gap-2 border-t border-[var(--advo-border)]/70 pt-2.5">
+              <span className="text-[10.5px] text-[var(--advo-muted)]">{t("admin.network.sites.reprovisionHint")}</span>
+              <ActionButton
+                onDone={onReload}
+                onRun={() => api.post(`/admin/sites/${site.id}/reprovision`)}
+                variant="secondary"
+              >
+                <RefreshCw className="size-3" />
+                {t("admin.network.sites.reprovision")}
+              </ActionButton>
+            </div>
+          ) : null}
         </div>
       </div>
     </Card>

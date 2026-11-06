@@ -70,7 +70,7 @@ import {
   trialBalance,
 } from "../ledger/ledger.service.js";
 import { deleteController, inspectController, listControllers, recordCapabilityEvidence, saveController, updateControllerFlags } from "../network/controllers.service.js";
-import { createSite, listDeviceClaims, networkSummary, reviewDeviceClaim } from "../network/sites.service.js";
+import { createSite, listDeviceClaims, networkSummary, retrySiteProvision, reviewDeviceClaim } from "../network/sites.service.js";
 import { drainOutbox, kickOutbox } from "../outbox/outbox.dispatcher.js";
 import { runSweepers } from "../outbox/sweepers.js";
 import { paymentsSummary, reconcilePaymentAttempt, settlePendingSale } from "../payments/payments.service.js";
@@ -434,6 +434,12 @@ export class AdminController {
       orderBy: { createdAt: "desc" },
       take: 500,
     });
+  }
+
+  /** Staff retry for a site stuck on a Controller refusal, without touching the reseller. */
+  @Post("sites/:id/reprovision")
+  reprovisionSite(@CurrentUser() a: RequestActor, @Param("id") siteId: string) {
+    return retrySiteProvision(a.id, id(siteId));
   }
 
   /**
