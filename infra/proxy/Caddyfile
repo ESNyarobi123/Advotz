@@ -106,3 +106,23 @@
 		}
 	}
 }
+
+# Same entry point on the Controller's HTTPS portal port. The Controller keeps 8843 no matter
+# what is typed into the Portal Port fields, so a client that is redirected over HTTPS must find
+# this host listening there too. Host is rewritten without the port so the redirect target stays
+# the canonical https://wifi.advowifi.com/<slug> page.
+wifi.advowifi.com:8843 {
+	import edge
+	import {$HSTS_SNIPPET:hsts}
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy portal:3001 {
+			header_up Host wifi.advowifi.com
+			header_up X-Forwarded-Host wifi.advowifi.com
+			header_up X-Forwarded-Proto https
+		}
+	}
+}
