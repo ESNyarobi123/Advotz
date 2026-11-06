@@ -121,6 +121,24 @@ The fix is one Controller setting, not a per-site task:
 
 Because `createSite` now looks the site up by name before failing, a retry reuses the site the Controller already made instead of creating a duplicate. A reseller is never shown the Controller wording — they see that the site is still being set up, while the reason stays on the admin screen and in the network operation.
 
+## Captive portal sends clients to the Controller's `:8088/portal/entry`
+
+A guest connects to the SSID and the phone lands on `http://<controller>:8088/portal/entry?cid=…&ap=…&ssid=…&clientIp=…&t=…&rid=1&u=…`, which answers **`net::ERR_CONNECTION_ABORTED`**. That address is the Controller's own hotspot portal, not Advo's. It aborts because the Controller's portal port is not exposed publicly.
+
+The Controller only uses that entry when the site's portal is missing an external server URL, so Advo's page (`https://wifi.advowifi.com/<slug>`) is never reached. `configureExternalPortal` used to stop after creating the portal once, which meant a portal created before `PORTAL_PUBLIC_URL` was right, or one the Controller quietly downgraded to `http`, stayed wrong forever.
+
+Check what the Controller really stored:
+
+1. Omada → **site → Settings → Portal → Edit → Authentication** and confirm **Authentication Type = External Portal Server** with the Advo domain, e.g. `https://wifi.advowifi.com/<slug>`.
+2. From the API side, `GET /openapi/v1/{omadacId}/sites/{siteId}/portal/{portalId}` must show `authType: 4` and `externalPortal.serverUrlScheme: "https"` with Advo's host.
+
+Provisioning now reads the portal back and re-applies it whenever `authType` or the external URL differs, so **Retry provisioning** (or the next sweeper pass) repairs an existing site. Sites provisioned before this change were re-applied in place.
+
+Two follow-ups when it still ends up on `:8088`:
+
+- The EAP keeps the WLAN it had before adoption until its first config sync finishes. Give it a minute, then reconnect the phone.
+- The Controller's portal port is only reachable on its own LAN. Expose `8088`/`8843` on the Controller host if the Omada-hosted portal is ever meant to be a fallback.
+
 ## Stuck adoption
 
 Resellers submit a device claim with the MAC and model, and an Admin approves it after checking the serial or photo (Admin → Sites & devices → Device claims awaiting review). If a claim sits at `SUBMITTED`, the fix is an Admin review, not a Controller call. Approval records the device, but it does **not** mean the Controller adopted it. The fake controller reports adoption as unsupported, and a live Controller supports it only if its Open API contract declares `adoptDevice`. Adoption on real hardware has not been verified. Until it is, adopt the EAP in the Omada UI. If a site stays at `AWAITING_DEVICE` or its mapping is not `PROVISIONED`, check the network operations list for a failed site provisioning, then use **Retry provisioning** on the Reseller's Sites & devices page.
