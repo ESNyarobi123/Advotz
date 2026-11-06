@@ -15,6 +15,13 @@ describe("site device account password", () => {
     }
   });
 
+  it("avoids the characters the Controller refuses", () => {
+    // "?" was the only symbol the live Controller answered -30105 for.
+    for (let i = 0; i < 500; i++) {
+      expect(deviceAccountPassword()).not.toContain("?");
+    }
+  });
+
   it("never repeats a character twice in a row", () => {
     // Regression: hex/base64 bodies hit a double about half the time, and the
     // Controller answers -30105 for "…888…", "…ss…" and even "…22…". This made

@@ -75,15 +75,17 @@ const PORTAL_WRITE_TIMEOUT_MS = 30_000;
  *
  * Password: Omada -30105 requires 10–64 printable ASCII characters covering
  * uppercase, lowercase, digits and symbols, and this Controller also rejects any
- * password with two identical characters in a row. Measured against the live
- * Controller: "Aa1!01123456789abcdef" and "Advo#2026Passw0rd" (both "ss") are
- * refused, while "Aa1!0123456789abcdef" is accepted. A random hex or base64 body
- * hits a double about half the time, which made site creation fail intermittently.
+ * password with two identical characters in a row and the "?" character. Measured
+ * against the live Controller: "Aa1!01123456789abcdef", "Advo#2026Passw0rd" (both
+ * have a doubled character) and "Aa1?bC2dEf3Gh4Jk" are refused, while
+ * "Aa1!0123456789abcdef" and every symbol in SYMBOLS are accepted. A random hex or
+ * base64 body hits a doubled character about half the time, which made site
+ * creation fail intermittently.
  */
 const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const LOWER = "abcdefghijkmnopqrstuvwxyz";
 const DIGITS = "23456789";
-const SYMBOLS = "!@#%^&*-_+=?";
+const SYMBOLS = "!@#%^&*-_+=";
 const PASSWORD_CLASSES = [UPPER, LOWER, DIGITS, SYMBOLS];
 
 export function deviceAccountPassword(length = 20): string {
