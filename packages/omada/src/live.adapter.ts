@@ -574,16 +574,28 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   }
 }
 
-/** External Portal Server wants the scheme separate from `host/path`. */
-function externalPortalTarget(portalUrl: string): { name: string; scheme: string; serverUrl: string } {
+/**
+ * External Portal Server wants the scheme separate from `host/path`.
+ *
+ * Omada only honours an https:// external portal URL. When it is stored as http:// the AP
+ * silently ignores it and falls back to the Controller's own `:8088/portal/entry`, which is
+ * firewalled on the Controller host and blocked by the AP's pre-auth policy on the guest
+ * network — guests then see ERR_CONNECTION_ABORTED / ERR_CONNECTION_TIMED_OUT instead of the
+ * portal. Upgrading to https keeps an http:// PORTAL_PUBLIC_URL from breaking every site.
+ */
+export function externalPortalTarget(portalUrl: string): { name: string; scheme: string; serverUrl: string } {
   const url = new URL(portalUrl);
   const path = url.pathname.replace(/\/$/, "");
   const slug = path.replace(/^\//, "") || url.host;
   return {
     name: `Advo ${slug}`.slice(0, 128),
-    scheme: url.protocol.replace(":", ""),
+    scheme: isLocalHost(url.hostname) ? url.protocol.replace(":", "") : "https",
     serverUrl: `${url.host}${path}`,
   };
+}
+
+function isLocalHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname.endsWith(".local");
 }
 
 function preAuthHosts(portalUrl: string, controllerBaseUrl: string): string[] {
