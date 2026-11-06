@@ -84,12 +84,12 @@
 }
 
 # Omada builds the captive-portal redirect from the Controller's Portal URL, which carries the
-# Controller's *portal* ports (HTTP 8088 / HTTPS 8843), not 80/443:
-#   http://<portal host>:8088/portal/entry?cid=..&ap=..&ssid=..
-# Those ports are closed on the Controller host, so clients used to die on
-# `net::ERR_CONNECTION_ABORTED` before they ever reached this app. Serve the same entry point
-# here and rewrite the authority so `/portal/entry` resolves the site and redirects to
-# `https://<portal host>/<site>`. Without this listener the redirect target must be reachable.
+# Controller's *portal* ports:
+#   http://<portal host>:<http portal port>/portal/entry?cid=..&ap=..&ssid=..
+# The Portal HTTP port is set to 80 (see docs/runbooks.md) because a guest's phone sits behind
+# the EAP's pre-authentication firewall, which only lets it reach standard web ports — anything
+# else times out with `net::ERR_CONNECTION_TIMED_OUT`. These two listeners stay as fallbacks for
+# a Controller that is still pointed at 8088/8843, so a stale config never dead-ends a guest.
 :8088 {
 	import edge
 	encode zstd gzip
@@ -107,10 +107,9 @@
 	}
 }
 
-# Same entry point on the Controller's HTTPS portal port. The Controller keeps 8843 no matter
-# what is typed into the Portal Port fields, so a client that is redirected over HTTPS must find
-# this host listening there too. Host is rewritten without the port so the redirect target stays
-# the canonical https://wifi.advowifi.com/<slug> page.
+# Same entry point on the Controller's HTTPS portal port, for a Controller still pointed at it.
+# Host is rewritten without the port so the redirect target stays the canonical
+# https://wifi.advowifi.com/<slug> page.
 wifi.advowifi.com:8843 {
 	import edge
 	import {$HSTS_SNIPPET:hsts}
