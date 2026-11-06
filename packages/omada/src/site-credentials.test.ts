@@ -1,19 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { siteDeviceCredentials } from "./live.adapter.js";
+import { deviceAccountPassword, siteDeviceCredentials } from "./live.adapter.js";
 
-/** The rule Omada enforces, quoted from its own -30105 message. */
-const OMADA_DEVICE_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,64}$/;
+/** Omada's two stated rules, plus the duplicate-character rule measured on the live Controller. */
+const HAS_ALL_CLASSES = [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/];
 
-describe("site device account credentials", () => {
-  it("satisfies the Omada -30105 password rule", () => {
-    // Regression: base64url emitted "-" and "_", and the Controller rejected the
-    // password outright, so no new site could ever be created.
-    for (let i = 0; i < 200; i++) {
-      const { password } = siteDeviceCredentials(`advo-hom-hotspot-${i}`);
-      expect(password).toMatch(OMADA_DEVICE_PASSWORD);
-      expect(password).toMatch(/^[\x20-\x7e]+$/);
+describe("site device account password", () => {
+  it("satisfies length, printable ASCII and all four character classes", () => {
+    for (let i = 0; i < 500; i++) {
+      const password = deviceAccountPassword();
       expect(password.length).toBeGreaterThanOrEqual(10);
       expect(password.length).toBeLessThanOrEqual(64);
+      expect(password).toMatch(/^[\x20-\x7e]+$/);
+      for (const rule of HAS_ALL_CLASSES) expect(password).toMatch(rule);
+    }
+  });
+
+  it("never repeats a character twice in a row", () => {
+    // Regression: hex/base64 bodies hit a double about half the time, and the
+    // Controller answers -30105 for "…888…", "…ss…" and even "…22…". This made
+    // site creation (and so device adoption) fail intermittently.
+    for (let i = 0; i < 500; i++) {
+      const { password } = siteDeviceCredentials(`advo-site-${i}`);
+      for (let at = 1; at < password.length; at++) {
+        expect(password[at]).not.toBe(password[at - 1]);
+      }
     }
   });
 
@@ -22,9 +32,7 @@ describe("site device account credentials", () => {
     const b = siteDeviceCredentials("advo-sky-net-6ec4c7");
     const c = siteDeviceCredentials("advo-hom-hotspot-cc29f9");
 
-    // Stable, so a retried createSite keeps the same account name.
     expect(a.username).toBe(b.username);
-    // Omada shares one account namespace, so two sites must not collide.
     expect(a.username).not.toBe(c.username);
     expect(a.username).toMatch(/^advo[0-9a-f]{12}$/);
   });

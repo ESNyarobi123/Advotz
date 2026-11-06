@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import { unsupported, type ControllerCapabilities, type CapabilityResult } from "./capabilities.js";
 import {
   adoptFailureMessage,
@@ -73,15 +73,38 @@ const PORTAL_WRITE_TIMEOUT_MS = 30_000;
  * clash. Deriving it from the remote name keeps it unique per site and stable
  * across retries.
  *
- * Password: Omada answers -30105 unless the value mixes uppercase, lowercase,
- * digits and special symbols, so the `Aa1!` prefix guarantees all four. The body
- * is hex rather than base64url because base64url emits "-" and "_", whose
- * treatment as symbols differs between Controller builds.
+ * Password: Omada -30105 requires 10–64 printable ASCII characters covering
+ * uppercase, lowercase, digits and symbols, and this Controller also rejects any
+ * password with two identical characters in a row. Measured against the live
+ * Controller: "Aa1!01123456789abcdef" and "Advo#2026Passw0rd" (both "ss") are
+ * refused, while "Aa1!0123456789abcdef" is accepted. A random hex or base64 body
+ * hits a double about half the time, which made site creation fail intermittently.
  */
+const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const LOWER = "abcdefghijkmnopqrstuvwxyz";
+const DIGITS = "23456789";
+const SYMBOLS = "!@#%^&*-_+=?";
+const PASSWORD_CLASSES = [UPPER, LOWER, DIGITS, SYMBOLS];
+
+export function deviceAccountPassword(length = 20): string {
+  const alphabet = PASSWORD_CLASSES.join("");
+  for (;;) {
+    const chars: string[] = [];
+    while (chars.length < length) {
+      const next = alphabet[randomInt(alphabet.length)]!;
+      // No two identical characters in a row: the Controller refuses those.
+      if (chars[chars.length - 1] === next) continue;
+      chars.push(next);
+    }
+    const password = chars.join("");
+    if (PASSWORD_CLASSES.every((set) => [...password].some((c) => set.includes(c)))) return password;
+  }
+}
+
 export function siteDeviceCredentials(remoteName: string) {
   return {
     username: `advo${createHash("sha256").update(remoteName).digest("hex").slice(0, 12)}`,
-    password: `Aa1!${randomBytes(8).toString("hex")}`,
+    password: deviceAccountPassword(),
   };
 }
 
