@@ -35,6 +35,32 @@ const CONTEXT_TTL_MS = 30 * 60_000;
  */
 const PORTAL_CACHE_TTL_MS = 60_000;
 
+/**
+ * Omada hands the captive-portal entry only the AP MAC and the SSID — never our
+ * slug. The AP belongs to exactly one site, so the MAC is the reliable key; the
+ * SSID is a fallback for a site whose device was never recorded.
+ */
+export async function resolvePortalSlug(input: { apMac?: string | null; ssid?: string | null }) {
+  const mac = input.apMac?.trim() ? normalizeMac(input.apMac) : null;
+  if (mac) {
+    const device = await prisma.device.findFirst({
+      where: { mac, site: { archivedAt: null } },
+      select: { site: { select: { slug: true } } },
+    });
+    if (device) return { slug: device.site.slug };
+  }
+  const ssid = input.ssid?.trim();
+  if (ssid) {
+    const site = await prisma.site.findFirst({
+      where: { archivedAt: null, name: { equals: ssid, mode: "insensitive" } },
+      select: { slug: true },
+      orderBy: { createdAt: "desc" },
+    });
+    if (site) return { slug: site.slug };
+  }
+  notFound("WiFi location not found");
+}
+
 async function activeSiteBySlug(slug: string) {
   const site = await prisma.site.findFirst({
     where: { slug, archivedAt: null },

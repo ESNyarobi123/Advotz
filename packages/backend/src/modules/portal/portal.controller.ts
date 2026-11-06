@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";import {
+import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";import {
   grantRecoverySchema,
   portalContextInputSchema,
   portalOrderInputSchema,
@@ -21,6 +21,7 @@ import {
   portalExplore,
   portalOrderStatus,
   redeemVoucher,
+  resolvePortalSlug,
   retryPortalPayment,
   submitPromotion,
 } from "./portal.service.js";
@@ -38,6 +39,15 @@ const payerSchema = z.object({
 /** Public guest endpoints. No internal IDs are accepted or returned; only opaque tokens. */
 @Controller("portal")
 export class PortalController {
+  /**
+   * Omada's captive-portal entry only carries the AP MAC and the SSID, so this
+   * is how a client that never saw our slug finds its WiFi location.
+   */
+  @Get("resolve")
+  resolve(@Query("ap") ap?: string, @Query("ssid") ssid?: string) {
+    return resolvePortalSlug({ apMac: ap ?? null, ssid: ssid ?? null });
+  }
+
   @Get("sites/:slug")
   bootstrap(@Param("slug") slug: string) {
     return portalBootstrap(parse(slugSchema, slug));
