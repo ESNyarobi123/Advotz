@@ -82,3 +82,27 @@
 		reverse_proxy portal:3001
 	}
 }
+
+# Omada builds the captive-portal redirect from the Controller's Portal URL, which carries the
+# Controller's *portal* ports (HTTP 8088 / HTTPS 8843), not 80/443:
+#   http://<portal host>:8088/portal/entry?cid=..&ap=..&ssid=..
+# Those ports are closed on the Controller host, so clients used to die on
+# `net::ERR_CONNECTION_ABORTED` before they ever reached this app. Serve the same entry point
+# here and rewrite the authority so `/portal/entry` resolves the site and redirects to
+# `https://<portal host>/<site>`. Without this listener the redirect target must be reachable.
+:8088 {
+	import edge
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy portal:3001 {
+			header_up Host wifi.advowifi.com
+			header_up X-Forwarded-Host wifi.advowifi.com
+			# The client arrived over plain HTTP only because Omada asked for its HTTP portal
+			# port. The canonical portal page is HTTPS, so hand back an https:// redirect.
+			header_up X-Forwarded-Proto https
+		}
+	}
+}
