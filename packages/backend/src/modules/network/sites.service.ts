@@ -242,7 +242,7 @@ export async function retryBlockedProvisions(now = new Date()): Promise<number> 
   for (const op of due) {
     const claimed = await prisma.networkOperation.updateMany({
       where: { id: op.id, state: "NEEDS_REVIEW" },
-      data: { state: "PENDING", nextRetryAt: null },
+      data: { state: "PENDING", nextRetryAt: null, attempts: 0 },
     });
     if (claimed.count !== 1) continue;
     await prisma.$transaction((tx) =>
@@ -264,7 +264,10 @@ export async function requestReprovision(resellerId: string, siteId: string) {
     // PENDING/RUNNING and returns without emitting a duplicate provision event.
     const claimed = await tx.networkOperation.updateMany({
       where: { id: op.id, state: { not: "RUNNING" } },
-      data: { state: "PENDING", nextRetryAt: null },
+      // A deliberate retry gets a fresh attempt budget. Without this, a site that had
+      // already exhausted the automatic retries would be re-queued and give up on its
+      // first attempt, so the Retry button could never help it again.
+      data: { state: "PENDING", nextRetryAt: null, attempts: 0 },
     });
     if (claimed.count === 0) return tx.networkOperation.findUniqueOrThrow({ where: { id: op.id } });
     await emitOutbox(tx, OutboxEventType.SITE_PROVISION, "Site", siteId, { operationId: op.id, siteId });
