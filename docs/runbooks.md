@@ -136,8 +136,10 @@ Provisioning now reads the portal back and re-applies it whenever `authType` or 
 
 Two follow-ups when it still ends up on `:8088`:
 
-- The EAP keeps the WLAN it had before adoption until its first config sync finishes. Give it a minute, then reconnect the phone.
-- The Controller's portal port is only reachable on its own LAN. Expose `8088`/`8843` on the Controller host if the Omada-hosted portal is ever meant to be a fallback.
+- The Controller generates that entry from **Settings → System Settings → Portal URL**. If it is on *Auto Refresh* the Controller uses its own address, which for this Controller is a public IP whose portal port is firewalled. Set it to **Manual**, hostname `wifi.advowifi.com`, HTTPS portal port `443` and HTTP portal port `80`, and enable **HTTP Redirect to HTTPS (Portal)**.
+- Advo answers `/portal/entry` itself, so a manual Portal URL lands on the guest page. Because the Controller never sends our slug, the entry resolves the site from the AP MAC (`GET /api/v1/portal/resolve?ap=…`, falling back to an SSID that matches the site name) and redirects to `/<slug>` with Omada's short parameters renamed (`cid→clientMac`, `ap→apMac`, `ssid→ssidName`, `u→redirectUrl`).
+
+An unknown AP or SSID answers 404 by design — a guest must never be shown another site's packages.
 
 ## Stuck adoption
 
