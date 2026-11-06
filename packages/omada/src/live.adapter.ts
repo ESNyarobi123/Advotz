@@ -462,10 +462,12 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
     const api = this.requireOpenApi("createPortal");
     const target = externalPortalTarget(input.portalUrl);
     const listed = api.has("listPortals") ? await api.call("listPortals", { siteId: input.remoteSiteId }) : [];
-    const portals = Array.isArray(listed) ? (listed as Array<{ name?: string }>) : [];
-    if (!portals.some((portal) => portal.name === target.name)) {
-      const lans = api.has("listLanNetworks") ? await api.call("listLanNetworks", { siteId: input.remoteSiteId }) : [];
-      const networkId = Array.isArray(lans) ? (lans as Array<{ id?: string }>)[0]?.id : undefined;
+    const portals = Array.isArray(listed) ? (listed as Array<{ id?: string; name?: string; authType?: number }>) : [];
+    const existing = portals.find((portal) => portal.name === target.name);
+    const lans = api.has("listLanNetworks") ? await api.call("listLanNetworks", { siteId: input.remoteSiteId }) : [];
+    const networkId = Array.isArray(lans) ? (lans as Array<{ id?: string }>)[0]?.id : undefined;
+
+    if (!existing) {
       if (!networkId) throw new ControllerError("Site has no LAN to bind the portal to", "rejected", true);
       await api.call(
         "createPortal",
@@ -478,6 +480,29 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
         },
         { timeoutMs: PORTAL_WRITE_TIMEOUT_MS },
       );
+    } else if (existing.id && api.has("updatePortal") && api.has("getPortal")) {
+      // A portal created before PORTAL_PUBLIC_URL was correct (or a Controller that
+      // downgraded the scheme) stays wrong forever if we only create when missing.
+      // Clients are then sent to the Controller's own :8088 entry instead of Advo's
+      // portal page, which answers ERR_CONNECTION_ABORTED. Re-apply on every run.
+      const current = (await api.call("getPortal", { siteId: input.remoteSiteId, portalId: existing.id })) as {
+        authType?: number;
+        externalPortal?: { serverUrlScheme?: string; serverUrl?: string };
+      } | null;
+      const stored = current?.externalPortal;
+      if (current?.authType !== 4 || stored?.serverUrlScheme !== target.scheme || stored?.serverUrl !== target.serverUrl) {
+        await api.call(
+          "updatePortal",
+          {
+            siteId: input.remoteSiteId,
+            portalId: existing.id,
+            name: target.name,
+            scheme: target.scheme,
+            serverUrl: target.serverUrl,
+          },
+          { timeoutMs: PORTAL_WRITE_TIMEOUT_MS },
+        );
+      }
     }
     if (api.has("getPreAuth") && api.has("setPreAuth")) {
       await this.ensurePreAuth(api, input.remoteSiteId, preAuthHosts(input.portalUrl, this.config.baseUrl));

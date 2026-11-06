@@ -92,6 +92,32 @@
       "verified": true,
       "evidence": "Omada 6.3.0.45 OpenAPI on Server B: GET portals returns the site portal list"
     },
+    "getPortal": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/portal/{portalId}",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI: GET single portal returns externalPortal.serverUrlScheme and serverUrl"
+    },
+    "updatePortal": {
+      "method": "PATCH",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/portal/{portalId}",
+      "bodyTemplate": {
+        "name": "{{name}}",
+        "enable": true,
+        "authType": 4,
+        "authTimeout": { "customTimeout": 24, "customTimeoutUnit": 2 },
+        "httpsRedirectEnable": false,
+        "landingPage": 1,
+        "externalPortal": {
+          "hostType": 2,
+          "serverUrlScheme": "{{scheme}}",
+          "serverUrl": "{{serverUrl}}"
+        }
+      },
+      "verified": true,
+      "evidence": "Omada 6.3.0.45 OpenAPI: PATCH portal accepted and re-read showed the new serverUrlScheme"
+    },
     "createPortal": {
       "method": "POST",
       "path": "/openapi/v1/{omadacId}/sites/{siteId}/portal",
