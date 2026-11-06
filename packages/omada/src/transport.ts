@@ -36,7 +36,7 @@ export class ControllerTransport {
   async request(
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
     path: string,
-    opts: { body?: unknown; headers?: Record<string, string> } = {},
+    opts: { body?: unknown; headers?: Record<string, string>; timeoutMs?: number } = {},
   ): Promise<TransportResponse> {
     const url = new URL(path.replace(/^\//, ""), this.base.href.endsWith("/") ? this.base.href : `${this.base.href}/`);
     if (url.origin !== this.base.origin) {
@@ -49,12 +49,15 @@ export class ControllerTransport {
       ...opts.headers,
     };
     const requester = url.protocol === "https:" ? httpsRequest : httpRequest;
+    // Site creation and adoption make the Controller provision real resources, which
+    // routinely outlast the default budget; callers may widen it per operation.
+    const timeoutMs = opts.timeoutMs ?? this.timeoutMs;
 
     return new Promise<TransportResponse>((resolve, reject) => {
       let sent = false;
       const req = requester(
         url,
-        { method, headers, ca: this.ca, timeout: this.timeoutMs },
+        { method, headers, ca: this.ca, timeout: timeoutMs },
         (res) => {
           const chunks: Buffer[] = [];
           res.on("data", (c: Buffer) => chunks.push(c));
@@ -71,7 +74,7 @@ export class ControllerTransport {
         },
       );
       req.on("timeout", () => {
-        req.destroy(new ControllerError(`Controller request timed out after ${this.timeoutMs}ms`, "timeout", sent));
+        req.destroy(new ControllerError(`Controller request timed out after ${timeoutMs}ms`, "timeout", sent));
       });
       req.on("error", (err) => {
         if (err instanceof ControllerError) return reject(err);

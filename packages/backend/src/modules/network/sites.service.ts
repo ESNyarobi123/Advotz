@@ -1,7 +1,16 @@
 import { randomBytes } from "node:crypto";
 import { ErrorCode, PORTAL_CONTENT_STARTER, type PortalContent, type PortalTheme } from "@advo/contracts";
 import { prisma, type DeviceClaimState } from "@advo/db";
-import { ControllerError, UnsupportedCapabilityError, normalizeMac, type RemoteDevice, type RemoteWifi } from "@advo/omada";
+import {
+  ControllerError,
+  SITE_ACCESS_REMEDY,
+  UnsupportedCapabilityError,
+  isSiteAccessDenied,
+  isSiteNameConflict,
+  normalizeMac,
+  type RemoteDevice,
+  type RemoteWifi,
+} from "@advo/omada";
 import { decryptSecret } from "../../common/crypto.js";
 import { badRequest, conflict, forbidden, notFound, tenantDenied } from "../../common/errors.js";
 import { audit, emitOutbox, OutboxEventType } from "../../common/events.js";
@@ -167,6 +176,27 @@ export async function requestReprovision(resellerId: string, siteId: string) {
 }
 
 /**
+ * A Controller refusal that no retry can fix. Provisioning stops and records what an
+ * operator must change in Omada, instead of spending the whole retry budget on a
+ * permission gap that only an admin can close.
+ */
+export function provisionBlocker(err: unknown): { code: string; message: string } | null {
+  if (isSiteNameConflict(err)) {
+    return {
+      code: "SITE_NAME_CONFLICT",
+      message: `A site with this name already exists on the Controller, but the Open API client cannot see it. ${SITE_ACCESS_REMEDY}`,
+    };
+  }
+  if (isSiteAccessDenied(err)) {
+    const reason =
+      (err instanceof ControllerError ? err.vendorMessage?.trim() : undefined) ||
+      "The Open API client is not permitted on this site.";
+    return { code: "CONTROLLER_FORBIDDEN", message: `${reason} ${SITE_ACCESS_REMEDY}` };
+  }
+  return null;
+}
+
+/**
  * Worker: provision the Controller site for a local site. Before any create it looks for an
  * existing remote site with our marker name, so a timed-out create is never duplicated.
  */
@@ -236,6 +266,24 @@ export async function provisionSite(operationId: string): Promise<string> {
       ]);
       return "UNSUPPORTED";
     }
+    // A permission gap on the Controller is permanent until an operator changes
+    // Omada: retrying only burns attempts and, for createSite, risks a second
+    // site. Stop and say exactly what to change.
+    const blocker = provisionBlocker(err);
+    if (blocker) {
+      await prisma.$transaction([
+        prisma.controllerSiteMapping.update({
+          where: { id: mapping.id },
+          data: { state: "MANUAL_REQUIRED", lastError: blocker.message },
+        }),
+        prisma.site.update({ where: { id: site.id }, data: { state: "NEEDS_REVIEW" } }),
+        prisma.networkOperation.update({
+          where: { id: op.id },
+          data: { state: "NEEDS_REVIEW", lastErrorCode: blocker.code, lastError: blocker.message.slice(0, 500) },
+        }),
+      ]);
+      return "MANUAL_REQUIRED";
+    }
     const ambiguous = err instanceof ControllerError && err.ambiguous;
     const message = err instanceof Error ? err.message : String(err);
     const attempts = op.attempts + 1;
@@ -303,7 +351,16 @@ export async function submitDeviceClaim(
   if (!site) tenantDenied();
   const mapping = site.mapping;
   if (!mapping?.remoteSiteId || mapping.state !== "PROVISIONED") {
-    badRequest("This site is not on the controller yet. Wait until provisioning finishes, then try again.");
+    // "Wait until provisioning finishes" was wrong for sites whose provisioning had
+    // permanently failed — it hides the real reason and loops the reseller.
+    const stalled = mapping && ["FAILED", "MANUAL_REQUIRED", "NEEDS_REVIEW"].includes(mapping.state);
+    const detail = mapping?.lastError?.trim();
+    badRequest(
+      stalled
+        ? `This site is not ready on the Controller: ${detail ?? "provisioning failed"}. Use Retry provisioning once that is resolved.`
+        : "This site is not on the controller yet. Wait until provisioning finishes, then try again.",
+      ErrorCode.CONTROLLER_UNAVAILABLE,
+    );
   }
   const ent = await currentEntitlements(resellerId);
   if (!ent) forbidden("An active trial or subscription is required");

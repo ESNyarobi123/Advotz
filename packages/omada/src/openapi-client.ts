@@ -114,7 +114,11 @@ export class OmadaOpenApiClient {
     return this.refreshing;
   }
 
-  async call(operation: string, vars: Record<string, unknown>): Promise<unknown> {
+  async call(
+    operation: string,
+    vars: Record<string, unknown>,
+    opts: { timeoutMs?: number } = {},
+  ): Promise<unknown> {
     const op = this.contract?.operations[operation];
     if (!op) throw new UnsupportedCapabilityError(operation, `Operation ${operation} is not in the verified Open API contract`);
     const allVars = { omadacId: this.creds.omadacId, ...vars };
@@ -124,15 +128,20 @@ export class OmadaOpenApiClient {
       body: op.bodyTemplate === undefined ? undefined : substitute(op.bodyTemplate, allVars),
       // The Omada guide requires the "AccessToken=" prefix (not Bearer).
       headers: { Authorization: `AccessToken=${token}` },
+      timeoutMs: opts.timeoutMs,
     });
     const errorCode = pick(res.body, "errorCode");
     if (res.status !== 200 || errorCode !== 0) {
+      // The vendor `msg` is the only part of an Omada failure a human can act on
+      // ("The current user does not have permissions to access this site."). It is
+      // kept in the thrown message so it survives into operation/attempt records.
+      const vendorMessage = String(pick(res.body, "msg") ?? "").trim().slice(0, 200);
       throw new ControllerError(
-        `Open API ${operation} failed (HTTP ${res.status}, errorCode ${String(errorCode)})`,
+        `Open API ${operation} failed (HTTP ${res.status}, errorCode ${String(errorCode)})${vendorMessage ? `: ${vendorMessage}` : ""}`,
         res.status >= 500 ? "network" : "rejected",
         res.status >= 500,
         typeof errorCode === "number" ? errorCode : undefined,
-        String(pick(res.body, "msg") ?? "").slice(0, 200),
+        vendorMessage,
       );
     }
     return op.resultPath ? pick(res.body, op.resultPath) : res.body;

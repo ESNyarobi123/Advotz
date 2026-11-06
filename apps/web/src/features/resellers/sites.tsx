@@ -74,7 +74,12 @@ function siteStateHelp(t: I18n["t"], state: string): string {
 
 /** A site only needs a human when provisioning failed or a human must approve it. */
 function needsAttention(site: SiteRow): boolean {
-  return site.state === "FAILED" || site.state === "NEEDS_REVIEW" || site.mapping?.state === "FAILED";
+  return (
+    site.state === "FAILED" ||
+    site.state === "NEEDS_REVIEW" ||
+    site.mapping?.state === "FAILED" ||
+    site.mapping?.state === "MANUAL_REQUIRED"
+  );
 }
 
 export function ResellerSitesScreen() {

@@ -22,3 +22,24 @@ export class ControllerError extends Error {
     this.name = "ControllerError";
   }
 }
+
+/**
+ * Omada scopes an Open API client to a set of sites. Anything the client creates
+ * outside that scope answers `-1505` ("The current user does not have permissions
+ * to access this site"), and it is invisible to `listSites` as well.
+ */
+export const OMADA_SITE_ACCESS_DENIED = -1505;
+/** A site with this name already exists on the Controller (visible or not). */
+export const OMADA_SITE_NAME_EXISTS = -33101;
+
+export function isSiteAccessDenied(err: unknown): boolean {
+  return err instanceof ControllerError && err.vendorErrorCode === OMADA_SITE_ACCESS_DENIED;
+}
+
+export function isSiteNameConflict(err: unknown): boolean {
+  return err instanceof ControllerError && err.vendorErrorCode === OMADA_SITE_NAME_EXISTS;
+}
+
+/** Operator-facing remedy for both codes: the client needs access to every site, not a few. */
+export const SITE_ACCESS_REMEDY =
+  "Grant the Open API client access to all sites in the Omada Controller (Settings → Open API → Clients), then retry provisioning.";

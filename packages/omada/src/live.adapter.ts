@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { unsupported, type ControllerCapabilities, type CapabilityResult } from "./capabilities.js";
 import {
   adoptFailureMessage,
@@ -28,7 +28,7 @@ import {
   type UsageReadInput,
   type VerifiedAdoptionInput,
 } from "./controller-adapter.js";
-import { ControllerError, UnsupportedCapabilityError } from "./errors.js";
+import { ControllerError, isSiteNameConflict, UnsupportedCapabilityError } from "./errors.js";
 import { OmadaOpenApiClient, type OpenApiContract } from "./openapi-client.js";
 import { OmadaPortalClient } from "./portal-client.js";
 import { ControllerTransport } from "./transport.js";
@@ -57,6 +57,22 @@ function firstCounter(row: Record<string, unknown>, keys: readonly string[]): bi
     if (found !== undefined) return found;
   }
   return undefined;
+}
+
+/** Site creation provisions WLAN groups and a device account, so it needs more than a read. */
+const SITE_CREATE_TIMEOUT_MS = 45_000;
+/** Portal writes make the Controller rebuild its auth policy; slower than a plain read. */
+const PORTAL_WRITE_TIMEOUT_MS = 30_000;
+
+/**
+ * Omada keeps site device accounts in one namespace, so the fixed name "advo"
+ * collided with every site created after the first and the Controller answered
+ * "This name already exists. Please enter another name for this site." (errorCode
+ * -33101) — which reads like a site-name clash. Deriving the account from the
+ * remote name keeps it unique per site and stable across retries.
+ */
+function siteDeviceAccount(remoteName: string): string {
+  return `advo${createHash("sha256").update(remoteName).digest("hex").slice(0, 12)}`;
 }
 
 export type LiveControllerConfig = {
@@ -194,16 +210,34 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
   }
 
   async createSite(input: CreateSiteInput): Promise<RemoteSiteResult> {
-    const id = await this.requireOpenApi("createSite").call("createSite", {
-      name: input.name,
-      // Omada rejects Africa/Dar_es_Salaam. Nairobi is the same offset and is what this Controller accepts.
-      timezone: !input.timezone || input.timezone === "Africa/Dar_es_Salaam" ? "Africa/Nairobi" : input.timezone,
-      deviceUsername: "advo",
-      // Omada requires a site device account. It stays on the Controller; it is not a user password.
-      devicePassword: `Aa1!${randomBytes(12).toString("base64url")}`,
-    });
-    if (typeof id !== "string" || !id) throw new ControllerError("createSite returned no site ID", "protocol", true);
-    return { remoteSiteId: id, name: input.name };
+    const api = this.requireOpenApi("createSite");
+    try {
+      const id = await api.call(
+        "createSite",
+        {
+          name: input.name,
+          // Omada rejects Africa/Dar_es_Salaam. Nairobi is the same offset and is what this Controller accepts.
+          timezone: !input.timezone || input.timezone === "Africa/Dar_es_Salaam" ? "Africa/Nairobi" : input.timezone,
+          deviceUsername: siteDeviceAccount(input.name),
+          // Omada requires a site device account. It stays on the Controller; it is not a user password.
+          devicePassword: `Aa1!${randomBytes(12).toString("base64url")}`,
+        },
+        // Creating a site provisions WLAN groups and a device account first, which
+        // outlasts the default budget; a premature timeout left orphan sites behind.
+        { timeoutMs: SITE_CREATE_TIMEOUT_MS },
+      );
+      if (typeof id !== "string" || !id) throw new ControllerError("createSite returned no site ID", "protocol", true);
+      return { remoteSiteId: id, name: input.name };
+    } catch (err) {
+      // The Controller can create the site and still answer with a duplicate-name
+      // error, or time out after committing. Look before failing so a retry never
+      // leaves a second site with the same purpose behind.
+      if (isSiteNameConflict(err) || (err instanceof ControllerError && err.kind === "timeout")) {
+        const existing = await this.findSiteByName(input.name).catch(() => null);
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   async findSiteByName(name: string): Promise<RemoteSiteResult | null> {
@@ -397,13 +431,17 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
       const lans = api.has("listLanNetworks") ? await api.call("listLanNetworks", { siteId: input.remoteSiteId }) : [];
       const networkId = Array.isArray(lans) ? (lans as Array<{ id?: string }>)[0]?.id : undefined;
       if (!networkId) throw new ControllerError("Site has no LAN to bind the portal to", "rejected", true);
-      await api.call("createPortal", {
-        siteId: input.remoteSiteId,
-        name: target.name,
-        scheme: target.scheme,
-        serverUrl: target.serverUrl,
-        networkId,
-      });
+      await api.call(
+        "createPortal",
+        {
+          siteId: input.remoteSiteId,
+          name: target.name,
+          scheme: target.scheme,
+          serverUrl: target.serverUrl,
+          networkId,
+        },
+        { timeoutMs: PORTAL_WRITE_TIMEOUT_MS },
+      );
     }
     if (api.has("getPreAuth") && api.has("setPreAuth")) {
       await this.ensurePreAuth(api, input.remoteSiteId, preAuthHosts(input.portalUrl, this.config.baseUrl));
