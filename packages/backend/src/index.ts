@@ -55,3 +55,4 @@ export { isProduction } from "./common/providers.js";
 export { seedDemo } from "./demo/seed-demo.js";
 export { refreshStarterPlans, seedPlans } from "./demo/seed-plans.js";
 export { MAX_UPLOAD_BYTES as MAX_MEDIA_UPLOAD_BYTES } from "./modules/media/media.service.js";
+export { ensureDefaultPlatformSettings } from "./modules/settings/settings.service.js";

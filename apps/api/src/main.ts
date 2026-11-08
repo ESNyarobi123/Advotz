@@ -6,7 +6,7 @@ import cookie from "@fastify/cookie";
 import helmet from "@fastify/helmet";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppExceptionFilter, loadServerEnvSafe } from "./bootstrap-helpers.js";
-import { MAX_MEDIA_UPLOAD_BYTES } from "@advo/backend";
+import { ensureDefaultPlatformSettings, MAX_MEDIA_UPLOAD_BYTES } from "@advo/backend";
 import { HttpAppModule } from "./http-app.module.js";
 
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -99,6 +99,14 @@ async function bootstrap() {
   }
 
   app.enableShutdownHooks();
+
+  // Idempotent: only writes when Admin → Settings was never opened. Without this,
+  // production blocks every guest sale with "Platform sale fee is not configured".
+  const fees = await ensureDefaultPlatformSettings();
+  if (fees.created.length > 0) {
+    console.warn(`[settings] seeded platform fees: ${fees.created.join(", ")}`);
+  }
+
   await app.listen(env.API_PORT, "0.0.0.0");
   console.log(`Advo TZ API listening on :${env.API_PORT} (payments=${env.PAYMENT_PROVIDER}, outboxInline=${env.OUTBOX_INLINE})`);
   // Deliberately loud: a fixed OTP is a development convenience that must not go

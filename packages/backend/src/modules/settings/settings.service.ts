@@ -62,6 +62,77 @@ export async function withdrawalFeeTzs(): Promise<bigint> {
   return 0n;
 }
 
+/**
+ * Defaults used when an Admin has never opened Settings.
+ *
+ * Matches the marketing calculator (5% guest sale fee) and the integration-test
+ * withdrawal fee (TZS 0). Overridable via BOOTSTRAP_SALE_FEE_BPS /
+ * BOOTSTRAP_WITHDRAWAL_FEE_TZS so a deploy can pick different numbers without a
+ * UI click. 0 is a valid explicit value for either fee.
+ */
+const DEFAULT_SALE_FEE_BPS = 500;
+const DEFAULT_WITHDRAWAL_FEE_TZS = 0;
+
+function bootstrapInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (raw == null || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < min || n > max) {
+    throw new Error(`${name} must be an integer between ${min} and ${max}`);
+  }
+  return n;
+}
+
+/**
+ * Idempotent: write the platform fees only when they are missing.
+ *
+ * Production refuses sales and withdrawals until both rows exist. First deploys
+ * (and any environment that skipped Admin → Settings) used to soft-lock every
+ * portal checkout with "Platform sale fee is not configured". Calling this from
+ * `admin:bootstrap` and API startup closes that gap without overwriting a fee
+ * an Admin already chose.
+ */
+export async function ensureDefaultPlatformSettings(actorUserId?: string | null): Promise<{
+  created: string[];
+  skipped: string[];
+}> {
+  const saleBps = bootstrapInt("BOOTSTRAP_SALE_FEE_BPS", DEFAULT_SALE_FEE_BPS, 0, 5000);
+  const withdrawalTzs = bootstrapInt("BOOTSTRAP_WITHDRAWAL_FEE_TZS", DEFAULT_WITHDRAWAL_FEE_TZS, 0, 1_000_000);
+  const actor =
+    actorUserId ??
+    (
+      await prisma.user.findFirst({
+        where: { role: "ADMIN", status: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      })
+    )?.id ??
+    null;
+
+  const created: string[] = [];
+  const skipped: string[] = [];
+
+  if (await getSetting(SettingKey.SALE_FEE_BPS)) {
+    skipped.push(SettingKey.SALE_FEE_BPS);
+  } else if (!actor) {
+    skipped.push(`${SettingKey.SALE_FEE_BPS}:no-admin`);
+  } else {
+    await setSetting(SettingKey.SALE_FEE_BPS, { basisPoints: saleBps }, actor, "Bootstrap default platform sale fee");
+    created.push(`${SettingKey.SALE_FEE_BPS}=${saleBps}`);
+  }
+
+  if (await getSetting(SettingKey.WITHDRAWAL_FEE_TZS)) {
+    skipped.push(SettingKey.WITHDRAWAL_FEE_TZS);
+  } else if (!actor) {
+    skipped.push(`${SettingKey.WITHDRAWAL_FEE_TZS}:no-admin`);
+  } else {
+    await setSetting(SettingKey.WITHDRAWAL_FEE_TZS, { fixedTzs: withdrawalTzs }, actor, "Bootstrap default platform withdrawal fee");
+    created.push(`${SettingKey.WITHDRAWAL_FEE_TZS}=${withdrawalTzs}`);
+  }
+
+  return { created, skipped };
+}
+
 // ───────────────────────────── Admin settings board ──────────────────────────
 
 /** The two settings this screen owns, in the order they are applied in a sale. */

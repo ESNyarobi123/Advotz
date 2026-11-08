@@ -55,7 +55,7 @@ docker compose --env-file .env.production -f infra/docker/compose.prod.yml run -
   node --import @swc-node/register/esm-register src/admin-bootstrap.ts
 ```
 
-Then log in, enrol MFA, and set in Admin → Settings the platform sale fee and withdrawal fee. Until they are set, production refuses sales and withdrawals. Next, add plans, commission policies and the LIVE Controller with its contract (see [Omada contracts](integrations/omada-contracts.md)).
+Then log in and enrol MFA. `admin:bootstrap` (and every API start) seeds a default platform sale fee (5%, `BOOTSTRAP_SALE_FEE_BPS`) and withdrawal fee (TZS 0, `BOOTSTRAP_WITHDRAWAL_FEE_TZS`) when those settings are missing — without that, production refuses guest sales and withdrawals. Change the numbers in Admin → Settings any time; the bootstrap never overwrites a fee an Admin already set. Next, add plans, commission policies and the LIVE Controller with its contract (see [Omada contracts](integrations/omada-contracts.md)).
 
 > **Compose environment gotcha.** Compose gives variables in your shell priority over `--env-file`. If your shell exports `POSTGRES_PASSWORD`, `DATABASE_URL` or similar (for example from a development `.env`), they silently override production values. Run Compose from a clean environment:
 > `env -i PATH="$PATH" HOME="$HOME" docker compose --env-file .env.production -f infra/docker/compose.prod.yml up -d`

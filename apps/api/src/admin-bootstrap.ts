@@ -1,5 +1,5 @@
 import "@advo/config/load-env";
-import { AuthService } from "@advo/backend";
+import { AuthService, ensureDefaultPlatformSettings } from "@advo/backend";
 import { loadServerEnvSafe } from "./bootstrap-helpers.js";
 
 async function main() {
@@ -24,6 +24,11 @@ async function main() {
   const auth = new AuthService();
   const result = await auth.bootstrapAdmin({ email, password, name });
   console.log("Admin bootstrapped:", result);
+
+  // Guest portal checkout and withdrawals refuse to run until these rows exist.
+  // Seed them here so a fresh production deploy does not soft-lock every sale.
+  const fees = await ensureDefaultPlatformSettings(result.userId);
+  console.log("Platform fees:", fees);
 }
 
 main().catch((err) => {
