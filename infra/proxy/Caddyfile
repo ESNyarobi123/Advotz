@@ -86,10 +86,9 @@
 # Omada builds the captive-portal redirect from the Controller's Portal URL, which carries the
 # Controller's *portal* ports:
 #   http://<portal host>:<http portal port>/portal/entry?cid=..&ap=..&ssid=..
-# The Portal HTTP port is set to 80 (see docs/runbooks.md) because a guest's phone sits behind
-# the EAP's pre-authentication firewall, which only lets it reach standard web ports — anything
-# else times out with `net::ERR_CONNECTION_TIMED_OUT`. These two listeners stay as fallbacks for
-# a Controller that is still pointed at 8088/8843, so a stale config never dead-ends a guest.
+# Public Controller portal HTTP uses port 80 via nginx (see infra/omada and docs/runbooks.md).
+# These listeners support guests with an older Portal URL pointing at this production host.
+# A guest must still be allowed to reach their destination ports by the actual network policy.
 :8088 {
 	import edge
 	encode zstd gzip

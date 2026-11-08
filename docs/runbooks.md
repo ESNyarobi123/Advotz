@@ -121,27 +121,24 @@ The fix is one Controller setting, not a per-site task:
 
 Because `createSite` now looks the site up by name before failing, a retry reuses the site the Controller already made instead of creating a duplicate. A reseller is never shown the Controller wording — they see that the site is still being set up, while the reason stays on the admin screen and in the network operation.
 
-## Captive portal sends clients to the Controller's `:8088/portal/entry`
+## Captive portal times out at `/portal/entry`
 
-A guest connects to the SSID and the phone lands on `http://<controller>:8088/portal/entry?cid=…&ap=…&ssid=…&clientIp=…&t=…&rid=1&u=…`, which answers **`net::ERR_CONNECTION_ABORTED`**. That address is the Controller's own hotspot portal, not Advo's. It aborts because the Controller's portal port is not exposed publicly.
+Omada normally sends an unauthenticated guest to the Controller's `/portal/entry` first. The Controller then redirects the guest to the site's External Portal Server. Seeing `:8088/portal/entry` alone does not prove that the external URL is missing or that HTTP external URLs are ignored.
 
-The Controller only uses that entry when the site's portal is missing an external server URL, so Advo's page (`https://wifi.advowifi.com/<slug>`) is never reached. `configureExternalPortal` used to stop after creating the portal once, which meant a portal created before `PORTAL_PUBLIC_URL` was right, or one the Controller quietly downgraded to `http`, stayed wrong forever.
+On 8 November 2026, the Controller UI stored HTTP portal port `80`, but Docker still set `PORTAL_HTTP_PORT=8088` with `WEB_CONFIG_OVERRIDE=true`. The container therefore ran the portal on `8088` after restart. That host port was published on loopback only. A request to `139.84.231.0:8088` reset, while a request to the production fallback at `wifi.advowifi.com:8088` returned 302 from an ordinary internet connection. Those results do not establish which firewall drops an unauthenticated phone's request; confirm that with a fresh guest connection and server logs.
 
-Check what the Controller really stored:
+The Controller host configuration is recorded in `infra/omada/`:
 
-1. Omada → **site → Settings → Portal → Edit → Authentication** and confirm **Authentication Type = External Portal Server** with the Advo domain, e.g. `https://wifi.advowifi.com/<slug>`.
-2. From the API side, `GET /openapi/v1/{omadacId}/sites/{siteId}/portal/{portalId}` must show `authType: 4` and `externalPortal.serverUrlScheme: "https"` with Advo's host.
+- Global **System Settings → Portal Access**: Manual hostname `controller.advowifi.com`, HTTP portal port `80`, HTTPS portal port `8843`, HTTP redirect to HTTPS off.
+- Docker: `PORTAL_HTTP_PORT=80`, management HTTP `8088`, and `127.0.0.1:8089:80` for nginx to reach the portal connector. The container must allow its non-root process to bind port 80 (`net.ipv4.ip_unprivileged_port_start=0`, already present on this host).
+- nginx: public HTTP `/portal/` goes to `http://127.0.0.1:8089`; HTTPS `/portal/` goes to `https://127.0.0.1:8843`. Management continues to use `8043`. Set `proxy_redirect off` in portal locations so the external Advo redirect keeps its own hostname.
+- Each site's External Portal Server remains `https://wifi.advowifi.com/<slug>`, with `authType: 4`. Keep the portal and Controller resources in the pre-authentication allow-list. Do not infer a universal 80/443-only policy without checking the actual AP rules.
 
-Provisioning now reads the portal back and re-applies it whenever `authType` or the external URL differs, so **Retry provisioning** (or the next sweeper pass) repairs an existing site. Sites provisioned before this change were re-applied in place.
+Back up the live Compose and nginx files, validate with `docker compose … config --quiet` and `nginx -t`, then recreate the Controller container after changing its environment/port mappings. A plain `docker restart` does not apply changed Compose environment values or mappings. Reload nginx and verify a complete `/portal/entry` query returns 302 to the correct HTTPS site. Wait for the active AP to reconnect, then check the redirect from a freshly connected unauthenticated phone.
 
-Two follow-ups when it still ends up on `:8088`:
+The production Caddy `8088`/`8843` listeners remain compatibility entry points. Advo resolves their `ap` MAC to a slug using `GET /api/v1/portal/resolve` and renames the short Omada parameters before redirecting. They help only if the guest can reach those listeners.
 
-- **The usual cause is a portal stored as `http://`.** Omada only honours an `https://` external portal URL; when it is `http`, the AP silently ignores it and falls back to the Controller's own `<Portal URL host>:<HTTP portal port>/portal/entry`. That is exactly what guests saw: `http://wifi.advowifi.com:8088/portal/entry?cid=…` → `net::ERR_CONNECTION_TIMED_OUT`. `externalPortalTarget` now upgrades any non-local http URL to `https`, and because provisioning compares `externalPortal.serverUrlScheme` it rewrites an existing portal on the next provision/retry. Re-run provisioning for every mapped site after changing `PORTAL_PUBLIC_URL`; a site keeps its old scheme until its own portal is re-applied.
-- If a guest still lands on the Controller entry, the Controller is generating it from **Settings → System Settings → Portal URL**. Set it to **Manual**, hostname `wifi.advowifi.com`, **HTTP Portal Port `80`** (not `8088`: the EAP's pre-authentication policy only lets an unauthenticated phone reach standard web ports, so `:8088` times out even though the port is open to the whole internet), **HTTPS Portal Port `8843`**, and **HTTP Redirect to HTTPS (Portal)** off. Omada says portal port changes need a **Controller restart** to take effect, so restart the Controller after saving; until then APs keep advertising the old port.
-- Until that restart, clients reach `http://wifi.advowifi.com/portal/entry` → `https://wifi.advowifi.com/portal/entry`, served by the `:8088` and `:8843` blocks in `infra/proxy/Caddyfile` (published by `compose.prod.yml` as `PROXY_PORTAL_HTTP_PORT` / `PROXY_PORTAL_HTTPS_PORT`). The proxy rewrites the authority so `/portal/entry` hands back a canonical `https://wifi.advowifi.com/<slug>` URL instead of a `:<port>` one.
-- Advo answers `/portal/entry` itself, so a manual Portal URL lands on the guest page. Because the Controller never sends our slug, the entry resolves the site from the AP MAC (`GET /api/v1/portal/resolve?ap=…`, falling back to an SSID that matches the site name) and redirects to `/<slug>` with Omada's short parameters renamed (`cid→clientMac`, `ap→apMac`, `ssid→ssidName`, `u→redirectUrl`).
-
-An unknown AP or SSID answers 404 by design — a guest must never be shown another site's packages.
+Check the application separately: an HTML 200 or redirect 302 is not proof the site can sell. `GET /api/v1/portal/sites/<slug>` must return the bootstrap payload. An existing site whose reseller is `PENDING_VERIFICATION` returns `404 — WiFi location not found`; use the normal Admin account activation/verification workflow. Unknown or archived sites also return 404. Subscription availability is checked separately.
 
 ## Stuck adoption
 
