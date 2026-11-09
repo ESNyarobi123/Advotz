@@ -119,7 +119,9 @@ function LocaleFlag({ code, className }: { code: Locale; className?: string }) {
     );
   }
 
-  // Tanzania
+  // Tanzania. The black band must run lower-hoist → upper-fly, with the yellow
+  // fimbriation on both sides; drawing it the other diagonal reads as a
+  // different flag.
   return (
     <svg
       aria-hidden="true"
@@ -129,8 +131,8 @@ function LocaleFlag({ code, className }: { code: Locale; className?: string }) {
     >
       <rect fill="#1EB53A" height="40" width="60" />
       <polygon fill="#00A3DD" points="60,0 60,40 0,40" />
-      <polygon fill="#000" points="0,8 0,0 12,0 60,32 60,40 48,40" />
-      <polygon fill="#FCD116" points="0,12 0,8 14,0 18,0 60,28 60,32 46,40 42,40" />
+      <polygon fill="#FCD116" points="0,40 0,30 50,0 60,0 60,10 10,40" />
+      <polygon fill="#000" points="0,40 0,28 48,0 60,0 60,12 12,40" />
     </svg>
   );
 }
