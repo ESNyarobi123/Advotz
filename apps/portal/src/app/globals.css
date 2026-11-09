@@ -121,3 +121,90 @@ body {
   color: var(--advo-text);
   font-family: var(--advo-font-inter, var(--advo-font));
 }
+
+/*
+ * Payment wait dialog.
+ *
+ * A guest waiting on a wallet prompt needs the screen to look alive, so these
+ * carry the whole sense of progress without a percentage we cannot honestly
+ * produce: rings that keep leaving the icon, a bar that keeps sweeping, and dots
+ * that keep moving. All three stop for `prefers-reduced-motion`.
+ */
+@keyframes advo-wait-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes advo-wait-ring {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.75);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes advo-wait-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+
+@keyframes advo-wait-dots {
+  0%,
+  20% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+.advo-wait-in {
+  animation: advo-wait-in 320ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.advo-wait-ring {
+  animation: advo-wait-ring 2.1s ease-out infinite;
+}
+
+/* Unlayered rules beat Tailwind utilities, so the beats are set here rather than
+ * with `[animation-delay:…]` classes that the shorthand above would reset. */
+.advo-wait-ring--second {
+  animation-delay: 0.7s;
+}
+
+.advo-wait-ring--third {
+  animation-delay: 1.4s;
+}
+
+.advo-wait-sweep {
+  animation: advo-wait-sweep 1.4s ease-in-out infinite;
+}
+
+.advo-wait-dots {
+  animation: advo-wait-dots 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .advo-wait-in,
+  .advo-wait-ring,
+  .advo-wait-sweep,
+  .advo-wait-dots {
+    animation: none;
+  }
+}

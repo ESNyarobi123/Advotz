@@ -218,6 +218,7 @@ export default function PortalStudioPage() {
           <GuestShell locale={locale} onSelectLanguage={setLocale} onToggleLanguage={toggle} title="Palm Beach WiFi">
             <PaymentWaitingStage
               amount="TZS 2,500"
+              contained
               duration="3 hours"
               packageName="Saa 3"
               reference="PALMBEACH1"

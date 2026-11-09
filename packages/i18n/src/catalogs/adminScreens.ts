@@ -250,6 +250,18 @@ export const adminScreensEn = {
   "admin.resellers.action.reactivate": "Reactivate",
   "admin.resellers.action.attribution": "Fix attribution",
   "admin.resellers.action.impersonate": "Sign in as",
+  "admin.resellers.action.delete": "Delete reseller",
+  "admin.resellers.delete.title": "Delete {name}?",
+  "admin.resellers.delete.body":
+    "The owner loses access immediately and the account disappears from this list. This cannot be undone from the dashboard.",
+  "admin.resellers.delete.note":
+    "{name}'s history is kept for the ledger. An account with no payments or sites is erased completely; one that has invoices is closed and hidden instead.",
+  "admin.resellers.delete.confirm": "Delete reseller",
+  "admin.resellers.delete.cancel": "Keep account",
+  "admin.resellers.delete.done": "Done",
+  "admin.resellers.delete.erased": "{name} was deleted.",
+  "admin.resellers.delete.closed":
+    "{name} was closed and removed from the list; its invoices stay in the ledger.",
   "admin.resellers.reason.suspend": "Reason for suspending {name}",
   "admin.resellers.reason.reactivate": "Reason for reactivating {name}",
   "admin.resellers.reason.attribution": "Reason for correcting the agent attribution",
@@ -2654,6 +2666,18 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.action.reactivate": "Rejesha",
   "admin.resellers.action.attribution": "Rekebisha aliyemleta",
   "admin.resellers.action.impersonate": "Ingia kama",
+  "admin.resellers.action.delete": "Futa muuzaji",
+  "admin.resellers.delete.title": "Umfute {name}?",
+  "admin.resellers.delete.body":
+    "Mmiliki atakataliwa kuingia mara moja na akaunti itatoweka kwenye orodha hii. Hatua hii haiwezi kurudishwa kwenye dashibodi.",
+  "admin.resellers.delete.note":
+    "Kumbukumbu za {name} zinahifadhiwa kwa ajili ya hesabu. Akaunti isiyo na malipo wala maeneo hufutwa kabisa; iliyo na ankara hufungwa na kufichwa badala yake.",
+  "admin.resellers.delete.confirm": "Futa muuzaji",
+  "admin.resellers.delete.cancel": "Acha akaunti",
+  "admin.resellers.delete.done": "Sawa",
+  "admin.resellers.delete.erased": "{name} amefutwa.",
+  "admin.resellers.delete.closed":
+    "{name} amefungwa na kuondolewa kwenye orodha; ankara zake zinabaki kwenye hesabu.",
   "admin.resellers.reason.suspend": "Sababu ya kumsimamisha {name}",
   "admin.resellers.reason.reactivate": "Sababu ya kumrejesha {name}",
   "admin.resellers.reason.attribution": "Sababu ya kurekebisha aliyemleta wakala",

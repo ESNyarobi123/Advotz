@@ -28,6 +28,82 @@ export async function setResellerStatus(adminUserId: string, resellerId: string,
 }
 
 /**
+ * Removes a reseller from the platform.
+ *
+ * Two different things are called "delete" here, and the difference is money.
+ * An account with no trading history — no sites, packages, customers, orders,
+ * invoices, vouchers, grants or devices — is erased outright, which is what an
+ * operator means when they delete a test business. An account that has taken
+ * payments cannot be erased without orphaning the ledger, so it is closed
+ * instead: the row, its invoices and its audit trail stay, the owner loses
+ * access, and the Admin list stops showing it.
+ */
+export async function deleteReseller(adminUserId: string, resellerId: string, reason?: string | null) {
+  const reseller = await prisma.reseller.findUnique({
+    where: { id: resellerId },
+    include: {
+      subscription: { select: { id: true } },
+      owner: {
+        select: {
+          role: true,
+          agent: { select: { id: true } },
+          _count: { select: { supportTickets: true } },
+        },
+      },
+      _count: {
+        select: {
+          sites: true,
+          packages: true,
+          customers: true,
+          orders: true,
+          invoices: true,
+          deviceClaims: true,
+          devices: true,
+          voucherGroups: true,
+          grants: true,
+          accruals: true,
+          promotions: true,
+          planMigrations: true,
+        },
+      },
+    },
+  });
+  if (!reseller) notFound("Reseller not found");
+
+  const history =
+    reseller.subscription !== null ||
+    reseller.owner.role !== "RESELLER" ||
+    reseller.owner.agent !== null ||
+    Object.values(reseller._count).some((count) => count > 0) ||
+    reseller.owner._count.supportTickets > 0;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.authSession.updateMany({
+      where: { userId: reseller.ownerUserId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await tx.reseller.update({ where: { id: resellerId }, data: { status: "CLOSED" } });
+    await tx.user.update({ where: { id: reseller.ownerUserId }, data: { status: "CLOSED" } });
+    await audit(tx, {
+      actorUserId: adminUserId,
+      action: "reseller.deleted",
+      targetType: "Reseller",
+      targetId: resellerId,
+      resellerId,
+      reason: reason ?? null,
+      metadata: { erased: !history, businessName: reseller.businessName },
+    });
+
+    if (history) return { deleted: "closed" as const, id: resellerId };
+
+    // Nothing references this reseller, so the rows themselves can go.
+    await tx.reseller.delete({ where: { id: resellerId } });
+    await tx.user.delete({ where: { id: reseller.ownerUserId } });
+    return { deleted: "erased" as const, id: resellerId };
+  });
+}
+
+/**
  * Admin-initiated reseller creation.
  *
  * Mirrors the self-registration shape but skips email verification: an Admin who

@@ -16,6 +16,7 @@ import {
   Search,
   ShieldOff,
   Store,
+  Trash2,
   TriangleAlert,
   UserCog,
   UserRound,
@@ -375,10 +376,111 @@ function ResellerCard({
               ? t("admin.resellers.action.reactivate")
               : t("admin.resellers.action.suspend")}
         </Button>
+        <DeleteResellerButton onDeleted={onChanged} row={row} />
       </div>
 
       <OperatorDialog actions={operator} />
     </Card>
+  );
+}
+
+/**
+ * The trash control on a reseller card.
+ *
+ * Deleting a reseller is not always the same operation, so the confirmation says
+ * what will happen instead of promising an erase the database may refuse: an
+ * account that has never traded is removed, one with invoices is closed and
+ * hidden so its ledger survives.
+ */
+function DeleteResellerButton({
+  row,
+  onDeleted,
+}: {
+  row: ResellerRow;
+  onDeleted: () => Promise<void>;
+}) {
+  const { t } = useI18n();
+  const overlay = useOverlayState();
+  const [result, setResult] = useState<"erased" | "closed" | null>(null);
+  const remove = useAction(async () => {
+    const response = await api.del<{ deleted: "erased" | "closed" }>(`/admin/resellers/${row.id}`);
+    setResult(response.deleted);
+    await onDeleted();
+  });
+
+  function open() {
+    setResult(null);
+    remove.setError(null);
+    overlay.open();
+  }
+
+  function close() {
+    overlay.close();
+    remove.setError(null);
+  }
+
+  return (
+    <>
+      <Button
+        aria-label={t("admin.resellers.action.delete")}
+        isDisabled={remove.pending}
+        isIconOnly
+        onPress={open}
+        size="sm"
+        type="button"
+        variant="danger-soft"
+      >
+        <Trash2 className="size-3.5" />
+      </Button>
+
+      <Modal.Root state={overlay}>
+        <Modal.Backdrop>
+          <Modal.Container size="md">
+            <Modal.Dialog className="bg-white">
+              <Modal.Header>
+                <Modal.Heading className="text-base font-black text-advo-text">
+                  {t("admin.resellers.delete.title", { name: row.businessName })}
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="space-y-4">
+                {result ? (
+                  <>
+                    <Notice tone="success">
+                      {result === "erased"
+                        ? t("admin.resellers.delete.erased", { name: row.businessName })
+                        : t("admin.resellers.delete.closed", { name: row.businessName })}
+                    </Notice>
+                    <div className="flex justify-end border-t border-[var(--advo-border)] pt-4">
+                      <Button onPress={close} type="button" variant="primary">
+                        {t("admin.resellers.delete.done")}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-advo-text">{t("admin.resellers.delete.body")}</p>
+                    <p className="rounded-xl bg-advo-page px-3 py-2.5 text-xs leading-relaxed text-advo-muted">
+                      {t("admin.resellers.delete.note", { name: row.owner.name })}
+                    </p>
+                    {remove.error ? <Notice tone="danger">{remove.error}</Notice> : null}
+                    <div className="flex justify-end gap-2 border-t border-[var(--advo-border)] pt-4">
+                      <Button onPress={close} type="button" variant="ghost">
+                        {t("admin.resellers.delete.cancel")}
+                      </Button>
+                      <Button isDisabled={remove.pending} onPress={() => void remove.run()} type="button" variant="danger">
+                        <Trash2 className="size-4" />
+                        {remove.pending ? "…" : t("admin.resellers.delete.confirm")}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Modal.Body>
+              <Modal.CloseTrigger aria-label={t("admin.resellers.delete.cancel")} />
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal.Root>
+    </>
   );
 }
 

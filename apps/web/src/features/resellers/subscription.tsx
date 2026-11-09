@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDateTime, formatTzs } from "@advo/api-client";
 import { planFeaturesWithDefaults } from "@advo/contracts";
-import { Card } from "@heroui/react";
+import { Button, Card, Modal, useOverlayState } from "@heroui/react";
 import { Notice, StatusChip, statusTone } from "@advo/ui";
 import { Field, PageHero, ResourceView } from "@/features/common/components";
 import { useSessionUser } from "@/features/shell/DashboardShell";
@@ -103,8 +103,6 @@ export function ResellerSubscriptionScreen() {
   const plans = useResource<Plan[]>("/reseller/plans");
   const [selected, setSelected] = useState<Plan | null>(null);
   const [detail, setDetail] = useState<Plan | null>(null);
-  const [checkoutKey, setCheckoutKey] = useState(() => newIdempotencyKey("sub"));
-  const [notice, setNotice] = useState<string | null>(null);
   const [invoiceFilter, setInvoiceFilter] = useState<InvoiceFilter>("ALL");
   const [invoiceQuery, setInvoiceQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -113,31 +111,12 @@ export function ResellerSubscriptionScreen() {
     await api.post("/reseller/subscription/trial", { planId });
   }, sub.reload);
 
-  const checkout = useAction(async (form: HTMLFormElement) => {
-    if (!selected) return;
-    const v = formValues(form);
-    const res = await api.post<{ payment: { state: string; lastError: string | null } }>(
-      "/reseller/subscription/checkout",
-      {
-        planId: selected.id,
-        phone: v.phone,
-        firstName: v.firstName,
-        lastName: v.lastName,
-        email: v.email,
-        idempotencyKey: checkoutKey,
-      },
-    );
-    setNotice(
-      res.payment.state === "FAILED"
-        ? t("reseller.subscription.checkout.failed", {
-            error: res.payment.lastError ?? "unknown error",
-          })
-        : t("reseller.subscription.checkout.sent"),
-    );
-    setCheckoutKey(newIdempotencyKey("sub"));
-  }, sub.reload);
+  /** Opens the checkout dialog for a plan; the dialog owns the form and the wait. */
+  function choosePlan(plan: Plan) {
+    setDetail(null);
+    setSelected(plan);
+  }
 
-  const [first, ...rest] = user.name.split(" ");
   const currentSub = sub.data;
   const capacity: PlanCapacity | null = currentSub?.plan ? capacityOf(currentSub.plan) : null;
 
@@ -429,10 +408,7 @@ export function ResellerSubscriptionScreen() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelected(p);
-                            setNotice(null);
-                          }}
+                          onClick={() => choosePlan(p)}
                           className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-sm transition ${
                             isSelected
                               ? "bg-advo-blue text-white ring-2 ring-advo-blue/30"
@@ -473,11 +449,7 @@ export function ResellerSubscriptionScreen() {
       </section>
 
       <PlanDetailDrawer
-        onChoose={(plan) => {
-          setDetail(null);
-          setSelected(plan);
-          setNotice(null);
-        }}
+        onChoose={choosePlan}
         onClose={() => setDetail(null)}
         onTrial={(plan) => void trial.run(plan.id)}
         open={detail !== null}
@@ -486,93 +458,13 @@ export function ResellerSubscriptionScreen() {
         trialUsed={Boolean(currentSub?.trialUsed)}
       />
 
-      {selected ? (
-        <Card className="overflow-hidden p-0 ring-4 ring-advo-blue/5">
-          <div className="flex items-center gap-3 border-b border-advo-border/60 p-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-advo-blue/10 text-advo-blue">
-              <Smartphone className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate text-sm font-black text-advo-text">
-                {t("reseller.subscription.checkout.title", {
-                  amount: formatTzs(selected.priceTzs),
-                  plan: selected.name,
-                })}
-              </h3>
-              <p className="text-xs text-advo-muted">{t("reseller.subscription.checkout.subtitle")}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              className="shrink-0 rounded-xl border border-advo-border px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-advo-page"
-            >
-              {t("reseller.subscription.checkout.cancel")}
-            </button>
-          </div>
-
-          <form
-            className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void checkout.run(e.currentTarget);
-            }}
-          >
-            <Field
-              name="phone"
-              label={t("reseller.subscription.checkout.phone")}
-              placeholder="0712 345 678"
-              required
-            />
-            <Field
-              name="email"
-              label={t("reseller.subscription.checkout.email")}
-              type="email"
-              defaultValue={user.email}
-              required
-            />
-            <Field
-              name="firstName"
-              label={t("reseller.subscription.checkout.firstName")}
-              defaultValue={first}
-              required
-            />
-            <Field
-              name="lastName"
-              label={t("reseller.subscription.checkout.lastName")}
-              defaultValue={rest.join(" ") || first}
-              required
-            />
-
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                disabled={checkout.pending}
-                className="inline-flex items-center gap-2 rounded-xl bg-advo-blue px-6 py-3 text-sm font-bold text-white shadow-md transition hover:bg-advo-blue-hover active:scale-95 disabled:opacity-50"
-              >
-                <Smartphone className="h-4 w-4" />
-                {checkout.pending
-                  ? t("reseller.subscription.checkout.pending")
-                  : t("reseller.subscription.checkout.submit")}
-              </button>
-            </div>
-          </form>
-
-          {checkout.error ? (
-            <div className="px-4 pb-4 sm:px-5">
-              <Notice tone="danger">{checkout.error}</Notice>
-            </div>
-          ) : null}
-
-          {notice ? (
-            <div className="mx-4 mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-advo-blue sm:mx-5">
-              {notice}{" "}
-              <button type="button" className="font-bold underline" onClick={() => void sub.reload()}>
-                {t("reseller.subscription.checkout.refresh")}
-              </button>
-            </div>
-          ) : null}
-        </Card>
-      ) : null}
+      <SubscriptionCheckoutDialog
+        onClose={() => setSelected(null)}
+        onPaid={() => void sub.reload()}
+        open={selected !== null}
+        plan={selected}
+        user={user}
+      />
 
       <section className="space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -794,6 +686,349 @@ function InvoiceDetailRow({
         </div>
       </div>
     </Card>
+  );
+}
+
+/**
+ * The mobile-money checkout for a subscription, as a centred dialog.
+ *
+ * A reseller pays from a laptop as often as a phone, so the form belongs over the
+ * page rather than below a card they have to scroll to find. The dialog owns the
+ * whole exchange: collect the details, wait for the wallet approval with a live
+ * poll of the invoice, then either celebrate the activation or name the failure.
+ */
+type CheckoutStage = "form" | "waiting" | "success" | "failed";
+
+function SubscriptionCheckoutDialog({
+  plan,
+  open,
+  onClose,
+  onPaid,
+  user,
+}: {
+  plan: Plan | null;
+  open: boolean;
+  onClose: () => void;
+  onPaid: () => void;
+  user: { name: string; email: string };
+}) {
+  const { t } = useI18n();
+  const overlay = useOverlayState({
+    isOpen: open,
+    onOpenChange: (next) => (next ? undefined : onClose()),
+  });
+  const [stage, setStage] = useState<CheckoutStage>("form");
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [periodEnd, setPeriodEnd] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState(() => newIdempotencyKey("sub"));
+  const [first, ...rest] = user.name.split(" ");
+
+  // The parent re-creates `onPaid` on every render; polling must not restart
+  // because of that, so it is read through a ref inside the effect.
+  const onPaidRef = useRef(onPaid);
+  onPaidRef.current = onPaid;
+
+  // Reopening the dialog starts a fresh checkout: a new plan must not inherit the
+  // spinner, the failure or the idempotency key of the last one.
+  useEffect(() => {
+    if (!open) return;
+    setStage("form");
+    setInvoiceId(null);
+    setFailure(null);
+    setPeriodEnd(null);
+    setIdempotencyKey(newIdempotencyKey("sub"));
+  }, [open, plan?.id]);
+
+  const checkout = useAction(async (form: HTMLFormElement) => {
+    if (!plan) return;
+    const values = formValues(form);
+    const result = await api.post<{ invoiceId: string; payment: { state: string; lastError: string | null } }>(
+      "/reseller/subscription/checkout",
+      {
+        planId: plan.id,
+        phone: values.phone,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        idempotencyKey,
+      },
+    );
+    setInvoiceId(result.invoiceId);
+    setIdempotencyKey(newIdempotencyKey("sub"));
+    if (result.payment.state === "FAILED") {
+      setFailure(result.payment.lastError ?? null);
+      setStage("failed");
+      return;
+    }
+    setStage("waiting");
+  });
+
+  /**
+   * Poll the invoice, not the clock: the provider confirms asynchronously, so the
+   * success screen is only shown once the invoice itself is PAID.
+   */
+  useEffect(() => {
+    if (stage !== "waiting" || !invoiceId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const check = async () => {
+      try {
+        const next = await api.get<SubscriptionView>("/reseller/subscription");
+        if (cancelled) return;
+        const invoice = next.invoices.find((item) => item.id === invoiceId);
+        if (invoice?.status === "PAID") {
+          setPeriodEnd(invoice.periodEnd ?? next.currentPeriodEnd);
+          setStage("success");
+          onPaidRef.current();
+          return;
+        }
+        const state = invoice?.payment?.state;
+        if (state === "FAILED" || state === "EXPIRED" || state === "VOIDED" || state === "NEEDS_REVIEW") {
+          setFailure(invoice?.payment?.lastError ?? null);
+          setStage("failed");
+          onPaidRef.current();
+          return;
+        }
+      } catch {
+        // A dropped poll is not a failed payment; the next tick asks again.
+      }
+      if (!cancelled) timer = setTimeout(() => void check(), 3000);
+    };
+
+    void check();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [stage, invoiceId]);
+
+  if (!plan) return null;
+
+  const reference = (invoiceId ?? "").slice(0, 12).toUpperCase();
+
+  return (
+    <Modal.Root state={overlay}>
+      <Modal.Backdrop>
+        <Modal.Container size="lg">
+          <Modal.Dialog className="overflow-hidden bg-white p-0">
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#0b2a63] via-[#12459e] to-[#0b2a63] px-5 pt-6 pb-5 text-white">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"
+              />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
+                    {t("reseller.subscription.checkout.eyebrow")}
+                  </p>
+                  <h2 className="mt-1 truncate text-xl font-black tracking-tight">{plan.name}</h2>
+                  <p className="mt-0.5 text-xs text-white/70">
+                    {t("reseller.subscription.checkout.period", { days: plan.periodDays })}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-2xl font-black tracking-tight tabular-nums">{formatTzs(plan.priceTzs)}</p>
+                  <p className="text-[10px] font-semibold text-white/60">
+                    {t("reseller.subscription.checkout.amountNote")}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Modal.Body className="px-5 pb-5">
+              {stage === "form" ? (
+                <form
+                  className="grid gap-3 pt-4 sm:grid-cols-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void checkout.run(event.currentTarget);
+                  }}
+                >
+                  <Field
+                    defaultValue={first}
+                    label={t("reseller.subscription.checkout.firstName")}
+                    name="firstName"
+                    required
+                  />
+                  <Field
+                    defaultValue={rest.join(" ") || first}
+                    label={t("reseller.subscription.checkout.lastName")}
+                    name="lastName"
+                    required
+                  />
+                  <Field
+                    label={t("reseller.subscription.checkout.phone")}
+                    name="phone"
+                    placeholder="0712 345 678"
+                    required
+                  />
+                  <Field
+                    defaultValue={user.email}
+                    label={t("reseller.subscription.checkout.email")}
+                    name="email"
+                    required
+                    type="email"
+                  />
+                  <p className="text-[11px] text-advo-muted sm:col-span-2">
+                    {t("reseller.subscription.checkout.subtitle")}
+                  </p>
+                  {checkout.error ? (
+                    <div className="sm:col-span-2">
+                      <Notice tone="danger">{checkout.error}</Notice>
+                    </div>
+                  ) : null}
+                  <div className="flex flex-col-reverse gap-2 pt-1 sm:col-span-2 sm:flex-row sm:justify-end">
+                    <Button onPress={onClose} type="button" variant="ghost">
+                      {t("reseller.subscription.checkout.cancel")}
+                    </Button>
+                    <Button isDisabled={checkout.pending} type="submit" variant="primary">
+                      <Smartphone className="size-4" />
+                      {checkout.pending
+                        ? t("reseller.subscription.checkout.pending")
+                        : t("reseller.subscription.checkout.submit")}
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+
+              {stage === "waiting" ? (
+                <div className="pt-6 text-center">
+                  <div className="relative mx-auto grid size-24 place-items-center">
+                    <span aria-hidden className="absolute inset-0 animate-ping rounded-full bg-advo-blue/15" />
+                    <span
+                      aria-hidden
+                      className="absolute inset-3 animate-ping rounded-full bg-advo-blue/20 [animation-delay:400ms]"
+                    />
+                    <span className="relative grid size-16 place-items-center rounded-full bg-gradient-to-br from-advo-blue to-[#0b2a63] text-white shadow-lg">
+                      <Smartphone className="size-7" />
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-base font-black text-advo-text">
+                    {t("reseller.subscription.checkout.waitingTitle")}
+                  </h3>
+                  <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-advo-muted">
+                    {t("reseller.subscription.checkout.waitingBody")}
+                  </p>
+
+                  <div className="mx-auto mt-4 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-advo-page">
+                    <div className="advo-checkout-sweep h-full w-1/3 rounded-full bg-gradient-to-r from-advo-gold to-advo-orange" />
+                  </div>
+
+                  <dl className="mx-auto mt-5 grid max-w-sm grid-cols-2 gap-2 text-left">
+                    <div className="rounded-xl border border-advo-border/70 bg-advo-page/60 px-3 py-2">
+                      <dt className="text-[9px] font-bold tracking-wider text-advo-muted uppercase">
+                        {t("reseller.subscription.checkout.summaryPlan")}
+                      </dt>
+                      <dd className="mt-0.5 truncate text-xs font-bold text-advo-text">{plan.name}</dd>
+                    </div>
+                    <div className="rounded-xl border border-advo-border/70 bg-advo-page/60 px-3 py-2">
+                      <dt className="text-[9px] font-bold tracking-wider text-advo-muted uppercase">
+                        {t("reseller.subscription.checkout.summaryAmount")}
+                      </dt>
+                      <dd className="mt-0.5 text-xs font-bold text-advo-text tabular-nums">
+                        {formatTzs(plan.priceTzs)}
+                      </dd>
+                    </div>
+                    {reference ? (
+                      <div className="col-span-2 rounded-xl border border-advo-border/70 bg-advo-page/60 px-3 py-2">
+                        <dt className="text-[9px] font-bold tracking-wider text-advo-muted uppercase">
+                          {t("reseller.subscription.checkout.summaryReference")}
+                        </dt>
+                        <dd className="mt-0.5 font-mono text-xs font-bold text-advo-text">{reference}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+
+                  <p className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-advo-muted">
+                    <Clock className="size-3" />
+                    {t("reseller.subscription.checkout.waitingHint")}
+                  </p>
+
+                  <div className="mt-5 flex justify-center">
+                    <Button onPress={onClose} type="button" variant="ghost">
+                      {t("reseller.subscription.checkout.waitingClose")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {stage === "success" ? (
+                <div className="pt-6 text-center">
+                  <div className="relative mx-auto grid size-24 place-items-center">
+                    <span aria-hidden className="absolute inset-0 rounded-full bg-emerald-100" />
+                    <span
+                      aria-hidden
+                      className="advo-checkout-ring absolute inset-0 rounded-full ring-4 ring-emerald-300/70"
+                    />
+                    <span className="advo-checkout-pop relative grid size-16 place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg">
+                      <CheckCircle2 className="size-8" />
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-black text-advo-text">
+                    {t("reseller.subscription.checkout.successTitle")}
+                  </h3>
+                  <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-advo-muted">
+                    {t("reseller.subscription.checkout.successBody", { plan: plan.name })}
+                  </p>
+
+                  {periodEnd ? (
+                    <p className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700">
+                      <Sparkles className="size-3" />
+                      {t("reseller.subscription.checkout.successUntil", {
+                        when: formatDateTime(periodEnd),
+                      })}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-6">
+                    <Button className="w-full" onPress={onClose} type="button" variant="primary">
+                      {t("reseller.subscription.checkout.successCta")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {stage === "failed" ? (
+                <div className="pt-6 text-center">
+                  <div className="mx-auto grid size-16 place-items-center rounded-full bg-rose-50 text-rose-600">
+                    <AlertTriangle className="size-7" />
+                  </div>
+                  <h3 className="mt-4 text-base font-black text-advo-text">
+                    {t("reseller.subscription.checkout.failedTitle")}
+                  </h3>
+                  <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-advo-muted">
+                    {failure
+                      ? t("reseller.subscription.checkout.failedBody", { error: failure })
+                      : t("reseller.subscription.checkout.failedBodyGeneric")}
+                  </p>
+                  <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+                    <Button onPress={onClose} type="button" variant="ghost">
+                      {t("reseller.subscription.checkout.cancel")}
+                    </Button>
+                    <Button
+                      onPress={() => {
+                        setFailure(null);
+                        setStage("form");
+                      }}
+                      type="button"
+                      variant="primary"
+                    >
+                      {t("reseller.subscription.checkout.retry")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </Modal.Body>
+
+            {stage === "form" ? (
+              <Modal.CloseTrigger aria-label={t("reseller.subscription.checkout.cancel")} />
+            ) : null}
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal.Root>
   );
 }
 

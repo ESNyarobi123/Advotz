@@ -445,3 +445,68 @@ body {
     transform: scaleX(1);
   }
 }
+
+/*
+ * Subscription checkout dialog.
+ *
+ * The dialog swaps between form, waiting and activated on its own, without an
+ * animation library, so these three carry the whole sense of progress: a sweeping
+ * bar while the wallet is asked, a ring that expands once when the plan lands, and
+ * a pop for the tick itself.
+ */
+@keyframes advo-checkout-sweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+
+@keyframes advo-checkout-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes advo-checkout-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* Named classes keep the reduced-motion override readable — arbitrary Tailwind
+ * animation values would need their brackets escaped to be targeted here. */
+.advo-checkout-sweep {
+  animation: advo-checkout-sweep 1.4s ease-in-out infinite;
+}
+
+.advo-checkout-pop {
+  animation: advo-checkout-pop 500ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.advo-checkout-ring {
+  animation: advo-checkout-ring 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .advo-checkout-sweep,
+  .advo-checkout-pop,
+  .advo-checkout-ring {
+    animation: none;
+  }
+}

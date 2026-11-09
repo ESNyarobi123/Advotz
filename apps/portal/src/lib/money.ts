@@ -26,6 +26,12 @@ export const MONEY_OPTIONS = [
     networkKey: "portal.networkYas",
     tint: "#0a4ea2",
   },
+  {
+    id: "halotel",
+    name: "HaloPesa",
+    networkKey: "portal.networkHalotel",
+    tint: "#f58220",
+  },
 ] as const satisfies ReadonlyArray<{
   id: string;
   name: string;
@@ -53,5 +59,6 @@ export function detectNetwork(raw: string): MoneyOption | null {
   if (["75", "76", "74"].includes(prefix)) return MONEY_OPTIONS[0];
   if (["78", "68", "69", "67"].includes(prefix)) return MONEY_OPTIONS[1];
   if (["65", "71", "77"].includes(prefix)) return MONEY_OPTIONS[2];
+  if (["61", "62", "63"].includes(prefix)) return MONEY_OPTIONS[3];
   return null;
 }

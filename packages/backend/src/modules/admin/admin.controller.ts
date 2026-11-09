@@ -116,7 +116,7 @@ import {
 import { listAllTickets, replyToTicket, setTicketState } from "../support/support.service.js";
 import { listWithdrawalsForAdmin, reviewWithdrawal as reviewWithdrawalRequest, withdrawalDetail, withdrawalsSummary as summaryWithdrawals } from "../withdrawals/withdrawals.service.js";
 import { reconcileWithdrawal as reconcilePayout } from "../withdrawals/payouts.service.js";
-import { createReseller, setAgentStatus, setResellerStatus, startAgentImpersonation, startImpersonation, updateResellerProfile, updateResellerSubscription } from "./admin.service.js";
+import { createReseller, deleteReseller, setAgentStatus, setResellerStatus, startAgentImpersonation, startImpersonation, updateResellerProfile, updateResellerSubscription } from "./admin.service.js";
 import { correctAttribution } from "./admin.service.js";
 
 const id = (v: string) => parse(uuidSchema, v);
@@ -206,6 +206,15 @@ export class AdminController {
   resellerStatus(@CurrentUser() a: RequestActor, @Param("id") resellerId: string, @Body() body: unknown) {
     const input = parse(statusSchema, body);
     return setResellerStatus(a.id, id(resellerId), input.status, input.reason);
+  }
+
+  /**
+   * Deletes a reseller. An account with no trading history is erased; one that
+   * has invoices is closed instead so the ledger stays intact.
+   */
+  @Delete("resellers/:id")
+  resellerDelete(@CurrentUser() a: RequestActor, @Param("id") resellerId: string) {
+    return deleteReseller(a.id, id(resellerId));
   }
 
   /** Edits the business identity and the owner's contact details. Audited with a reason. */

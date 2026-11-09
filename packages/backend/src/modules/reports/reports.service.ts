@@ -380,6 +380,9 @@ export async function adminOverview() {
 
 export async function adminResellers() {
   return prisma.reseller.findMany({
+    // A deleted reseller is closed and removed from this list; its invoices and
+    // audit trail stay in the database, and the detail page still resolves by id.
+    where: { status: { not: "CLOSED" } },
     include: {
       owner: { select: { email: true, phone: true, name: true, emailVerifiedAt: true } },
       subscription: { select: { state: true, currentPeriodEnd: true } },

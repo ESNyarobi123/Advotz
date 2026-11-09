@@ -180,53 +180,53 @@ export function PaymentModal({
           value={phone}
         />
 
-        {/* The three wallets, with the one the typed prefix belongs to lit up.
-            This is the guest's confirmation that the number is going to the
-            right place before they press pay. */}
-        <div className="grid grid-cols-3 gap-1.5">
-          {MONEY_OPTIONS.map((option) => {
-            const active = detected?.id === option.id;
-            return (
-              <div
-                className="grid place-items-center gap-0.5 rounded-xl border p-2 text-center transition"
+        {/* The wallets we accept, listed as a fact rather than a choice.
+            The provider resolves the operator from the number itself, so letting
+            the guest pick a network here would only invent a way to get it
+            wrong. Showing all four answers the question they do have — "can I
+            pay with my line?" — without asking them anything. */}
+        <div
+          className="rounded-xl border p-2.5"
+          style={{
+            borderColor: "color-mix(in srgb, var(--advo-border) 80%, transparent)",
+            background: "var(--advo-card)",
+          }}
+        >
+          <p
+            className="text-[10px] font-bold uppercase tracking-[0.1em]"
+            style={{ color: "var(--advo-muted)" }}
+          >
+            {t("portal.acceptedNetworks")}
+          </p>
+          <ul className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {MONEY_OPTIONS.map((option) => (
+              <li
+                className="inline-flex items-center gap-1.5 rounded-full border px-2 py-1"
                 key={option.id}
-                style={{
-                  borderColor: active ? option.tint : "transparent",
-                  background: active
-                    ? `color-mix(in srgb, ${option.tint} 10%, transparent)`
-                    : "var(--advo-card)",
-                  boxShadow: active
-                    ? "0 4px 12px -8px rgba(0,0,0,.4)"
-                    : "0 1px 2px rgba(15,23,42,.06)",
-                }}
+                style={{ borderColor: `color-mix(in srgb, ${option.tint} 30%, transparent)` }}
               >
                 <span
-                  className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-black text-white"
+                  aria-hidden
+                  className="grid size-4 place-items-center rounded-full text-[8px] font-black text-white"
                   style={{ background: option.tint }}
                 >
                   {option.name.charAt(0)}
                 </span>
-                <span
-                  className="text-[10px] font-bold leading-tight"
-                  style={{ color: "var(--advo-text)" }}
-                >
+                <span className="text-[11px] font-bold" style={{ color: "var(--advo-text)" }}>
                   {option.name}
                 </span>
-                <span
-                  className="text-[9px]"
-                  style={{ color: "var(--advo-muted)" }}
-                >
-                  {t(option.networkKey)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        {detected ? (
-          <p className="text-[11px]" style={{ color: "var(--advo-muted)" }}>
-            {t("portal.networkDetected", { network: t(detected.networkKey) })}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[11px] leading-snug" style={{ color: "var(--advo-muted)" }}>
+            {t("portal.anyNetworkNumber")}
           </p>
-        ) : null}
+          {detected ? (
+            <p className="mt-1 text-[10px] font-semibold" style={{ color: "var(--advo-muted)" }}>
+              {t("portal.networkDetected", { network: t(detected.networkKey) })}
+            </p>
+          ) : null}
+        </div>
 
         {/* One notice, for the guest who is not on the WiFi yet and needs to know
             where to go. The reseller previewing their own portal gets nothing
