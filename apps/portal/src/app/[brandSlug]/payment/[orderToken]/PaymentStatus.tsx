@@ -244,12 +244,12 @@ export function PaymentStatus({
         landingUrl={browseUrl}
         listings={extras.listings}
         promotionPackages={extras.promotionPackages}
-        reopenUrl={`/${slug}/status?token=${encodeURIComponent(orderToken)}`}
         session={{
           packageName: status.package.name ?? null,
           expiresAt: status.access.expiresAt,
           devices: status.access.devices.length,
           maxDevices: status.access.maxDevices,
+          durationSeconds: status.package.durationSeconds ?? null,
         }}
         sessionLabel={status.package.name ?? null}
         showHeader={false}

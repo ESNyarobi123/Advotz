@@ -127,6 +127,11 @@ export type PortalSession = {
   expiresAt: string | null;
   devices: number;
   maxDevices: number;
+  /**
+   * What the guest bought, in seconds. Used only to draw the remaining-time bar;
+   * absent when the caller has no package row (the designer's preview).
+   */
+  durationSeconds?: number | null;
 };
 
 export type { DeliveredAdCampaign, EffectivePortalConfig, PortalAdvert, PortalBusiness, PortalCardLayout, PortalCardStyle, PortalContent, PortalTheme, PromotionPackage };

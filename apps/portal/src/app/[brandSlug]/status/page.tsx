@@ -179,12 +179,12 @@ export default function StatusPage() {
         landingUrl={BROWSE_URL}
         listings={extras.listings}
         promotionPackages={extras.promotionPackages}
-        reopenUrl={token ? `/${brandSlug}/status?token=${encodeURIComponent(token)}` : null}
         session={{
           packageName: access.package.name ?? null,
           expiresAt: access.expiresAt,
           devices: access.devices.length,
           maxDevices: access.maxDevices,
+          durationSeconds: access.package.durationSeconds ?? null,
         }}
         sessionLabel={access.package.name ?? null}
         showHeader
@@ -297,6 +297,7 @@ export default function StatusPage() {
               expiresAt: new Date(Date.now() + 3 * 3600_000).toISOString(),
               devices: 1,
               maxDevices: 2,
+              durationSeconds: extras.packages[0]?.durationSeconds ?? null,
             }}
             sessionLabel={
               extras.packages[0]?.name

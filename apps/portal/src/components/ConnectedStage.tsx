@@ -29,10 +29,10 @@ const PLATFORM_URL = (process.env.NEXT_PUBLIC_WEB_URL ?? "https://advowifi.com")
  *
  * A guest reaches this screen with a live session and, on a phone, very little
  * time: the operating system tears the captive window down as soon as its
- * connectivity probe succeeds (see `SessionNotice`). So the screen is ordered by
- * what a guest can act on in one tap — session facts, then the menus — and every
- * menu loads its own list when opened instead of trusting a page that may have
- * been sitting open for an hour.
+ * connectivity probe succeeds. So the screen is ordered by what a guest can act
+ * on in one tap — the package and its remaining time, the internet button, then
+ * the Explore menus — and every menu loads its own list when opened instead of
+ * trusting a page that may have been sitting open for an hour.
  */
 export function ConnectedStage({
   slug,
@@ -42,7 +42,6 @@ export function ConnectedStage({
   sessionLabel,
   session,
   connection,
-  reopenUrl,
   landingUrl,
   businesses,
   listings,
@@ -69,8 +68,6 @@ export function ConnectedStage({
     onStart: () => void;
     error?: string | null;
   } | null;
-  /** Absolute or site-relative link that restores this session, token included. */
-  reopenUrl?: string | null;
   landingUrl?: string | null;
   businesses: PortalBusiness[];
   listings: PortalListing[];
@@ -153,6 +150,18 @@ export function ConnectedStage({
   const targetBrowseUrl = landingUrl || "https://www.google.com";
   const liveSession = session && session.expiresAt ? session : null;
 
+  /**
+   * How much of the bought window is left, for the bar under the countdown.
+   * Null when the caller did not pass a duration — the preview and any older
+   * caller then simply omit the bar instead of drawing a fake one.
+   */
+  const sessionLeftPercent = useMemo(() => {
+    const total = (liveSession?.durationSeconds ?? 0) * 1000;
+    if (!liveSession?.expiresAt || total <= 0) return null;
+    const left = new Date(liveSession.expiresAt).getTime() - now;
+    return Math.max(0, Math.min(100, (left / total) * 100));
+  }, [liveSession?.durationSeconds, liveSession?.expiresAt, now]);
+
   return (
     <section
       aria-label={t("portal.connectedTitle")}
@@ -179,52 +188,59 @@ export function ConnectedStage({
           </div>
         ) : null}
 
-        {/* Session facts first: a guest checking "did my money work?" reads this
-            before anything else, and it is the only part that has a deadline. */}
+        {/* The package and the clock, first: a guest checking "did my money
+            work, and how long do I have?" reads this before anything else. */}
         {liveSession ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-3.5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">
-                  {t("portal.activePackage")}
-                </p>
-                <p className="truncate text-base font-black leading-tight">
-                  {liveSession.packageName ?? sessionLabel ?? t("portal.connectedLead")}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45">
-                  {t("portal.sessionTimeLeft")}
-                </p>
-                <p className="font-mono text-lg font-black leading-tight text-advo-gold">
-                  {remainingText(liveSession.expiresAt, now)}
-                </p>
-              </div>
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07]">
+            <div className="flex items-center justify-between gap-2 bg-white/[0.06] px-3.5 py-2.5">
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                {t("portal.activePackage")}
+              </span>
+              <strong className="min-w-0 truncate text-sm font-black leading-tight">
+                {liveSession.packageName ?? sessionLabel ?? t("portal.connectedLead")}
+              </strong>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-2.5 text-center">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
-                  {t("portal.sessionDevices")}
-                </p>
-                <p className="text-xs font-bold">
-                  {liveSession.devices} / {liveSession.maxDevices}
-                </p>
+            <div className="px-3.5 pb-3.5 pt-3">
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                    {t("portal.sessionTimeLeft")}
+                  </p>
+                  <p className="font-mono text-[28px] font-black leading-none text-advo-gold">
+                    {remainingText(liveSession.expiresAt, now)}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">
+                    {t("portal.sessionDevices")}
+                  </p>
+                  <p className="text-sm font-black leading-tight">
+                    {liveSession.devices} / {liveSession.maxDevices}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40">
-                  {t("portal.sessionEndsAt")}
-                </p>
-                <p className="text-xs font-bold">
-                  {liveSession.expiresAt
-                    ? new Date(liveSession.expiresAt).toLocaleString(locale === "sw" ? "sw-TZ" : "en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "—"}
-                </p>
-              </div>
+
+              {sessionLeftPercent !== null ? (
+                <div
+                  aria-hidden
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-700"
+                    style={{ background: "var(--advo-gradient-gold)", width: `${sessionLeftPercent}%` }}
+                  />
+                </div>
+              ) : null}
+
+              <p className="mt-2 text-[10px] font-semibold text-white/40">
+                {t("portal.sessionEndsAt")} ·{" "}
+                {new Date(liveSession.expiresAt as string).toLocaleString(locale === "sw" ? "sw-TZ" : "en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
             </div>
           </div>
         ) : sessionLabel ? (
@@ -242,8 +258,8 @@ export function ConnectedStage({
               href={targetBrowseUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-bold text-advo-charcoal transition hover:brightness-105 active:scale-[0.98]"
-              style={{ background: "var(--advo-gradient-gold)" }}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[15px] font-black tracking-tight text-white shadow-[0_14px_28px_-12px_rgba(198,73,32,0.9)] transition hover:brightness-105 active:scale-[0.98]"
+              style={{ background: "linear-gradient(135deg, #f97316 0%, #dc4e08 100%)" }}
             >
               {t("portal.browseInternet")} ›
             </a>
@@ -260,7 +276,7 @@ export function ConnectedStage({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="flex flex-col gap-2.5">
             {exploreVisible ? (
               <ExploreTile
                 badge={countLabel(effectiveBusinesses.length, t("portal.tilePlaces"), t("portal.tilePlacesPlural"))}
@@ -318,8 +334,6 @@ export function ConnectedStage({
             />
           </div>
         </div>
-
-        <SessionNotice reopenUrl={reopenUrl} slug={slug} />
 
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
           <span className="text-[11px] font-medium text-white/55">{t("portal.helpHint")}</span>
@@ -499,61 +513,8 @@ function ConnectHold({
 }
 
 /**
- * Tells the guest the window may close itself, and gives them the address to
- * come back to.
- *
- * The close is the operating system's captive-portal assistant, not this page:
- * it exists to show a sign-in screen and dismisses itself the moment the device
- * gets online, which is exactly what happened a second ago. A web page cannot
- * keep that window open — so the useful thing is the way back in, before the
- * guest notices the window is gone.
- *
- * The link carries the guest's own recovery token. Without it, reopening the
- * portal in another browser lands on the price list, because the token lives in
- * this browser's storage and not in the address.
+ * One Explore menu: a full-width orange row, one thumb-tap tall.
  */
-function SessionNotice({ slug, reopenUrl }: { slug: string; reopenUrl?: string | null }) {
-  const { t } = useLocale();
-  const [copied, setCopied] = useState(false);
-
-  const url = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    if (reopenUrl) return reopenUrl.startsWith("http") ? reopenUrl : `${window.location.origin}${reopenUrl}`;
-    return `${window.location.origin}/${slug}`;
-  }, [reopenUrl, slug]);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // Clipboard access is denied in some in-app browsers; the URL is printed.
-    }
-  }
-
-  if (!url) return null;
-  return (
-    <div className="mt-3 rounded-xl border border-dashed border-white/15 bg-white/[0.03] p-3">
-      <p className="text-[11px] font-bold text-white/70">{t("portal.reopenTitle")}</p>
-      <p className="mt-0.5 text-[11px] leading-relaxed text-white/45">{t("portal.reopenBody")}</p>
-      <div className="mt-2 flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate rounded-lg bg-black/30 px-2 py-1.5 font-mono text-[11px] text-advo-gold">
-          {url.replace(/^https?:\/\//, "")}
-        </code>
-        <button
-          className="shrink-0 rounded-lg border border-white/20 px-2.5 py-1.5 text-[11px] font-bold text-white/80 transition hover:bg-white/10"
-          onClick={() => void copy()}
-          type="button"
-        >
-          {copied ? t("portal.reopenCopied") : t("portal.reopenCopy")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** One Explore menu: icon, label and what is behind it. */
 function ExploreTile({
   icon,
   label,
@@ -571,30 +532,42 @@ function ExploreTile({
 }) {
   const body = (
     <>
-      <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-xl bg-advo-gold/15 text-base">
+      <span
+        aria-hidden
+        className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/20 text-lg shadow-inner"
+      >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-bold leading-tight">{label}</span>
-        <span className="mt-0.5 block truncate text-[10px] font-semibold text-white/45">{badge}</span>
+        <span className="block text-[15px] font-black leading-tight tracking-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.28)]">
+          {label}
+        </span>
+        {badge ? (
+          <span className="mt-0.5 block truncate text-[11px] font-semibold text-white/85 [text-shadow:0_1px_2px_rgba(0,0,0,0.28)]">
+            {badge}
+          </span>
+        ) : null}
       </span>
-      <span aria-hidden className="shrink-0 text-sm text-white/30">
+      <span aria-hidden className="shrink-0 text-xl font-black leading-none text-white/85">
         {external ? "↗" : "›"}
       </span>
     </>
   );
+  // Orange is the portal's default action colour, matching the primary
+  // "browse" button so every tappable row reads as one family.
   const className =
-    "flex min-h-[80px] w-full items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] p-2.5 text-start transition hover:bg-white/[0.12] active:scale-[0.99]";
+    "flex min-h-[68px] w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-start shadow-[0_10px_22px_-12px_rgba(198,73,32,0.85)] transition hover:brightness-105 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+  const style = { background: "linear-gradient(135deg, #f97316 0%, #dc4e08 100%)" } as const;
 
   if (href) {
     return (
-      <a className={className} href={href} rel="noopener noreferrer" target="_blank">
+      <a className={className} href={href} rel="noopener noreferrer" style={style} target="_blank">
         {body}
       </a>
     );
   }
   return (
-    <button className={className} onClick={onPress} type="button">
+    <button className={className} onClick={onPress} style={style} type="button">
       {body}
     </button>
   );
