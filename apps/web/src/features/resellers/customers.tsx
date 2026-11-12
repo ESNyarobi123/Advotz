@@ -23,6 +23,7 @@ import {
   CreditCard,
   Ban,
   RefreshCw,
+  ShieldCheck,
   MapPin,
   X,
   type LucideIcon,
@@ -80,6 +81,21 @@ function clientPresence(g: Grant): Presence {
 function primaryMac(g: Grant): string {
   const authorized = g.devices.find((d) => d.authState === "AUTHORIZED");
   return authorized?.clientMac ?? g.devices[0]?.clientMac ?? "—";
+}
+
+/**
+ * One line under the chips explaining what the Controller actually said.
+ *
+ * A `REVOKE_PENDING` chip with no explanation reads like a request waiting for someone's
+ * approval, when it only means the Controller had not yet confirmed the session ended.
+ */
+function deviceNote(g: Grant, t: I18n["t"]): { text: string; detail: string | null } | null {
+  const failing = g.devices.find((d) => d.lastError?.trim());
+  if (g.devices.some((d) => d.authState === "REVOKE_PENDING")) {
+    return { text: t("reseller.customers.revokePendingHint"), detail: failing?.lastError ?? null };
+  }
+  if (failing?.lastError) return { text: failing.lastError, detail: null };
+  return null;
 }
 
 export function ResellerCustomersScreen() {
@@ -420,10 +436,28 @@ function ClientDetailRow({
                 </span>
               ))}
             </dl>
+            {(() => {
+              const note = deviceNote(g, t);
+              return note ? (
+                <p className="mt-1.5 text-[10px] leading-snug text-advo-muted" title={note.detail ?? undefined}>
+                  {note.text}
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-1 border-t border-advo-border/60 pt-2.5 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
+          {ENDED_GRANT_STATES.has(g.state) && g.devices.length > 0 ? (
+            <RowIconButton
+              icon={ShieldCheck}
+              label={t("reseller.customers.unblock")}
+              onPress={() => {
+                const target = g.devices.find((d) => d.authState === "REVOKED") ?? g.devices[0]!;
+                void api.post(`/reseller/grant-devices/${target.id}/unblock`).then(() => onReload());
+              }}
+            />
+          ) : null}
           {g.devices
             .filter(
               (d) =>

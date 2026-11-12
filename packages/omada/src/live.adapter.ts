@@ -28,7 +28,7 @@ import {
   type UsageReadInput,
   type VerifiedAdoptionInput,
 } from "./controller-adapter.js";
-import { ControllerError, isSiteNameConflict, UnsupportedCapabilityError } from "./errors.js";
+import { ControllerError, isClientGone, isSiteNameConflict, UnsupportedCapabilityError } from "./errors.js";
 import { OmadaOpenApiClient, type OpenApiContract } from "./openapi-client.js";
 import { OmadaPortalClient } from "./portal-client.js";
 import { ControllerTransport } from "./transport.js";
@@ -527,8 +527,19 @@ export class LiveOmadaAdapter implements OmadaControllerAdapter {
 
   private async clientOp(op: string, input: ClientLocator): Promise<RemoteOperationResult> {
     if (!this.openApi?.has(op)) return { ok: false, unsupported: true, reason: `${op} not in verified contract` };
-    await this.openApi.call(op, { siteId: input.remoteSiteId, clientMac: input.clientMac });
-    return { ok: true };
+    try {
+      await this.openApi.call(op, { siteId: input.remoteSiteId, clientMac: omadaMac(input.clientMac) });
+      return { ok: true };
+    } catch (err) {
+      // A MAC that is not on the site has no session to end and nothing to block, so the
+      // Controller answers "This client does not exist." That is the outcome the caller
+      // wanted, not an error: reporting it as a refusal parked revokes in REVOKE_PENDING.
+      if (isClientGone(err)) {
+        return { ok: true, reason: "client not connected", rawSanitized: { clientGone: true, vendorErrorCode: (err as ControllerError).vendorErrorCode } };
+      }
+      if (err instanceof ControllerError) return { ok: false, reason: err.vendorMessage ?? err.message, rawSanitized: { vendorErrorCode: err.vendorErrorCode } };
+      throw err;
+    }
   }
 
   disconnectClient(input: ClientLocator) {

@@ -101,16 +101,49 @@ function stripEmpty<T extends Record<string, unknown>>(obj: T): Partial<T> {
 
 /** Health + capability readback. A reachable Controller is not proof any feature works. */
 export async function inspectController(controllerId: string) {
+  // A row an Admin recorded carries lab evidence and outranks the contract. A row without
+  // evidence is only the previous contract read back, so it is dropped before the adapter
+  // is built: otherwise a route added to the contract later (client block/unblock) would
+  // stay refused on this Controller forever, and "not in the contract" would never heal.
+  await prisma.controllerCapability.deleteMany({ where: { controllerId, evidence: null } });
+  const measured = await prisma.controllerCapability.findMany({
+    where: { controllerId, evidence: { not: null } },
+    select: { operation: true },
+  });
+  const measuredOps = new Set(measured.map((row) => row.operation));
+
   const { adapter } = await getControllerAdapter(controllerId);
   const inspection = await adapter.inspectController();
   const capabilities: ControllerCapabilities = await adapter.getCapabilities();
-  await prisma.controller.update({
-    where: { id: controllerId },
-    data: {
-      healthStatus: inspection.reachable ? "reachable" : "unreachable",
-      lastHealthAt: new Date(),
-      lastHealthError: inspection.reachable ? null : (inspection.detail ?? null),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.controller.update({
+      where: { id: controllerId },
+      data: {
+        healthStatus: inspection.reachable ? "reachable" : "unreachable",
+        lastHealthAt: new Date(),
+        lastHealthError: inspection.reachable ? null : (inspection.detail ?? null),
+      },
+    });
+    for (const [operation, cap] of Object.entries(capabilities)) {
+      if (measuredOps.has(operation)) continue;
+      await tx.controllerCapability.upsert({
+        where: { controllerId_operation: { controllerId, operation } },
+        create: {
+          controllerId,
+          operation,
+          supported: cap.supported,
+          verified: cap.verified,
+          reason: cap.reason ?? null,
+          limits: cap.limits as Prisma.InputJsonValue | undefined,
+        },
+        update: {
+          supported: cap.supported,
+          verified: cap.verified,
+          reason: cap.reason ?? null,
+          limits: cap.limits as Prisma.InputJsonValue | undefined,
+        },
+      });
+    }
   });
   return { inspection, capabilities, simulated: adapter.simulated };
 }

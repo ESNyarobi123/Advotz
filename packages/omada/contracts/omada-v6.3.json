@@ -78,6 +78,25 @@
       "verified": true,
       "evidence": "Verified live query against Server B clients"
     },
+    "getClient": {
+      "method": "GET",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/clients/{clientMac}",
+      "resultPath": "result",
+      "verified": true,
+      "evidence": "Live Controller 6.3.0.111: GET clients/{clientMac} answers -41011 'This client does not exist.' for an offline MAC, so the route is served"
+    },
+    "blockClient": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/clients/{clientMac}/block",
+      "verified": true,
+      "evidence": "Live Controller 6.3.0.111: POST clients/{clientMac}/block answers -41002 'This client does not exist.' for an offline MAC; the route is served and validates the client. A successful block still needs one online client to confirm end to end."
+    },
+    "unblockClient": {
+      "method": "POST",
+      "path": "/openapi/v1/{omadacId}/sites/{siteId}/clients/{clientMac}/unblock",
+      "verified": true,
+      "evidence": "Live Controller 6.3.0.111: POST clients/{clientMac}/unblock answers -41004 'This client does not exist.' for an unknown MAC; the route is served"
+    },
     "listLanNetworks": {
       "method": "GET",
       "path": "/openapi/v1/{omadacId}/sites/{siteId}/lan-networks?page=1&pageSize=20",

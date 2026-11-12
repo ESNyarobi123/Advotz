@@ -26,7 +26,7 @@ import { z } from "zod";
 import { CurrentUser, Roles, RolesGuard, SessionAuthGuard, requireResellerId, type RequestActor } from "../../common/guards/session.guard.js";
 import { enumQuery, parse, type HttpReply } from "../../common/http.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
-import { getGrantForReseller, listGrants, retryGrantDevice, revokeGrant } from "../access/grants.service.js";
+import { getGrantForReseller, listGrants, retryGrantDevice, revokeGrant, unblockGrantDevice } from "../access/grants.service.js";
 import { archivePackage, createPackage, listPackages, packageRevisions, packageSiteOptions, setPackageStatus, updatePackage } from "../catalog/packages.service.js";
 import {
   archiveVoucherGroup,
@@ -353,6 +353,12 @@ export class ResellerController {
   async retryDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string) {
     const result = await retryGrantDevice(requireResellerId(a), a.id, id(deviceId));
     kickOutbox();
+    return result;
+  }
+
+  @Post("grant-devices/:id/unblock")
+  async unblockDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string) {
+    const result = await unblockGrantDevice(requireResellerId(a), a.id, id(deviceId));
     return result;
   }
 

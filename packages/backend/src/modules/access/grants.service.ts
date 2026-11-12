@@ -216,6 +216,12 @@ export async function authorizeGrantDevice(grantDeviceId: string): Promise<strin
     if (rev.quotaType === "TOTAL" && !canEnforce(caps.totalTrafficQuota, sim)) {
       throw new UnsupportedCapabilityError("totalTrafficQuota", caps.totalTrafficQuota.reason ?? "unsupported");
     }
+    // A MAC that an earlier revoke blocked cannot associate to the SSID, so it could never
+    // reach this portal to buy again. Let it back in before asking for authorization; the
+    // call is idempotent and answers "not connected" for a MAC that was never blocked.
+    if (caps.unblockClient?.supported) {
+      await adapter.unblockClient({ remoteSiteId: mapping.remoteSiteId, clientMac: device.clientMac }).catch(() => undefined);
+    }
 
     if (device.authState === "UNKNOWN" && canEnforce(caps.getClientAuthorization, sim)) {
       const observed = await adapter.getClientAuthorization({ remoteSiteId: mapping.remoteSiteId, clientMac: device.clientMac });
@@ -353,7 +359,21 @@ export async function revokeGrant(resellerId: string, actorUserId: string, grant
   });
 }
 
-/** Worker handler for GRANT_REVOKE. Unsupported revoke stays REVOKE_PENDING for manual action. */
+/**
+ * Worker handler for GRANT_REVOKE.
+ *
+ * Two different endings share this event, and they must not be treated alike:
+ *
+ * - **Expiry** (`EXPIRED`, `QUOTA_EXHAUSTED`): the Controller's own signed authorization
+ *   time is the enforcement. Asking it to revoke on demand is a courtesy; a build that
+ *   cannot do so is not a failure, so the device is closed with a note instead of being
+ *   parked in `REVOKE_PENDING` forever.
+ * - **Manual revoke** (`REVOKED` by a reseller): a human asked for the guest to be cut
+ *   off now. The signed time is no longer good enough, so the run falls back to blocking
+ *   the MAC — which both kicks the session and stops the device coming straight back.
+ *   That block is the reason the reseller also gets an explicit Unblock action: a blocked
+ *   MAC cannot reassociate or reach the captive portal until someone lets it back in.
+ */
 export async function revokeGrantDevice(grantDeviceId: string): Promise<string> {
   const device = await prisma.accessGrantDevice.findUniqueOrThrow({ where: { id: grantDeviceId }, include: { grant: true } });
   if (device.authState !== "REVOKE_PENDING") return "noop";
@@ -362,35 +382,93 @@ export async function revokeGrantDevice(grantDeviceId: string): Promise<string> 
     await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { lastError: "No Controller mapping; revoke manually" } });
     return "no_mapping";
   }
+  const locator = { remoteSiteId: mapping.remoteSiteId, clientMac: device.clientMac };
+  const close = (lastError: string | null) =>
+    prisma.accessGrantDevice.update({ where: { id: device.id }, data: { authState: "REVOKED", lastError } });
   try {
     const { adapter } = await getControllerAdapter(mapping.controllerId);
-    const res = await adapter.revokeAuthorization({ remoteSiteId: mapping.remoteSiteId, clientMac: device.clientMac });
+    const res = await adapter.revokeAuthorization(locator);
     if (res.ok) {
-      await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { authState: "REVOKED", lastError: null } });
+      await close(null);
       return "revoked";
     }
-    // The expiry path has a second line of defence: the Controller's signed
-    // authorization time. When it cannot revoke on demand, the session still
-    // ends on that timer — recording a manual action at that point would be a
-    // permanent false alarm on every lapsed package.
-    if (res.unsupported && (device.grant.state === "EXPIRED" || device.grant.state === "QUOTA_EXHAUSTED")) {
+
+    const manualRevoke = device.grant.state === "REVOKED";
+    if (!manualRevoke) {
+      // The expiry path has a second line of defence: the Controller's signed
+      // authorization time. When it cannot revoke on demand, the session still
+      // ends on that timer — recording a manual action at that point would be a
+      // permanent false alarm on every lapsed package.
+      if (res.unsupported) {
+        await close("Controller cannot revoke on demand; its signed authorization time ended the session");
+        return "lapsed";
+      }
+      await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { lastError: res.reason ?? "Revoke refused; revoke manually in the Controller" } });
+      return "unsupported";
+    }
+
+    // Manual revoke: block the MAC when this Controller serves a block route.
+    const caps = await adapter.getCapabilities();
+    if (!caps.blockClient?.supported) {
       await prisma.accessGrantDevice.update({
         where: { id: device.id },
-        data: {
-          authState: "REVOKED",
-          lastError: "Controller cannot revoke on demand; its signed authorization time ended the session",
-        },
+        data: { lastError: res.reason ?? "Controller cannot revoke or block; end the session in the Controller" },
       });
-      return "lapsed";
+      return "unsupported";
     }
-    await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { lastError: res.reason ?? "Revoke unsupported; revoke manually in the Controller" } });
-    return "unsupported";
+    const blocked = await adapter.blockClient(locator);
+    if (blocked.ok) {
+      await close(blocked.rawSanitized?.clientGone ? "Client was already offline; nothing left to end" : "Blocked at the Controller");
+      return "blocked";
+    }
+    await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { lastError: blocked.reason ?? "Block refused by the Controller" } });
+    return "block_failed";
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await prisma.accessGrantDevice.update({ where: { id: device.id }, data: { lastError: message.slice(0, 500) } });
     if (err instanceof UnsupportedCapabilityError) return "unsupported";
     throw err;
   }
+}
+
+/**
+ * Removes a MAC from the Controller's block list so it can join the WiFi and reach the
+ * captive portal again.
+ *
+ * This is the "approve" half of a revoke: a blocked device cannot even associate, so a
+ * returning customer stays locked out until someone unblocks it — the portal they would
+ * have to pay through is unreachable while the block is in place.
+ */
+export async function unblockGrantDevice(resellerId: string, actorUserId: string, grantDeviceId: string) {
+  const device = await prisma.accessGrantDevice.findUnique({ where: { id: grantDeviceId }, include: { grant: true } });
+  if (!device || device.grant.resellerId !== resellerId) tenantDenied();
+  const mapping = await prisma.controllerSiteMapping.findUnique({ where: { siteId: device.grant.siteId } });
+  if (!mapping?.remoteSiteId) conflict("This site is not provisioned on a Controller");
+
+  const { adapter } = await getControllerAdapter(mapping.controllerId);
+  const caps = await adapter.getCapabilities();
+  if (!caps.unblockClient?.supported) {
+    throw new UnsupportedCapabilityError("unblockClient", caps.unblockClient?.reason ?? "This Controller cannot unblock clients");
+  }
+  const res = await adapter.unblockClient({ remoteSiteId: mapping.remoteSiteId, clientMac: device.clientMac });
+  if (!res.ok) conflict(res.reason ?? "The Controller refused to unblock this client", ErrorCode.CONTROLLER_UNAVAILABLE);
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.accessGrantDevice.update({
+      where: { id: device.id },
+      data: { lastError: "Unblocked at the Controller; the device can reach the portal again" },
+    });
+    await audit(tx, {
+      actorUserId,
+      action: "grant.device_unblocked",
+      targetType: "AccessGrantDevice",
+      targetId: device.id,
+      resellerId,
+      reason: res.rawSanitized?.clientGone ? "Client was not connected" : "Client was blocked",
+      metadata: { clientMac: device.clientMac, grantId: device.grantId },
+    });
+    return updated;
+  });
 }
 
 /**
