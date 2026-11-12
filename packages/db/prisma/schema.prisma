@@ -1666,6 +1666,10 @@ enum MediaAssetKind {
   PORTAL_LOGO
   PORTAL_BACKGROUND
   CAMPAIGN_CREATIVE
+  /// Cover image on a guest "Our Explore" listing.
+  LISTING_IMAGE
+  /// Cover image on a public "Our Hotspots" marketing card.
+  PUBLIC_HOTSPOT_IMAGE
 
   @@map("media_asset_kind")
 }

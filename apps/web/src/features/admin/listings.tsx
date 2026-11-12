@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Field, PageHero, ResourceView, SelectField } from "@/features/common/components";
 import { ActionButton } from "@/features/common/actions";
+import { CreativeUploader } from "@/features/common/creative-uploader";
 import { api, errorMessage } from "@/lib/api";
 import { formValues, toInt, useAction, useResource, type Resource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
@@ -539,9 +540,17 @@ function ListingCard({
         />
       </div>
 
-      <div>
-        <p className="text-sm font-black leading-tight text-advo-text">{row.title}</p>
-        {row.organization ? <p className="text-xs text-advo-muted">{row.organization}</p> : null}
+      <div className="flex items-start gap-3">
+        {row.imageUrl ? (
+          // The uploaded cover, so an admin can confirm the picture that will
+          // actually appear on the guest card rather than trusting a URL.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt="" className="h-16 w-24 shrink-0 rounded-xl object-cover ring-1 ring-[var(--advo-border)]" loading="lazy" src={row.imageUrl} />
+        ) : null}
+        <div className="min-w-0">
+          <p className="text-sm font-black leading-tight text-advo-text">{row.title}</p>
+          {row.organization ? <p className="text-xs text-advo-muted">{row.organization}</p> : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-advo-muted">
@@ -626,11 +635,19 @@ function ListingFormModal({
   const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
   const [done, setDone] = useState(false);
   const [kind, setKind] = useState<Kind>(listing?.kind ?? "JOB");
+  /**
+   * The card image, whether it was uploaded here or pasted as a link.
+   *
+   * Held in state rather than read from the form because the uploader writes to
+   * it asynchronously — the optimised URL only exists once the server answers.
+   */
+  const [imageUrl, setImageUrl] = useState(listing?.imageUrl ?? "");
 
   useEffect(() => {
     if (open) {
       setDone(false);
       setKind(listing?.kind ?? "JOB");
+      setImageUrl(listing?.imageUrl ?? "");
     }
   }, [open, listing]);
 
@@ -649,7 +666,10 @@ function ListingFormModal({
       link: v.link ?? "",
       contactPhone: v.contactPhone ?? "",
       priceLabel: v.priceLabel ?? "",
-      imageUrl: v.imageUrl ?? null,
+      // Defence in depth: a `blob:` address is a local preview no other device can
+      // resolve, so it must never reach the database. The uploader does not emit
+      // one, but a draft that somehow held one would publish a broken image.
+      imageUrl: imageUrl.trim() && !imageUrl.startsWith("blob:") ? imageUrl.trim() : null,
       tags: (v.tags ?? "")
         .split(",")
         .map((tag) => tag.trim())
@@ -867,11 +887,17 @@ function ListingFormModal({
                       <Field defaultValue={listing?.sortOrder ?? 0} label={t("admin.listings.sortOrder")} min={0} name="sortOrder" type="number" />
                     </div>
 
-                    <Field
-                      defaultValue={listing?.imageUrl ?? ""}
+                    <CreativeUploader
+                      copyKey="admin.listings.image"
+                      disabled={save.pending}
+                      endpoint="/admin/media/listing"
+                      imageFit="cover"
                       label={t("admin.listings.imageUrl")}
-                      name="imageUrl"
-                      placeholder="https://"
+                      onChangeUrl={setImageUrl}
+                      onClear={() => setImageUrl("")}
+                      onUploaded={(asset) => setImageUrl(asset.url)}
+                      thumbClassName="h-20 w-32"
+                      value={imageUrl}
                     />
                     <Field
                       defaultValue={listing?.sourceUrl ?? ""}

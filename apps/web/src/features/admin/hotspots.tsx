@@ -7,6 +7,7 @@ import { Notice } from "@advo/ui";
 import { BarChart3, Link2, MapPin, Pencil, Plus, Store, Trash2 } from "lucide-react";
 import { Field, PageHero, ResourceView, SelectField } from "@/features/common/components";
 import { ActionButton } from "@/features/common/actions";
+import { CreativeUploader } from "@/features/common/creative-uploader";
 import { api } from "@/lib/api";
 import { formValues, toInt, useAction, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
@@ -168,12 +169,22 @@ export function AdminHotspotsScreen() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-1.5 text-sm font-bold text-advo-text">{row.name}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-advo-muted">
-                      <MapPin className="h-3 w-3 shrink-0" />
-                      {[row.address, row.city, row.region].filter(Boolean).join(", ") ||
-                        `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`}
-                    </p>
+                    <div className="flex items-start gap-3">
+                      {row.imageUrl ? (
+                        // The uploaded cover, so this card matches the one on the
+                        // marketing site instead of only describing it.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img alt="" className="h-14 w-20 shrink-0 rounded-xl object-cover ring-1 ring-[var(--advo-border)]" loading="lazy" src={row.imageUrl} />
+                      ) : null}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-advo-text">{row.name}</p>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-advo-muted">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {[row.address, row.city, row.region].filter(Boolean).join(", ") ||
+                            `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`}
+                        </p>
+                      </div>
+                    </div>
 
                     {row.site ? (
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-advo-muted">
@@ -268,6 +279,13 @@ function HotspotFormModal({
   const [done, setDone] = useState(false);
   const [siteId, setSiteId] = useState("");
   const [addingSite, setAddingSite] = useState(false);
+  /**
+   * The card cover image, uploaded here or pasted as a link.
+   *
+   * State rather than a form field because the uploader writes to it
+   * asynchronously — the optimised URL only exists once the server answers.
+   */
+  const [imageUrl, setImageUrl] = useState(hotspot?.imageUrl ?? "");
 
   const save = useAction(async (form: HTMLFormElement) => {
     const v = formValues(form);
@@ -280,7 +298,9 @@ function HotspotFormModal({
       longitude: Number(v.longitude),
       category: v.category ?? "",
       description: v.description ?? "",
-      imageUrl: v.imageUrl || null,
+      // Never store a `blob:` preview address: it resolves only in the tab that
+      // created it, so the published card would show a broken image everywhere.
+      imageUrl: imageUrl.trim() && !imageUrl.startsWith("blob:") ? imageUrl.trim() : null,
       portalSlug: v.portalSlug || null,
       siteId: siteId || null,
       sortOrder: toInt(v.sortOrder) ?? 0,
@@ -321,6 +341,7 @@ function HotspotFormModal({
       setDone(false);
       setSiteId(hotspot?.siteId ?? "");
       setAddingSite(false);
+      setImageUrl(hotspot?.imageUrl ?? "");
       save.setError(null);
       createSite.setError(null);
     }
@@ -489,13 +510,19 @@ function HotspotFormModal({
                     />
                   </div>
 
+                  <CreativeUploader
+                    copyKey="admin.hotspots.image"
+                    disabled={save.pending}
+                    endpoint="/admin/media/hotspot"
+                    imageFit="cover"
+                    label={t("admin.hotspots.imageUrl")}
+                    onChangeUrl={setImageUrl}
+                    onClear={() => setImageUrl("")}
+                    onUploaded={(asset) => setImageUrl(asset.url)}
+                    thumbClassName="h-20 w-32"
+                    value={imageUrl}
+                  />
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      defaultValue={hotspot?.imageUrl ?? ""}
-                      label={t("admin.hotspots.imageUrl")}
-                      name="imageUrl"
-                      placeholder="https://"
-                    />
                     <Field
                       defaultValue={hotspot?.portalSlug ?? ""}
                       label={t("admin.hotspots.portalSlug")}

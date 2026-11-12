@@ -201,6 +201,7 @@ async function buildPortalBootstrapPayload(
         link: l.link,
         contactPhone: l.contactPhone,
         priceLabel: l.priceLabel,
+        imageUrl: l.imageUrl,
         startsAt: l.startsAt?.toISOString() ?? null,
         endsAt: l.endsAt?.toISOString() ?? null,
       })),
@@ -236,6 +237,8 @@ type ExploreListing = {
   link: string | null;
   contactPhone: string | null;
   priceLabel: string | null;
+  /** Admin-uploaded cover image, or null when the listing has none. */
+  imageUrl: string | null;
   startsAt: string | null;
   endsAt: string | null;
 };
@@ -254,6 +257,7 @@ function exploreListing(l: {
   link: string | null;
   contactPhone: string | null;
   priceLabel: string | null;
+  imageUrl: string | null;
   startsAt: Date | null;
   endsAt: Date | null;
 }): ExploreListing {
@@ -271,6 +275,7 @@ function exploreListing(l: {
     link: l.link,
     contactPhone: l.contactPhone,
     priceLabel: l.priceLabel,
+    imageUrl: l.imageUrl,
     startsAt: l.startsAt?.toISOString() ?? null,
     endsAt: l.endsAt?.toISOString() ?? null,
   };

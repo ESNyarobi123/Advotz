@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import sharp, { type Metadata, type WebpOptions } from "sharp";
 import { FEATURE_LOCKED_BY_PLAN } from "@advo/contracts";
-import { MediaAssetKind, prisma } from "@advo/db";
+import { MediaAssetKind, prisma, type Prisma } from "@advo/db";
 import { audit } from "../../common/events.js";
 import { badRequest, forbidden, notFound } from "../../common/errors.js";
 import { resolvedPlanFor } from "../subscriptions/entitlements.service.js";
@@ -51,11 +51,33 @@ export const BACKGROUND_MAX_EDGE = 1280;
  */
 export const BACKGROUND_QUALITY = 82;
 
+/**
+ * Longest edge kept for an admin-authored ad creative.
+ *
+ * A banner is drawn full-bleed across a phone screen and an explore card is the
+ * largest tile in the guest grid, so 512 px would be visibly soft on a 3×
+ * display. 1600 is the point where the widest surface the portal has — a
+ * full-width banner — still looks sharp while a photographic creative lands in
+ * the low hundreds of kilobytes. Bigger than this buys nothing a guest can see.
+ */
+export const CREATIVE_MAX_EDGE = 1600;
+
+/**
+ * Quality used for the lossy branch of a creative.
+ *
+ * Higher than a background's 82 because a creative is the advertisement itself:
+ * it carries a sponsor's wordmark and headline, and blocky text is exactly the
+ * artefact a paying advertiser would notice. It is still below 100, where WebP
+ * spends kilobytes on detail the eye cannot resolve.
+ */
+export const CREATIVE_QUALITY = 90;
+
 /** Guards against a small file that claims enormous dimensions (decompression bomb). */
 const MAX_INPUT_PIXELS = 40_000_000;
 
 /** Shared because both the header check and the decoder's own limit report it. */
-const TOO_MANY_PIXELS_MESSAGE = "That image has too many pixels to process. Resize it and try again";
+const TOO_MANY_PIXELS_MESSAGE =
+  "That image has too many pixels to process. Resize it and try again";
 
 /**
  * Formats we will read. Deliberately raster-only.
@@ -66,7 +88,16 @@ const TOO_MANY_PIXELS_MESSAGE = "That image has too many pixels to process. Resi
  * the risk lives. A reseller with an SVG logo exports a PNG first; the error says
  * so rather than failing silently.
  */
-const ACCEPTED_INPUT_FORMATS = new Set(["jpeg", "png", "webp", "gif", "avif", "tiff", "bmp", "heif"]);
+const ACCEPTED_INPUT_FORMATS = new Set([
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "avif",
+  "tiff",
+  "bmp",
+  "heif",
+]);
 
 /** A human list for the rejection message, kept next to the set it describes. */
 const ACCEPTED_INPUT_LABEL = "PNG, JPEG, WebP, GIF, AVIF, TIFF or BMP";
@@ -127,30 +158,43 @@ type EncodedImage = { data: Buffer; info: { width: number; height: number } };
  * alone can be tens of kilobytes of EXIF), and EXIF rotation is baked in first so
  * a phone-straightened logo is not served sideways.
  */
-export async function optimiseImage(input: Buffer, options: OptimiseOptions = {}): Promise<OptimisedImage> {
+export async function optimiseImage(
+  input: Buffer,
+  options: OptimiseOptions = {},
+): Promise<OptimisedImage> {
   const maxEdge = options.maxEdge ?? MAX_IMAGE_EDGE;
   const quality = options.quality ?? 90;
   if (input.length === 0) badRequest("The uploaded file is empty");
   if (input.length > MAX_UPLOAD_BYTES) {
-    badRequest(`Choose an image smaller than ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB`);
+    badRequest(
+      `Choose an image smaller than ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB`,
+    );
   }
 
   // Reading the header is cheap and does not decode the image, so the format and
   // the declared dimensions are both available before a single pixel is allocated.
   let meta: Metadata;
   try {
-    meta = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
+    meta = await sharp(input, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+    }).metadata();
   } catch (error) {
     // libvips refuses the header itself when the declared size is past the limit,
     // so the same two outcomes are reported here as below.
-    if (/pixel.*limit|too many pixels/i.test(String((error as Error)?.message ?? ""))) {
+    if (
+      /pixel.*limit|too many pixels/i.test(
+        String((error as Error)?.message ?? ""),
+      )
+    ) {
       badRequest(TOO_MANY_PIXELS_MESSAGE);
     }
     badRequest("That file is not an image we can read");
   }
 
   if (meta.format === "svg") {
-    badRequest(`SVG logos are not accepted. Export your logo as ${ACCEPTED_INPUT_LABEL} and upload that instead`);
+    badRequest(
+      `SVG logos are not accepted. Export your logo as ${ACCEPTED_INPUT_LABEL} and upload that instead`,
+    );
   }
   if (!meta.format || !ACCEPTED_INPUT_FORMATS.has(meta.format)) {
     badRequest(`Upload a ${ACCEPTED_INPUT_LABEL} image`);
@@ -161,14 +205,19 @@ export async function optimiseImage(input: Buffer, options: OptimiseOptions = {}
     badRequest(TOO_MANY_PIXELS_MESSAGE);
   }
 
-   100
+  100;
   // Two independent pipelines from the same buffer: `clone()` would be shorter but
   // couples the two encodes, and a shared failure is exactly what we do not want
   // when the fallback is the whole point.
   const pipeline = (webp: WebpOptions) =>
     sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
-      .resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true })
+      .resize({
+        width: maxEdge,
+        height: maxEdge,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
       .webp({ effort: 4, ...webp });
 
   let winner: EncodedImage;
@@ -177,12 +226,16 @@ export async function optimiseImage(input: Buffer, options: OptimiseOptions = {}
     if (options.skipLossless) {
       // A 1280 px photograph has nothing for a lossless encode to win on, and
       // running it doubles the CPU and peak memory of the request for no result.
-      winner = await pipeline({ quality, smartSubsample: true }).toBuffer({ resolveWithObject: true });
+      winner = await pipeline({ quality, smartSubsample: true }).toBuffer({
+        resolveWithObject: true,
+      });
       encoding = "lossy";
     } else {
       const [lossless, lossy] = await Promise.all([
         pipeline({ lossless: true }).toBuffer({ resolveWithObject: true }),
-        pipeline({ quality, smartSubsample: true }).toBuffer({ resolveWithObject: true }),
+        pipeline({ quality, smartSubsample: true }).toBuffer({
+          resolveWithObject: true,
+        }),
       ]);
       winner = lossless.data.length <= lossy.data.length ? lossless : lossy;
       encoding = winner === lossless ? "lossless" : "lossy";
@@ -218,7 +271,10 @@ export async function optimiseImage(input: Buffer, options: OptimiseOptions = {}
  */
 export function publicApiUrl(): string {
   const base = process.env.API_PUBLIC_URL;
-  if (!base) throw new Error("API_PUBLIC_URL is not set, so an uploaded asset cannot be addressed");
+  if (!base)
+    throw new Error(
+      "API_PUBLIC_URL is not set, so an uploaded asset cannot be addressed",
+    );
   return base.replace(/\/$/, "");
 }
 
@@ -258,39 +314,56 @@ export type UploadedMedia = {
  */
 const KEEP_PER_OWNER = 5;
 
-type ResellerImageSpec = {
+type StoreImageSpec = {
   kind: (typeof MediaAssetKind)[keyof typeof MediaAssetKind];
-  /** `true` when the plan offers this surface at all; read from the resolved plan. */
-  allowed: boolean;
-  /** What to call the surface in a refusal, e.g. "A custom logo". */
-  label: string;
+  /** Tenant that owns the asset: a reseller for portal branding, the platform for ads. */
+  ownerType: "RESELLER" | "PLATFORM";
+  ownerId: string;
   /** Audit action stamped on the created asset. */
   auditAction: string;
+  /** Set for a reseller surface, so the audit row is attributable to their account. */
+  auditResellerId?: string | null;
   optimise: OptimiseOptions;
+  /**
+   * Which housekeeping rule bounds this kind's growth.
+   *
+   * `"owner"` keeps the newest few per owner, which is right for a logo or a
+   * background: only the address on the reseller's profile can still be live.
+   *
+   * `{ orphanedBy }` only drops images *nothing points at*, because a published
+   * creative can stay live for months and its image must not be swept out from
+   * under it just because somebody uploaded five more since. The reference table
+   * names the surface that owns the URLs, so each kind prunes against the rows
+   * that can actually be rendering it.
+   */
+  prune?: "owner" | { orphanedBy: ReferencingModel };
 };
 
 /**
- * Validates, optimises and stores one reseller image asset.
+ * Surfaces whose rows hold a `media/<uuid>` URL.
  *
- * The plan gate comes first: the feature key is checked *here* and not merely
- * hidden in the dashboard, because hiding a control is not enforcing it. The same
- * `FEATURE_LOCKED_BY_PLAN` code the preference writer uses is returned, so the
- * dashboard already knows how to explain it.
- *
- * The three surfaces (logo, background) differ only in their gate, their box and
- * their audit action, so they share one implementation: a second copy of this
- * transaction is where the pruning rule would quietly drift apart.
+ * Named rather than passed as a query because the shape of each row differs: a
+ * campaign keeps its image inside a JSON `creative` column, a listing and a
+ * hotspot have a plain nullable column.
  */
-async function storeResellerImage(
-  resellerId: string,
-  actorUserId: string,
-  input: { buffer: Buffer; fileName?: string | null },
-  spec: ResellerImageSpec,
-): Promise<UploadedMedia> {
-  if (!spec.allowed) {
-    forbidden(`${spec.label} is not included in your current plan`, FEATURE_LOCKED_BY_PLAN);
-  }
+type ReferencingModel = "campaign" | "listing" | "hotspot";
 
+type UploadInput = { buffer: Buffer; fileName?: string | null };
+
+/**
+ * Validates, optimises and stores one image asset.
+ *
+ * Every upload surface funnels through here: the plan gate (where there is one)
+ * is applied by the caller *before* this runs, and the part that must never drift
+ * — optimise, insert, prune, audit — lives in exactly one place. A second copy of
+ * this transaction is where the pruning rule would quietly stop matching the
+ * insert.
+ */
+async function storeImage(
+  actorUserId: string,
+  input: UploadInput,
+  spec: StoreImageSpec,
+): Promise<UploadedMedia> {
   const optimised = await optimiseImage(input.buffer, spec.optimise);
   const checksum = createHash("sha256").update(optimised.data).digest("hex");
 
@@ -298,8 +371,8 @@ async function storeResellerImage(
     const created = await tx.mediaAsset.create({
       data: {
         kind: spec.kind,
-        ownerType: "RESELLER",
-        ownerId: resellerId,
+        ownerType: spec.ownerType,
+        ownerId: spec.ownerId,
         contentType: optimised.contentType,
         bytes: Uint8Array.from(optimised.data),
         byteSize: optimised.byteSize,
@@ -313,14 +386,24 @@ async function storeResellerImage(
 
     // Best-effort housekeeping inside the same transaction as the insert: a failure
     // here still leaves a working upload, which is the outcome that matters.
-    const stale = await tx.mediaAsset.findMany({
-      where: { kind: spec.kind, ownerType: "RESELLER", ownerId: resellerId },
-      orderBy: { createdAt: "desc" },
-      skip: KEEP_PER_OWNER,
-      select: { id: true },
-    });
-    if (stale.length > 0) {
-      await tx.mediaAsset.deleteMany({ where: { id: { in: stale.map((row) => row.id) } } });
+    if (typeof spec.prune === "object") {
+      await pruneOrphaned(tx, spec.kind, spec.prune.orphanedBy);
+    } else {
+      const stale = await tx.mediaAsset.findMany({
+        where: {
+          kind: spec.kind,
+          ownerType: spec.ownerType,
+          ownerId: spec.ownerId,
+        },
+        orderBy: { createdAt: "desc" },
+        skip: KEEP_PER_OWNER,
+        select: { id: true },
+      });
+      if (stale.length > 0) {
+        await tx.mediaAsset.deleteMany({
+          where: { id: { in: stale.map((row) => row.id) } },
+        });
+      }
     }
 
     await audit(tx, {
@@ -328,7 +411,7 @@ async function storeResellerImage(
       action: spec.auditAction,
       targetType: "MediaAsset",
       targetId: created.id,
-      resellerId,
+      resellerId: spec.auditResellerId ?? null,
       metadata: {
         originalBytes: input.buffer.length,
         byteSize: optimised.byteSize,
@@ -357,11 +440,52 @@ async function storeResellerImage(
   };
 }
 
+type ResellerImageSpec = {
+  /** `true` when the plan offers this surface at all; read from the resolved plan. */
+  allowed: boolean;
+  /** What to call the surface in a refusal, e.g. "A custom logo". */
+  label: string;
+} & Omit<StoreImageSpec, "ownerType" | "ownerId" | "auditResellerId">;
+
+/**
+ * Validates, optimises and stores one reseller image asset.
+ *
+ * The plan gate comes first: the feature key is checked *here* and not merely
+ * hidden in the dashboard, because hiding a control is not enforcing it. The same
+ * `FEATURE_LOCKED_BY_PLAN` code the preference writer uses is returned, so the
+ * dashboard already knows how to explain it.
+ */
+async function storeResellerImage(
+  resellerId: string,
+  actorUserId: string,
+  input: UploadInput,
+  spec: ResellerImageSpec,
+): Promise<UploadedMedia> {
+  if (!spec.allowed) {
+    forbidden(
+      `${spec.label} is not included in your current plan`,
+      FEATURE_LOCKED_BY_PLAN,
+    );
+  }
+
+  return storeImage(actorUserId, input, {
+    kind: spec.kind,
+    ownerType: "RESELLER",
+    ownerId: resellerId,
+    auditAction: spec.auditAction,
+    auditResellerId: resellerId,
+    optimise: spec.optimise,
+  });
+}
+
 /** The plan branding features an upload gate reads; explicit so a missing key is a type error. */
 async function resellerBrandingFeatures(resellerId: string, surface: string) {
   const resolved = await resolvedPlanFor(resellerId);
   if (!resolved) {
-    forbidden(`An active subscription is required to upload a ${surface}`, FEATURE_LOCKED_BY_PLAN);
+    forbidden(
+      `An active subscription is required to upload a ${surface}`,
+      FEATURE_LOCKED_BY_PLAN,
+    );
   }
   return resolved.features.branding;
 }
@@ -394,14 +518,156 @@ export async function uploadResellerBackground(
   actorUserId: string,
   input: { buffer: Buffer; fileName?: string | null },
 ): Promise<UploadedMedia> {
-  const branding = await resellerBrandingFeatures(resellerId, "background image");
+  const branding = await resellerBrandingFeatures(
+    resellerId,
+    "background image",
+  );
   return storeResellerImage(resellerId, actorUserId, input, {
     kind: MediaAssetKind.PORTAL_BACKGROUND,
     allowed: branding.background_upload,
     label: "A background image",
     auditAction: "media.background_uploaded",
-    optimise: { maxEdge: BACKGROUND_MAX_EDGE, quality: BACKGROUND_QUALITY, skipLossless: true },
+    optimise: {
+      maxEdge: BACKGROUND_MAX_EDGE,
+      quality: BACKGROUND_QUALITY,
+      skipLossless: true,
+    },
   });
+}
+
+/**
+ * Stores an admin-authored ad creative.
+ *
+ * No plan gate: this is the platform advertising its own sponsors, so the only
+ * caller is an authenticated admin. The important difference from a reseller
+ * surface is the housekeeping rule — a creative may be referenced by a campaign
+ * that runs for months, so nothing a campaign still points at is ever deleted.
+ */
+export async function uploadCampaignCreative(
+  actorUserId: string,
+  input: UploadInput,
+): Promise<UploadedMedia> {
+  return storeImage(actorUserId, input, {
+    kind: MediaAssetKind.CAMPAIGN_CREATIVE,
+    ownerType: "PLATFORM",
+    ownerId: actorUserId,
+    auditAction: "media.campaign_creative_uploaded",
+    optimise: { maxEdge: CREATIVE_MAX_EDGE, quality: CREATIVE_QUALITY },
+    prune: { orphanedBy: "campaign" },
+  });
+}
+
+/**
+ * Stores the cover image for a guest Explore listing.
+ *
+ * Same optimiser and same box as an ad creative because it lands in the same
+ * place on a guest's screen — the largest tile in the Explore grid — so a
+ * separate size would only mean two photos that look differently sharp side by
+ * side. No plan gate: listings are the platform's own feed, not a sold surface.
+ *
+ * Pruning follows the listing rows rather than the uploading admin, because the
+ * image stays live for as long as the listing is published and the admin who
+ * uploaded it may not be the one editing it next month.
+ */
+export async function uploadListingImage(
+  actorUserId: string,
+  input: UploadInput,
+): Promise<UploadedMedia> {
+  return storeImage(actorUserId, input, {
+    kind: MediaAssetKind.LISTING_IMAGE,
+    ownerType: "PLATFORM",
+    ownerId: actorUserId,
+    auditAction: "media.listing_image_uploaded",
+    optimise: { maxEdge: CREATIVE_MAX_EDGE, quality: CREATIVE_QUALITY },
+    prune: { orphanedBy: "listing" },
+  });
+}
+
+/**
+ * Stores the cover image for a public "Our Hotspots" card.
+ *
+ * The marketing page renders these as wide cards on a desktop grid, so the
+ * creative box is again the right one: wide enough for a cityscape, small
+ * enough that a page of cards still loads quickly on mobile data.
+ */
+export async function uploadPublicHotspotImage(
+  actorUserId: string,
+  input: UploadInput,
+): Promise<UploadedMedia> {
+  return storeImage(actorUserId, input, {
+    kind: MediaAssetKind.PUBLIC_HOTSPOT_IMAGE,
+    ownerType: "PLATFORM",
+    ownerId: actorUserId,
+    auditAction: "media.public_hotspot_image_uploaded",
+    optimise: { maxEdge: CREATIVE_MAX_EDGE, quality: CREATIVE_QUALITY },
+    prune: { orphanedBy: "hotspot" },
+  });
+}
+
+/** Matches the trailing asset id of a media URL, whatever origin it was built from. */
+const MEDIA_URL_ID =
+  /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+/**
+ * Deletes images of `kind` that no row on the owning surface still references.
+ *
+ * The newest `KEEP_PER_OWNER` are always spared: an upload that has just landed
+ * is not yet written to a row (the form saves the URL afterwards), and sweeping
+ * it would break the flow that created it.
+ */
+async function pruneOrphaned(
+  tx: Prisma.TransactionClient,
+  kind: (typeof MediaAssetKind)[keyof typeof MediaAssetKind],
+  source: ReferencingModel,
+) {
+  const referenced = await referencedAssetIds(tx, source);
+  const candidates = await tx.mediaAsset.findMany({
+    where: { kind },
+    orderBy: { createdAt: "desc" },
+    skip: KEEP_PER_OWNER,
+    select: { id: true },
+  });
+  const stale = candidates.filter(
+    (row) => !referenced.has(row.id.toLowerCase()),
+  );
+  if (stale.length > 0) {
+    await tx.mediaAsset.deleteMany({
+      where: { id: { in: stale.map((row) => row.id) } },
+    });
+  }
+}
+
+/** Every asset id still named by a URL on `source`. */
+async function referencedAssetIds(
+  tx: Prisma.TransactionClient,
+  source: ReferencingModel,
+): Promise<Set<string>> {
+  const urls: unknown[] = [];
+  if (source === "campaign") {
+    const rows = await tx.adCampaign.findMany({ select: { creative: true } });
+    for (const row of rows)
+      urls.push((row.creative as { imageUrl?: unknown } | null)?.imageUrl);
+  } else if (source === "listing") {
+    const rows = await tx.platformListing.findMany({
+      where: { imageUrl: { not: null } },
+      select: { imageUrl: true },
+    });
+    for (const row of rows) urls.push(row.imageUrl);
+  } else {
+    const rows = await tx.publicHotspot.findMany({
+      where: { imageUrl: { not: null } },
+      select: { imageUrl: true },
+    });
+    for (const row of rows) urls.push(row.imageUrl);
+  }
+
+  const ids = new Set<string>();
+  for (const url of urls) {
+    if (typeof url !== "string") continue;
+    const match = MEDIA_URL_ID.exec(url.trim());
+    if (match?.[1]) ids.add(match[1].toLowerCase());
+  }
+  return ids;
 }
 
 /** 0–100, rounded; negative when optimisation made the file larger. */
@@ -425,7 +691,13 @@ function savedPercent(byteSize: number, originalBytes: number): number {
 export async function readMediaAsset(assetId: string) {
   const asset = await prisma.mediaAsset.findUnique({
     where: { id: assetId },
-    select: { id: true, contentType: true, bytes: true, checksum: true, byteSize: true },
+    select: {
+      id: true,
+      contentType: true,
+      bytes: true,
+      checksum: true,
+      byteSize: true,
+    },
   });
   if (!asset) notFound("Image not found");
   return asset;

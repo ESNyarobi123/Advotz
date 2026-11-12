@@ -97,7 +97,13 @@ export function ExploreListingsModal({
             const placeLabel = place(listing);
             const dates = when(listing);
             return (
-              <li className="rounded-xl border border-black/10 p-3.5" key={listing.id}>
+              <li className="overflow-hidden rounded-xl border border-black/10 p-3.5" key={listing.id}>
+                {listing.imageUrl ? (
+                  // The admin-uploaded cover, already optimised by the API to a
+                  // 1600 px WebP, so it is safe to fill a phone screen.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="" className="mb-3 aspect-[16/9] w-full rounded-lg object-cover" loading="lazy" src={listing.imageUrl} />
+                ) : null}
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-bold leading-tight">{listing.title}</p>

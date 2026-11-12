@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import sharp from "sharp";
-import { MAX_IMAGE_EDGE, optimiseImage } from "./media/media.service.js";
+import { CREATIVE_MAX_EDGE, CREATIVE_QUALITY, MAX_IMAGE_EDGE, optimiseImage } from "./media/media.service.js";
 
 /**
  * The optimiser is the whole reason a reseller can hand us a 3 MB phone photo and
@@ -61,9 +61,13 @@ async function visualError(source: Buffer, encoded: Buffer): Promise<{ mean: num
     sharp(source)
       .rotate()
       .resize({ width: resultMeta.width, height: resultMeta.height, fit: "inside", withoutEnlargement: true })
+      // Flattened so both sides are three channels: a PNG that kept an opaque alpha
+      // channel and a WebP that dropped it are otherwise different buffer lengths
+      // for the very same pixels.
+      .flatten({ background: "#ffffff" })
       .raw()
       .toBuffer(),
-    sharp(encoded).raw().toBuffer(),
+    sharp(encoded).flatten({ background: "#ffffff" }).raw().toBuffer(),
   ]);
   expect(reference.length).toBe(stored.length);
 
@@ -177,5 +181,48 @@ describe("optimiseImage", () => {
       .toBuffer();
     expect(bomb.length).toBeLessThan(2 * 1024 * 1024);
     await expect(optimiseImage(bomb)).rejects.toThrow(/too many pixels/);
+  });
+});
+
+/**
+ * The ad creative surface: an admin hands the optimiser a sponsor's banner, which
+ * is downloaded by a guest who has not paid yet. It has to stay wide and sharp at
+ * a larger box than a logo, and it must not be squeezed as hard as a background.
+ */
+describe("ad creative optimisation", () => {
+  it("fits a wide banner into CREATIVE_MAX_EDGE and keeps the aspect ratio", async () => {
+    // A JPEG source because a 4000 px photograph as PNG is past the 6 MB ceiling —
+    // which is itself the realistic case: a sponsor sends a JPEG.
+    const base = await photoFixture(1024);
+    const source = await sharp(base).resize(4000, 1200, { fit: "fill" }).jpeg({ quality: 92 }).toBuffer();
+
+    const result = await optimiseImage(source, { maxEdge: CREATIVE_MAX_EDGE, quality: CREATIVE_QUALITY });
+
+    expect(Math.max(result.width, result.height)).toBe(CREATIVE_MAX_EDGE);
+    expect(result.height).toBe(Math.round((CREATIVE_MAX_EDGE * 1200) / 4000));
+    expect(result.byteSize).toBeLessThan(source.length);
+  });
+
+  it("stays visually indistinguishable at the creative quality", async () => {
+    const base = await photoFixture(1600);
+    const source = await sharp(base).resize(1600, 900, { fit: "fill" }).png().toBuffer();
+
+    const result = await optimiseImage(source, { maxEdge: CREATIVE_MAX_EDGE, quality: CREATIVE_QUALITY });
+
+    const { mean, peak } = await visualError(source, result.data);
+    expect(mean).toBeLessThan(3);
+    expect(peak).toBeLessThan(64);
+  });
+
+  it("keeps a text-heavy creative crisp rather than trading letters for bytes", async () => {
+    // A banner with a headline is where a low quality number is visible: blocky
+    // glyphs are exactly what a paying advertiser would notice.
+    const base = await logoFixture(1);
+    const source = await sharp(base).resize(1600, 900, { fit: "fill" }).png().toBuffer();
+
+    const result = await optimiseImage(source, { maxEdge: CREATIVE_MAX_EDGE, quality: CREATIVE_QUALITY });
+
+    const { mean } = await visualError(source, result.data);
+    expect(mean).toBeLessThan(2);
   });
 });

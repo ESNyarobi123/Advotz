@@ -49,6 +49,8 @@ export type PortalListing = {
   link?: string;
   contactPhone?: string;
   priceLabel?: string;
+  /** Admin-uploaded cover image; absent when the listing has none. */
+  imageUrl?: string | null;
   /** ISO timestamps; null when the source did not give a date. */
   startsAt?: string | null;
   endsAt?: string | null;
