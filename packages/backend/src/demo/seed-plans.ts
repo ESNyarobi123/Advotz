@@ -12,7 +12,10 @@ import {
   applyPlanMigration,
   schedulePlanMigration,
 } from "../modules/subscriptions/plan-migrations.service.js";
-import { upsertPlan } from "../modules/subscriptions/subscriptions.service.js";
+import {
+  setPlanActive,
+  upsertPlan,
+} from "../modules/subscriptions/subscriptions.service.js";
 
 /**
  * The five starter plans the platform is sold on.
@@ -321,11 +324,25 @@ export async function seedPlanCatalog(): Promise<PlansSeedResult> {
  * Archiving is what this does — never deletion. Subscribers already bound to one
  * of these versions keep their entitlements; they simply stop being offerable to
  * anyone new. Admin can reactivate any of them from the plans screen.
+ *
+ * It goes through {@link setPlanActive} rather than a bare `active = false` so a
+ * retired plan also leaves the `PUBLISHED` lifecycle (a published-but-inactive
+ * row is a state the plans screen would otherwise have to explain) and the
+ * change lands in the audit log like any other archive.
  */
 export async function archiveLegacyCatalogPlans(): Promise<{
   archived: string[];
   missing: string[];
 }> {
+  const admin = await prisma.user.findFirst({
+    where: { role: "ADMIN" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!admin)
+    throw new Error(
+      "Run `pnpm admin:bootstrap` first — the plans seed never creates an Admin password.",
+    );
+
   const legacy = [
     "sponsored",
     "brand-control",
@@ -345,10 +362,14 @@ export async function archiveLegacyCatalogPlans(): Promise<{
       missing.push(code);
       continue;
     }
-    await prisma.platformPlan.updateMany({
-      where: { code, active: true },
-      data: { active: false },
-    });
+    for (const plan of plans) {
+      await setPlanActive(
+        admin.id,
+        plan.id,
+        false,
+        "Retired from sale by the two-axis catalog (capacity tier × Advo Partner / Independent)",
+      );
+    }
     archived.push(`${code} v${plans.map((plan) => plan.version).join(", v")}`);
   }
   return { archived, missing };
