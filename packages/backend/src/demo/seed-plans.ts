@@ -177,6 +177,9 @@ export type PlansSeedResult = { created: string[]; skipped: string[] };
  *
  * Prices are the ones on the proposed sheet and stay `isDemo` until the business
  * confirms them; `priceFrom` marks Enterprise, which is sold on request.
+ *
+ * Trial: only `starter-partner` carries one. The advertising-free option is what
+ * a reseller upgrades to, so trialling it would give the upgrade away.
  */
 export type CatalogPlanSeed = StarterPlanSeed & {
   tierKey: string;
@@ -208,6 +211,10 @@ function catalogPlan(input: {
     tier.limits,
   );
   const typeLabel = planType === "PARTNER" ? "Advo Partner" : "Independent";
+  // The trial is an acquisition offer, so it sits on the single cheapest option
+  // that a new reseller would otherwise buy first. Putting it on both options
+  // would hand out the ad-free product for free and remove the upsell.
+  const trialEligible = tier.key === "starter" && planType === "PARTNER";
   return {
     code: `${tier.key}-${planType.toLowerCase()}`,
     name: `${tier.label} · ${typeLabel}`,
@@ -218,7 +225,8 @@ function catalogPlan(input: {
     priceTzs: input.priceTzs,
     priceFrom: input.priceFrom ?? false,
     periodDays: 30,
-    trialEligible: false,
+    trialEligible,
+    ...(trialEligible ? { trialDays: 7 } : {}),
     commercialPromise: commercialPromiseForPlanType(planType),
     features,
     tierKey: tier.key,
