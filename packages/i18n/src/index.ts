@@ -251,9 +251,11 @@ const baseEn = {
   "wallet.destinations.verify": "Verify",
   "wallet.destinations.remove": "Remove",
   "wallet.destinations.removeConfirm": "Remove this destination?",
-  "wallet.destinations.verifyPrompt": "Enter the 6-digit code sent to this number",
+  "wallet.destinations.verifyPrompt":
+    "Enter the 6-digit code sent to this number",
   "wallet.sheet.withdraw.title": "Request a withdrawal",
-  "wallet.sheet.withdraw.subtitle": "Disburse earnings directly to mobile money",
+  "wallet.sheet.withdraw.subtitle":
+    "Disburse earnings directly to mobile money",
   "wallet.sheet.withdraw.noDest": "No verified destination",
   "wallet.sheet.withdraw.noDestBody":
     "Add and verify a mobile money number before requesting a payout.",
@@ -270,14 +272,16 @@ const baseEn = {
   "wallet.sheet.withdraw.net": "You receive",
   "wallet.sheet.withdraw.fees": "Fees (provider + platform)",
   "wallet.sheet.withdraw.total": "Total debit",
-  "wallet.sheet.withdraw.fake": "Simulated provider — no real telecom funds will move.",
+  "wallet.sheet.withdraw.fake":
+    "Simulated provider — no real telecom funds will move.",
   "wallet.sheet.withdraw.insufficient":
     "Insufficient available balance ({amount}). Lower the amount to proceed.",
   "wallet.sheet.withdraw.confirm": "Confirm withdrawal",
   "wallet.sheet.withdraw.submitting": "Submitting…",
   "wallet.sheet.withdraw.cancel": "Cancel",
   "wallet.sheet.dest.title": "Add payout destination",
-  "wallet.sheet.dest.subtitle": "A 6-digit SMS code will be sent to this number.",
+  "wallet.sheet.dest.subtitle":
+    "A 6-digit SMS code will be sent to this number.",
   "wallet.sheet.dest.name": "Account name",
   "wallet.sheet.dest.namePlaceholder": "Full name as registered on SIM",
   "wallet.sheet.dest.phone": "Mobile money number (Tanzania)",
@@ -286,7 +290,8 @@ const baseEn = {
   "wallet.sheet.close": "Close",
   "wallet.requests.title": "Withdrawal requests",
   "wallet.requests.count": "({count})",
-  "wallet.requests.subtitle": "Each row is one payout request — filter by status",
+  "wallet.requests.subtitle":
+    "Each row is one payout request — filter by status",
   "wallet.requests.search": "Search recipient or reference…",
   "wallet.requests.search.clear": "Clear search",
   "wallet.requests.empty": "No withdrawals yet.",
@@ -355,7 +360,8 @@ const baseEn = {
   "reseller.orders.kpi.attemptsHint": "All checkout transactions",
   "reseller.orders.list.title": "Transactions",
   "reseller.orders.list.count": "({count})",
-  "reseller.orders.list.subtitle": "Each row is one guest checkout — filter by payment status",
+  "reseller.orders.list.subtitle":
+    "Each row is one guest checkout — filter by payment status",
   "reseller.orders.search.clear": "Clear search",
   "reseller.orders.row.settled": "Settled",
   "reseller.orders.row.checkout": "Checkout",
@@ -397,8 +403,10 @@ const baseEn = {
   "reseller.subscription.trial.cta": "Start {days}-day free trial",
   "reseller.subscription.trial.starting": "Starting trial…",
   "reseller.subscription.plans.title": "Available plans",
-  "reseller.subscription.plans.subtitle": "Upgrade or renew your hotspot operator capacity",
-  "reseller.subscription.plans.empty": "No plans are on offer yet. The Advo team has not published pricing.",
+  "reseller.subscription.plans.subtitle":
+    "Upgrade or renew your hotspot operator capacity",
+  "reseller.subscription.plans.empty":
+    "No plans are on offer yet. The Advo team has not published pricing.",
   "reseller.subscription.plans.perDays": "/ {days} days",
   "reseller.subscription.plans.trialBadge": "{days}-day free trial",
   "reseller.subscription.plans.sites": "Sites",
@@ -408,6 +416,47 @@ const baseEn = {
   "reseller.subscription.plans.select": "Pay with Mobile Money",
   "reseller.subscription.plans.selected": "Selected — pay with Mobile Money",
   "reseller.subscription.plans.startTrial": "Start {days}-day free trial",
+  "reseller.subscription.catalog.title": "Choose your package",
+  "reseller.subscription.catalog.subtitle":
+    "Match the capacity you need, then pick how your guest portal looks. Same package, same management tools.",
+  "reseller.subscription.catalog.stepPackage": "1 · Package",
+  "reseller.subscription.catalog.stepOption": "2 · Your choice",
+  "reseller.subscription.catalog.capacity":
+    "{sites} sites · {devices} access points · {packages} WiFi packages per site",
+  "reseller.subscription.catalog.capacityUnlimited": "Agreed network capacity",
+  "reseller.subscription.catalog.from": "from",
+  "reseller.subscription.catalog.perMonth": "/ month",
+  "reseller.subscription.catalog.partner.title": "Advo Partner",
+  "reseller.subscription.catalog.partner.subtitle":
+    "Lower platform subscription",
+  "reseller.subscription.catalog.partner.body":
+    "Your WiFi business, supported by the Advo network.",
+  "reseller.subscription.catalog.independent.title": "Independent",
+  "reseller.subscription.catalog.independent.subtitle":
+    "Standard platform subscription",
+  "reseller.subscription.catalog.independent.body":
+    "Your brand. Your customer experience.",
+  "reseller.subscription.catalog.bullet.adsOn":
+    "Display AdvoWiFi advertising banners",
+  "reseller.subscription.catalog.bullet.adsOff":
+    "Without AdvoWiFi advertising banners",
+  "reseller.subscription.catalog.bullet.exploreOn":
+    "Include Advo Explore pages",
+  "reseller.subscription.catalog.bullet.exploreOff":
+    "Without Advo Explore pages",
+  "reseller.subscription.catalog.bullet.branding":
+    "Keep your own logo and brand colours",
+  "reseller.subscription.catalog.sameTools":
+    "Same package, same management tools — your content choice changes the subscription, not the capacity.",
+  "reseller.subscription.catalog.mismatch":
+    "This plan's advertising settings do not match its label. Please contact Advo support before paying.",
+  "reseller.subscription.catalog.other": "Other plans",
+  "reseller.subscription.catalog.otherHint":
+    "Plans outside the package grid. They remain available until archived.",
+  "reseller.subscription.catalog.tier.starter": "Starter",
+  "reseller.subscription.catalog.tier.growth": "Growth",
+  "reseller.subscription.catalog.tier.business-pro": "Business Pro",
+  "reseller.subscription.catalog.tier.enterprise": "Enterprise",
   "reseller.subscription.checkout.title": "Pay {amount} for {plan}",
   "reseller.subscription.checkout.subtitle":
     "Instant STK push to your phone (M-Pesa, TigoPesa, Airtel, HaloPesa)",
@@ -428,8 +477,10 @@ const baseEn = {
   "reseller.subscription.checkout.waitingTitle": "Waiting for your phone",
   "reseller.subscription.checkout.waitingBody":
     "We sent a payment request to your phone. Enter your mobile-money PIN to approve it — this screen updates by itself.",
-  "reseller.subscription.checkout.waitingHint": "Updates automatically, usually within a minute.",
-  "reseller.subscription.checkout.waitingClose": "Close and check invoices later",
+  "reseller.subscription.checkout.waitingHint":
+    "Updates automatically, usually within a minute.",
+  "reseller.subscription.checkout.waitingClose":
+    "Close and check invoices later",
   "reseller.subscription.checkout.summaryPlan": "Plan",
   "reseller.subscription.checkout.summaryAmount": "Amount",
   "reseller.subscription.checkout.summaryReference": "Reference",
@@ -445,7 +496,8 @@ const baseEn = {
   "reseller.subscription.checkout.retry": "Try again",
   "reseller.subscription.invoices.title": "Billing history",
   "reseller.subscription.invoices.count": "({count})",
-  "reseller.subscription.invoices.subtitle": "Each row is one subscription invoice — filter by status",
+  "reseller.subscription.invoices.subtitle":
+    "Each row is one subscription invoice — filter by status",
   "reseller.subscription.invoices.search": "Search plan or reference…",
   "reseller.subscription.invoices.search.clear": "Clear search",
   "reseller.subscription.invoices.empty": "No subscription invoices yet.",
@@ -497,7 +549,8 @@ const baseEn = {
   "reseller.customers.kpi.expiredHint": "Sessions that have ended",
   "reseller.customers.guestAccess.empty": "No client sessions yet.",
   "reseller.customers.directory.title": "Paying clients",
-  "reseller.customers.directory.description": "Guests who paid by phone — purchases and spend",
+  "reseller.customers.directory.description":
+    "Guests who paid by phone — purchases and spend",
   "reseller.customers.directory.empty": "No paying clients yet.",
   "reseller.customers.source.mobilePayment": "Pay",
   "reseller.customers.source.voucher": "Voucher",
@@ -508,7 +561,8 @@ const baseEn = {
   "reseller.customers.revoke": "Revoke",
   "reseller.customers.revokeReason": "Reason for revoking this client's access",
   "reseller.customers.unblock": "Unblock",
-  "reseller.customers.revokePendingHint": "The Controller is still ending this session; nothing is waiting for approval. Use Unblock to let the device back onto the WiFi.",
+  "reseller.customers.revokePendingHint":
+    "The Controller is still ending this session; nothing is waiting for approval. Use Unblock to let the device back onto the WiFi.",
   "reseller.customers.retry": "Retry",
   "reseller.customers.remaining.notStarted": "not started",
   "reseller.customers.remaining.ended": "ended",
@@ -560,8 +614,7 @@ const baseEn = {
   "reseller.overview.kpi.activeUsers": "Active users",
   "reseller.overview.kpi.activeUsersHint":
     "{sites} sites · {devices} AP devices",
-  "reseller.overview.kpi.activeUsersHintSite":
-    "{site} · {devices} AP devices",
+  "reseller.overview.kpi.activeUsersHintSite": "{site} · {devices} AP devices",
   "reseller.overview.trend.title": "Sales trend",
   "reseller.overview.trend.description": "Paid transactions per day",
   "reseller.overview.trend.window": "{amount} · {days} days",
@@ -596,7 +649,8 @@ const baseEn = {
 
   // ── Reseller · data usage (GB) ───────────────────────────────────────────
   "reseller.usage.title": "Data usage (GB)",
-  "reseller.usage.description": "How much data your clients' devices used on this WiFi",
+  "reseller.usage.description":
+    "How much data your clients' devices used on this WiFi",
   "reseller.usage.badge": "Live traffic",
   "reseller.usage.range.today": "Today",
   "reseller.usage.range.yesterday": "Yesterday",
@@ -618,17 +672,22 @@ const baseEn = {
   "reseller.usage.trend.samples": "Each hour is one sample bucket",
   "reseller.usage.trend.days": "Each day is the sum of its hours",
   "reseller.usage.source.title": "How this is counted",
-  "reseller.usage.source.controller": "Exact counters reported by the WiFi controller",
+  "reseller.usage.source.controller":
+    "Exact counters reported by the WiFi controller",
   "reseller.usage.download": "Download",
   "reseller.usage.upload": "Upload",
-  "reseller.usage.source.estimated": "Estimated from each device's speed limit while it was online",
-  "reseller.usage.source.mixed": "Exact counters where the controller reports them, estimated from the speed limit elsewhere",
-  "reseller.usage.source.note": "Reading usage is read-only — it never disconnects, throttles or slows your clients.",
+  "reseller.usage.source.estimated":
+    "Estimated from each device's speed limit while it was online",
+  "reseller.usage.source.mixed":
+    "Exact counters where the controller reports them, estimated from the speed limit elsewhere",
+  "reseller.usage.source.note":
+    "Reading usage is read-only — it never disconnects, throttles or slows your clients.",
   "reseller.usage.estimatedShare": "{percent}% estimated",
   "reseller.usage.active": "Online",
   "reseller.usage.walkIn": "Walk-in guest",
   "reseller.usage.empty.title": "No data usage yet",
-  "reseller.usage.empty.body": "Usage appears here as soon as a client device connects with an active package.",
+  "reseller.usage.empty.body":
+    "Usage appears here as soon as a client device connects with an active package.",
   "reseller.usage.error": "Could not load data usage: {error}",
   "reseller.usage.retry": "Try again",
   "reseller.usage.noMatch": "No device matches this filter.",
@@ -751,7 +810,8 @@ const baseEn = {
   "portal.advertCall": "Call",
   "portal.advertWhatsApp": "WhatsApp",
   "portal.advertClose": "Close",
-  "portal.advertWifiNotice": "Full internet and website browsing is unlocked as soon as you connect to WiFi.",
+  "portal.advertWifiNotice":
+    "Full internet and website browsing is unlocked as soon as you connect to WiFi.",
   "portal.sponsoredBadge": "Sponsored advertisement",
   "portal.sponsoredCredit": "Sponsored picks near you",
   "portal.selectPackage": "Choose plan",
@@ -778,7 +838,8 @@ const baseEn = {
   "portal.networkYas": "Yas",
   "portal.networkHalotel": "Halotel",
   "portal.acceptedNetworks": "We accept these wallets",
-  "portal.anyNetworkNumber": "Any number on these networks works — just type yours and pay.",
+  "portal.anyNetworkNumber":
+    "Any number on these networks works — just type yours and pay.",
   "portal.waitTitle": "Waiting for your confirmation",
   "portal.waitBody":
     "A payment prompt is on your phone. Enter your mobile-money PIN to approve it — this page updates by itself.",
@@ -786,11 +847,13 @@ const baseEn = {
   "portal.networkDetected": "We detected {network} from your number.",
   "portal.connectedTitle": "You’re connected!",
   "portal.connectedLead": "Your WiFi session is active.",
-  "portal.previewNote": "Preview: this is the screen your guest sees after paying.",
+  "portal.previewNote":
+    "Preview: this is the screen your guest sees after paying.",
   "portal.activePackage": "Active package",
   "portal.browseInternet": "Start browsing the web",
   "portal.exploreWeb": "Explore the Web",
-  "portal.exploreWebSubtitle": "Instant access to popular apps & online services",
+  "portal.exploreWebSubtitle":
+    "Instant access to popular apps & online services",
   "portal.exploreLocal": "Explore Local Services & Offers",
   "portal.exploreLocalSubtitle": "Curated spots and essentials in your area",
   "portal.allCategories": "All",
@@ -837,7 +900,8 @@ const baseEn = {
   "portal.reopenCopy": "Copy link",
   "portal.reopenCopied": "Copied",
   // ── Connected page: the paid session is held until the guest is ready ──
-  "portal.holdTitle": "You’re online — take your time",  "portal.holdBody":
+  "portal.holdTitle": "You’re online — take your time",
+  "portal.holdBody":
     "Your payment is confirmed and your time has already started. Look around this page first: the internet opens the moment you tap below, or on its own in {seconds}s.",
   "portal.startBrowsing": "Start browsing now",
   "portal.connecting": "Connecting…",
@@ -863,11 +927,15 @@ const baseEn = {
   "portal.jobBack": "Back to list",
   "portal.jobClosing": "Closing date is set by the provider.",
   "portal.jobType": "Type",
-  "portal.eventsLead": "Concerts, markets, sports and community events happening near you.",
-  "portal.eventsEmpty": "No local events are listed right now. Check back soon.",
+  "portal.eventsLead":
+    "Concerts, markets, sports and community events happening near you.",
+  "portal.eventsEmpty":
+    "No local events are listed right now. Check back soon.",
   "portal.eventsOpen": "Event details",
-  "portal.holidaysLead": "Weekend getaways, travel offers and holiday ideas worth planning.",
-  "portal.holidaysEmpty": "No holiday offers are listed right now. Check back soon.",
+  "portal.holidaysLead":
+    "Weekend getaways, travel offers and holiday ideas worth planning.",
+  "portal.holidaysEmpty":
+    "No holiday offers are listed right now. Check back soon.",
   "portal.holidayOpen": "View offer",
   "portal.listingWhen": "When",
   "portal.listingWhere": "Where",
@@ -1079,7 +1147,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "wallet.destinations.removeConfirm": "Ondoa lengo hili?",
   "wallet.destinations.verifyPrompt": "Weka namba ya tarakimu 6 iliyotumwa",
   "wallet.sheet.withdraw.title": "Omba utoaji",
-  "wallet.sheet.withdraw.subtitle": "Tuma mapato moja kwa moja kwa mobile money",
+  "wallet.sheet.withdraw.subtitle":
+    "Tuma mapato moja kwa moja kwa mobile money",
   "wallet.sheet.withdraw.noDest": "Hakuna lengo lililothibitishwa",
   "wallet.sheet.withdraw.noDestBody":
     "Ongeza na thibitisha namba ya mobile money kabla ya kuomba utoaji.",
@@ -1096,7 +1165,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "wallet.sheet.withdraw.net": "Unapokea",
   "wallet.sheet.withdraw.fees": "Ada (mtoa huduma + jukwaa)",
   "wallet.sheet.withdraw.total": "Jumla inayokatwa",
-  "wallet.sheet.withdraw.fake": "Mtoa huduma wa majaribio — hakuna fedha halisi zitakazohamishwa.",
+  "wallet.sheet.withdraw.fake":
+    "Mtoa huduma wa majaribio — hakuna fedha halisi zitakazohamishwa.",
   "wallet.sheet.withdraw.insufficient":
     "Salio haitoshi ({amount}). Punguza kiasi ili kuendelea.",
   "wallet.sheet.withdraw.confirm": "Thibitisha utoaji",
@@ -1180,7 +1250,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.orders.kpi.attemptsHint": "Miamala yote ya malipo",
   "reseller.orders.list.title": "Miamala",
   "reseller.orders.list.count": "({count})",
-  "reseller.orders.list.subtitle": "Kila safu ni malipo ya mgeni — chuja kwa hali ya malipo",
+  "reseller.orders.list.subtitle":
+    "Kila safu ni malipo ya mgeni — chuja kwa hali ya malipo",
   "reseller.orders.search.clear": "Futa utafutaji",
   "reseller.orders.row.settled": "Imelipwa",
   "reseller.orders.row.checkout": "Checkout",
@@ -1222,8 +1293,10 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.subscription.trial.cta": "Anza jaribio la siku {days}",
   "reseller.subscription.trial.starting": "Inaanza jaribio…",
   "reseller.subscription.plans.title": "Mipango inayopatikana",
-  "reseller.subscription.plans.subtitle": "Boresha au sasisha uwezo wako wa hotspot",
-  "reseller.subscription.plans.empty": "Hakuna mipango bado. Timu ya Advo haijachapisha bei.",
+  "reseller.subscription.plans.subtitle":
+    "Boresha au sasisha uwezo wako wa hotspot",
+  "reseller.subscription.plans.empty":
+    "Hakuna mipango bado. Timu ya Advo haijachapisha bei.",
   "reseller.subscription.plans.perDays": "/ siku {days}",
   "reseller.subscription.plans.trialBadge": "Jaribio la siku {days} bure",
   "reseller.subscription.plans.sites": "Maeneo",
@@ -1231,8 +1304,51 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.subscription.plans.packages": "Vifurushi",
   "reseller.subscription.plans.viewFeatures": "Ona vipengele vyote",
   "reseller.subscription.plans.select": "Lipia kwa Mobile Money",
-  "reseller.subscription.plans.selected": "Imechaguliwa — lipia kwa Mobile Money",
+  "reseller.subscription.plans.selected":
+    "Imechaguliwa — lipia kwa Mobile Money",
   "reseller.subscription.plans.startTrial": "Anza jaribio la siku {days}",
+  "reseller.subscription.catalog.title": "Chagua kifurushi chako",
+  "reseller.subscription.catalog.subtitle":
+    "Linganisha uwezo unaouhitaji, kisha chagua jinsi ukurasa wa mgeni unavyoonekana. Kifurushi kimoja, zana zile zile.",
+  "reseller.subscription.catalog.stepPackage": "1 · Kifurushi",
+  "reseller.subscription.catalog.stepOption": "2 · Chaguo lako",
+  "reseller.subscription.catalog.capacity":
+    "Maeneo {sites} · Access points {devices} · Vifurushi {packages} kwa eneo",
+  "reseller.subscription.catalog.capacityUnlimited":
+    "Uwezo wa mtandao kwa makubaliano",
+  "reseller.subscription.catalog.from": "kuanzia",
+  "reseller.subscription.catalog.perMonth": "/ mwezi",
+  "reseller.subscription.catalog.partner.title": "Advo Partner",
+  "reseller.subscription.catalog.partner.subtitle":
+    "Usajili wa jukwaa kwa bei ya chini",
+  "reseller.subscription.catalog.partner.body":
+    "Biashara yako ya WiFi, ikiungwa mkono na mtandao wa Advo.",
+  "reseller.subscription.catalog.independent.title": "Independent",
+  "reseller.subscription.catalog.independent.subtitle":
+    "Usajili wa jukwaa wa kawaida",
+  "reseller.subscription.catalog.independent.body":
+    "Chapa yako. Uzoefu wako wa mteja.",
+  "reseller.subscription.catalog.bullet.adsOn":
+    "Kuonyesha mabango ya matangazo ya AdvoWiFi",
+  "reseller.subscription.catalog.bullet.adsOff":
+    "Bila mabango ya matangazo ya AdvoWiFi",
+  "reseller.subscription.catalog.bullet.exploreOn":
+    "Kujumuisha kurasa za Advo Explore",
+  "reseller.subscription.catalog.bullet.exploreOff":
+    "Bila kurasa za Advo Explore",
+  "reseller.subscription.catalog.bullet.branding":
+    "Tunza nembo na rangi zako mwenyewe",
+  "reseller.subscription.catalog.sameTools":
+    "Kifurushi kimoja, zana zile zile — chaguo la maudhui hubadilisha usajili, si uwezo.",
+  "reseller.subscription.catalog.mismatch":
+    "Mipangilio ya matangazo ya kifurushi hiki haiendani na lebo yake. Tafadhali wasiliana na msaada wa Advo kabla ya kulipa.",
+  "reseller.subscription.catalog.other": "Mipango mingine",
+  "reseller.subscription.catalog.otherHint":
+    "Mipango iliyo nje ya gridi ya vifurushi. Inaendelea kupatikana hadi itakapofungwa.",
+  "reseller.subscription.catalog.tier.starter": "Starter",
+  "reseller.subscription.catalog.tier.growth": "Growth",
+  "reseller.subscription.catalog.tier.business-pro": "Business Pro",
+  "reseller.subscription.catalog.tier.enterprise": "Enterprise",
   "reseller.subscription.checkout.title": "Lipia {amount} kwa {plan}",
   "reseller.subscription.checkout.subtitle":
     "STK push papo hapo kwenye simu yako (M-Pesa, TigoPesa, Airtel, HaloPesa)",
@@ -1253,8 +1369,10 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.subscription.checkout.waitingTitle": "Tunasubiri simu yako",
   "reseller.subscription.checkout.waitingBody":
     "Tumetuma ombi la malipo kwenye simu yako. Weka PIN ya pesa ya simu kuthibitisha — ukurasa huu unajisasisha wenyewe.",
-  "reseller.subscription.checkout.waitingHint": "Inajisasisha yenyewe, kwa kawaida ndani ya dakika moja.",
-  "reseller.subscription.checkout.waitingClose": "Funga na uangalie ankara baadaye",
+  "reseller.subscription.checkout.waitingHint":
+    "Inajisasisha yenyewe, kwa kawaida ndani ya dakika moja.",
+  "reseller.subscription.checkout.waitingClose":
+    "Funga na uangalie ankara baadaye",
   "reseller.subscription.checkout.summaryPlan": "Mpango",
   "reseller.subscription.checkout.summaryAmount": "Kiasi",
   "reseller.subscription.checkout.summaryReference": "Kumbukumbu",
@@ -1270,11 +1388,13 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.subscription.checkout.retry": "Jaribu tena",
   "reseller.subscription.invoices.title": "Historia ya bili",
   "reseller.subscription.invoices.count": "({count})",
-  "reseller.subscription.invoices.subtitle": "Kila safu ni ankara ya usajili — chuja kwa hali",
+  "reseller.subscription.invoices.subtitle":
+    "Kila safu ni ankara ya usajili — chuja kwa hali",
   "reseller.subscription.invoices.search": "Tafuta mpango au kumbukumbu…",
   "reseller.subscription.invoices.search.clear": "Futa utafutaji",
   "reseller.subscription.invoices.empty": "Hakuna ankara za usajili bado.",
-  "reseller.subscription.invoices.noMatch": "Hakuna ankara inayolingana na kichujio.",
+  "reseller.subscription.invoices.noMatch":
+    "Hakuna ankara inayolingana na kichujio.",
   "reseller.subscription.invoices.filter.paid": "Zilizolipwa",
   "reseller.subscription.invoices.filter.open": "Wazi",
   "reseller.subscription.invoices.filter.void": "Batili",
@@ -1297,7 +1417,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.customers.list.count": "({count})",
   "reseller.customers.search.placeholder": "Tafuta MAC, eneo, kifurushi…",
   "reseller.customers.search.clear": "Futa utafutaji",
-  "reseller.customers.search.noMatch": "Hakuna mteja anayelingana na “{query}”.",
+  "reseller.customers.search.noMatch":
+    "Hakuna mteja anayelingana na “{query}”.",
   "reseller.customers.filter.all": "Wote",
   "reseller.customers.filter.online": "Mtandaoni",
   "reseller.customers.filter.offline": "Nje ya mtandao",
@@ -1321,7 +1442,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.customers.kpi.expiredHint": "Vikao vilivyomalizika",
   "reseller.customers.guestAccess.empty": "Hakuna vikao vya wateja bado.",
   "reseller.customers.directory.title": "Wateja wanaolipa",
-  "reseller.customers.directory.description": "Wageni walio lipa kwa simu — oda na matumizi",
+  "reseller.customers.directory.description":
+    "Wageni walio lipa kwa simu — oda na matumizi",
   "reseller.customers.directory.empty": "Hakuna mteja anayelipa bado.",
   "reseller.customers.source.mobilePayment": "Pay",
   "reseller.customers.source.voucher": "Vocha",
@@ -1332,7 +1454,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.customers.revoke": "Futa ruhusa",
   "reseller.customers.revokeReason": "Sababu ya kufuta ufikiaji wa mteja huyu",
   "reseller.customers.unblock": "Rudisha",
-  "reseller.customers.revokePendingHint": "Controller bado inamaliza kipindi hiki; hakuna kinachosubiri idhini. Tumia Rudisha kumruhusu kifaa kuingia WiFi tena.",
+  "reseller.customers.revokePendingHint":
+    "Controller bado inamaliza kipindi hiki; hakuna kinachosubiri idhini. Tumia Rudisha kumruhusu kifaa kuingia WiFi tena.",
   "reseller.customers.retry": "Jaribu tena",
   "reseller.customers.remaining.notStarted": "haijaanza",
   "reseller.customers.remaining.ended": "imeisha",
@@ -1420,7 +1543,8 @@ const baseSw: Record<BaseMessageKey, string> = {
 
   // ── Reseller · matumizi ya data (GB) ─────────────────────────────────────
   "reseller.usage.title": "Matumizi ya Data (GB)",
-  "reseller.usage.description": "Kiasi cha data ambacho vifaa vya wateja wako vimetumia kwenye WiFi hii",
+  "reseller.usage.description":
+    "Kiasi cha data ambacho vifaa vya wateja wako vimetumia kwenye WiFi hii",
   "reseller.usage.badge": "Trafiki hai",
   "reseller.usage.range.today": "Leo",
   "reseller.usage.range.yesterday": "Jana",
@@ -1442,17 +1566,22 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.usage.trend.samples": "Kila saa ni kipimo kimoja",
   "reseller.usage.trend.days": "Kila siku ni jumla ya saa zake",
   "reseller.usage.source.title": "Jinsi hii inavyohesabiwa",
-  "reseller.usage.source.controller": "Vipimo halisi kutoka kwa kidhibiti cha WiFi",
+  "reseller.usage.source.controller":
+    "Vipimo halisi kutoka kwa kidhibiti cha WiFi",
   "reseller.usage.download": "Kupakua",
   "reseller.usage.upload": "Kupakia",
-  "reseller.usage.source.estimated": "Inakadiriwa kutoka kikomo cha kasi cha kila kifaa wakati kipo mtandaoni",
-  "reseller.usage.source.mixed": "Vipimo halisi pale kidhibiti kinaporipoti, na vinakadiriwa kutoka kikomo cha kasi kwingine",
-  "reseller.usage.source.note": "Kusoma matumizi hakuathiri kifaa — hakuna kukata muunganisho, kupunguza kasi au kusumbua mteja.",
+  "reseller.usage.source.estimated":
+    "Inakadiriwa kutoka kikomo cha kasi cha kila kifaa wakati kipo mtandaoni",
+  "reseller.usage.source.mixed":
+    "Vipimo halisi pale kidhibiti kinaporipoti, na vinakadiriwa kutoka kikomo cha kasi kwingine",
+  "reseller.usage.source.note":
+    "Kusoma matumizi hakuathiri kifaa — hakuna kukata muunganisho, kupunguza kasi au kusumbua mteja.",
   "reseller.usage.estimatedShare": "{percent}% inakadiriwa",
   "reseller.usage.active": "Mtandaoni",
   "reseller.usage.walkIn": "Mgeni (Walk-in)",
   "reseller.usage.empty.title": "Hakuna matumizi ya data bado",
-  "reseller.usage.empty.body": "Matumizi yataonekana hapa mara tu kifaa cha mteja kitakapounganishwa na kifurushi hai.",
+  "reseller.usage.empty.body":
+    "Matumizi yataonekana hapa mara tu kifaa cha mteja kitakapounganishwa na kifurushi hai.",
   "reseller.usage.error": "Imeshindwa kupakia matumizi ya data: {error}",
   "reseller.usage.retry": "Jaribu tena",
   "reseller.usage.noMatch": "Hakuna kifaa kinacholingana na kichujio hiki.",
@@ -1550,7 +1679,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   connectThisDevice: "Unganisha kifaa hiki",
   accessStatus: "Hali ya huduma",
   accessEnded: "Huduma hii imeisha.",
-  sessionEndedReturn: "Kifurushi chako kimeisha. Tunakurudisha kwenye vifurushi…",
+  sessionEndedReturn:
+    "Kifurushi chako kimeisha. Tunakurudisha kwenye vifurushi…",
   buyAgain: "Nunua kifurushi kingine",
   support:
     "Unahitaji msaada? Mwonyeshe mmiliki wa WiFi namba hii ya kumbukumbu.",
@@ -1576,7 +1706,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.advertCall": "Piga simu",
   "portal.advertWhatsApp": "WhatsApp",
   "portal.advertClose": "Funga",
-  "portal.advertWifiNotice": "Ukurasa wa wavuti na intaneti vitafunguka kikamilifu mara tu utakapounganishwa na WiFi.",
+  "portal.advertWifiNotice":
+    "Ukurasa wa wavuti na intaneti vitafunguka kikamilifu mara tu utakapounganishwa na WiFi.",
   "portal.sponsoredBadge": "Tangazo lililodhaminiwa",
   "portal.sponsoredCredit": "Matangazo ya wadhamini karibu nawe",
   "portal.selectPackage": "Chagua kifurushi",
@@ -1603,7 +1734,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.networkYas": "Yas",
   "portal.networkHalotel": "Halotel",
   "portal.acceptedNetworks": "Tunapokea pochi hizi",
-  "portal.anyNetworkNumber": "Namba yoyote ya mitandao hii inafanya kazi — weka yako kisha ulipe.",
+  "portal.anyNetworkNumber":
+    "Namba yoyote ya mitandao hii inafanya kazi — weka yako kisha ulipe.",
   "portal.waitTitle": "Tunasubiri uthibitisho wako",
   "portal.waitBody":
     "Ombi la malipo lipo kwenye simu yako. Weka PIN ya pesa ya simu kuthibitisha — ukurasa huu unajisasisha wenyewe.",
@@ -1611,11 +1743,13 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.networkDetected": "Tumegundua {network} kutoka namba yako.",
   "portal.connectedTitle": "Umeunganishwa!",
   "portal.connectedLead": "Kipindi chako cha WiFi kinaendelea.",
-  "portal.previewNote": "Onyesho: hii ni skrini ambayo mgeni wako anaona baada ya kulipa.",
+  "portal.previewNote":
+    "Onyesho: hii ni skrini ambayo mgeni wako anaona baada ya kulipa.",
   "portal.activePackage": "Kifurushi kinachoendelea",
   "portal.browseInternet": "Anza kutumia intaneti",
   "portal.exploreWeb": "Gundua Mtandao",
-  "portal.exploreWebSubtitle": "Njia ya haraka kufungua programu na huduma maarufu",
+  "portal.exploreWebSubtitle":
+    "Njia ya haraka kufungua programu na huduma maarufu",
   "portal.exploreLocal": "Gundua Huduma & Eneo Lako",
   "portal.exploreLocalSubtitle": "Biashara na ofa maalum zilizopo karibu nawe",
   "portal.allCategories": "Zote",
@@ -1653,7 +1787,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.tileListingsPlural": "matangazo",
   "portal.tileAdvertise": "Tangaza hapa",
   "portal.tilePlatform": "Kuhusu Advo",
-  "portal.businessesEmpty": "Bado hakuna biashara za karibu zilizoorodheshwa kwenye WiFi hii.",
+  "portal.businessesEmpty":
+    "Bado hakuna biashara za karibu zilizoorodheshwa kwenye WiFi hii.",
   "portal.businessNearby":
     "{business} ameorodheshwa kwenye ukurasa huu wa WiFi. Mtajie ukurasa wa WiFi ukiwatembelea.",
   "portal.helpHint": "Kuna tatizo na muunganisho wako?",
@@ -1689,11 +1824,15 @@ const baseSw: Record<BaseMessageKey, string> = {
   "portal.jobBack": "Rudi kwenye orodha",
   "portal.jobClosing": "Tarehe ya mwisho hubainishwa na mtoa huduma.",
   "portal.jobType": "Aina",
-  "portal.eventsLead": "Matamasha, masoko, michezo na matukio ya jamii yanayoendelea karibu nawe.",
-  "portal.eventsEmpty": "Hakuna matukio ya karibu yaliyoorodheshwa kwa sasa. Rudi baadaye.",
+  "portal.eventsLead":
+    "Matamasha, masoko, michezo na matukio ya jamii yanayoendelea karibu nawe.",
+  "portal.eventsEmpty":
+    "Hakuna matukio ya karibu yaliyoorodheshwa kwa sasa. Rudi baadaye.",
   "portal.eventsOpen": "Maelezo ya tukio",
-  "portal.holidaysLead": "Safari za wikendi, ofa za usafiri na mawazo ya likizo yenye thamani.",
-  "portal.holidaysEmpty": "Hakuna ofa za likizo zilizoorodheshwa kwa sasa. Rudi baadaye.",
+  "portal.holidaysLead":
+    "Safari za wikendi, ofa za usafiri na mawazo ya likizo yenye thamani.",
+  "portal.holidaysEmpty":
+    "Hakuna ofa za likizo zilizoorodheshwa kwa sasa. Rudi baadaye.",
   "portal.holidayOpen": "Tazama ofa",
   "portal.listingWhen": "Lini",
   "portal.listingWhere": "Wapi",

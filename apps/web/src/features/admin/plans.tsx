@@ -2,7 +2,19 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { formatDateTime, formatTzs } from "@advo/api-client";
-import type { PlanFeatures, PlanLifecycle, CommercialPromise } from "@advo/contracts";
+import type {
+  PlanFeatures,
+  PlanLifecycle,
+  CommercialPromise,
+  PlanType,
+} from "@advo/contracts";
+import {
+  PLAN_TIERS,
+  applyPlanType,
+  commercialPromiseForPlanType,
+  planTier,
+  planTypeOf,
+} from "@advo/contracts";
 import { useOverlayState } from "@heroui/react";
 import { Button, Card, Input, Modal } from "@heroui/react";
 import { AdvoKpi, Notice, SoftIcon, StatusChip } from "@advo/ui";
@@ -33,10 +45,22 @@ import {
   Users,
   Wifi,
 } from "lucide-react";
-import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
+import {
+  PageHero,
+  ResourceView,
+  SectionHeader,
+} from "@/features/common/components";
 import { ReasonDialog } from "@/features/common/reason-dialog";
-import { PlanFeatureEditor, planDraftFrom, planIssues, type PlanDraft } from "@/features/admin/plan-features";
-import { PlanMigrationList, PlanMigrationModal } from "@/features/admin/plan-migrations";
+import {
+  PlanFeatureEditor,
+  planDraftFrom,
+  planIssues,
+  type PlanDraft,
+} from "@/features/admin/plan-features";
+import {
+  PlanMigrationList,
+  PlanMigrationModal,
+} from "@/features/admin/plan-migrations";
 import { api } from "@/lib/api";
 import { toInt, useAction, useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
@@ -69,6 +93,12 @@ export type PlanRow = {
   /** Draft versions exist but are never served to a guest. */
   lifecycle: PlanLifecycle;
   commercialPromise: CommercialPromise;
+  /** Capacity tier of the two-axis catalog; `null` for plans outside the matrix. */
+  tierKey: string | null;
+  /** `PARTNER` or `INDEPENDENT`; `null` when the plan is not part of the matrix. */
+  planType: string | null;
+  /** Enterprise is sold "from" this price, not at a fixed one. */
+  priceFrom: boolean;
   subscriptions: number;
   paidInvoiceCount: number;
   paidRevenueTzs: string;
@@ -81,7 +111,12 @@ export type PlanRow = {
  * `current` is the version on sale when there is one — otherwise the newest — so a
  * rollback never leaves the headline showing an archived price.
  */
-type PlanFamily = { code: string; versions: PlanRow[]; current: PlanRow; older: PlanRow[] };
+type PlanFamily = {
+  code: string;
+  versions: PlanRow[];
+  current: PlanRow;
+  older: PlanRow[];
+};
 
 /** Filters the pill row cycles through. */
 const FILTERS = ["all", "active", "archived", "demo"] as const;
@@ -112,8 +147,13 @@ export function AdminPlansScreen() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   /** `undefined` = closed, `null` = creating, a row = editing that row. */
-  const [formTarget, setFormTarget] = useState<PlanRow | null | undefined>(undefined);
-  const [reasonTarget, setReasonTarget] = useState<{ kind: "archive" | "reactivate" | "delete" | "publish"; plan: PlanRow } | null>(null);
+  const [formTarget, setFormTarget] = useState<PlanRow | null | undefined>(
+    undefined,
+  );
+  const [reasonTarget, setReasonTarget] = useState<{
+    kind: "archive" | "reactivate" | "delete" | "publish";
+    plan: PlanRow;
+  } | null>(null);
   /** The published version a migration would move subscribers onto. */
   const [migrationTarget, setMigrationTarget] = useState<PlanRow | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -130,7 +170,17 @@ export function AdminPlansScreen() {
     // Paid revenue is counted once per code: an invoice is billed against one version.
     const revenue = rows.reduce((sum, r) => sum + BigInt(r.paidRevenueTzs), 0n);
     const invoices = rows.reduce((sum, r) => sum + r.paidInvoiceCount, 0);
-    return { total: rows.length, active, archived, demo, families, subscribers, withSubscribers, revenue, invoices };
+    return {
+      total: rows.length,
+      active,
+      archived,
+      demo,
+      families,
+      subscribers,
+      withSubscribers,
+      revenue,
+      invoices,
+    };
   }, [rows]);
 
   /** Newest version of each code, so a code is one card rather than a row per version. */
@@ -145,7 +195,12 @@ export function AdminPlansScreen() {
       .map(([code, versions]) => {
         const sorted = [...versions].sort((a, b) => b.version - a.version);
         const current = sorted.find((v) => v.active) ?? sorted[0];
-        return { code, versions: sorted, current, older: sorted.filter((v) => v.id !== current.id) };
+        return {
+          code,
+          versions: sorted,
+          current,
+          older: sorted.filter((v) => v.id !== current.id),
+        };
       })
       .sort((a, b) => a.code.localeCompare(b.code));
   }, [rows]);
@@ -166,8 +221,12 @@ export function AdminPlansScreen() {
       );
       if (!matchesFilter) return false;
       if (!needle) return true;
-      return family.versions
-        .some((v) => [v.code, v.name, v.priceTzs, String(v.version)].join(" ").toLowerCase().includes(needle));
+      return family.versions.some((v) =>
+        [v.code, v.name, v.priceTzs, String(v.version)]
+          .join(" ")
+          .toLowerCase()
+          .includes(needle),
+      );
     });
   }, [families, query, filter]);
 
@@ -180,7 +239,12 @@ export function AdminPlansScreen() {
     <div className="mx-auto max-w-[1500px] space-y-6 pb-4">
       <PageHero
         actions={
-          <Button onPress={() => setFormTarget(null)} size="sm" type="button" variant="primary">
+          <Button
+            onPress={() => setFormTarget(null)}
+            size="sm"
+            type="button"
+            variant="primary"
+          >
             <Plus className="size-4" />
             {t("admin.plans.action.create")}
           </Button>
@@ -208,7 +272,11 @@ export function AdminPlansScreen() {
         <Notice tone="success">
           <span className="flex flex-wrap items-center gap-2">
             {flash}
-            <button className="font-bold underline" onClick={() => setFlash(null)} type="button">
+            <button
+              className="font-bold underline"
+              onClick={() => setFlash(null)}
+              type="button"
+            >
               ✕
             </button>
           </span>
@@ -232,7 +300,9 @@ export function AdminPlansScreen() {
           value={stats.active}
         />
         <AdvoKpi
-          hint={t("admin.plans.kpi.subscribersHint", { plans: stats.withSubscribers })}
+          hint={t("admin.plans.kpi.subscribersHint", {
+            plans: stats.withSubscribers,
+          })}
           icon={<Users />}
           iconTone="accent"
           label={t("admin.plans.kpi.subscribers")}
@@ -304,17 +374,29 @@ export function AdminPlansScreen() {
           visible.length === 0 ? (
             <Card className="shadow-advo-card ring-1 ring-advo-border/70">
               <span className="flex flex-col items-center gap-2 py-6">
-                <SoftIcon size="lg" tone={families.length === 0 ? "teal" : "accent"}>
+                <SoftIcon
+                  size="lg"
+                  tone={families.length === 0 ? "teal" : "accent"}
+                >
                   <Layers />
                 </SoftIcon>
                 <span className="text-sm font-bold text-advo-text">
-                  {families.length === 0 ? t("admin.plans.emptyNone") : t("admin.plans.empty")}
+                  {families.length === 0
+                    ? t("admin.plans.emptyNone")
+                    : t("admin.plans.empty")}
                 </span>
                 <span className="max-w-md text-center text-xs text-advo-muted">
-                  {families.length === 0 ? t("admin.plans.emptyNoneHint") : t("admin.plans.emptyHint")}
+                  {families.length === 0
+                    ? t("admin.plans.emptyNoneHint")
+                    : t("admin.plans.emptyHint")}
                 </span>
                 {families.length === 0 ? (
-                  <Button onPress={() => setFormTarget(null)} size="sm" type="button" variant="primary">
+                  <Button
+                    onPress={() => setFormTarget(null)}
+                    size="sm"
+                    type="button"
+                    variant="primary"
+                  >
                     <Plus className="size-4" />
                     {t("admin.plans.action.create")}
                   </Button>
@@ -355,7 +437,11 @@ export function AdminPlansScreen() {
         onScheduled={(message) => void afterChange(message)}
         open={migrationTarget !== null}
         planId={migrationTarget?.id ?? null}
-        planLabel={migrationTarget ? `${migrationTarget.name} v${migrationTarget.version}` : ""}
+        planLabel={
+          migrationTarget
+            ? `${migrationTarget.name} v${migrationTarget.version}`
+            : ""
+        }
       />
     </div>
   );
@@ -373,7 +459,10 @@ function PlanFamilyCard({
   family: PlanFamily;
   onEdit: (plan: PlanRow) => void;
   onMigrate: (plan: PlanRow) => void;
-  onReason: (kind: "archive" | "reactivate" | "delete" | "publish", plan: PlanRow) => void;
+  onReason: (
+    kind: "archive" | "reactivate" | "delete" | "publish",
+    plan: PlanRow,
+  ) => void;
 }) {
   const { t } = useI18n();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -383,7 +472,17 @@ function PlanFamilyCard({
   // A draft is not on sale yet, so publishing is the only action that matters and
   // the same feature validator the backend runs decides whether it may go live.
   const isDraft = plan.lifecycle === "DRAFT";
-  const issues = planIssues(plan.features, plan.commercialPromise);
+  const issues = planIssues(plan.features, plan.commercialPromise, {
+    planType: plan.planType,
+    tierKey: plan.tierKey,
+  });
+  // A tag is a promise to the reseller; say so when the placements disagree with it.
+  const taggedType =
+    plan.planType === "PARTNER" || plan.planType === "INDEPENDENT"
+      ? plan.planType
+      : null;
+  const typeMismatch =
+    taggedType !== null && planTypeOf(plan.features) !== taggedType;
 
   return (
     <Card className="group gap-4 p-5 shadow-advo-card ring-1 ring-advo-border/70 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-advo-lift">
@@ -394,10 +493,32 @@ function PlanFamilyCard({
           </SoftIcon>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-base font-black tracking-tight text-advo-text">{plan.name}</h3>
-              {plan.isDemo ? <StatusChip tone="warning">{t("admin.plans.badge.demo")}</StatusChip> : null}
+              <h3 className="truncate text-base font-black tracking-tight text-advo-text">
+                {plan.name}
+              </h3>
+              {plan.isDemo ? (
+                <StatusChip tone="warning">
+                  {t("admin.plans.badge.demo")}
+                </StatusChip>
+              ) : null}
               {plan.commercialPromise === "ad_free" ? (
-                <StatusChip tone="accent">{t("admin.plans.promise.ad_free")}</StatusChip>
+                <StatusChip tone="accent">
+                  {t("admin.plans.promise.ad_free")}
+                </StatusChip>
+              ) : null}
+              {plan.tierKey ? (
+                <StatusChip tone="default">
+                  {planTier(plan.tierKey)?.label ?? plan.tierKey}
+                </StatusChip>
+              ) : null}
+              {plan.planType ? (
+                <StatusChip
+                  tone={plan.planType === "INDEPENDENT" ? "accent" : "success"}
+                >
+                  {plan.planType === "INDEPENDENT"
+                    ? t("reseller.subscription.catalog.independent.title")
+                    : t("reseller.subscription.catalog.partner.title")}
+                </StatusChip>
               ) : null}
             </div>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-advo-muted">
@@ -407,13 +528,20 @@ function PlanFamilyCard({
               {family.versions.length > 1 ? (
                 <>
                   <span>·</span>
-                  <span>{t("admin.plans.versionsCount", { count: family.versions.length })}</span>
+                  <span>
+                    {t("admin.plans.versionsCount", {
+                      count: family.versions.length,
+                    })}
+                  </span>
                 </>
               ) : null}
             </p>
           </div>
         </div>
-        <StatusChip tone={isDraft ? "warning" : plan.active ? "success" : "default"} size="md">
+        <StatusChip
+          tone={isDraft ? "warning" : plan.active ? "success" : "default"}
+          size="md"
+        >
           {isDraft
             ? t("admin.plans.badge.draft")
             : plan.active
@@ -429,7 +557,10 @@ function PlanFamilyCard({
             {t("admin.plans.form.section.pricing")}
           </p>
           <p className="mt-0.5 text-xl font-black tracking-tight text-advo-text tabular-nums">
-            {t("admin.plans.perPeriod", { price: formatTzs(plan.priceTzs), days: plan.periodDays })}
+            {t("admin.plans.perPeriod", {
+              price: formatTzs(plan.priceTzs),
+              days: plan.periodDays,
+            })}
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-advo-muted">
@@ -442,14 +573,26 @@ function PlanFamilyCard({
 
       {/* ── Usage & limits ── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Mini icon={<Users />} label={t("admin.plans.metric.subscribers")} value={plan.subscriptions} />
+        <Mini
+          icon={<Users />}
+          label={t("admin.plans.metric.subscribers")}
+          value={plan.subscriptions}
+        />
         <Mini
           icon={<Coins />}
           label={t("admin.plans.metric.revenue")}
           value={formatTzs(plan.paidRevenueTzs)}
         />
-        <Mini icon={<Wifi />} label={t("admin.plans.metric.sites")} value={plan.maxSites} />
-        <Mini icon={<Gauge />} label={t("admin.plans.metric.devices")} value={plan.maxDevices} />
+        <Mini
+          icon={<Wifi />}
+          label={t("admin.plans.metric.sites")}
+          value={plan.maxSites}
+        />
+        <Mini
+          icon={<Gauge />}
+          label={t("admin.plans.metric.devices")}
+          value={plan.maxDevices}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -457,7 +600,10 @@ function PlanFamilyCard({
           {t("admin.plans.limit.packages", { count: plan.maxPackages })}
         </Chip>
         <Chip icon={<Coins />}>
-          {t("admin.plans.metric.invoices")}: <span className="font-bold tabular-nums">{plan.paidInvoiceCount}</span>
+          {t("admin.plans.metric.invoices")}:{" "}
+          <span className="font-bold tabular-nums">
+            {plan.paidInvoiceCount}
+          </span>
         </Chip>
       </div>
 
@@ -475,7 +621,12 @@ function PlanFamilyCard({
             {t("admin.plans.action.publish")}
           </Button>
         ) : null}
-        <Button onPress={() => onEdit(plan)} size="sm" type="button" variant={isDraft ? "outline" : "primary"}>
+        <Button
+          onPress={() => onEdit(plan)}
+          size="sm"
+          type="button"
+          variant={isDraft ? "outline" : "primary"}
+        >
           <Pencil className="size-3.5" />
           {t("admin.plans.action.edit")}
         </Button>
@@ -483,7 +634,12 @@ function PlanFamilyCard({
             through a scoped, dated migration. Only a published version can be
             a migration target, so a draft gets no such button. */}
         {!isDraft ? (
-          <Button onPress={() => onMigrate(plan)} size="sm" type="button" variant="outline">
+          <Button
+            onPress={() => onMigrate(plan)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
             <CalendarClock className="size-3.5" />
             {t("admin.plans.migration.action")}
           </Button>
@@ -494,8 +650,14 @@ function PlanFamilyCard({
           type="button"
           variant="outline"
         >
-          {plan.active ? <ArchiveRestore className="size-3.5" /> : <Sparkles className="size-3.5" />}
-          {plan.active ? t("admin.plans.action.archive") : t("admin.plans.action.reactivate")}
+          {plan.active ? (
+            <ArchiveRestore className="size-3.5" />
+          ) : (
+            <Sparkles className="size-3.5" />
+          )}
+          {plan.active
+            ? t("admin.plans.action.archive")
+            : t("admin.plans.action.reactivate")}
         </Button>
         <Button
           className="ml-auto"
@@ -522,7 +684,8 @@ function PlanFamilyCard({
         <p className="flex items-start gap-1.5 rounded-lg bg-advo-danger-soft px-3 py-2 text-[11px] font-semibold text-[#b91c1c]">
           <TriangleAlert className="mt-0.5 size-3 shrink-0" />
           <span>
-            {t("admin.plans.issues.title", { count: issues.length })}: {issues.map((issue) => issue.key).join(", ")}
+            {t("admin.plans.issues.title", { count: issues.length })}:{" "}
+            {issues.map((issue) => issue.key).join(", ")}
           </span>
         </p>
       ) : null}
@@ -532,6 +695,14 @@ function PlanFamilyCard({
         <p className="flex items-start gap-1.5 rounded-lg bg-advo-success-soft px-3 py-2 text-[11px] font-semibold text-emerald-700">
           <ShieldCheck className="mt-0.5 size-3 shrink-0" />
           {t("admin.plans.adFreeOk")}
+        </p>
+      ) : null}
+
+      {/* The catalog tag is a contract, so a version whose placements contradict it is called out. */}
+      {typeMismatch ? (
+        <p className="flex items-start gap-1.5 rounded-lg bg-advo-warning-soft px-3 py-2 text-[11px] font-semibold text-[#b45309]">
+          <TriangleAlert className="mt-0.5 size-3 shrink-0" />
+          {t("admin.plans.typeMismatch")}
         </p>
       ) : null}
 
@@ -546,11 +717,17 @@ function PlanFamilyCard({
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-advo-muted">
               <History className="size-3.5" />
               {t("admin.plans.history.title")}
-              <span className="rounded-full bg-advo-surface-soft px-1.5 py-0.5 tabular-nums">{older.length}</span>
+              <span className="rounded-full bg-advo-surface-soft px-1.5 py-0.5 tabular-nums">
+                {older.length}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-advo-blue">
-              {historyOpen ? t("admin.plans.history.hide") : t("admin.plans.history.toggle")}
-              <ChevronDown className={`size-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+              {historyOpen
+                ? t("admin.plans.history.hide")
+                : t("admin.plans.history.toggle")}
+              <ChevronDown
+                className={`size-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`}
+              />
             </span>
           </button>
 
@@ -580,7 +757,10 @@ function VersionRow({
   onReason,
 }: {
   version: PlanRow;
-  onReason: (kind: "archive" | "reactivate" | "delete" | "publish", plan: PlanRow) => void;
+  onReason: (
+    kind: "archive" | "reactivate" | "delete" | "publish",
+    plan: PlanRow,
+  ) => void;
 }) {
   const { t } = useI18n();
   const blocked = references(version) > 0;
@@ -592,14 +772,21 @@ function VersionRow({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold text-advo-text tabular-nums">
-          {t("admin.plans.perPeriod", { price: formatTzs(version.priceTzs), days: version.periodDays })}
+          {t("admin.plans.perPeriod", {
+            price: formatTzs(version.priceTzs),
+            days: version.periodDays,
+          })}
         </p>
         <p className="flex flex-wrap items-center gap-x-1.5 text-[10px] text-advo-muted">
           <span>{formatDateTime(version.createdAt)}</span>
           <span>·</span>
-          <span>{t("admin.plans.limit.sites", { count: version.maxSites })}</span>
+          <span>
+            {t("admin.plans.limit.sites", { count: version.maxSites })}
+          </span>
           <span>·</span>
-          <span>{t("admin.plans.limit.devices", { count: version.maxDevices })}</span>
+          <span>
+            {t("admin.plans.limit.devices", { count: version.maxDevices })}
+          </span>
           {version.isDemo ? (
             <>
               <span>·</span>
@@ -608,7 +795,15 @@ function VersionRow({
           ) : null}
         </p>
       </div>
-      <StatusChip tone={version.lifecycle === "DRAFT" ? "warning" : version.active ? "success" : "default"}>
+      <StatusChip
+        tone={
+          version.lifecycle === "DRAFT"
+            ? "warning"
+            : version.active
+              ? "success"
+              : "default"
+        }
+      >
         {version.lifecycle === "DRAFT"
           ? t("admin.plans.badge.draft")
           : version.active
@@ -617,17 +812,32 @@ function VersionRow({
       </StatusChip>
       <div className="flex items-center gap-1.5">
         {version.lifecycle === "DRAFT" ? (
-          <Button onPress={() => onReason("publish", version)} size="sm" type="button" variant="ghost">
+          <Button
+            onPress={() => onReason("publish", version)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
             <Rocket className="size-3.5" />
             {t("admin.plans.action.publish")}
           </Button>
         ) : !version.active ? (
-          <Button onPress={() => onReason("reactivate", version)} size="sm" type="button" variant="ghost">
+          <Button
+            onPress={() => onReason("reactivate", version)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
             <Sparkles className="size-3.5" />
             {t("admin.plans.action.reactivate")}
           </Button>
         ) : (
-          <Button onPress={() => onReason("archive", version)} size="sm" type="button" variant="ghost">
+          <Button
+            onPress={() => onReason("archive", version)}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
             <ArchiveRestore className="size-3.5" />
             {t("admin.plans.action.archive")}
           </Button>
@@ -658,14 +868,24 @@ function Chip({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 }
 
 /** Compact metric tile used inside a plan card. */
-function Mini({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+function Mini({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+}) {
   return (
     <div className="min-w-0 rounded-xl border border-[var(--advo-border)] bg-advo-surface-soft/60 px-3 py-2">
       <p className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
         <span className="[&_svg]:size-3">{icon}</span>
         <span className="truncate">{label}</span>
       </p>
-      <p className="mt-0.5 truncate text-sm font-black text-advo-text tabular-nums">{value}</p>
+      <p className="mt-0.5 truncate text-sm font-black text-advo-text tabular-nums">
+        {value}
+      </p>
     </div>
   );
 }
@@ -710,6 +930,10 @@ type PlanFormValues = {
   trialDays: string;
   trialEligible: boolean;
   isDemo: boolean;
+  priceFrom: boolean;
+  tierKey: string;
+  /** `""` = the plan is not part of the capacity × type grid. */
+  planType: "" | PlanType;
 };
 
 function planFormValuesFrom(plan: PlanRow | null): PlanFormValues {
@@ -722,6 +946,12 @@ function planFormValuesFrom(plan: PlanRow | null): PlanFormValues {
     trialDays: plan?.trialDays != null ? String(plan.trialDays) : "",
     trialEligible: plan?.trialEligible ?? false,
     isDemo: plan?.isDemo ?? false,
+    priceFrom: plan?.priceFrom ?? false,
+    tierKey: plan?.tierKey ?? "",
+    planType:
+      plan?.planType === "PARTNER" || plan?.planType === "INDEPENDENT"
+        ? plan.planType
+        : "",
   };
 }
 
@@ -744,11 +974,16 @@ function PlanFormModal({
   onSaved: (message: string) => Promise<void> | void;
 }) {
   const { t } = useI18n();
-  const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
+  const overlay = useOverlayState({
+    isOpen: open,
+    onOpenChange: (next) => (!next ? onClose() : undefined),
+  });
   const [done, setDone] = useState(false);
   const [step, setStep] = useState<PlanFormStep>("identity");
   const [stepError, setStepError] = useState<string | null>(null);
-  const [values, setValues] = useState<PlanFormValues>(() => planFormValuesFrom(plan));
+  const [values, setValues] = useState<PlanFormValues>(() =>
+    planFormValuesFrom(plan),
+  );
   /**
    * The plan version's feature configuration, held as one draft.
    *
@@ -767,6 +1002,9 @@ function PlanFormModal({
       trialEligible: values.trialEligible,
       trialDays: toInt(values.trialDays),
       isDemo: values.isDemo,
+      priceFrom: values.priceFrom,
+      tierKey: values.tierKey || null,
+      planType: values.planType || null,
       // The feature payload owns the limits, so the legacy columns are left out
       // and cannot drift away from what the portal actually enforces.
       features: draft.features,
@@ -807,9 +1045,48 @@ function PlanFormModal({
     onClose();
   }
 
-  function patch<K extends keyof PlanFormValues>(key: K, value: PlanFormValues[K]) {
+  function patch<K extends keyof PlanFormValues>(
+    key: K,
+    value: PlanFormValues[K],
+  ) {
     setValues((prev) => ({ ...prev, [key]: value }));
     setStepError(null);
+  }
+
+  /**
+   * Picking a tier fills its fixed capacity.
+   *
+   * The publish validator refuses a tagged plan whose limits differ from its
+   * tier, so the editor saves the admin from typing them — and from the two
+   * options of one tier drifting apart.
+   */
+  function patchTier(tierKey: string) {
+    patch("tierKey", tierKey);
+    const tier = planTier(tierKey);
+    if (tier) {
+      setDraft((prev) => ({
+        ...prev,
+        features: { ...prev.features, limits: { ...tier.limits } },
+      }));
+    }
+  }
+
+  /**
+   * Switching the commercial option rewrites only the advertising axis.
+   *
+   * Branding, card styles, payments and limits are untouched on purpose: the two
+   * options of a tier must sell exactly the same management tools.
+   */
+  function patchPlanType(next: string) {
+    const planType =
+      next === "PARTNER" || next === "INDEPENDENT" ? (next as PlanType) : "";
+    patch("planType", planType);
+    if (!planType) return;
+    setDraft((prev) => ({
+      ...prev,
+      features: applyPlanType(prev.features, planType),
+      commercialPromise: commercialPromiseForPlanType(planType),
+    }));
   }
 
   function validateStep(current: PlanFormStep): string | null {
@@ -823,17 +1100,23 @@ function PlanFormModal({
     if (current === "pricing") {
       const price = Number(values.priceTzs);
       const days = Number(values.periodDays);
-      if (!Number.isFinite(price) || price < 1) return t("admin.plans.form.priceHint");
-      if (!Number.isFinite(days) || days < 1 || days > 366) return t("admin.plans.form.periodDaysHint");
+      if (!Number.isFinite(price) || price < 1)
+        return t("admin.plans.form.priceHint");
+      if (!Number.isFinite(days) || days < 1 || days > 366)
+        return t("admin.plans.form.periodDaysHint");
       return null;
     }
     if (current === "features") {
-      const issues = planIssues(draft.features, draft.commercialPromise);
+      const issues = planIssues(draft.features, draft.commercialPromise, {
+        planType: values.planType || null,
+        tierKey: values.tierKey || null,
+      });
       return issues[0]?.message ?? null;
     }
     if (values.trialEligible) {
       const days = Number(values.trialDays);
-      if (!Number.isFinite(days) || days < 1 || days > 90) return t("admin.plans.form.trialDaysHint");
+      if (!Number.isFinite(days) || days < 1 || days > 90)
+        return t("admin.plans.form.trialDaysHint");
     }
     return null;
   }
@@ -887,16 +1170,26 @@ function PlanFormModal({
               <div
                 aria-hidden
                 className="absolute inset-x-0 top-0 h-1.5"
-                style={{ background: "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)" }}
+                style={{
+                  background:
+                    "linear-gradient(90deg, #1B5EA4 0%, #FBA102 50%, #F16304 100%)",
+                }}
               />
               <div className="space-y-1 pt-1">
                 <p className="inline-flex items-center gap-1.5 rounded-full bg-[#1B5EA4]/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[#1B5EA4] uppercase">
                   <Sparkles className="size-3 text-[#FBA102]" />
-                  {t("admin.plans.form.step.of", { current: stepIndex + 1, total: PLAN_FORM_STEPS.length })}
+                  {t("admin.plans.form.step.of", {
+                    current: stepIndex + 1,
+                    total: PLAN_FORM_STEPS.length,
+                  })}
                 </p>
-                <Modal.Heading className="!text-xl font-black tracking-tight !text-[#18212F]">{title}</Modal.Heading>
+                <Modal.Heading className="!text-xl font-black tracking-tight !text-[#18212F]">
+                  {title}
+                </Modal.Heading>
                 <p className="text-xs leading-relaxed text-[#526174]">
-                  {plan ? t("admin.plans.form.descriptionEdit") : t("admin.plans.form.descriptionCreate")}
+                  {plan
+                    ? t("admin.plans.form.descriptionEdit")
+                    : t("admin.plans.form.descriptionCreate")}
                 </p>
               </div>
             </Modal.Header>
@@ -904,7 +1197,9 @@ function PlanFormModal({
               {done ? (
                 <div className="space-y-4 py-2">
                   <Notice tone="success">
-                    {plan ? t("admin.plans.form.successEdit") : t("admin.plans.form.successCreate")}
+                    {plan
+                      ? t("admin.plans.form.successEdit")
+                      : t("admin.plans.form.successCreate")}
                   </Notice>
                   <div className="flex justify-end border-t border-[var(--advo-border)] pt-4">
                     <Button onPress={close} type="button" variant="primary">
@@ -927,7 +1222,10 @@ function PlanFormModal({
                         const complete = index < stepIndex;
                         const last = index === PLAN_FORM_STEPS.length - 1;
                         return (
-                          <div className="relative z-10 flex flex-col items-center" key={key}>
+                          <div
+                            className="relative z-10 flex flex-col items-center"
+                            key={key}
+                          >
                             <div
                               className={`flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
                                 complete
@@ -940,15 +1238,26 @@ function PlanFormModal({
                               }`}
                               style={
                                 active && last
-                                  ? { background: "linear-gradient(135deg, #FBA102 0%, #F16304 100%)" }
+                                  ? {
+                                      background:
+                                        "linear-gradient(135deg, #FBA102 0%, #F16304 100%)",
+                                    }
                                   : undefined
                               }
                             >
-                              {complete ? <CheckCircle2 className="size-4 text-white" /> : index + 1}
+                              {complete ? (
+                                <CheckCircle2 className="size-4 text-white" />
+                              ) : (
+                                index + 1
+                              )}
                             </div>
                             <span
                               className={`mt-1.5 text-[10px] font-bold ${
-                                active ? (last ? "text-[#F16304]" : "text-[#1B5EA4]") : "text-[#18212F]"
+                                active
+                                  ? last
+                                    ? "text-[#F16304]"
+                                    : "text-[#1B5EA4]"
+                                  : "text-[#18212F]"
                               }`}
                             >
                               {t(PLAN_STEP_LABEL[key])}
@@ -960,8 +1269,12 @@ function PlanFormModal({
                   </div>
 
                   <div className="space-y-1">
-                    <h3 className="text-sm font-black tracking-tight text-[#18212F]">{t(PLAN_STEP_LABEL[step])}</h3>
-                    <p className="text-xs text-[#526174]">{t(PLAN_STEP_LEAD[step])}</p>
+                    <h3 className="text-sm font-black tracking-tight text-[#18212F]">
+                      {t(PLAN_STEP_LABEL[step])}
+                    </h3>
+                    <p className="text-xs text-[#526174]">
+                      {t(PLAN_STEP_LEAD[step])}
+                    </p>
                   </div>
 
                   {step === "identity" ? (
@@ -992,6 +1305,50 @@ function PlanFormModal({
                         onChange={(v) => patch("description", v)}
                         value={values.description}
                       />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <SmartSelect
+                          hint={t("admin.plans.form.tierHint")}
+                          icon={<Layers />}
+                          label={t("admin.plans.form.tier")}
+                          onChange={patchTier}
+                          options={[
+                            {
+                              value: "",
+                              label: t("admin.plans.form.tierNone"),
+                            },
+                            ...PLAN_TIERS.map((tier) => ({
+                              value: tier.key,
+                              label: tier.label,
+                            })),
+                          ]}
+                          value={values.tierKey}
+                        />
+                        <SmartSelect
+                          hint={t("admin.plans.form.planTypeHint")}
+                          icon={<Tag />}
+                          label={t("admin.plans.form.planType")}
+                          onChange={patchPlanType}
+                          options={[
+                            {
+                              value: "",
+                              label: t("admin.plans.form.planTypeNone"),
+                            },
+                            {
+                              value: "PARTNER",
+                              label: t(
+                                "reseller.subscription.catalog.partner.title",
+                              ),
+                            },
+                            {
+                              value: "INDEPENDENT",
+                              label: t(
+                                "reseller.subscription.catalog.independent.title",
+                              ),
+                            },
+                          ]}
+                          value={values.planType}
+                        />
+                      </div>
                     </div>
                   ) : null}
 
@@ -1023,19 +1380,37 @@ function PlanFormModal({
                           {t("admin.plans.form.previewTitle")}
                         </p>
                         <p className="mt-1 truncate text-lg font-black tracking-tight text-[#18212F]">
-                          {values.name.trim() || t("admin.plans.form.namePlaceholder")}
+                          {values.name.trim() ||
+                            t("admin.plans.form.namePlaceholder")}
                         </p>
                         <p className="mt-2 text-2xl font-black tabular-nums text-[#1B5EA4]">
-                          {Number.isFinite(pricePreview) && pricePreview > 0 && Number.isFinite(periodPreview) && periodPreview > 0
+                          {Number.isFinite(pricePreview) &&
+                          pricePreview > 0 &&
+                          Number.isFinite(periodPreview) &&
+                          periodPreview > 0
                             ? t("admin.plans.perPeriod", {
-                                price: formatTzs(String(Math.round(pricePreview))),
+                                price: formatTzs(
+                                  String(Math.round(pricePreview)),
+                                ),
                                 days: Math.round(periodPreview),
                               })
                             : "—"}
                         </p>
                         {values.code.trim() ? (
-                          <p className="mt-1 font-mono text-[11px] text-[#526174]">{values.code.trim().toLowerCase()}</p>
+                          <p className="mt-1 font-mono text-[11px] text-[#526174]">
+                            {values.code.trim().toLowerCase()}
+                          </p>
                         ) : null}
+                      </div>
+                      <div className="space-y-1.5">
+                        <SmartToggle
+                          checked={values.priceFrom}
+                          label={t("admin.plans.form.priceFrom")}
+                          onChange={(checked) => patch("priceFrom", checked)}
+                        />
+                        <p className="text-[11px] leading-snug text-[#526174]">
+                          {t("admin.plans.form.priceFromHint")}
+                        </p>
                       </div>
                     </div>
                   ) : null}
@@ -1063,26 +1438,36 @@ function PlanFormModal({
                           <SmartToggle
                             checked={values.trialEligible}
                             label={t("admin.plans.form.trialEligible")}
-                            onChange={(checked) => patch("trialEligible", checked)}
+                            onChange={(checked) =>
+                              patch("trialEligible", checked)
+                            }
                           />
                           <SmartToggle
                             checked={values.isDemo}
                             label={t("admin.plans.form.isDemo")}
                             onChange={(checked) => patch("isDemo", checked)}
                           />
-                          <p className="text-[11px] text-advo-muted">{t("admin.plans.form.isDemoHint")}</p>
+                          <p className="text-[11px] text-advo-muted">
+                            {t("admin.plans.form.isDemoHint")}
+                          </p>
                         </div>
                       </div>
                       <Notice tone={willVersion ? "warning" : "accent"}>
                         {willVersion && plan
-                          ? t("admin.plans.form.willVersion", { count: references(plan) })
+                          ? t("admin.plans.form.willVersion", {
+                              count: references(plan),
+                            })
                           : t("admin.plans.form.willReplace")}
                       </Notice>
                     </div>
                   ) : null}
 
-                  {stepError ? <Notice tone="danger">{stepError}</Notice> : null}
-                  {save.error ? <Notice tone="danger">{save.error}</Notice> : null}
+                  {stepError ? (
+                    <Notice tone="danger">{stepError}</Notice>
+                  ) : null}
+                  {save.error ? (
+                    <Notice tone="danger">{save.error}</Notice>
+                  ) : null}
 
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--advo-border)] pt-4">
                     <div className="flex flex-wrap gap-2">
@@ -1099,17 +1484,39 @@ function PlanFormModal({
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {stepIndex > 0 ? (
-                        <Button className="sm:hidden" onPress={close} type="button" variant="ghost">
+                        <Button
+                          className="sm:hidden"
+                          onPress={close}
+                          type="button"
+                          variant="ghost"
+                        >
                           {t("admin.plans.form.cancel")}
                         </Button>
                       ) : null}
                       {step === "launch" ? (
-                        <Button isDisabled={save.pending} onPress={() => void submit()} type="button" variant="primary">
-                          {plan ? <Pencil className="size-4" /> : <Plus className="size-4" />}
-                          {save.pending ? "…" : plan ? t("admin.plans.form.submitEdit") : t("admin.plans.form.submitCreate")}
+                        <Button
+                          isDisabled={save.pending}
+                          onPress={() => void submit()}
+                          type="button"
+                          variant="primary"
+                        >
+                          {plan ? (
+                            <Pencil className="size-4" />
+                          ) : (
+                            <Plus className="size-4" />
+                          )}
+                          {save.pending
+                            ? "…"
+                            : plan
+                              ? t("admin.plans.form.submitEdit")
+                              : t("admin.plans.form.submitCreate")}
                         </Button>
                       ) : (
-                        <Button onPress={goNext} type="button" variant="primary">
+                        <Button
+                          onPress={goNext}
+                          type="button"
+                          variant="primary"
+                        >
                           {t("admin.plans.form.step.next")}
                           <ArrowRight className="size-4" />
                         </Button>
@@ -1155,7 +1562,9 @@ function SmartField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">{label}</label>
+      <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">
+        {label}
+      </label>
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#526174] [&_svg]:size-4">
           {icon}
@@ -1173,7 +1582,54 @@ function SmartField({
           value={value}
         />
       </div>
-      {hint ? <p className="text-[11px] leading-snug text-[#526174]">{hint}</p> : null}
+      {hint ? (
+        <p className="text-[11px] leading-snug text-[#526174]">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Register-style labelled dropdown, matching {@link SmartField}'s visual language. */
+function SmartSelect({
+  label,
+  hint,
+  icon,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  hint?: string;
+  icon: ReactNode;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="block text-xs font-bold tracking-wide text-[#18212F] uppercase">
+        {label}
+      </label>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#526174] [&_svg]:size-4">
+          {icon}
+        </div>
+        <select
+          className="w-full appearance-none rounded-field border border-[#DFE5EC] bg-[#F7F9FC] py-3 pr-9 pl-10 text-xs font-semibold text-[#18212F] outline-none transition focus:border-[#1B5EA4] focus:bg-white focus:ring-2 focus:ring-[#1B5EA4]/20"
+          onChange={(e) => onChange(e.target.value)}
+          value={value}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute inset-y-0 right-3 my-auto size-4 text-[#526174]" />
+      </div>
+      {hint ? (
+        <p className="text-[11px] leading-snug text-[#526174]">{hint}</p>
+      ) : null}
     </div>
   );
 }
@@ -1229,7 +1685,10 @@ function PlanReasonDialog({
   onClose,
   onDone,
 }: {
-  target: { kind: "archive" | "reactivate" | "delete" | "publish"; plan: PlanRow } | null;
+  target: {
+    kind: "archive" | "reactivate" | "delete" | "publish";
+    plan: PlanRow;
+  } | null;
   onClose: () => void;
   onDone: (message: string) => Promise<void> | void;
 }) {
@@ -1286,7 +1745,12 @@ function PlanReasonDialog({
           // Publishing runs the same feature validator server-side; a refused publish
           // throws before anything becomes sellable.
           await api.post(`/admin/plans/${plan.id}/publish`, { reason });
-          await onDone(t("admin.plans.publishSuccess", { name: plan.name, version: plan.version }));
+          await onDone(
+            t("admin.plans.publishSuccess", {
+              name: plan.name,
+              version: plan.version,
+            }),
+          );
           return;
         } else {
           await api.post(`/admin/plans/${plan.id}/active`, {
@@ -1303,11 +1767,15 @@ function PlanReasonDialog({
             <div>
               <p className="text-sm font-black text-advo-text">{plan.name}</p>
               <p className="font-mono text-[10px] text-advo-muted">
-                {plan.code} · {t("admin.plans.version", { version: plan.version })}
+                {plan.code} ·{" "}
+                {t("admin.plans.version", { version: plan.version })}
               </p>
             </div>
             <p className="text-sm font-bold text-advo-text tabular-nums">
-              {t("admin.plans.perPeriod", { price: formatTzs(plan.priceTzs), days: plan.periodDays })}
+              {t("admin.plans.perPeriod", {
+                price: formatTzs(plan.priceTzs),
+                days: plan.periodDays,
+              })}
             </p>
           </div>
         ) : null

@@ -16,7 +16,13 @@ import {
 } from "@advo/contracts";
 import { Button, Drawer, useOverlayState } from "@heroui/react";
 import { StatusChip } from "@advo/ui";
-import { Check, Infinity as InfinityIcon, Lock, Sparkles, X } from "lucide-react";
+import {
+  Check,
+  Infinity as InfinityIcon,
+  Lock,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 /**
  * A plan as `GET /reseller/plans` returns it.
@@ -30,6 +36,8 @@ export type ResellerPlan = {
   name: string;
   description: string;
   priceTzs: string;
+  /** Enterprise is sold "from" a price; the card must say so. */
+  priceFrom: boolean;
   periodDays: number;
   trialEligible: boolean;
   trialDays: number | null;
@@ -39,12 +47,20 @@ export type ResellerPlan = {
   isDemo: boolean;
   commercialPromise: string;
   lifecycle: string;
+  /** Capacity tier of the two-axis catalog; `null` for plans outside the matrix. */
+  tierKey: string | null;
+  /** `PARTNER` or `INDEPENDENT`; `null` when the plan is not part of the matrix. */
+  planType: string | null;
   /** The feature catalog values this version grants. */
   features: unknown;
 };
 
 /** A capacity trio; `null` means unlimited, never "none". */
-export type PlanCapacity = { sites: number | null; devices: number | null; wifiPackagesPerSite: number | null };
+export type PlanCapacity = {
+  sites: number | null;
+  devices: number | null;
+  wifiPackagesPerSite: number | null;
+};
 
 /**
  * The caps a plan version grants, read the same way the backend reads them.
@@ -57,12 +73,24 @@ export type PlanCapacity = { sites: number | null; devices: number | null; wifiP
  */
 export function capacityOf(plan: ResellerPlan): PlanCapacity {
   const raw = plan.features;
-  const stored = Boolean(raw && typeof raw === "object" && "limits" in (raw as Record<string, unknown>));
+  const stored = Boolean(
+    raw &&
+    typeof raw === "object" &&
+    "limits" in (raw as Record<string, unknown>),
+  );
   if (stored) {
     const limits = planFeaturesWithDefaults(raw).limits;
-    return { sites: limits.sites, devices: limits.devices, wifiPackagesPerSite: limits.wifi_packages_per_site };
+    return {
+      sites: limits.sites,
+      devices: limits.devices,
+      wifiPackagesPerSite: limits.wifi_packages_per_site,
+    };
   }
-  return { sites: plan.maxSites, devices: plan.maxDevices, wifiPackagesPerSite: plan.maxPackages };
+  return {
+    sites: plan.maxSites,
+    devices: plan.maxDevices,
+    wifiPackagesPerSite: plan.maxPackages,
+  };
 }
 
 /** `null` is unlimited — rendering a bare `null` would read as "none allowed". */
@@ -94,9 +122,12 @@ const STYLE_LABEL: Record<PackageCardStyle, string> = {
 
 /** A short, honest one-liner for what the two campaign placements add up to. */
 export function advertisingSummary(features: PlanFeatures): string {
-  const modes = VISIBILITY_KEYS.slice(0, 2).map((key) => placementOf(features, key).mode);
+  const modes = VISIBILITY_KEYS.slice(0, 2).map(
+    (key) => placementOf(features, key).mode,
+  );
   if (modes.every((mode) => mode === "DISABLED")) return "No advertising";
-  if (modes.some((mode) => mode === "REQUIRED")) return "Sponsored ads required";
+  if (modes.some((mode) => mode === "REQUIRED"))
+    return "Sponsored ads required";
   return "Advertising can be switched off";
 }
 
@@ -110,11 +141,15 @@ export function planHighlights(features: PlanFeatures): string[] {
   const out: string[] = [advertisingSummary(features)];
 
   if (features.branding.colors_edit) out.push("Your own brand colours & logo");
-  if (features.branding.platform_badge_removable) out.push("Remove the Advo badge");
+  if (features.branding.platform_badge_removable)
+    out.push("Remove the Advo badge");
   if (features.payments.voucher) out.push("Voucher redemption");
   if (features.packages.order_edit) out.push("Reorder WiFi packages");
-  out.push(`${features.package_cards.allowed_styles.length} package card styles`);
-  if (features.limits.sites === null && features.limits.devices === null) out.push("Unlimited sites & devices");
+  out.push(
+    `${features.package_cards.allowed_styles.length} package card styles`,
+  );
+  if (features.limits.sites === null && features.limits.devices === null)
+    out.push("Unlimited sites & devices");
 
   return out;
 }
@@ -143,13 +178,19 @@ export function PlanDetailDrawer({
   trialUsed: boolean;
   trialPending: boolean;
 }) {
-  const overlay = useOverlayState({ isOpen: open, onOpenChange: (next) => (!next ? onClose() : undefined) });
+  const overlay = useOverlayState({
+    isOpen: open,
+    onOpenChange: (next) => (!next ? onClose() : undefined),
+  });
 
   if (!plan) return null;
 
-  const features = normalizePlanFeatures(planFeaturesWithDefaults(plan.features));
+  const features = normalizePlanFeatures(
+    planFeaturesWithDefaults(plan.features),
+  );
   const capacity = capacityOf(plan);
-  const canTrial = plan.trialEligible && (plan.trialDays ?? 0) > 0 && !trialUsed;
+  const canTrial =
+    plan.trialEligible && (plan.trialDays ?? 0) > 0 && !trialUsed;
 
   return (
     <Drawer.Root state={overlay}>
@@ -157,7 +198,9 @@ export function PlanDetailDrawer({
         <Drawer.Content placement="right">
           <Drawer.Dialog className="bg-white">
             <Drawer.Header>
-              <Drawer.Heading className="text-base font-black text-advo-text">{plan.name}</Drawer.Heading>
+              <Drawer.Heading className="text-base font-black text-advo-text">
+                {plan.name}
+              </Drawer.Heading>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-advo-muted">
                 <span className="font-mono font-bold">{plan.code}</span>
                 <span>·</span>
@@ -174,33 +217,60 @@ export function PlanDetailDrawer({
             <Drawer.Body className="space-y-5">
               {/* Price */}
               <div className="rounded-2xl border border-[var(--advo-border)] bg-gradient-to-br from-white to-[var(--advo-blue-soft)] px-4 py-3.5">
-                <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">Price</p>
+                <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
+                  Price
+                </p>
                 <p className="mt-0.5 flex items-baseline gap-1">
+                  {plan.priceFrom ? (
+                    <span className="text-[10px] font-bold tracking-wide text-advo-muted uppercase">
+                      from
+                    </span>
+                  ) : null}
                   <span className="text-2xl font-black tracking-tight text-advo-text tabular-nums">
                     {formatTzs(plan.priceTzs)}
                   </span>
-                  <span className="text-xs text-slate-500">/ {plan.periodDays} days</span>
+                  <span className="text-xs text-slate-500">
+                    / {plan.periodDays} days
+                  </span>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <StatusChip tone={plan.commercialPromise === "ad_free" ? "accent" : "default"}>
-                    {plan.commercialPromise === "ad_free" ? "Ad Free promise" : "Standard"}
+                  <StatusChip
+                    tone={
+                      plan.commercialPromise === "ad_free"
+                        ? "accent"
+                        : "default"
+                    }
+                  >
+                    {plan.commercialPromise === "ad_free"
+                      ? "Ad Free promise"
+                      : "Standard"}
                   </StatusChip>
                   {plan.trialEligible && plan.trialDays ? (
-                    <StatusChip tone="success">{plan.trialDays}-day free trial</StatusChip>
+                    <StatusChip tone="success">
+                      {plan.trialDays}-day free trial
+                    </StatusChip>
                   ) : (
                     <StatusChip tone="default">No trial</StatusChip>
                   )}
                 </div>
               </div>
 
-              {plan.description ? <p className="text-xs text-slate-600">{plan.description}</p> : null}
+              {plan.description ? (
+                <p className="text-xs text-slate-600">{plan.description}</p>
+              ) : null}
 
               {/* Capacity */}
               <Section icon={<InfinityIcon />} title="Capacity">
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <CapacityTile label="Sites" value={capacity.sites} />
-                  <CapacityTile label="Access points" value={capacity.devices} />
-                  <CapacityTile label="Packages / site" value={capacity.wifiPackagesPerSite} />
+                  <CapacityTile
+                    label="Access points"
+                    value={capacity.devices}
+                  />
+                  <CapacityTile
+                    label="Packages / site"
+                    value={capacity.wifiPackagesPerSite}
+                  />
                 </div>
               </Section>
 
@@ -209,7 +279,11 @@ export function PlanDetailDrawer({
                 <ul className="space-y-1.5">
                   {VISIBILITY_KEYS.map((key) => {
                     const policy = placementOf(features, key);
-                    const decision = resolveVisibility(policy.mode, undefined, policy.default_visible);
+                    const decision = resolveVisibility(
+                      policy.mode,
+                      undefined,
+                      policy.default_visible,
+                    );
                     return (
                       <li
                         className="flex items-center justify-between gap-3 rounded-xl border border-[var(--advo-border)] bg-white/60 px-3 py-2"
@@ -221,13 +295,19 @@ export function PlanDetailDrawer({
                           ) : (
                             <Sparkles className="size-3 shrink-0 text-advo-muted" />
                           )}
-                          <span className="truncate text-xs font-semibold text-advo-text">{PLACEMENT_LABEL[key]}</span>
+                          <span className="truncate text-xs font-semibold text-advo-text">
+                            {PLACEMENT_LABEL[key]}
+                          </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-1.5">
-                          <StatusChip tone={decision.visible ? "success" : "default"}>
+                          <StatusChip
+                            tone={decision.visible ? "success" : "default"}
+                          >
                             {decision.visible ? "Visible" : "Hidden"}
                           </StatusChip>
-                          <span className="text-[10px] font-semibold text-advo-muted">{MODE_LABEL[policy.mode]}</span>
+                          <span className="text-[10px] font-semibold text-advo-muted">
+                            {MODE_LABEL[policy.mode]}
+                          </span>
                         </span>
                       </li>
                     );
@@ -238,18 +318,37 @@ export function PlanDetailDrawer({
               {/* Branding & appearance */}
               <Section icon={<Check />} title="Branding & appearance">
                 <ul className="space-y-1.5">
-                  <FlagRow label="Upload your own logo" on={features.branding.logo_upload} />
-                  <FlagRow label="Edit portal colours" on={features.branding.colors_edit} />
-                  <FlagRow label="Remove the Advo badge" on={features.branding.platform_badge_removable} />
-                  <FlagRow label="Reorder WiFi packages" on={features.packages.order_edit} />
+                  <FlagRow
+                    label="Upload your own logo"
+                    on={features.branding.logo_upload}
+                  />
+                  <FlagRow
+                    label="Edit portal colours"
+                    on={features.branding.colors_edit}
+                  />
+                  <FlagRow
+                    label="Remove the Advo badge"
+                    on={features.branding.platform_badge_removable}
+                  />
+                  <FlagRow
+                    label="Reorder WiFi packages"
+                    on={features.packages.order_edit}
+                  />
                 </ul>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {PACKAGE_CARD_STYLES.map((style) => {
-                    const allowed = features.package_cards.allowed_styles.includes(style);
-                    const isDefault = features.package_cards.default_style === style;
+                    const allowed =
+                      features.package_cards.allowed_styles.includes(style);
+                    const isDefault =
+                      features.package_cards.default_style === style;
                     return (
-                      <StatusChip key={style} tone={allowed ? "success" : "default"}>
-                        {allowed ? `${STYLE_LABEL[style]}${isDefault ? " (default)" : ""}` : `${STYLE_LABEL[style]}: no`}
+                      <StatusChip
+                        key={style}
+                        tone={allowed ? "success" : "default"}
+                      >
+                        {allowed
+                          ? `${STYLE_LABEL[style]}${isDefault ? " (default)" : ""}`
+                          : `${STYLE_LABEL[style]}: no`}
                       </StatusChip>
                     );
                   })}
@@ -258,14 +357,20 @@ export function PlanDetailDrawer({
 
               {/* Payments */}
               <Section icon={<Check />} title="Payments">
-                <FlagRow label="Voucher redemption" on={features.payments.voucher} />
+                <FlagRow
+                  label="Voucher redemption"
+                  on={features.payments.voucher}
+                />
               </Section>
 
               {/* Summary */}
               <Section icon={<Sparkles />} title="In short">
                 <ul className="space-y-1">
                   {planHighlights(features).map((line) => (
-                    <li className="flex items-start gap-2 text-xs text-slate-700" key={line}>
+                    <li
+                      className="flex items-start gap-2 text-xs text-slate-700"
+                      key={line}
+                    >
                       <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
                       <span>{line}</span>
                     </li>
@@ -275,7 +380,12 @@ export function PlanDetailDrawer({
             </Drawer.Body>
 
             <Drawer.Footer className="flex flex-col gap-2 border-t border-slate-100">
-              <Button className="w-full" onPress={() => onChoose(plan)} type="button" variant="primary">
+              <Button
+                className="w-full"
+                onPress={() => onChoose(plan)}
+                type="button"
+                variant="primary"
+              >
                 Pay with Mobile Money
               </Button>
               {canTrial ? (
@@ -291,7 +401,9 @@ export function PlanDetailDrawer({
                 </Button>
               ) : null}
               {plan.trialEligible && trialUsed ? (
-                <p className="text-center text-[10px] text-slate-400">Trial already used on this business.</p>
+                <p className="text-center text-[10px] text-slate-400">
+                  Trial already used on this business.
+                </p>
               ) : null}
             </Drawer.Footer>
 
@@ -303,7 +415,15 @@ export function PlanDetailDrawer({
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function Section({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="space-y-2">
       <h3 className="flex items-center gap-1.5 text-[10px] font-bold tracking-wider text-advo-muted uppercase">
@@ -315,11 +435,21 @@ function Section({ title, icon, children }: { title: string; icon: ReactNode; ch
   );
 }
 
-function CapacityTile({ label, value }: { label: string; value: number | null }) {
+function CapacityTile({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | null;
+}) {
   return (
     <div className="rounded-xl border border-[var(--advo-border)] bg-advo-surface-soft/60 px-2 py-2">
-      <p className="truncate text-sm font-black text-advo-text tabular-nums">{formatCapacity(value)}</p>
-      <p className="mt-0.5 text-[10px] font-semibold text-advo-muted">{label}</p>
+      <p className="truncate text-sm font-black text-advo-text tabular-nums">
+        {formatCapacity(value)}
+      </p>
+      <p className="mt-0.5 text-[10px] font-semibold text-advo-muted">
+        {label}
+      </p>
     </div>
   );
 }
@@ -332,7 +462,9 @@ function FlagRow({ label, on }: { label: string; on: boolean }) {
       ) : (
         <X className="size-3.5 shrink-0 text-slate-400" />
       )}
-      <span className={on ? "font-semibold text-slate-700" : "text-slate-400"}>{label}</span>
+      <span className={on ? "font-semibold text-slate-700" : "text-slate-400"}>
+        {label}
+      </span>
     </li>
   );
 }

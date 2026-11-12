@@ -25,10 +25,13 @@ function sellingPoints(plan: PublicPlan, t: Translator): string[] {
   const lines: string[] = [t(`marketing.plans.ads.${plan.advertising}`)];
 
   if (plan.flags.colorsEdit) lines.push(t("marketing.plans.colors"));
-  if (plan.flags.badgeRemovable) lines.push(t("marketing.plans.badgeRemovable"));
+  if (plan.flags.badgeRemovable)
+    lines.push(t("marketing.plans.badgeRemovable"));
   if (plan.flags.voucher) lines.push(t("marketing.plans.voucher"));
   if (plan.flags.orderEdit) lines.push(t("marketing.plans.orderEdit"));
-  lines.push(t("marketing.plans.cardStyles", { count: plan.flags.cardStyles.length }));
+  lines.push(
+    t("marketing.plans.cardStyles", { count: plan.flags.cardStyles.length }),
+  );
   if (plan.capacity.sites === null && plan.capacity.devices === null) {
     lines.push(t("marketing.plans.unlimitedSites"));
   }
@@ -37,18 +40,40 @@ function sellingPoints(plan: PublicPlan, t: Translator): string[] {
 }
 
 /** One occupancy tile. Values are the whole point, so they lead. */
-function CapacityTile({ label, value, dark }: { label: string; value: string; dark?: boolean }) {
+function CapacityTile({
+  label,
+  value,
+  dark,
+}: {
+  label: string;
+  value: string;
+  dark?: boolean;
+}) {
   return (
     <div
       className={cx(
         "rounded-2xl border px-2 py-2.5 text-center",
-        dark ? "border-white/10 bg-white/5" : "border-advo-border bg-advo-surface-soft/60",
+        dark
+          ? "border-white/10 bg-white/5"
+          : "border-advo-border bg-advo-surface-soft/60",
       )}
     >
-      <p className={cx("truncate text-sm font-black tracking-tight tabular-nums", dark ? "text-white" : "text-advo-text")}>
+      <p
+        className={cx(
+          "truncate text-sm font-black tracking-tight tabular-nums",
+          dark ? "text-white" : "text-advo-text",
+        )}
+      >
         {value}
       </p>
-      <p className={cx("mt-0.5 text-[10px] font-semibold", dark ? "text-white/55" : "text-advo-muted")}>{label}</p>
+      <p
+        className={cx(
+          "mt-0.5 text-[10px] font-semibold",
+          dark ? "text-white/55" : "text-advo-muted",
+        )}
+      >
+        {label}
+      </p>
     </div>
   );
 }
@@ -113,7 +138,12 @@ export function PlanCard({
       included.unshift(t("marketing.plans.trial", { days: plan.trialDays }));
     }
     if (plan.isDemo) included.unshift(t("marketing.plans.demo"));
-    if (plan.commercialPromise === "ad_free") included.unshift(t("marketing.plans.adFree"));
+    if (plan.commercialPromise === "ad_free")
+      included.unshift(t("marketing.plans.adFree"));
+    if (plan.planType === "INDEPENDENT")
+      included.unshift(t("marketing.plans.independent"));
+    if (plan.planType === "PARTNER")
+      included.unshift(t("marketing.plans.partner"));
 
     return (
       <div
@@ -140,6 +170,11 @@ export function PlanCard({
 
         <div className="mt-5">
           <div className="text-[2.35rem] leading-none font-black tracking-tight tabular-nums sm:text-5xl">
+            {plan.priceFrom ? (
+              <span className="mr-1 align-middle text-sm font-bold tracking-normal uppercase opacity-60">
+                {t("marketing.plans.from")}
+              </span>
+            ) : null}
             TZS {formatTzs(plan.priceTzs)}
           </div>
           <p className="mt-2 text-sm text-[#241C12]/55">{period}</p>
@@ -196,7 +231,9 @@ export function PlanCard({
         aria-hidden="true"
         className={cx(
           "absolute inset-x-0 top-0 h-1 rounded-t-card",
-          popular ? "bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)]" : "bg-advo-gold/35",
+          popular
+            ? "bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)]"
+            : "bg-advo-gold/35",
         )}
       />
 
@@ -208,32 +245,103 @@ export function PlanCard({
 
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className={cx("text-xl font-bold", dark ? "text-white" : "text-advo-text")}>{plan.name}</h3>
-          <p className={cx("mt-0.5 font-mono text-[10px] font-bold", dark ? "text-white/45" : "text-advo-muted")}>{plan.code}</p>
+          <h3
+            className={cx(
+              "text-xl font-bold",
+              dark ? "text-white" : "text-advo-text",
+            )}
+          >
+            {plan.name}
+          </h3>
+          <p
+            className={cx(
+              "mt-0.5 font-mono text-[10px] font-bold",
+              dark ? "text-white/45" : "text-advo-muted",
+            )}
+          >
+            {plan.code}
+          </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {plan.commercialPromise === "ad_free" ? (
-            <span className={cx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold", dark ? "bg-white/10 text-white" : "bg-violet-50 text-violet-700")}>
+            <span
+              className={cx(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                dark
+                  ? "bg-white/10 text-white"
+                  : "bg-violet-50 text-violet-700",
+              )}
+            >
               <ShieldOff aria-hidden="true" className="size-3" />
               {t("marketing.plans.adFree")}
             </span>
           ) : null}
+          {plan.planType ? (
+            <span
+              className={cx(
+                "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                dark
+                  ? "bg-white/10 text-white"
+                  : plan.planType === "PARTNER"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-slate-100 text-slate-600",
+              )}
+            >
+              {plan.planType === "PARTNER"
+                ? t("marketing.plans.partner")
+                : t("marketing.plans.independent")}
+            </span>
+          ) : null}
           {plan.isDemo ? (
-            <span className={cx("rounded-full px-2 py-0.5 text-[10px] font-bold", dark ? "bg-[#FBA102]/15 text-[#FBA102]" : "bg-amber-50 text-amber-700")}>
+            <span
+              className={cx(
+                "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                dark
+                  ? "bg-[#FBA102]/15 text-[#FBA102]"
+                  : "bg-amber-50 text-amber-700",
+              )}
+            >
               {t("marketing.plans.demo")}
             </span>
           ) : null}
         </div>
       </div>
 
-      <p className={cx("mt-2 min-h-10 text-sm", dark ? "text-white/60" : "text-advo-muted")}>{plan.description}</p>
+      <p
+        className={cx(
+          "mt-2 min-h-10 text-sm",
+          dark ? "text-white/60" : "text-advo-muted",
+        )}
+      >
+        {plan.description}
+      </p>
 
       {/* Price */}
       <div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className={cx("font-mono text-3xl font-black tracking-tight tabular-nums", dark ? "text-[#FBA102]" : "text-advo-text")}>
+        {plan.priceFrom ? (
+          <span
+            className={cx(
+              "text-[10px] font-bold tracking-wide uppercase",
+              dark ? "text-white/45" : "text-advo-muted",
+            )}
+          >
+            {t("marketing.plans.from")}
+          </span>
+        ) : null}
+        <span
+          className={cx(
+            "font-mono text-3xl font-black tracking-tight tabular-nums",
+            dark ? "text-[#FBA102]" : "text-advo-text",
+          )}
+        >
           TZS {formatTzs(plan.priceTzs)}
         </span>
-        <span className={cx("text-sm font-medium", dark ? "text-white/55" : "text-advo-muted")}>
+        <span
+          className={cx(
+            "text-sm font-medium",
+            dark ? "text-white/55" : "text-advo-muted",
+          )}
+        >
           /{" "}
           {plan.periodDays === 30
             ? t("marketing.plans.perMonth")
@@ -243,28 +351,68 @@ export function PlanCard({
 
       {/* Trial — an acquisition offer, so it gets its own line rather than a bullet. */}
       {plan.trialDays ? (
-        <p className={cx("mt-2.5 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold", dark ? "bg-[#03ac77]/15 text-[#03ac77]" : "bg-emerald-50 text-emerald-700")}>
+        <p
+          className={cx(
+            "mt-2.5 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold",
+            dark
+              ? "bg-[#03ac77]/15 text-[#03ac77]"
+              : "bg-emerald-50 text-emerald-700",
+          )}
+        >
           <Sparkles aria-hidden="true" className="size-3" />
           {t("marketing.plans.trial", { days: plan.trialDays })}
         </p>
       ) : null}
 
       {/* Capacity */}
-      <div className={cx("mt-6 border-t pt-5", dark ? "border-white/10" : "border-advo-border")}>
-        <p className={cx("text-[10px] font-bold tracking-wider uppercase", dark ? "text-white/45" : "text-advo-muted")}>
+      <div
+        className={cx(
+          "mt-6 border-t pt-5",
+          dark ? "border-white/10" : "border-advo-border",
+        )}
+      >
+        <p
+          className={cx(
+            "text-[10px] font-bold tracking-wider uppercase",
+            dark ? "text-white/45" : "text-advo-muted",
+          )}
+        >
           {t("marketing.plans.capacity")}
         </p>
         <div className="mt-2.5 grid grid-cols-3 gap-2">
-          <CapacityTile dark={dark} label={t("marketing.plans.sites")} value={capacityLabel(plan.capacity.sites, t)} />
-          <CapacityTile dark={dark} label={t("marketing.plans.devices")} value={capacityLabel(plan.capacity.devices, t)} />
-          <CapacityTile dark={dark} label={t("marketing.plans.packages")} value={capacityLabel(plan.capacity.packagesPerSite, t)} />
+          <CapacityTile
+            dark={dark}
+            label={t("marketing.plans.sites")}
+            value={capacityLabel(plan.capacity.sites, t)}
+          />
+          <CapacityTile
+            dark={dark}
+            label={t("marketing.plans.devices")}
+            value={capacityLabel(plan.capacity.devices, t)}
+          />
+          <CapacityTile
+            dark={dark}
+            label={t("marketing.plans.packages")}
+            value={capacityLabel(plan.capacity.packagesPerSite, t)}
+          />
         </div>
       </div>
 
       {/* What the plan actually grants */}
-      <ul className={cx("mt-5 flex-1 space-y-2.5 border-t pt-5", dark ? "border-white/10" : "border-advo-border")}>
+      <ul
+        className={cx(
+          "mt-5 flex-1 space-y-2.5 border-t pt-5",
+          dark ? "border-white/10" : "border-advo-border",
+        )}
+      >
         {points.map((line) => (
-          <li className={cx("flex items-start gap-2.5 text-sm", dark ? "text-white/80" : "text-advo-text")} key={line}>
+          <li
+            className={cx(
+              "flex items-start gap-2.5 text-sm",
+              dark ? "text-white/80" : "text-advo-text",
+            )}
+            key={line}
+          >
             <CheckCircle2
               aria-hidden="true"
               className="mt-0.5 size-4 shrink-0 text-[#03ac77]"
@@ -275,7 +423,13 @@ export function PlanCard({
       </ul>
 
       <div className="mt-7">
-        <ButtonLink href={ctaHref} variant={popular ? "primary" : dark ? "onDark" : "outline"} size="lg" arrow className="w-full">
+        <ButtonLink
+          href={ctaHref}
+          variant={popular ? "primary" : dark ? "onDark" : "outline"}
+          size="lg"
+          arrow
+          className="w-full"
+        >
           {ctaLabel ?? t("marketing.plans.choose")}
         </ButtonLink>
       </div>
@@ -322,7 +476,11 @@ export function PlanCardGrid({
   );
 
   return (
-    <div className={centred ? cx("flex flex-wrap justify-center", gap) : gridClasses}>
+    <div
+      className={
+        centred ? cx("flex flex-wrap justify-center", gap) : gridClasses
+      }
+    >
       {plans.map((plan) => {
         const cta = ctaForPlan?.(plan) ?? { href: "/register" };
         const card = (

@@ -5,10 +5,24 @@ import { prisma } from "@advo/db";
 import { AuthService } from "../modules/auth/auth.service.js";
 import { createPolicy } from "../modules/commissions/commissions.service.js";
 import { saveController } from "../modules/network/controllers.service.js";
-import { SettingKey, getSetting, setSetting } from "../modules/settings/settings.service.js";
-import { startTrial, upsertPlan } from "../modules/subscriptions/subscriptions.service.js";
+import {
+  SettingKey,
+  getSetting,
+  setSetting,
+} from "../modules/settings/settings.service.js";
+import {
+  startTrial,
+  upsertPlan,
+} from "../modules/subscriptions/subscriptions.service.js";
 import { isProduction } from "../common/providers.js";
-import { backfillSettledReceipts, refreshDemoUsage, seedDemoActivity, seedDemoPayments, seedDemoUsage, seedDemoWithdrawals } from "./seed-demo-activity.js";
+import {
+  backfillSettledReceipts,
+  refreshDemoUsage,
+  seedDemoActivity,
+  seedDemoPayments,
+  seedDemoUsage,
+  seedDemoWithdrawals,
+} from "./seed-demo-activity.js";
 
 const DEMO_TAG = "DEMO SEED — sample value, not a business decision";
 
@@ -35,10 +49,15 @@ const DEMO_RESELLER_PASSWORD = "Demo-Advo-2026!";
 async function resetDemoPassword(userId: string, password: string) {
   await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash: await argon2.hash(password, { type: argon2.argon2id }) },
+    data: {
+      passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
+    },
   });
   // Drop existing sessions so the new password is the only way in.
-  await prisma.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  await prisma.authSession.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 }
 
 /**
@@ -47,10 +66,17 @@ async function resetDemoPassword(userId: string, password: string) {
  */
 export async function seedDemo(): Promise<DemoSeedResult> {
   if (isProduction()) throw new Error("Demo seed refused: NODE_ENV=production");
-  if ((process.env.PAYMENT_PROVIDER ?? "fake") !== "fake") throw new Error("Demo seed refused: PAYMENT_PROVIDER must be fake");
+  if ((process.env.PAYMENT_PROVIDER ?? "fake") !== "fake")
+    throw new Error("Demo seed refused: PAYMENT_PROVIDER must be fake");
 
-  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" }, orderBy: { createdAt: "asc" } });
-  if (!admin) throw new Error("Run `pnpm admin:bootstrap` first — the demo seed never creates an Admin password.");
+  const admin = await prisma.user.findFirst({
+    where: { role: "ADMIN" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!admin)
+    throw new Error(
+      "Run `pnpm admin:bootstrap` first — the demo seed never creates an Admin password.",
+    );
 
   const result: DemoSeedResult = { created: [], skipped: [], credentials: [] };
   const auth = new AuthService();
@@ -58,7 +84,11 @@ export async function seedDemo(): Promise<DemoSeedResult> {
   if (await prisma.controller.count()) {
     result.skipped.push("controller (one already exists)");
   } else {
-    await saveController(admin.id, { name: "Demo simulator (FAKE)", mode: "FAKE", isDefault: true });
+    await saveController(admin.id, {
+      name: "Demo simulator (FAKE)",
+      mode: "FAKE",
+      isDefault: true,
+    });
     result.created.push("FAKE Omada controller (simulator)");
   }
 
@@ -71,7 +101,9 @@ export async function seedDemo(): Promise<DemoSeedResult> {
   });
   const existingDemoPlan = starterTrialPlan
     ? null
-    : await prisma.platformPlan.findFirst({ where: { code: "demo-starter", active: true } });
+    : await prisma.platformPlan.findFirst({
+        where: { code: "demo-starter", active: true },
+      });
 
   let plan = starterTrialPlan ?? existingDemoPlan;
   if (plan) {
@@ -82,6 +114,7 @@ export async function seedDemo(): Promise<DemoSeedResult> {
       name: "Demo Starter (demo price)",
       description: "Demo plan with the Brand Control feature set.",
       priceTzs: 15000n,
+      priceFrom: false,
       periodDays: 30,
       trialEligible: true,
       trialDays: 7,
@@ -116,11 +149,18 @@ export async function seedDemo(): Promise<DemoSeedResult> {
   if (await getSetting(SettingKey.SALE_FEE_BPS)) {
     result.skipped.push("sale fee setting");
   } else {
-    await setSetting(SettingKey.SALE_FEE_BPS, { basisPoints: 500 }, admin.id, DEMO_TAG);
+    await setSetting(
+      SettingKey.SALE_FEE_BPS,
+      { basisPoints: 500 },
+      admin.id,
+      DEMO_TAG,
+    );
     result.created.push("sale fee 5% (demo)");
   }
 
-  let agent = await prisma.agent.findUnique({ where: { referralCode: "DEMO01" } });
+  let agent = await prisma.agent.findUnique({
+    where: { referralCode: "DEMO01" },
+  });
   if (agent) {
     result.skipped.push("agent DEMO01");
   } else {
@@ -132,24 +172,39 @@ export async function seedDemo(): Promise<DemoSeedResult> {
       password,
       referralCode: "DEMO01",
     });
-    agent = await prisma.agent.findUniqueOrThrow({ where: { id: created.agentId } });
+    agent = await prisma.agent.findUniqueOrThrow({
+      where: { id: created.agentId },
+    });
     result.created.push("agent DEMO01");
-    result.credentials.push({ role: "AGENT", email: "agent@demo.advo.test", password });
+    result.credentials.push({
+      role: "AGENT",
+      email: "agent@demo.advo.test",
+      password,
+    });
   }
 
   const resellerEmail = "reseller@demo.advo.test";
-  const existingResellerUser = await prisma.user.findUnique({ where: { email: resellerEmail } });
+  const existingResellerUser = await prisma.user.findUnique({
+    where: { email: resellerEmail },
+  });
   let resellerId: string;
   let ownerUserId: string;
 
   if (existingResellerUser) {
     result.skipped.push("reseller Demo Café");
-    const existing = await prisma.reseller.findUnique({ where: { ownerUserId: existingResellerUser.id } });
-    if (!existing) throw new Error("Demo reseller user exists without a reseller record");
+    const existing = await prisma.reseller.findUnique({
+      where: { ownerUserId: existingResellerUser.id },
+    });
+    if (!existing)
+      throw new Error("Demo reseller user exists without a reseller record");
     resellerId = existing.id;
     ownerUserId = existingResellerUser.id;
     await resetDemoPassword(ownerUserId, DEMO_RESELLER_PASSWORD);
-    result.credentials.push({ role: "RESELLER", email: resellerEmail, password: DEMO_RESELLER_PASSWORD });
+    result.credentials.push({
+      role: "RESELLER",
+      email: resellerEmail,
+      password: DEMO_RESELLER_PASSWORD,
+    });
   } else {
     const password = DEMO_RESELLER_PASSWORD;
     const reg = await auth.registerReseller({
@@ -164,8 +219,14 @@ export async function seedDemo(): Promise<DemoSeedResult> {
     await startTrial(reg.resellerId, plan.id, reg.userId);
     resellerId = reg.resellerId;
     ownerUserId = reg.userId;
-    result.created.push("reseller Demo Café (trial started, attributed to DEMO01)");
-    result.credentials.push({ role: "RESELLER", email: resellerEmail, password });
+    result.created.push(
+      "reseller Demo Café (trial started, attributed to DEMO01)",
+    );
+    result.credentials.push({
+      role: "RESELLER",
+      email: resellerEmail,
+      password,
+    });
   }
 
   result.created.push(...(await seedDemoActivity(resellerId, ownerUserId)));

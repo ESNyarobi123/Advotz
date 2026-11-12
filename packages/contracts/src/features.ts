@@ -46,7 +46,13 @@ export const adModeSchema = z.enum(AD_MODES);
  * single "best value" package can be made to lead the eye without an admin
  * touching a layout. It is a style, not a featured flag — the ribbon is separate.
  */
-export const PACKAGE_CARD_STYLES = ["classic", "compact", "soft", "outlined", "bold"] as const;
+export const PACKAGE_CARD_STYLES = [
+  "classic",
+  "compact",
+  "soft",
+  "outlined",
+  "bold",
+] as const;
 export type PackageCardStyle = (typeof PACKAGE_CARD_STYLES)[number];
 export const packageCardStyleSchema = z.enum(PACKAGE_CARD_STYLES);
 
@@ -58,7 +64,14 @@ export const packageCardStyleSchema = z.enum(PACKAGE_CARD_STYLES);
  * should be able to use any card style. Storing them in one field would make
  * "look" and "arrangement" inseparable and force a new style for every layout.
  */
-export const PACKAGE_LAYOUTS = ["list", "grid-2", "grid-3", "featured", "compact", "carousel"] as const;
+export const PACKAGE_LAYOUTS = [
+  "list",
+  "grid-2",
+  "grid-3",
+  "featured",
+  "compact",
+  "carousel",
+] as const;
 export type PackageCardLayout = (typeof PACKAGE_LAYOUTS)[number];
 export const packageCardLayoutSchema = z.enum(PACKAGE_LAYOUTS);
 
@@ -82,12 +95,48 @@ export type PortalColorPreset = {
 };
 
 export const PORTAL_COLOR_PRESETS: readonly PortalColorPreset[] = [
-  { key: "classic", name: "Classic navy", primary: "#172D43", accent: "#D1500F", background: "#F5F7FB" },
-  { key: "ocean", name: "Ocean blue", primary: "#0B4F6C", accent: "#0E7490", background: "#F1F7FA" },
-  { key: "forest", name: "Forest green", primary: "#14532D", accent: "#3F6212", background: "#F4F8F3" },
-  { key: "royal", name: "Royal purple", primary: "#3B0764", accent: "#7E22CE", background: "#F7F4FB" },
-  { key: "sunset", name: "Sunset", primary: "#7C2D12", accent: "#B45309", background: "#FDF6F1" },
-  { key: "graphite", name: "Graphite", primary: "#111827", accent: "#374151", background: "#F3F4F6" },
+  {
+    key: "classic",
+    name: "Classic navy",
+    primary: "#172D43",
+    accent: "#D1500F",
+    background: "#F5F7FB",
+  },
+  {
+    key: "ocean",
+    name: "Ocean blue",
+    primary: "#0B4F6C",
+    accent: "#0E7490",
+    background: "#F1F7FA",
+  },
+  {
+    key: "forest",
+    name: "Forest green",
+    primary: "#14532D",
+    accent: "#3F6212",
+    background: "#F4F8F3",
+  },
+  {
+    key: "royal",
+    name: "Royal purple",
+    primary: "#3B0764",
+    accent: "#7E22CE",
+    background: "#F7F4FB",
+  },
+  {
+    key: "sunset",
+    name: "Sunset",
+    primary: "#7C2D12",
+    accent: "#B45309",
+    background: "#FDF6F1",
+  },
+  {
+    key: "graphite",
+    name: "Graphite",
+    primary: "#111827",
+    accent: "#374151",
+    background: "#F3F4F6",
+  },
 ];
 
 export function portalColorPreset(key: string): PortalColorPreset | undefined {
@@ -107,6 +156,132 @@ export const COMMERCIAL_PROMISES = ["standard", "ad_free"] as const;
 export type CommercialPromise = (typeof COMMERCIAL_PROMISES)[number];
 export const commercialPromiseSchema = z.enum(COMMERCIAL_PROMISES);
 
+/** The promise a type implies: a partner plan advertises, an independent one does not. */
+export function commercialPromiseForPlanType(
+  planType: PlanType,
+): CommercialPromise {
+  return planType === "INDEPENDENT" ? "ad_free" : "standard";
+}
+
+/**
+ * The placements a type implies, applied to whatever the plan already grants.
+ *
+ * Only the advertising axis is touched: branding, package cards, payments and
+ * limits stay exactly as they were, which is what keeps "same package, same
+ * management tools" true between the two options of one tier.
+ */
+export function applyPlanType(
+  features: PlanFeatures,
+  planType: PlanType,
+): PlanFeatures {
+  if (planType === "INDEPENDENT") {
+    return VISIBILITY_KEYS.reduce(
+      (next, key) => setPlacement(next, key, { mode: "DISABLED" }),
+      normalizePlanFeatures(features),
+    );
+  }
+  let next = normalizePlanFeatures(features);
+  for (const key of SPONSORED_VISIBILITY_KEYS)
+    next = setPlacement(next, key, { mode: "REQUIRED" });
+  // A partner plan is *allowed* to show the discovery shortcuts; it is not forced
+  // to. A type switch must therefore not resurrect ones a plan had switched off.
+  return next;
+}
+
+/** Reads the type a plan's placements imply, or `null` when they are neither. */
+export function planTypeOf(features: PlanFeatures): PlanType | null {
+  const sponsored = SPONSORED_VISIBILITY_KEYS.map(
+    (key) => placementOf(features, key).mode,
+  );
+  if (sponsored.every((mode) => mode === "REQUIRED")) return "PARTNER";
+  const everyPlacementGone = VISIBILITY_KEYS.every(
+    (key) => placementOf(features, key).mode === "DISABLED",
+  );
+  return everyPlacementGone ? "INDEPENDENT" : null;
+}
+
+/**
+ * The two commercial options every capacity tier is sold under.
+ *
+ * This is the second axis of the catalog, not another tier: the client sells
+ * "Starter, Growth, Business Pro, Enterprise" and, for each one, a choice between
+ *
+ * - `PARTNER` — the lower price, paid for with AdvoWiFi advertising banners and the
+ *   Advo Explore pages shown to the reseller's guests.
+ * - `INDEPENDENT` — a higher price, with every sponsored and Explore placement gone.
+ *
+ * Both keep the reseller's own logo and brand colours, and both carry the same
+ * management tools and capacity, so the type must never change anything except the
+ * advertising placements and the promise that goes with them.
+ */
+export const PLAN_TYPES = ["PARTNER", "INDEPENDENT"] as const;
+export type PlanType = (typeof PLAN_TYPES)[number];
+export const planTypeSchema = z.enum(PLAN_TYPES);
+
+/**
+ * A capacity tier: the first axis of the catalog.
+ *
+ * Capacity lives here rather than on the individual plan so the promise "same
+ * package, same capacity" cannot silently drift: both options of a tier are
+ * validated against the same numbers, and an admin cannot publish Starter with
+ * Growth's limits.
+ *
+ * `enterprise` carries `null` limits, which is how every other limit in this
+ * codebase spells "agreed/unlimited" — never `0`.
+ */
+export type PlanTier = {
+  key: string;
+  /** Display label until an admin renames the tier in the dashboard. */
+  label: string;
+  limits: PlanLimits;
+};
+
+export const PLAN_TIERS: readonly PlanTier[] = [
+  {
+    key: "starter",
+    label: "Starter",
+    limits: { sites: 3, devices: 6, wifi_packages_per_site: 5 },
+  },
+  {
+    key: "growth",
+    label: "Growth",
+    limits: { sites: 5, devices: 12, wifi_packages_per_site: 8 },
+  },
+  {
+    key: "business-pro",
+    label: "Business Pro",
+    limits: { sites: 10, devices: 30, wifi_packages_per_site: 15 },
+  },
+  {
+    key: "enterprise",
+    label: "Enterprise",
+    limits: { sites: null, devices: null, wifi_packages_per_site: null },
+  },
+] as const;
+
+export const tierKeySchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(32)
+  .regex(/^[a-z0-9-]+$/, "Use lowercase letters, digits and dashes");
+
+export function planTier(key: string | null | undefined): PlanTier | undefined {
+  if (!key) return undefined;
+  return PLAN_TIERS.find((tier) => tier.key === key);
+}
+
+/**
+ * Sort weight for a tier key.
+ *
+ * Known tiers keep the order the catalog is sold in; anything an admin invents
+ * comes after them instead of jumping to the top.
+ */
+export function tierRank(key: string | null | undefined): number {
+  const index = PLAN_TIERS.findIndex((tier) => tier.key === key);
+  return index === -1 ? PLAN_TIERS.length : index;
+}
+
 /** Draft plans never affect live subscribers; only a published version is served. */
 export const PLAN_LIFECYCLES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 export type PlanLifecycle = (typeof PLAN_LIFECYCLES)[number];
@@ -119,7 +294,10 @@ export const planVisibilitySchema = z.enum(PLAN_VISIBILITIES);
 
 /** Strict 6-digit hex; the portal templates only accept reviewed colours. */
 export const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
-export const hexColorSchema = z.string().trim().regex(HEX_COLOR_REGEX, "Use a hex color like #1b5ea4");
+export const hexColorSchema = z
+  .string()
+  .trim()
+  .regex(HEX_COLOR_REGEX, "Use a hex color like #1b5ea4");
 
 /* ─────────────────────────────────────────────────────────────────────────
  * The five visibility-governed placements
@@ -143,7 +321,10 @@ export type VisibilityKey = (typeof VISIBILITY_KEYS)[number];
 export const visibilityKeySchema = z.enum(VISIBILITY_KEYS);
 
 /** The two keys that are backed by ad campaigns rather than by a static link. */
-export const SPONSORED_VISIBILITY_KEYS = ["ads.banner", "ads.explore"] as const satisfies readonly VisibilityKey[];
+export const SPONSORED_VISIBILITY_KEYS = [
+  "ads.banner",
+  "ads.explore",
+] as const satisfies readonly VisibilityKey[];
 export type SponsoredVisibilityKey = (typeof SPONSORED_VISIBILITY_KEYS)[number];
 
 /** The three `discovery.*` shortcuts. */
@@ -159,7 +340,10 @@ export type DiscoveryVisibilityKey = (typeof DISCOVERY_VISIBILITY_KEYS)[number];
  * `renderPlacement = effectiveVisibility AND eligibleCampaigns.length > 0`,
  * so a `REQUIRED` placement collapses instead of rendering an empty card.
  */
-export function renderPlacement(visible: boolean, eligibleCampaignCount: number): boolean {
+export function renderPlacement(
+  visible: boolean,
+  eligibleCampaignCount: number,
+): boolean {
   return visible && eligibleCampaignCount > 0;
 }
 
@@ -184,7 +368,9 @@ export const placementPolicySchema = z
 export type PlacementPolicy = z.infer<typeof placementPolicySchema>;
 
 /** Applies the mode's non-negotiable default so REQUIRED/DISABLED cannot contradict. */
-export function normalizePlacement(input: { mode?: AdMode; default_visible?: boolean } | undefined): PlacementPolicy {
+export function normalizePlacement(
+  input: { mode?: AdMode; default_visible?: boolean } | undefined,
+): PlacementPolicy {
   const mode: AdMode = input?.mode ?? "OPTIONAL";
   if (mode === "REQUIRED") return { mode, default_visible: true };
   if (mode === "DISABLED") return { mode, default_visible: false };
@@ -210,7 +396,11 @@ export const planLimitsSchema = z
 export type PlanLimits = z.infer<typeof planLimitsSchema>;
 
 /** `{}`-free default: Zod's `.default()` wants the fully-defaulted output shape. */
-export const DEFAULT_PLAN_LIMITS: PlanLimits = { sites: null, devices: null, wifi_packages_per_site: null };
+export const DEFAULT_PLAN_LIMITS: PlanLimits = {
+  sites: null,
+  devices: null,
+  wifi_packages_per_site: null,
+};
 
 /** Convenience alias: "unlimited" reads better than `null` at every call site. */
 export const UNLIMITED = null;
@@ -223,7 +413,10 @@ export const UNLIMITED = null;
  * rather than `{}`: Zod's `.default()` must be handed the fully-defaulted output
  * shape, which also keeps the default one visible literal instead of a merge.
  */
-export const DEFAULT_PLACEMENT: PlacementPolicy = { mode: "OPTIONAL", default_visible: true };
+export const DEFAULT_PLACEMENT: PlacementPolicy = {
+  mode: "OPTIONAL",
+  default_visible: true,
+};
 
 export const planFeaturesSchema = z
   .object({
@@ -248,9 +441,17 @@ export const planFeaturesSchema = z
       }),
     package_cards: z
       .object({
-        allowed_styles: z.array(packageCardStyleSchema).min(1).max(PACKAGE_CARD_STYLES.length).default([...PACKAGE_CARD_STYLES]),
+        allowed_styles: z
+          .array(packageCardStyleSchema)
+          .min(1)
+          .max(PACKAGE_CARD_STYLES.length)
+          .default([...PACKAGE_CARD_STYLES]),
         default_style: packageCardStyleSchema.default("classic"),
-        allowed_layouts: z.array(packageCardLayoutSchema).min(1).max(PACKAGE_LAYOUTS.length).default([...PACKAGE_LAYOUTS]),
+        allowed_layouts: z
+          .array(packageCardLayoutSchema)
+          .min(1)
+          .max(PACKAGE_LAYOUTS.length)
+          .default([...PACKAGE_LAYOUTS]),
         default_layout: packageCardLayoutSchema.default("list"),
       })
       .strict()
@@ -268,8 +469,14 @@ export const planFeaturesSchema = z
       .default({ order_edit: false }),
     ads: z
       .object({
-        banner: placementPolicySchema.default({ mode: "OPTIONAL", default_visible: true }),
-        explore: placementPolicySchema.default({ mode: "OPTIONAL", default_visible: true }),
+        banner: placementPolicySchema.default({
+          mode: "OPTIONAL",
+          default_visible: true,
+        }),
+        explore: placementPolicySchema.default({
+          mode: "OPTIONAL",
+          default_visible: true,
+        }),
       })
       .strict()
       .default({
@@ -278,9 +485,18 @@ export const planFeaturesSchema = z
       }),
     discovery: z
       .object({
-        promote_business: placementPolicySchema.default({ mode: "OPTIONAL", default_visible: true }),
-        platform_link: placementPolicySchema.default({ mode: "OPTIONAL", default_visible: true }),
-        jobs: placementPolicySchema.default({ mode: "OPTIONAL", default_visible: true }),
+        promote_business: placementPolicySchema.default({
+          mode: "OPTIONAL",
+          default_visible: true,
+        }),
+        platform_link: placementPolicySchema.default({
+          mode: "OPTIONAL",
+          default_visible: true,
+        }),
+        jobs: placementPolicySchema.default({
+          mode: "OPTIONAL",
+          default_visible: true,
+        }),
       })
       .strict()
       .default({
@@ -294,7 +510,11 @@ export const planFeaturesSchema = z
       })
       .strict()
       .default({ voucher: true }),
-    limits: planLimitsSchema.default({ sites: null, devices: null, wifi_packages_per_site: null }),
+    limits: planLimitsSchema.default({
+      sites: null,
+      devices: null,
+      wifi_packages_per_site: null,
+    }),
   })
   .strict();
 
@@ -311,7 +531,9 @@ export const DEFAULT_PLAN_FEATURES: PlanFeatures = planFeaturesSchema.parse({});
  */
 export function planFeaturesWithDefaults(raw: unknown): PlanFeatures {
   const parsed = planFeaturesSchema.safeParse(raw ?? {});
-  return parsed.success ? normalizePlanFeatures(parsed.data) : DEFAULT_PLAN_FEATURES;
+  return parsed.success
+    ? normalizePlanFeatures(parsed.data)
+    : DEFAULT_PLAN_FEATURES;
 }
 
 /** Re-applies the mode rules after a parse, so a hand-written row cannot contradict itself. */
@@ -331,7 +553,10 @@ export function normalizePlanFeatures(features: PlanFeatures): PlanFeatures {
 }
 
 /** Every placement policy in a plan, keyed by its visibility key. */
-export function placementOf(features: PlanFeatures, key: VisibilityKey): PlacementPolicy {
+export function placementOf(
+  features: PlanFeatures,
+  key: VisibilityKey,
+): PlacementPolicy {
   switch (key) {
     case "ads.banner":
       return features.ads.banner;
@@ -346,18 +571,31 @@ export function placementOf(features: PlanFeatures, key: VisibilityKey): Placeme
   }
 }
 
-function withPlacement(features: PlanFeatures, key: VisibilityKey, policy: PlacementPolicy): PlanFeatures {
+function withPlacement(
+  features: PlanFeatures,
+  key: VisibilityKey,
+  policy: PlacementPolicy,
+): PlanFeatures {
   switch (key) {
     case "ads.banner":
       return { ...features, ads: { ...features.ads, banner: policy } };
     case "ads.explore":
       return { ...features, ads: { ...features.ads, explore: policy } };
     case "discovery.promote_business":
-      return { ...features, discovery: { ...features.discovery, promote_business: policy } };
+      return {
+        ...features,
+        discovery: { ...features.discovery, promote_business: policy },
+      };
     case "discovery.platform_link":
-      return { ...features, discovery: { ...features.discovery, platform_link: policy } };
+      return {
+        ...features,
+        discovery: { ...features.discovery, platform_link: policy },
+      };
     case "discovery.jobs":
-      return { ...features, discovery: { ...features.discovery, jobs: policy } };
+      return {
+        ...features,
+        discovery: { ...features.discovery, jobs: policy },
+      };
   }
 }
 
@@ -367,15 +605,25 @@ export function setPlacement(
   key: VisibilityKey,
   policy: { mode?: AdMode; default_visible?: boolean },
 ): PlanFeatures {
-  return normalizePlanFeatures(withPlacement(features, key, normalizePlacement(policy)));
+  return normalizePlanFeatures(
+    withPlacement(features, key, normalizePlacement(policy)),
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
  * The catalog registry
  * ───────────────────────────────────────────────────────────────────────── */
 
-export type FeatureKind = "boolean" | "visibility" | "allowlist" | "enum" | "limit";
-export type FeatureGroup = "branding" | "package_cards" | "packages" | "ads" | "discovery" | "payments" | "limits";
+export type FeatureKind =
+  "boolean" | "visibility" | "allowlist" | "enum" | "limit";
+export type FeatureGroup =
+  | "branding"
+  | "package_cards"
+  | "packages"
+  | "ads"
+  | "discovery"
+  | "payments"
+  | "limits";
 
 /**
  * One catalogued capability.
@@ -400,39 +648,178 @@ export type FeatureDescriptor = {
 
 export const FEATURE_CATALOG: readonly FeatureDescriptor[] = [
   // Branding
-  { key: "branding.logo_upload", kind: "boolean", group: "branding", path: ["branding", "logo_upload"], implemented: true, handler: "reseller.portal-preferences" },
-  { key: "branding.colors_edit", kind: "boolean", group: "branding", path: ["branding", "colors_edit"], implemented: true, handler: "reseller.portal-preferences" },
-  { key: "branding.platform_badge_removable", kind: "boolean", group: "branding", path: ["branding", "platform_badge_removable"], implemented: true, handler: "portal.public-config" },
-  { key: "branding.background_upload", kind: "boolean", group: "branding", path: ["branding", "background_upload"], implemented: true, handler: "media.background-upload" },
+  {
+    key: "branding.logo_upload",
+    kind: "boolean",
+    group: "branding",
+    path: ["branding", "logo_upload"],
+    implemented: true,
+    handler: "reseller.portal-preferences",
+  },
+  {
+    key: "branding.colors_edit",
+    kind: "boolean",
+    group: "branding",
+    path: ["branding", "colors_edit"],
+    implemented: true,
+    handler: "reseller.portal-preferences",
+  },
+  {
+    key: "branding.platform_badge_removable",
+    kind: "boolean",
+    group: "branding",
+    path: ["branding", "platform_badge_removable"],
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "branding.background_upload",
+    kind: "boolean",
+    group: "branding",
+    path: ["branding", "background_upload"],
+    implemented: true,
+    handler: "media.background-upload",
+  },
   // Package appearance
-  { key: "package_cards.allowed_styles", kind: "allowlist", group: "package_cards", path: ["package_cards", "allowed_styles"], allowedValues: PACKAGE_CARD_STYLES, implemented: true, handler: "portal.public-config" },
-  { key: "package_cards.default_style", kind: "enum", group: "package_cards", path: ["package_cards", "default_style"], allowedValues: PACKAGE_CARD_STYLES, implemented: true, handler: "portal.public-config" },
-  { key: "package_cards.allowed_layouts", kind: "allowlist", group: "package_cards", path: ["package_cards", "allowed_layouts"], allowedValues: PACKAGE_LAYOUTS, implemented: true, handler: "portal.public-config" },
-  { key: "package_cards.default_layout", kind: "enum", group: "package_cards", path: ["package_cards", "default_layout"], allowedValues: PACKAGE_LAYOUTS, implemented: true, handler: "portal.public-config" },
-  { key: "packages.order_edit", kind: "boolean", group: "packages", path: ["packages", "order_edit"], implemented: true, handler: "reseller.portal-preferences" },
+  {
+    key: "package_cards.allowed_styles",
+    kind: "allowlist",
+    group: "package_cards",
+    path: ["package_cards", "allowed_styles"],
+    allowedValues: PACKAGE_CARD_STYLES,
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "package_cards.default_style",
+    kind: "enum",
+    group: "package_cards",
+    path: ["package_cards", "default_style"],
+    allowedValues: PACKAGE_CARD_STYLES,
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "package_cards.allowed_layouts",
+    kind: "allowlist",
+    group: "package_cards",
+    path: ["package_cards", "allowed_layouts"],
+    allowedValues: PACKAGE_LAYOUTS,
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "package_cards.default_layout",
+    kind: "enum",
+    group: "package_cards",
+    path: ["package_cards", "default_layout"],
+    allowedValues: PACKAGE_LAYOUTS,
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "packages.order_edit",
+    kind: "boolean",
+    group: "packages",
+    path: ["packages", "order_edit"],
+    implemented: true,
+    handler: "reseller.portal-preferences",
+  },
   // Ads
-  { key: "ads.banner", kind: "visibility", group: "ads", path: ["ads", "banner", "mode"], allowedValues: AD_MODES, implemented: true, handler: "portal.ads" },
-  { key: "ads.explore", kind: "visibility", group: "ads", path: ["ads", "explore", "mode"], allowedValues: AD_MODES, implemented: true, handler: "portal.ads" },
+  {
+    key: "ads.banner",
+    kind: "visibility",
+    group: "ads",
+    path: ["ads", "banner", "mode"],
+    allowedValues: AD_MODES,
+    implemented: true,
+    handler: "portal.ads",
+  },
+  {
+    key: "ads.explore",
+    kind: "visibility",
+    group: "ads",
+    path: ["ads", "explore", "mode"],
+    allowedValues: AD_MODES,
+    implemented: true,
+    handler: "portal.ads",
+  },
   // Discovery shortcuts
-  { key: "discovery.promote_business", kind: "visibility", group: "discovery", path: ["discovery", "promote_business", "mode"], allowedValues: AD_MODES, implemented: true, handler: "portal.public-config" },
-  { key: "discovery.platform_link", kind: "visibility", group: "discovery", path: ["discovery", "platform_link", "mode"], allowedValues: AD_MODES, implemented: true, handler: "portal.public-config" },
-  { key: "discovery.jobs", kind: "visibility", group: "discovery", path: ["discovery", "jobs", "mode"], allowedValues: AD_MODES, implemented: true, handler: "portal.public-config" },
+  {
+    key: "discovery.promote_business",
+    kind: "visibility",
+    group: "discovery",
+    path: ["discovery", "promote_business", "mode"],
+    allowedValues: AD_MODES,
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "discovery.platform_link",
+    kind: "visibility",
+    group: "discovery",
+    path: ["discovery", "platform_link", "mode"],
+    allowedValues: AD_MODES,
+    implemented: true,
+    handler: "portal.public-config",
+  },
+  {
+    key: "discovery.jobs",
+    kind: "visibility",
+    group: "discovery",
+    path: ["discovery", "jobs", "mode"],
+    allowedValues: AD_MODES,
+    implemented: true,
+    handler: "portal.public-config",
+  },
   // Payments
-  { key: "payments.voucher", kind: "boolean", group: "payments", path: ["payments", "voucher"], implemented: true, handler: "portal.redeem" },
+  {
+    key: "payments.voucher",
+    kind: "boolean",
+    group: "payments",
+    path: ["payments", "voucher"],
+    implemented: true,
+    handler: "portal.redeem",
+  },
   // Limits
-  { key: "limits.sites", kind: "limit", group: "limits", path: ["limits", "sites"], implemented: true, handler: "network.sites" },
-  { key: "limits.devices", kind: "limit", group: "limits", path: ["limits", "devices"], implemented: true, handler: "network.sites" },
-  { key: "limits.wifi_packages_per_site", kind: "limit", group: "limits", path: ["limits", "wifi_packages_per_site"], implemented: true, handler: "catalog.packages" },
+  {
+    key: "limits.sites",
+    kind: "limit",
+    group: "limits",
+    path: ["limits", "sites"],
+    implemented: true,
+    handler: "network.sites",
+  },
+  {
+    key: "limits.devices",
+    kind: "limit",
+    group: "limits",
+    path: ["limits", "devices"],
+    implemented: true,
+    handler: "network.sites",
+  },
+  {
+    key: "limits.wifi_packages_per_site",
+    kind: "limit",
+    group: "limits",
+    path: ["limits", "wifi_packages_per_site"],
+    implemented: true,
+    handler: "catalog.packages",
+  },
 ];
 
-export const FEATURE_KEYS: readonly string[] = FEATURE_CATALOG.map((entry) => entry.key);
+export const FEATURE_KEYS: readonly string[] = FEATURE_CATALOG.map(
+  (entry) => entry.key,
+);
 
 export function featureDescriptor(key: string): FeatureDescriptor | undefined {
   return FEATURE_CATALOG.find((entry) => entry.key === key);
 }
 
 /** Features the runtime does not honour yet, surfaced in the admin editor as "Planned". */
-export const PLANNED_FEATURE_KEYS: readonly string[] = FEATURE_CATALOG.filter((entry) => !entry.implemented).map((entry) => entry.key);
+export const PLANNED_FEATURE_KEYS: readonly string[] = FEATURE_CATALOG.filter(
+  (entry) => !entry.implemented,
+).map((entry) => entry.key);
 
 /* ─────────────────────────────────────────────────────────────────────────
  * Publish-time validation
@@ -447,7 +834,14 @@ export type PlanFeatureIssue = { key: string; message: string };
  * contradictory Ad Free configurations, card styles that disagree, and any
  * selected feature the runtime does not implement.
  */
-export function validatePlanFeatures(raw: unknown, options: { commercialPromise?: CommercialPromise } = {}): PlanFeatureIssue[] {
+export function validatePlanFeatures(
+  raw: unknown,
+  options: {
+    commercialPromise?: CommercialPromise;
+    planType?: PlanType | null;
+    tierKey?: string | null;
+  } = {},
+): PlanFeatureIssue[] {
   const issues: PlanFeatureIssue[] = [];
 
   // Reject unknown keys explicitly: a stripped key would look saved but do nothing.
@@ -455,9 +849,13 @@ export function validatePlanFeatures(raw: unknown, options: { commercialPromise?
   if (!strict.success) {
     for (const issue of strict.error.issues) {
       if (issue.code === "unrecognized_keys") {
-        for (const key of issue.keys) issues.push({ key, message: `Unknown feature key "${key}"` });
+        for (const key of issue.keys)
+          issues.push({ key, message: `Unknown feature key "${key}"` });
       } else {
-        issues.push({ key: issue.path.join(".") || "features", message: issue.message });
+        issues.push({
+          key: issue.path.join(".") || "features",
+          message: issue.message,
+        });
       }
     }
     // The lenient parse still gives us enough to report the semantic problems below.
@@ -468,33 +866,118 @@ export function validatePlanFeatures(raw: unknown, options: { commercialPromise?
   for (const key of VISIBILITY_KEYS) {
     const policy = placementOf(features, key);
     if (policy.mode === "REQUIRED" && !policy.default_visible) {
-      issues.push({ key, message: "A REQUIRED placement is always visible; its default cannot be off" });
+      issues.push({
+        key,
+        message:
+          "A REQUIRED placement is always visible; its default cannot be off",
+      });
     }
     if (policy.mode === "DISABLED" && policy.default_visible) {
-      issues.push({ key, message: "A DISABLED placement is never visible; its default cannot be on" });
+      issues.push({
+        key,
+        message:
+          "A DISABLED placement is never visible; its default cannot be on",
+      });
     }
   }
 
   if (options.commercialPromise === "ad_free") {
-    for (const key of [...SPONSORED_VISIBILITY_KEYS, ...DISCOVERY_VISIBILITY_KEYS]) {
+    for (const key of [
+      ...SPONSORED_VISIBILITY_KEYS,
+      ...DISCOVERY_VISIBILITY_KEYS,
+    ]) {
       if (placementOf(features, key).mode !== "DISABLED") {
-        issues.push({ key, message: "An Ad Free plan must disable every sponsored and discovery placement" });
+        issues.push({
+          key,
+          message:
+            "An Ad Free plan must disable every sponsored and discovery placement",
+        });
       }
     }
   }
 
-  const { allowed_styles, default_style, allowed_layouts, default_layout } = features.package_cards;
+  // The type is a contract with the reseller, not a label: a plan sold as Advo
+  // Partner must actually carry the Advo placements, and one sold as Independent
+  // must actually be free of them. Anything else is a mis-sold subscription.
+  if (options.planType === "PARTNER") {
+    for (const key of SPONSORED_VISIBILITY_KEYS) {
+      if (placementOf(features, key).mode !== "REQUIRED") {
+        issues.push({
+          key,
+          message:
+            "An Advo Partner plan must keep the Advo banner and Explore placements on",
+        });
+      }
+    }
+    if (options.commercialPromise === "ad_free") {
+      issues.push({
+        key: "commercialPromise",
+        message: "An Advo Partner plan cannot be sold as Ad Free",
+      });
+    }
+  }
+  if (options.planType === "INDEPENDENT") {
+    for (const key of VISIBILITY_KEYS) {
+      if (placementOf(features, key).mode !== "DISABLED") {
+        issues.push({
+          key,
+          message:
+            "An Independent plan must remove every Advo advertising and Explore placement",
+        });
+      }
+    }
+  }
+
+  // "Same package, same capacity": a tagged tier owns its numbers, so both of its
+  // options cannot drift apart and Starter cannot be published with Growth's caps.
+  if (options.tierKey) {
+    const tier = planTier(options.tierKey);
+    if (!tier) {
+      issues.push({
+        key: "tierKey",
+        message: `Unknown capacity tier "${options.tierKey}"`,
+      });
+    } else {
+      const { sites, devices, wifi_packages_per_site } = features.limits;
+      const expected = tier.limits;
+      if (
+        sites !== expected.sites ||
+        devices !== expected.devices ||
+        wifi_packages_per_site !== expected.wifi_packages_per_site
+      ) {
+        issues.push({
+          key: "limits",
+          message: `${tier.label} capacity is fixed: ${expected.sites ?? "unlimited"} sites, ${expected.devices ?? "unlimited"} access points, ${expected.wifi_packages_per_site ?? "unlimited"} packages per site`,
+        });
+      }
+    }
+  }
+
+  const { allowed_styles, default_style, allowed_layouts, default_layout } =
+    features.package_cards;
   if (allowed_styles.length === 0) {
-    issues.push({ key: "package_cards.allowed_styles", message: "Allow at least one package card style" });
+    issues.push({
+      key: "package_cards.allowed_styles",
+      message: "Allow at least one package card style",
+    });
   }
   if (!allowed_styles.includes(default_style)) {
-    issues.push({ key: "package_cards.default_style", message: `Default style "${default_style}" must be one of the allowed styles` });
+    issues.push({
+      key: "package_cards.default_style",
+      message: `Default style "${default_style}" must be one of the allowed styles`,
+    });
   }
   if (allowed_layouts.length === 0) {
-    issues.push({ key: "package_cards.allowed_layouts", message: "Allow at least one package layout" });
+    issues.push({
+      key: "package_cards.allowed_layouts",
+      message: "Allow at least one package layout",
+    });
   }
   if (!allowed_layouts.includes(default_layout)) {
-    issues.push({ key: "package_cards.default_layout", message: `Default layout "${default_layout}" must be one of the allowed layouts` });
+    issues.push({
+      key: "package_cards.default_layout",
+      message: `Default layout "${default_layout}" must be one of the allowed layouts`,
+    });
   }
 
   return issues;
@@ -529,12 +1012,19 @@ export type VisibilityResolution = VisibilityDecision & { key: VisibilityKey };
  * A stored `false` is a real choice, not a missing value: it must not be
  * widened back to the default by a `??`-style fallback.
  */
-export function resolveVisibility(mode: AdMode, resellerPreference: boolean | undefined, optionalDefault: boolean): VisibilityDecision {
-  if (mode === "REQUIRED") return { mode, visible: true, canEdit: false, lock: "REQUIRED" };
-  if (mode === "DISABLED") return { mode, visible: false, canEdit: false, lock: "DISABLED" };
+export function resolveVisibility(
+  mode: AdMode,
+  resellerPreference: boolean | undefined,
+  optionalDefault: boolean,
+): VisibilityDecision {
+  if (mode === "REQUIRED")
+    return { mode, visible: true, canEdit: false, lock: "REQUIRED" };
+  if (mode === "DISABLED")
+    return { mode, visible: false, canEdit: false, lock: "DISABLED" };
   return {
     mode,
-    visible: resellerPreference === undefined ? optionalDefault : resellerPreference,
+    visible:
+      resellerPreference === undefined ? optionalDefault : resellerPreference,
     canEdit: true,
     lock: null,
   };
@@ -554,7 +1044,10 @@ export const visibilityPreferencesSchema = z
 export type VisibilityPreferences = z.infer<typeof visibilityPreferencesSchema>;
 
 /** Reading a preference for a placement key, keeping "not chosen" distinct from `false`. */
-export function preferenceOf(preferences: VisibilityPreferences, key: VisibilityKey): boolean | undefined {
+export function preferenceOf(
+  preferences: VisibilityPreferences,
+  key: VisibilityKey,
+): boolean | undefined {
   switch (key) {
     case "ads.banner":
       return preferences.banner;
@@ -576,10 +1069,17 @@ export function resolveAllVisibility(
 ): Record<VisibilityKey, VisibilityResolution> {
   const entries = VISIBILITY_KEYS.map((key) => {
     const policy = placementOf(features, key);
-    const resolution = resolveVisibility(policy.mode, preferenceOf(preferences, key), policy.default_visible);
+    const resolution = resolveVisibility(
+      policy.mode,
+      preferenceOf(preferences, key),
+      policy.default_visible,
+    );
     return [key, { ...resolution, key }] as const;
   });
-  return Object.fromEntries(entries) as Record<VisibilityKey, VisibilityResolution>;
+  return Object.fromEntries(entries) as Record<
+    VisibilityKey,
+    VisibilityResolution
+  >;
 }
 
 /**
@@ -589,7 +1089,9 @@ export function resolveAllVisibility(
  * may promise to remove them all.
  */
 export function canHideAllSponsored(features: PlanFeatures): boolean {
-  return VISIBILITY_KEYS.every((key) => placementOf(features, key).mode !== "REQUIRED");
+  return VISIBILITY_KEYS.every(
+    (key) => placementOf(features, key).mode !== "REQUIRED",
+  );
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -611,13 +1113,22 @@ export function canHideAllSponsored(features: PlanFeatures): boolean {
 const clearableHexColorSchema = z
   .string()
   .trim()
-  .pipe(z.union([hexColorSchema, z.literal("")], { error: "Use a hex color like #1b5ea4, or leave empty to use the template" }));
+  .pipe(
+    z.union([hexColorSchema, z.literal("")], {
+      error: "Use a hex color like #1b5ea4, or leave empty to use the template",
+    }),
+  );
 
 const clearableUrlSchema = z
   .string()
   .trim()
   .max(500)
-  .pipe(z.union([z.string().url(), z.literal("")], { error: "Enter a full URL like https://example.com/asset.png, or leave empty to clear it" }));
+  .pipe(
+    z.union([z.string().url(), z.literal("")], {
+      error:
+        "Enter a full URL like https://example.com/asset.png, or leave empty to clear it",
+    }),
+  );
 
 export const resellerBrandingPreferenceSchema = z
   .object({
@@ -639,7 +1150,9 @@ export const resellerBrandingPreferenceSchema = z
   })
   .strict();
 
-export type ResellerBrandingPreference = z.infer<typeof resellerBrandingPreferenceSchema>;
+export type ResellerBrandingPreference = z.infer<
+  typeof resellerBrandingPreferenceSchema
+>;
 
 /**
  * Everything a reseller may persist for one site.
@@ -665,10 +1178,13 @@ export const sitePortalPreferenceSchema = z
 
 export type SitePortalPreference = z.infer<typeof sitePortalPreferenceSchema>;
 
-export const DEFAULT_SITE_PORTAL_PREFERENCE: SitePortalPreference = sitePortalPreferenceSchema.parse({});
+export const DEFAULT_SITE_PORTAL_PREFERENCE: SitePortalPreference =
+  sitePortalPreferenceSchema.parse({});
 
 /** Coerces stored JSON into complete preferences, falling back to a clean slate. */
-export function sitePortalPreferenceWithDefaults(raw: unknown): SitePortalPreference {
+export function sitePortalPreferenceWithDefaults(
+  raw: unknown,
+): SitePortalPreference {
   const parsed = sitePortalPreferenceSchema.safeParse(raw ?? {});
   return parsed.success ? parsed.data : DEFAULT_SITE_PORTAL_PREFERENCE;
 }
@@ -734,7 +1250,11 @@ export type EffectivePortalConfig = {
  * Starter presets
  * ───────────────────────────────────────────────────────────────────────── */
 
-export const PLAN_PRESET_KEYS = ["sponsored", "brand-control", "ad-free"] as const;
+export const PLAN_PRESET_KEYS = [
+  "sponsored",
+  "brand-control",
+  "ad-free",
+] as const;
 export type PlanPresetKey = (typeof PLAN_PRESET_KEYS)[number];
 
 export type PlanPreset = {
@@ -756,7 +1276,8 @@ export const PLAN_PRESETS: readonly PlanPreset[] = [
   {
     key: "sponsored",
     name: "Sponsored",
-    description: "Lower price in exchange for compulsory banner and Explore advertising.",
+    description:
+      "Lower price in exchange for compulsory banner and Explore advertising.",
     commercialPromise: "standard",
     features: planFeaturesWithDefaults({
       ads: {
@@ -768,14 +1289,18 @@ export const PLAN_PRESETS: readonly PlanPreset[] = [
         platform_link: { mode: "OPTIONAL", default_visible: true },
         jobs: { mode: "OPTIONAL", default_visible: true },
       },
-      package_cards: { allowed_styles: ["classic", "compact"], default_style: "classic" },
+      package_cards: {
+        allowed_styles: ["classic", "compact"],
+        default_style: "classic",
+      },
       packages: { order_edit: false },
     }),
   },
   {
     key: "brand-control",
     name: "Brand Control",
-    description: "Full control over branding, package appearance and sponsored placements.",
+    description:
+      "Full control over branding, package appearance and sponsored placements.",
     commercialPromise: "standard",
     features: planFeaturesWithDefaults({
       ads: {
@@ -787,7 +1312,10 @@ export const PLAN_PRESETS: readonly PlanPreset[] = [
         platform_link: { mode: "OPTIONAL", default_visible: true },
         jobs: { mode: "OPTIONAL", default_visible: true },
       },
-      package_cards: { allowed_styles: [...PACKAGE_CARD_STYLES], default_style: "classic" },
+      package_cards: {
+        allowed_styles: [...PACKAGE_CARD_STYLES],
+        default_style: "classic",
+      },
       packages: { order_edit: true },
     }),
   },
@@ -806,7 +1334,10 @@ export const PLAN_PRESETS: readonly PlanPreset[] = [
         platform_link: { mode: "DISABLED", default_visible: false },
         jobs: { mode: "DISABLED", default_visible: false },
       },
-      package_cards: { allowed_styles: [...PACKAGE_CARD_STYLES], default_style: "classic" },
+      package_cards: {
+        allowed_styles: [...PACKAGE_CARD_STYLES],
+        default_style: "classic",
+      },
       packages: { order_edit: true },
     }),
   },
@@ -830,7 +1361,13 @@ export function planPreset(key: string): PlanPreset | undefined {
 export const sitePortalPreferenceInputSchema = z
   .object({
     branding: resellerBrandingPreferenceSchema.partial().optional(),
-    package_cards: z.object({ style: packageCardStyleSchema.optional(), layout: packageCardLayoutSchema.optional() }).strict().optional(),
+    package_cards: z
+      .object({
+        style: packageCardStyleSchema.optional(),
+        layout: packageCardLayoutSchema.optional(),
+      })
+      .strict()
+      .optional(),
     package_order: z.array(z.string().uuid()).max(500).optional(),
     visibility: visibilityPreferencesSchema.partial().optional(),
     /** The bulk "Hide ads & discovery" action, applied atomically server-side. */
@@ -838,7 +1375,9 @@ export const sitePortalPreferenceInputSchema = z
   })
   .strict();
 
-export type SitePortalPreferenceInput = z.infer<typeof sitePortalPreferenceInputSchema>;
+export type SitePortalPreferenceInput = z.infer<
+  typeof sitePortalPreferenceInputSchema
+>;
 
 /**
  * The reason code a rejected preference update returns.
@@ -849,7 +1388,12 @@ export type SitePortalPreferenceInput = z.infer<typeof sitePortalPreferenceInput
 export const FEATURE_LOCKED_BY_PLAN = "FEATURE_LOCKED_BY_PLAN" as const;
 
 /** Plan feature keys, used by the admin editor and the entitlements payload. */
-export const BRANDING_FEATURE_KEYS = ["branding.logo_upload", "branding.colors_edit", "branding.background_upload", "branding.platform_badge_removable"] as const;
+export const BRANDING_FEATURE_KEYS = [
+  "branding.logo_upload",
+  "branding.colors_edit",
+  "branding.background_upload",
+  "branding.platform_badge_removable",
+] as const;
 export const PACKAGE_FEATURE_KEYS = [
   "package_cards.allowed_styles",
   "package_cards.default_style",
@@ -858,7 +1402,11 @@ export const PACKAGE_FEATURE_KEYS = [
   "packages.order_edit",
 ] as const;
 export const PAYMENT_FEATURE_KEYS = ["payments.voucher"] as const;
-export const LIMIT_FEATURE_KEYS = ["limits.sites", "limits.devices", "limits.wifi_packages_per_site"] as const;
+export const LIMIT_FEATURE_KEYS = [
+  "limits.sites",
+  "limits.devices",
+  "limits.wifi_packages_per_site",
+] as const;
 export type PlanLimitKey = (typeof LIMIT_FEATURE_KEYS)[number];
 
 /**
@@ -879,12 +1427,18 @@ function relativeLuminance(hex: string): number {
     const c = Number.parseInt(value.slice(i, i + 2), 16) / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0);
+  return (
+    0.2126 * (channels[0] ?? 0) +
+    0.7152 * (channels[1] ?? 0) +
+    0.0722 * (channels[2] ?? 0)
+  );
 }
 
 /** Contrast ratio between two hex colours; 1 (identical) to 21 (black on white). */
 export function contrastRatio(a: string, b: string): number {
-  const [light, dark] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  const [light, dark] = [relativeLuminance(a), relativeLuminance(b)].sort(
+    (x, y) => y - x,
+  );
   return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
 }
 
@@ -904,7 +1458,13 @@ export type EntitlementPlacementView = VisibilityResolution & {
  * non-destructive downgrade left exceeded — nothing was deleted to fit.
  */
 export type ResellerEntitlementsView = {
-  plan: { code: string; name: string; version: number; commercialPromise: CommercialPromise; lifecycle: string } | null;
+  plan: {
+    code: string;
+    name: string;
+    version: number;
+    commercialPromise: CommercialPromise;
+    lifecycle: string;
+  } | null;
   state: string;
   features: PlanFeatures;
   branding: {
@@ -923,7 +1483,11 @@ export type ResellerEntitlementsView = {
   };
   packages: { orderEdit: boolean };
   payments: { voucher: boolean };
-  limits: { sites: number | null; devices: number | null; wifiPackagesPerSite: number | null };
+  limits: {
+    sites: number | null;
+    devices: number | null;
+    wifiPackagesPerSite: number | null;
+  };
   usage: { sites: number; devices: number; packages: number };
   overLimit: PlanLimitKey[];
   visibility: Record<VisibilityKey, EntitlementPlacementView>;
@@ -954,11 +1518,21 @@ export type SitePortalStateView = {
  * snapshot silently.
  * ───────────────────────────────────────────────────────────────────────── */
 
-export const PLAN_MIGRATION_SCOPES = ["NEW_ONLY", "ON_RENEWAL", "SELECTED", "ALL"] as const;
+export const PLAN_MIGRATION_SCOPES = [
+  "NEW_ONLY",
+  "ON_RENEWAL",
+  "SELECTED",
+  "ALL",
+] as const;
 export type PlanMigrationScope = (typeof PLAN_MIGRATION_SCOPES)[number];
 export const planMigrationScopeSchema = z.enum(PLAN_MIGRATION_SCOPES);
 
-export const PLAN_MIGRATION_STATUSES = ["SCHEDULED", "PARTIAL", "APPLIED", "CANCELLED"] as const;
+export const PLAN_MIGRATION_STATUSES = [
+  "SCHEDULED",
+  "PARTIAL",
+  "APPLIED",
+  "CANCELLED",
+] as const;
 export type PlanMigrationStatus = (typeof PLAN_MIGRATION_STATUSES)[number];
 
 /**
@@ -981,10 +1555,13 @@ export const planMigrationInputSchema = z
     note: z.string().trim().max(240).default(""),
   })
   .strict()
-  .refine((value) => value.scope !== "SELECTED" || value.resellerIds.length > 0, {
-    message: "Choose at least one reseller for a selected-scope migration",
-    path: ["resellerIds"],
-  });
+  .refine(
+    (value) => value.scope !== "SELECTED" || value.resellerIds.length > 0,
+    {
+      message: "Choose at least one reseller for a selected-scope migration",
+      path: ["resellerIds"],
+    },
+  );
 
 export type PlanMigrationInput = z.infer<typeof planMigrationInputSchema>;
 

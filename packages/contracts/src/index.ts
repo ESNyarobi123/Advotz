@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { commercialPromiseSchema, planLifecycleSchema, planVisibilitySchema } from "./features.js";
+import {
+  commercialPromiseSchema,
+  planLifecycleSchema,
+  planTypeSchema,
+  planVisibilitySchema,
+  tierKeySchema,
+} from "./features.js";
 
 export * from "./features.js";
 export * from "./ads.js";
@@ -106,9 +112,18 @@ export const tzPhoneSchema = z
   .string()
   .trim()
   .transform((v) => v.replace(/[\s-]/g, ""))
-  .transform((v) => (v.startsWith("0") && v.length === 10 ? `+255${v.slice(1)}` : v))
+  .transform((v) =>
+    v.startsWith("0") && v.length === 10 ? `+255${v.slice(1)}` : v,
+  )
   .transform((v) => (v.startsWith("255") ? `+${v}` : v))
-  .pipe(z.string().regex(/^\+255[678][0-9]{8}$/, "Enter a Tanzanian mobile number, e.g. 0712 345 678"));
+  .pipe(
+    z
+      .string()
+      .regex(
+        /^\+255[678][0-9]{8}$/,
+        "Enter a Tanzanian mobile number, e.g. 0712 345 678",
+      ),
+  );
 
 export const registerResellerSchema = z.object({
   businessName: z.string().trim().min(2).max(120),
@@ -127,7 +142,10 @@ export type RegisterResellerInput = z.infer<typeof registerResellerSchema>;
 export const loginSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
   password: z.string().min(1).max(128),
-  mfaCode: z.string().regex(/^\d{6}$/).optional(),
+  mfaCode: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
@@ -262,7 +280,12 @@ export const planPriceTzsSchema = z
   .transform((v) => BigInt(v));
 
 export const platformPlanInputSchema = z.object({
-  code: z.string().trim().min(2).max(40).regex(/^[a-z0-9-]+$/),
+  code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z0-9-]+$/),
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(200).default(""),
   priceTzs: planPriceTzsSchema,
@@ -279,6 +302,15 @@ export const platformPlanInputSchema = z.object({
   /** The feature catalog values. Absent means "start from the presets' defaults". */
   features: z.unknown().optional(),
   isDemo: z.boolean().default(false),
+  /**
+   * The catalog matrix. Both are optional so every plan created before the two
+   * axes existed keeps parsing; only a tagged plan is rendered inside the
+   * capacity × type chooser.
+   */
+  tierKey: tierKeySchema.nullish(),
+  planType: planTypeSchema.nullish(),
+  /** Enterprise is a "from" price, so the card must not imply a fixed one. */
+  priceFrom: z.boolean().optional(),
 });
 export type PlatformPlanInput = z.infer<typeof platformPlanInputSchema>;
 
@@ -290,7 +322,9 @@ export const platformPlanUpdateSchema = platformPlanInputSchema;
 export type PlatformPlanUpdateInput = PlatformPlanInput;
 
 /** Every operator mutation on a plan carries a reason and lands in the audit log. */
-export const planDeleteSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+export const planDeleteSchema = z.object({
+  reason: z.string().trim().min(3).max(300),
+});
 
 export const planActiveSchema = z.object({
   active: z.boolean(),
@@ -310,7 +344,10 @@ export const startTrialSchema = z.object({ planId: uuidSchema });
 
 // ───────────────────────────── Network ───────────────────────────────────
 
-const hexColorSchema = z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #1b5ea4");
+const hexColorSchema = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex color like #1b5ea4");
 
 /**
  * Guest-portal look and feel chosen in the Captive Portal designer. Stored on
@@ -358,7 +395,9 @@ export const portalAdvertSchema = z.object({
   /** Slide background colour. */
   color: hexColorSchema.default("#117dcc"),
   /** Optional external image (no upload pipeline exists yet). */
-  imageUrl: z.union([z.string().trim().url().max(500), z.literal("")]).optional(),
+  imageUrl: z
+    .union([z.string().trim().url().max(500), z.literal("")])
+    .optional(),
   /** Business or advertiser name. */
   business: z.string().trim().max(80).optional(),
   /** Contact phone or WhatsApp number. */
@@ -392,7 +431,9 @@ export type PortalAdvert = z.infer<typeof portalAdvertSchema>;
 export type PortalBusiness = z.infer<typeof portalBusinessSchema>;
 export type PortalContent = z.infer<typeof portalContentSchema>;
 
-export const DEFAULT_PORTAL_CONTENT: PortalContent = portalContentSchema.parse({});
+export const DEFAULT_PORTAL_CONTENT: PortalContent = portalContentSchema.parse(
+  {},
+);
 
 /** Coerces a stored JSON value into complete portal content, falling back to defaults. */
 export function portalContentWithDefaults(raw: unknown): PortalContent {
@@ -404,14 +445,44 @@ export function portalContentWithDefaults(raw: unknown): PortalContent {
 export const PORTAL_CONTENT_STARTER: PortalContent = portalContentSchema.parse({
   advertCount: 3,
   adverts: [
-    { title: "Your business, seen here", copy: "Advertise on this WiFi page.", color: "#117dcc" },
-    { title: "Fresh food. Close to you.", copy: "A space for restaurant and café adverts.", color: "#a94810" },
-    { title: "Style starts here", copy: "A space for salons and fashion businesses.", color: "#833f91" },
+    {
+      title: "Your business, seen here",
+      copy: "Advertise on this WiFi page.",
+      color: "#117dcc",
+    },
+    {
+      title: "Fresh food. Close to you.",
+      copy: "A space for restaurant and café adverts.",
+      color: "#a94810",
+    },
+    {
+      title: "Style starts here",
+      copy: "A space for salons and fashion businesses.",
+      color: "#833f91",
+    },
   ],
   businesses: [
-    { id: "b1", name: "Local Café", category: "Food & drinks", glyph: "☕", color: "#df9e56" },
-    { id: "b2", name: "Style Studio", category: "Beauty & fashion", glyph: "✂", color: "#df78a2" },
-    { id: "b3", name: "Tech Point", category: "Phones & services", glyph: "▣", color: "#46a6d0" },
+    {
+      id: "b1",
+      name: "Local Café",
+      category: "Food & drinks",
+      glyph: "☕",
+      color: "#df9e56",
+    },
+    {
+      id: "b2",
+      name: "Style Studio",
+      category: "Beauty & fashion",
+      glyph: "✂",
+      color: "#df78a2",
+    },
+    {
+      id: "b3",
+      name: "Tech Point",
+      category: "Phones & services",
+      glyph: "▣",
+      color: "#46a6d0",
+    },
   ],
 });
 
@@ -420,14 +491,54 @@ export const PORTAL_CONTENT_STARTER: PortalContent = portalContentSchema.parse({
  * figures shown in the simulator; final rates are agreed with the reseller.
  */
 export const PROMOTION_PACKAGES = [
-  { code: "1W", durationLabel: "1 week", priceTzs: 10_000, group: "weekly" as const },
-  { code: "2W", durationLabel: "2 weeks", priceTzs: 18_000, group: "weekly" as const },
-  { code: "3W", durationLabel: "3 weeks", priceTzs: 25_000, group: "weekly" as const },
-  { code: "4W", durationLabel: "4 weeks", priceTzs: 30_000, group: "weekly" as const },
-  { code: "1Q", durationLabel: "3 months", priceTzs: 80_000, group: "quarterly" as const },
-  { code: "2Q", durationLabel: "6 months", priceTzs: 150_000, group: "quarterly" as const },
-  { code: "3Q", durationLabel: "9 months", priceTzs: 210_000, group: "quarterly" as const },
-  { code: "4Q", durationLabel: "12 months", priceTzs: 260_000, group: "quarterly" as const },
+  {
+    code: "1W",
+    durationLabel: "1 week",
+    priceTzs: 10_000,
+    group: "weekly" as const,
+  },
+  {
+    code: "2W",
+    durationLabel: "2 weeks",
+    priceTzs: 18_000,
+    group: "weekly" as const,
+  },
+  {
+    code: "3W",
+    durationLabel: "3 weeks",
+    priceTzs: 25_000,
+    group: "weekly" as const,
+  },
+  {
+    code: "4W",
+    durationLabel: "4 weeks",
+    priceTzs: 30_000,
+    group: "weekly" as const,
+  },
+  {
+    code: "1Q",
+    durationLabel: "3 months",
+    priceTzs: 80_000,
+    group: "quarterly" as const,
+  },
+  {
+    code: "2Q",
+    durationLabel: "6 months",
+    priceTzs: 150_000,
+    group: "quarterly" as const,
+  },
+  {
+    code: "3Q",
+    durationLabel: "9 months",
+    priceTzs: 210_000,
+    group: "quarterly" as const,
+  },
+  {
+    code: "4Q",
+    durationLabel: "12 months",
+    priceTzs: 260_000,
+    group: "quarterly" as const,
+  },
 ] as const;
 
 export type PromotionPackage = (typeof PROMOTION_PACKAGES)[number];
@@ -450,7 +561,12 @@ export type PromotionRequestInput = z.infer<typeof promotionRequestInputSchema>;
  * events and holidays share the same row shape so one admin screen (and one AI
  * feed) can manage everything the portal's Explore menu shows.
  */
-export const LISTING_KINDS = ["JOB", "OPPORTUNITY", "LOCAL_EVENT", "HOLIDAY"] as const;
+export const LISTING_KINDS = [
+  "JOB",
+  "OPPORTUNITY",
+  "LOCAL_EVENT",
+  "HOLIDAY",
+] as const;
 export const LISTING_SOURCES = ["MANUAL", "AI"] as const;
 
 /** Empty strings from a form mean "no date", not epoch. */
@@ -458,7 +574,8 @@ const listingDate = z
   .union([z.string(), z.date(), z.null()])
   .transform((value) => {
     if (value == null) return null;
-    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (value instanceof Date)
+      return Number.isNaN(value.getTime()) ? null : value;
     if (!value.trim()) return null;
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -515,9 +632,15 @@ export const listingAiSettingsSchema = z.object({
     .max(24)
     .default(["08:00", "17:00"]),
   timezone: z.string().trim().min(3).max(60).default("Africa/Dar_es_Salaam"),
-  kinds: z.array(z.enum(LISTING_KINDS)).min(1).default([...LISTING_KINDS]),
+  kinds: z
+    .array(z.enum(LISTING_KINDS))
+    .min(1)
+    .default([...LISTING_KINDS]),
   /** Regions the assistant should search. Empty means "all Tanzania". */
-  regions: z.array(z.string().trim().max(80)).max(30).default(["Dar es Salaam"]),
+  regions: z
+    .array(z.string().trim().max(80))
+    .max(30)
+    .default(["Dar es Salaam"]),
   /** Off keeps AI finds as drafts for review; on publishes them. */
   autoPublish: z.boolean().default(false),
   /** Delay between publishing and going live to guests, in minutes. */
@@ -569,8 +692,12 @@ export const publicHotspotInputSchema = z.object({
   longitude: z.coerce.number().min(-180).max(180),
   category: z.string().trim().max(60).default(""),
   description: z.string().trim().max(2000).default(""),
-  imageUrl: z.union([z.string().trim().url().max(500), z.literal(""), z.null()]).optional(),
-  portalSlug: z.union([z.string().trim().max(80), z.literal(""), z.null()]).optional(),
+  imageUrl: z
+    .union([z.string().trim().url().max(500), z.literal(""), z.null()])
+    .optional(),
+  portalSlug: z
+    .union([z.string().trim().max(80), z.literal(""), z.null()])
+    .optional(),
   /**
    * The site this location operates. Optional: a curated marketing entry need
    * not be an AdvoWiFi-run location, and a hotspot without a site simply has no
@@ -607,23 +734,25 @@ export const adminSiteCreateSchema = siteInputSchema.extend({
   resellerId: uuidSchema,
 });
 
-export const deviceClaimInputSchema = z
-  .object({
-    siteId: uuidSchema,
-    /** What the operator calls the device; shown everywhere instead of the model code. */
-    name: z.string().trim().min(2).max(60),
-    mac: z.string().trim().regex(/^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/, "Invalid MAC address"),
-    /** Optional: the Controller can report the exact model after adoption. */
-    model: z.string().trim().min(2).max(60).optional(),
-    hardwareVersion: z.string().trim().max(20).optional(),
-    serial: z.string().trim().max(60).optional(),
-    /**
-     * The device's own login. The Controller uses it to adopt the device
-     * immediately; there is no admin approval step.
-     */
-    deviceUsername: z.string().trim().min(1).max(64),
-    devicePassword: z.string().min(1).max(128),
-  });
+export const deviceClaimInputSchema = z.object({
+  siteId: uuidSchema,
+  /** What the operator calls the device; shown everywhere instead of the model code. */
+  name: z.string().trim().min(2).max(60),
+  mac: z
+    .string()
+    .trim()
+    .regex(/^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$/, "Invalid MAC address"),
+  /** Optional: the Controller can report the exact model after adoption. */
+  model: z.string().trim().min(2).max(60).optional(),
+  hardwareVersion: z.string().trim().max(20).optional(),
+  serial: z.string().trim().max(60).optional(),
+  /**
+   * The device's own login. The Controller uses it to adopt the device
+   * immediately; there is no admin approval step.
+   */
+  deviceUsername: z.string().trim().min(1).max(64),
+  devicePassword: z.string().min(1).max(128),
+});
 
 export const deviceRenameSchema = z.object({
   name: z.string().trim().min(1).max(128),
@@ -642,7 +771,10 @@ export const deviceWifiSchema = z.object({
     .trim()
     .max(63)
     .optional()
-    .refine((value) => !value || value.length >= 8, "WiFi password must be 8 to 63 characters"),
+    .refine(
+      (value) => !value || value.length >= 8,
+      "WiFi password must be 8 to 63 characters",
+    ),
   hidden: z.boolean(),
   band: z.enum(["2.4", "5", "both"]),
 });
@@ -697,14 +829,20 @@ export const controllerFlagsSchema = z
   });
 
 /** Deleting a Controller is only allowed once nothing is mapped to it. */
-export const controllerDeleteSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+export const controllerDeleteSchema = z.object({
+  reason: z.string().trim().min(3).max(300),
+});
 
 // ───────────────────────────── Catalogue ─────────────────────────────────
 
 export const wifiPackageInputSchema = z.object({
   name: z.string().trim().min(2).max(60),
   priceTzs: tzsAmountSchema,
-  durationSeconds: z.number().int().min(60).max(366 * 86400),
+  durationSeconds: z
+    .number()
+    .int()
+    .min(60)
+    .max(366 * 86400),
   downloadKbps: z.number().int().min(64).max(10_000_000).optional(),
   uploadKbps: z.number().int().min(64).max(10_000_000).optional(),
   /**
@@ -714,9 +852,17 @@ export const wifiPackageInputSchema = z.object({
    * the form must never offer a package that cannot be enforced.
    */
   quotaType: z.enum(["UNLIMITED", "TOTAL"]).default("UNLIMITED"),
-  quotaBytes: z.union([z.number().int(), z.string().regex(/^\d{1,18}$/)]).transform((v) => BigInt(v)).optional(),
+  quotaBytes: z
+    .union([z.number().int(), z.string().regex(/^\d{1,18}$/)])
+    .transform((v) => BigInt(v))
+    .optional(),
   maxDevices: z.number().int().min(1).max(10).default(1),
-  activationWindowSeconds: z.number().int().min(300).max(30 * 86400).default(86400),
+  activationWindowSeconds: z
+    .number()
+    .int()
+    .min(300)
+    .max(30 * 86400)
+    .default(86400),
   siteIds: z.array(uuidSchema).max(100).default([]),
 });
 export type WifiPackageInput = z.infer<typeof wifiPackageInputSchema>;
@@ -736,7 +882,9 @@ export const voucherGroupInputSchema = z.object({
   count: z.number().int().min(1).max(500),
 });
 
-export const renameSchema = z.object({ name: z.string().trim().min(2).max(60) });
+export const renameSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+});
 
 // ───────────────────────────── Portal ────────────────────────────────────
 
@@ -804,13 +952,23 @@ export const commissionPolicyInputSchema = z
     effectiveFrom: z.coerce.date(),
     isDemo: z.boolean().default(false),
   })
-  .refine((p) => (p.mode === "FIXED" ? p.fixedTzs !== undefined : p.basisPoints !== undefined), {
-    message: "FIXED needs fixedTzs; PERCENTAGE needs basisPoints",
-  });
+  .refine(
+    (p) =>
+      p.mode === "FIXED"
+        ? p.fixedTzs !== undefined
+        : p.basisPoints !== undefined,
+    {
+      message: "FIXED needs fixedTzs; PERCENTAGE needs basisPoints",
+    },
+  );
 
 /** Ending a policy is a money decision, so it carries a reason for the audit log. */
-export const commissionPolicyEndSchema = z.object({ reason: z.string().trim().min(3).max(300) });
-export const commissionPolicyDeleteSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+export const commissionPolicyEndSchema = z.object({
+  reason: z.string().trim().min(3).max(300),
+});
+export const commissionPolicyDeleteSchema = z.object({
+  reason: z.string().trim().min(3).max(300),
+});
 
 // ───────────────────────────── Withdrawals ───────────────────────────────
 
@@ -828,14 +986,20 @@ export const withdrawalRequestSchema = withdrawalQuoteSchema.extend({
   idempotencyKey: z.string().min(8).max(64),
 });
 
-export const saleFeeSettingSchema = z.object({ basisPoints: z.number().int().min(0).max(5000) });
-export const withdrawalFeeSettingSchema = z.object({ fixedTzs: z.number().int().min(0).max(1_000_000) });
+export const saleFeeSettingSchema = z.object({
+  basisPoints: z.number().int().min(0).max(5000),
+});
+export const withdrawalFeeSettingSchema = z.object({
+  fixedTzs: z.number().int().min(0).max(1_000_000),
+});
 
 export const supportTicketInputSchema = z.object({
   subject: z.string().trim().min(3).max(120),
   body: z.string().trim().min(3).max(4000),
 });
-export const supportMessageInputSchema = z.object({ body: z.string().trim().min(1).max(4000) });
+export const supportMessageInputSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
 
 export const mfaCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/) });
 
@@ -880,7 +1044,9 @@ export const adminResellerUpdateSchema = z.object({
   emailVerified: z.boolean(),
   reason: z.string().trim().min(3).max(300),
 });
-export type AdminResellerUpdateInput = z.infer<typeof adminResellerUpdateSchema>;
+export type AdminResellerUpdateInput = z.infer<
+  typeof adminResellerUpdateSchema
+>;
 
 /**
  * The subscription states an operator may set by hand.
@@ -936,4 +1102,6 @@ export const adminSubscriptionUpdateSchema = z.object({
   }),
   reason: z.string().trim().min(3).max(300),
 });
-export type AdminSubscriptionUpdateInput = z.infer<typeof adminSubscriptionUpdateSchema>;
+export type AdminSubscriptionUpdateInput = z.infer<
+  typeof adminSubscriptionUpdateSchema
+>;

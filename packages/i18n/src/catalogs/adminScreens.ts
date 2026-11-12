@@ -12,7 +12,8 @@ export const adminScreensEn = {
   "admin.overview.greeting.morning": "Good morning",
   "admin.overview.greeting.afternoon": "Good afternoon",
   "admin.overview.greeting.evening": "Good evening",
-  "admin.overview.subtitle": "Platform health, revenue and the queues waiting for an operator.",
+  "admin.overview.subtitle":
+    "Platform health, revenue and the queues waiting for an operator.",
   "admin.overview.system.healthy": "All systems operational",
   "admin.overview.system.attention": "{count} items need attention",
   "admin.overview.system.attentionOne": "1 item needs attention",
@@ -27,13 +28,15 @@ export const adminScreensEn = {
   "admin.overview.kpi.subRevenue": "Subscription revenue",
   "admin.overview.kpi.subRevenueHint": "{count} invoices paid today",
   "admin.overview.kpi.resellers": "Active resellers",
-  "admin.overview.kpi.resellersHint": "{suspended} suspended · {pending} pending",
+  "admin.overview.kpi.resellersHint":
+    "{suspended} suspended · {pending} pending",
   "admin.overview.kpi.agents": "Active agents",
   "admin.overview.kpi.agentsHint": "Earning commission on referrals",
 
   // ── Overview · attention queues ──────────────────────────────────────────
   "admin.overview.attention.title": "Needs your attention",
-  "admin.overview.attention.description": "Queues waiting for an operator decision.",
+  "admin.overview.attention.description":
+    "Queues waiting for an operator decision.",
   "admin.overview.attention.clear": "Nothing waiting — the platform is clean.",
   "admin.overview.attention.claims": "Device claims",
   "admin.overview.attention.claimsHint": "Awaiting approval",
@@ -61,7 +64,8 @@ export const adminScreensEn = {
 
   // ── Overview · controllers ───────────────────────────────────────────────
   "admin.overview.controllers.title": "Controllers",
-  "admin.overview.controllers.description": "Omada controllers and their last observed health",
+  "admin.overview.controllers.description":
+    "Omada controllers and their last observed health",
   "admin.overview.controllers.empty":
     "No controller registered. Sites cannot be provisioned until an Admin adds one.",
   "admin.overview.controllers.add": "Add a controller",
@@ -119,20 +123,24 @@ export const adminScreensEn = {
   "admin.operations.kpi.pendingHint": "Waiting for the worker to pick them up",
   "admin.operations.kpi.pendingHintNone": "Nothing queued right now",
   "admin.operations.kpi.dead": "Failed events",
-  "admin.operations.kpi.deadHint": "Exceeded {max} retries — reset the row, then drain",
+  "admin.operations.kpi.deadHint":
+    "Exceeded {max} retries — reset the row, then drain",
   "admin.operations.kpi.deadHintNone": "No event has run out of retries",
   "admin.operations.kpi.oldest": "Oldest waiting",
   "admin.operations.kpi.oldestHint": "Queued {when}",
   "admin.operations.kpi.oldestHintNone": "Nothing is waiting",
   "admin.operations.kpi.oldestValueNone": "—",
   "admin.operations.kpi.pressure": "Retry pressure",
-  "admin.operations.kpi.pressureHint": "Highest attempt count in the queue (of {max})",
+  "admin.operations.kpi.pressureHint":
+    "Highest attempt count in the queue (of {max})",
   "admin.operations.kpi.pressureHintNone": "No retries recorded",
 
   // ── Operations · last recovery run ───────────────────────────────────────
   "admin.operations.outcome.title": "Last recovery run",
-  "admin.operations.outcome.description": "What the manual pass changed, newest first",
-  "admin.operations.outcome.empty": "No recovery action has run in this session.",
+  "admin.operations.outcome.description":
+    "What the manual pass changed, newest first",
+  "admin.operations.outcome.empty":
+    "No recovery action has run in this session.",
   "admin.operations.outcome.emptyHint":
     "Drain delivers queued events; sweepers retry stale inbox events, reconcile payments and payouts, release commissions and expire subscriptions.",
   "admin.operations.outcome.action.drain": "Drain events",
@@ -147,13 +155,15 @@ export const adminScreensEn = {
   "admin.operations.outcome.subscriptionsExpired": "Subscriptions expired",
   "admin.operations.outcome.grantsExpired": "Grants expired",
   "admin.operations.outcome.grantsActivationFailed": "Activations failed",
-  "admin.operations.outcome.note": "Every handler is idempotent — a second run never double-posts money.",
+  "admin.operations.outcome.note":
+    "Every handler is idempotent — a second run never double-posts money.",
 
   // ── Operations · outbox table ────────────────────────────────────────────
   "admin.operations.table.title": "Undelivered events",
   "admin.operations.table.description": "Oldest attempt first, up to 200 rows",
   "admin.operations.table.empty": "All events delivered",
-  "admin.operations.table.emptyHint": "The outbox is empty — paid orders have been fully processed.",
+  "admin.operations.table.emptyHint":
+    "The outbox is empty — paid orders have been fully processed.",
   "admin.operations.col.event": "Event",
   "admin.operations.col.aggregate": "Aggregate",
   "admin.operations.col.retries": "Retries",
@@ -179,7 +189,8 @@ export const adminScreensEn = {
   "admin.audit.empty": "No audit events match this filter.",
   "admin.audit.emptyHint": "Clear the filter to see the full feed.",
   "admin.audit.emptyNone": "No audit events yet.",
-  "admin.audit.emptyNoneHint": "Operator actions will appear here as they happen.",
+  "admin.audit.emptyNoneHint":
+    "Operator actions will appear here as they happen.",
   "admin.audit.kpi.events": "Events shown",
   "admin.audit.kpi.eventsHint": "Newest first, read-only history",
   "admin.audit.kpi.operators": "Operators",
@@ -191,7 +202,8 @@ export const adminScreensEn = {
   "admin.audit.kpi.latestHintAt": "at {when}",
   "admin.audit.quick.title": "Quick filter",
   "admin.audit.quick.all": "All areas",
-  "admin.audit.quick.description": "Jump straight to one area instead of typing a prefix.",
+  "admin.audit.quick.description":
+    "Jump straight to one area instead of typing a prefix.",
   "admin.audit.table.description": "Immutable history, newest first.",
   "admin.audit.role.admin": "Admin",
   "admin.audit.role.reseller": "Reseller",
@@ -232,9 +244,11 @@ export const adminScreensEn = {
   "admin.resellers.kpi.devices": "Devices online",
   "admin.resellers.kpi.devicesHint": "Across {sites} sites",
   "admin.resellers.empty": "No resellers match this view.",
-  "admin.resellers.emptyHint": "Adjust the search or filter, or create a reseller to get started.",
+  "admin.resellers.emptyHint":
+    "Adjust the search or filter, or create a reseller to get started.",
   "admin.resellers.emptyNone": "No resellers yet.",
-  "admin.resellers.emptyNoneHint": "Create the first reseller to start onboarding partners.",
+  "admin.resellers.emptyNoneHint":
+    "Create the first reseller to start onboarding partners.",
   "admin.resellers.col.business": "Business",
   "admin.resellers.col.status": "Status",
   "admin.resellers.col.plan": "Plan",
@@ -264,22 +278,28 @@ export const adminScreensEn = {
     "{name} was closed and removed from the list; its invoices stay in the ledger.",
   "admin.resellers.reason.suspend": "Reason for suspending {name}",
   "admin.resellers.reason.reactivate": "Reason for reactivating {name}",
-  "admin.resellers.reason.attribution": "Reason for correcting the agent attribution",
+  "admin.resellers.reason.attribution":
+    "Reason for correcting the agent attribution",
   "admin.resellers.reason.impersonate": "Why are you signing in as {name}?",
-  "admin.resellers.reason.impersonateHint": "Recorded in the audit log next to the session.",
+  "admin.resellers.reason.impersonateHint":
+    "Recorded in the audit log next to the session.",
 
   // ── Resellers · operator dialog (suspend / attribution / impersonation) ──
   "admin.resellers.dialog.reason": "Reason",
-  "admin.resellers.dialog.reasonPlaceholder": "e.g. owner asked for help with a stuck payment",
-  "admin.resellers.dialog.reasonHint": "At least 3 characters. This is stored in the audit log.",
-  "admin.resellers.dialog.reasonTooShort": "A reason of at least 3 characters is required.",
+  "admin.resellers.dialog.reasonPlaceholder":
+    "e.g. owner asked for help with a stuck payment",
+  "admin.resellers.dialog.reasonHint":
+    "At least 3 characters. This is stored in the audit log.",
+  "admin.resellers.dialog.reasonTooShort":
+    "A reason of at least 3 characters is required.",
   "admin.resellers.dialog.agent": "Credit this agent",
   "admin.resellers.dialog.agentNone": "— Remove attribution (direct signup)",
   "admin.resellers.dialog.statusTitleSuspend": "Suspend {name}",
   "admin.resellers.dialog.statusTitleReactivate": "Reactivate {name}",
   "admin.resellers.dialog.statusNoteSuspend":
     "Active sessions are revoked and the reseller can no longer sell until reactivated.",
-  "admin.resellers.dialog.statusNoteReactivate": "The reseller will be able to sign in and sell again immediately.",
+  "admin.resellers.dialog.statusNoteReactivate":
+    "The reseller will be able to sign in and sell again immediately.",
   "admin.resellers.dialog.attributionTitle": "Fix attribution for {name}",
   "admin.resellers.dialog.attributionNote":
     "Only the operator who resolves this can change it again — the change is audited.",
@@ -301,12 +321,15 @@ export const adminScreensEn = {
   "admin.resellers.create.phone": "Owner phone",
   "admin.resellers.create.phoneHint": "Tanzanian mobile, e.g. 0712 345 678",
   "admin.resellers.create.password": "Temporary password",
-  "admin.resellers.create.passwordHint": "At least 10 characters. Share it securely.",
+  "admin.resellers.create.passwordHint":
+    "At least 10 characters. Share it securely.",
   "admin.resellers.create.referralCode": "Agent referral code",
-  "admin.resellers.create.referralCodeHint": "Optional — credit an agent for bringing this reseller.",
+  "admin.resellers.create.referralCodeHint":
+    "Optional — credit an agent for bringing this reseller.",
   "admin.resellers.create.submit": "Create reseller",
   "admin.resellers.create.cancel": "Cancel",
-  "admin.resellers.create.success": "Reseller created. Share the temporary password securely.",
+  "admin.resellers.create.success":
+    "Reseller created. Share the temporary password securely.",
   "admin.resellers.create.openNew": "Open the new reseller",
 
   // ── Resellers · detail ───────────────────────────────────────────────────
@@ -324,7 +347,8 @@ export const adminScreensEn = {
   "admin.resellers.detail.kpi.subscription": "Subscription paid",
   "admin.resellers.detail.kpi.subscriptionHint": "{count} invoices paid",
   "admin.resellers.detail.kpi.wallet": "Wallet balance",
-  "admin.resellers.detail.kpi.walletHint": "{pending} pending · {reserved} reserved",
+  "admin.resellers.detail.kpi.walletHint":
+    "{pending} pending · {reserved} reserved",
   "admin.resellers.tab.profile": "Profile",
   "admin.resellers.tab.plan": "Platform plan",
   "admin.resellers.tab.devices": "Devices",
@@ -352,7 +376,8 @@ export const adminScreensEn = {
   "admin.resellers.edit.emailVerified": "Email is verified",
   "admin.resellers.edit.emailVerifiedHint":
     "Only tick this after confirming the address by phone or a message from it.",
-  "admin.resellers.edit.reasonPlaceholder": "e.g. Owner corrected the shop name and phone number",
+  "admin.resellers.edit.reasonPlaceholder":
+    "e.g. Owner corrected the shop name and phone number",
   "admin.resellers.edit.save": "Save changes",
   "admin.resellers.edit.saving": "Saving…",
   "admin.resellers.edit.close": "Close",
@@ -365,22 +390,27 @@ export const adminScreensEn = {
     "Move this reseller onto another plan, correct its state or period, or grant a custom limit. Sales stop immediately if the new state cannot sell.",
   "admin.resellers.planEdit.plan": "Platform plan",
   "admin.resellers.planEdit.planNone": "No plan attached",
-  "admin.resellers.planEdit.planHint": "Only published plans can be sold; a plan already attached stays listed.",
+  "admin.resellers.planEdit.planHint":
+    "Only published plans can be sold; a plan already attached stays listed.",
   "admin.resellers.planEdit.state": "Subscription state",
-  "admin.resellers.planEdit.stateHint": "Only Active or Trialing can sell. Past due and expired are re-derived from the period.",
+  "admin.resellers.planEdit.stateHint":
+    "Only Active or Trialing can sell. Past due and expired are re-derived from the period.",
   "admin.resellers.planEdit.suspendedReason": "Suspended because",
-  "admin.resellers.planEdit.suspendedReasonPlaceholder": "Shown to the reseller",
+  "admin.resellers.planEdit.suspendedReasonPlaceholder":
+    "Shown to the reseller",
   "admin.resellers.planEdit.periodStart": "Period starts",
   "admin.resellers.planEdit.periodEnd": "Period ends",
   "admin.resellers.planEdit.periodHint":
     "Dates are read in Dar es Salaam time. Saving snaps the period to those day boundaries, and the end date keeps the plan active through the whole of that day.",
   "admin.resellers.planEdit.trialUsed": "Trial already used",
-  "admin.resellers.planEdit.trialUsedHint": "Untick to let this reseller start a trial again.",
+  "admin.resellers.planEdit.trialUsedHint":
+    "Untick to let this reseller start a trial again.",
   "admin.resellers.planEdit.overrides": "Custom limits",
   "admin.resellers.planEdit.overridesHint":
     "Leave a field empty to follow the plan. A value replaces the plan's cap for this reseller only.",
   "admin.resellers.planEdit.overridePlaceholder": "From plan",
-  "admin.resellers.planEdit.reasonPlaceholder": "e.g. Paid for 3 months by bank transfer, ref 88213",
+  "admin.resellers.planEdit.reasonPlaceholder":
+    "e.g. Paid for 3 months by bank transfer, ref 88213",
   "admin.resellers.planEdit.save": "Save plan",
   "admin.resellers.planEdit.saving": "Saving…",
   "admin.resellers.planEdit.close": "Close",
@@ -423,7 +453,8 @@ export const adminScreensEn = {
   "admin.resellers.plan.sourcePlan": "Following the plan's own limits",
   "admin.resellers.plan.sourceCustom": "Custom limits set for this reseller",
   "admin.resellers.plan.invoices": "Subscription invoices",
-  "admin.resellers.plan.invoicesDescription": "Plan charges and their payment state",
+  "admin.resellers.plan.invoicesDescription":
+    "Plan charges and their payment state",
   "admin.resellers.plan.invoicesEmpty": "No invoices yet.",
   "admin.resellers.plan.suspendedReason": "Suspended because",
   "admin.resellers.col.invoice": "Invoice",
@@ -435,7 +466,8 @@ export const adminScreensEn = {
   "admin.resellers.devices.title": "Sites & devices",
   "admin.resellers.devices.description": "{sites} sites · {devices} devices",
   "admin.resellers.devices.sites": "Sites",
-  "admin.resellers.devices.sitesEmpty": "No sites yet. The reseller has not provisioned one.",
+  "admin.resellers.devices.sitesEmpty":
+    "No sites yet. The reseller has not provisioned one.",
   "admin.resellers.devices.list": "Devices",
   "admin.resellers.devices.empty": "No devices registered for this reseller.",
   "admin.resellers.col.site": "Site",
@@ -452,7 +484,8 @@ export const adminScreensEn = {
 
   // ── Resellers · payments tab ─────────────────────────────────────────────
   "admin.resellers.payments.title": "Payment history",
-  "admin.resellers.payments.description": "Guest checkouts, subscription invoices and payouts",
+  "admin.resellers.payments.description":
+    "Guest checkouts, subscription invoices and payouts",
   "admin.resellers.payments.orders": "Guest orders",
   "admin.resellers.payments.ordersEmpty": "No guest orders yet.",
   "admin.resellers.payments.withdrawals": "Payouts",
@@ -468,8 +501,10 @@ export const adminScreensEn = {
 
   // ── Resellers · activity tab ─────────────────────────────────────────────
   "admin.resellers.activity.title": "Activity & audit",
-  "admin.resellers.activity.description": "Every operator action recorded against this reseller",
-  "admin.resellers.activity.empty": "No activity recorded for this reseller yet.",
+  "admin.resellers.activity.description":
+    "Every operator action recorded against this reseller",
+  "admin.resellers.activity.empty":
+    "No activity recorded for this reseller yet.",
   "admin.resellers.activity.col.action": "Action",
   "admin.resellers.activity.col.actor": "Actor",
   "admin.resellers.activity.col.reason": "Reason",
@@ -478,7 +513,8 @@ export const adminScreensEn = {
 
   // ── Impersonation ────────────────────────────────────────────────────────
   "admin.impersonation.banner": "You are signed in as {name}",
-  "admin.impersonation.bannerHint": "Admin {admin} · started {when}. Actions are recorded in the audit log.",
+  "admin.impersonation.bannerHint":
+    "Admin {admin} · started {when}. Actions are recorded in the audit log.",
   "admin.impersonation.exit": "Exit and return to Admin",
   "admin.impersonation.exiting": "Returning…",
   "admin.impersonation.started": "You are now acting as {name}.",
@@ -505,9 +541,11 @@ export const adminScreensEn = {
   "admin.agents.kpi.earned": "Commission credited",
   "admin.agents.kpi.earnedHint": "{count} accruals recorded",
   "admin.agents.empty": "No agents match this view.",
-  "admin.agents.emptyHint": "Adjust the search or filter, or create an agent to get started.",
+  "admin.agents.emptyHint":
+    "Adjust the search or filter, or create an agent to get started.",
   "admin.agents.emptyNone": "No agents yet.",
-  "admin.agents.emptyNoneHint": "Create the first agent to start building a partner network.",
+  "admin.agents.emptyNoneHint":
+    "Create the first agent to start building a partner network.",
   "admin.agents.col.agent": "Agent",
   "admin.agents.col.code": "Referral code",
   "admin.agents.col.status": "Status",
@@ -529,12 +567,15 @@ export const adminScreensEn = {
   "admin.agents.create.phoneHint": "Tanzanian mobile, e.g. 0712 345 678",
   "admin.agents.create.referralCode": "Referral code",
   "admin.agents.create.referralCodePlaceholder": "e.g. NEEMA01",
-  "admin.agents.create.referralCodeHint": "Uppercase letters, digits, dash or underscore. Resellers type this to credit the agent.",
+  "admin.agents.create.referralCodeHint":
+    "Uppercase letters, digits, dash or underscore. Resellers type this to credit the agent.",
   "admin.agents.create.password": "Temporary password",
-  "admin.agents.create.passwordHint": "At least 10 characters. Share it securely.",
+  "admin.agents.create.passwordHint":
+    "At least 10 characters. Share it securely.",
   "admin.agents.create.submit": "Create agent",
   "admin.agents.create.cancel": "Cancel",
-  "admin.agents.create.success": "Agent created. Share the temporary password securely.",
+  "admin.agents.create.success":
+    "Agent created. Share the temporary password securely.",
   "admin.agents.create.openNew": "Open the new agent",
 
   // ── Agents · detail ──────────────────────────────────────────────────────
@@ -545,7 +586,8 @@ export const adminScreensEn = {
   "admin.agents.detail.kpi.paid": "Commission paid out",
   "admin.agents.detail.kpi.paidHint": "{count} settled accruals",
   "admin.agents.detail.kpi.wallet": "Wallet balance",
-  "admin.agents.detail.kpi.walletHint": "{pending} pending · {reserved} reserved",
+  "admin.agents.detail.kpi.walletHint":
+    "{pending} pending · {reserved} reserved",
   "admin.agents.detail.kpi.referrals": "Referred resellers",
   "admin.agents.detail.kpi.referralsHint": "{active} still trading",
   "admin.agents.tab.profile": "Profile",
@@ -571,18 +613,23 @@ export const adminScreensEn = {
   "admin.agents.profile.walletPending": "Pending hold",
   "admin.agents.profile.walletReserved": "Reserved for payout",
   "admin.agents.referrals.title": "Referred resellers",
-  "admin.agents.referrals.description": "Every reseller this agent is credited for",
-  "admin.agents.referrals.empty": "This agent has not been credited for any reseller yet.",
+  "admin.agents.referrals.description":
+    "Every reseller this agent is credited for",
+  "admin.agents.referrals.empty":
+    "This agent has not been credited for any reseller yet.",
   "admin.agents.referrals.source": "Source",
   "admin.agents.col.business": "Business",
   "admin.agents.col.subscription": "Subscription",
   "admin.agents.col.since": "Credited since",
   "admin.agents.col.orders": "Orders",
   "admin.agents.commissions.title": "Commission ledger",
-  "admin.agents.commissions.description": "Accruals earned from referred resellers",
-  "admin.agents.commissions.empty": "No commission has accrued for this agent yet.",
+  "admin.agents.commissions.description":
+    "Accruals earned from referred resellers",
+  "admin.agents.commissions.empty":
+    "No commission has accrued for this agent yet.",
   "admin.agents.commissions.policies": "Applicable policies",
-  "admin.agents.commissions.policiesEmpty": "No commission policy applies to this agent.",
+  "admin.agents.commissions.policiesEmpty":
+    "No commission policy applies to this agent.",
   "admin.agents.commissions.policyGlobal": "All agents",
   "admin.agents.col.reseller": "Reseller",
   "admin.agents.col.trigger": "Trigger",
@@ -605,7 +652,8 @@ export const adminScreensEn = {
   "admin.agents.leads.expired": "Expired",
   "admin.agents.leads.accepted": "Accepted {when}",
   "admin.agents.activity.title": "Activity & audit",
-  "admin.agents.activity.description": "Every operator action recorded against this agent",
+  "admin.agents.activity.description":
+    "Every operator action recorded against this agent",
   "admin.agents.activity.empty": "No activity recorded for this agent yet.",
   "admin.agents.col.action": "Action",
   "admin.agents.col.actor": "Actor",
@@ -617,7 +665,8 @@ export const adminScreensEn = {
   "admin.agents.dialog.statusTitleReactivate": "Reactivate {name}",
   "admin.agents.dialog.statusNoteSuspend":
     "Active sessions are revoked and the agent can no longer invite resellers until reactivated.",
-  "admin.agents.dialog.statusNoteReactivate": "The agent will be able to sign in and invite resellers again immediately.",
+  "admin.agents.dialog.statusNoteReactivate":
+    "The agent will be able to sign in and invite resellers again immediately.",
   "admin.agents.dialog.impersonateTitle": "Sign in as {name}",
   "admin.agents.dialog.impersonateNote":
     "You will browse Advo as this agent for 15 minutes. Your admin session stays intact — use the gold banner at the top to come straight back.",
@@ -644,7 +693,8 @@ export const adminScreensEn = {
   "admin.campaigns.search.placeholder": "Search name, business or headline",
   "admin.campaigns.emptyNone": "No campaigns yet.",
   "admin.campaigns.empty": "No campaigns match this search.",
-  "admin.campaigns.emptyHint": "A placement with no eligible campaign stays hidden rather than showing an empty card.",
+  "admin.campaigns.emptyHint":
+    "A placement with no eligible campaign stays hidden rather than showing an empty card.",
   "admin.campaigns.status.active": "Active",
   "admin.campaigns.status.draft": "Draft",
   "admin.campaigns.status.paused": "Paused",
@@ -660,15 +710,20 @@ export const adminScreensEn = {
   "admin.campaigns.dialog.endTitle": "End “{name}”",
   "admin.campaigns.dialog.activateTitle": "Activate “{name}”",
   "admin.campaigns.dialog.pauseTitle": "Pause “{name}”",
-  "admin.campaigns.dialog.endNote": "Ending stops the campaign everywhere and keeps its delivery record. It cannot be resumed.",
-  "admin.campaigns.dialog.activateNote": "The campaign becomes eligible wherever the placement is visible.",
-  "admin.campaigns.dialog.pauseNote": "Guests stop seeing this campaign immediately; its creative is kept.",
+  "admin.campaigns.dialog.endNote":
+    "Ending stops the campaign everywhere and keeps its delivery record. It cannot be resumed.",
+  "admin.campaigns.dialog.activateNote":
+    "The campaign becomes eligible wherever the placement is visible.",
+  "admin.campaigns.dialog.pauseNote":
+    "Guests stop seeing this campaign immediately; its creative is kept.",
   "admin.campaigns.dialog.reason": "Reason",
   "admin.campaigns.dialog.reasonPlaceholder": "Why are you making this change?",
-  "admin.campaigns.dialog.reasonHint": "Stored on the audit log with your account.",
+  "admin.campaigns.dialog.reasonHint":
+    "Stored on the audit log with your account.",
   "admin.campaigns.form.titleCreate": "Create a campaign",
   "admin.campaigns.form.titleEdit": "Edit “{name}”",
-  "admin.campaigns.form.description": "Only reviewed fields are stored; the portal composes the layout, so a campaign can never inject markup.",
+  "admin.campaigns.form.description":
+    "Only reviewed fields are stored; the portal composes the layout, so a campaign can never inject markup.",
   "admin.campaigns.form.successCreate": "Campaign created.",
   "admin.campaigns.form.successEdit": "Campaign updated.",
   "admin.campaigns.form.submitCreate": "Create campaign",
@@ -680,7 +735,8 @@ export const adminScreensEn = {
   "admin.campaigns.form.name": "Campaign name",
   "admin.campaigns.form.status": "Status",
   "admin.campaigns.form.placements": "Placements",
-  "admin.campaigns.form.placementsHint": "Pick at least one. The plan still has the final say on each placement.",
+  "admin.campaigns.form.placementsHint":
+    "Pick at least one. The plan still has the final say on each placement.",
   "admin.campaigns.form.business": "Business",
   "admin.campaigns.form.headline": "Headline",
   "admin.campaigns.form.body": "Supporting line",
@@ -689,17 +745,21 @@ export const adminScreensEn = {
   "admin.campaigns.form.image.uploading": "Uploading and optimising…",
   "admin.campaigns.form.image.replace": "Replace",
   "admin.campaigns.form.image.remove": "Remove",
-  "admin.campaigns.form.image.uploadFailed": "That image could not be uploaded. Try again.",
+  "admin.campaigns.form.image.uploadFailed":
+    "That image could not be uploaded. Try again.",
   "admin.campaigns.form.image.previewAlt": "Campaign creative preview",
-  "admin.campaigns.form.image.saved": "This image will appear in the placement on the guest portal.",
+  "admin.campaigns.form.image.saved":
+    "This image will appear in the placement on the guest portal.",
   "admin.campaigns.form.image.compressNote":
     "Any size up to 6 MB. The server re-encodes the image to WebP and caps it at 1600 px, so the file gets much smaller without visible quality loss — a wider image than tall works best in both placements.",
-  "admin.campaigns.form.image.urlFallback": "Use an image already hosted somewhere else",
+  "admin.campaigns.form.image.urlFallback":
+    "Use an image already hosted somewhere else",
   "admin.campaigns.form.phone": "Contact phone or WhatsApp (optional)",
   "admin.campaigns.form.url": "Target website or offer link (optional)",
   "admin.campaigns.form.cta": "Call to action",
   "admin.campaigns.form.theme": "Look",
-  "admin.campaigns.form.audienceHint": "Leave blank to reach everyone. Ids are pasted as a comma-separated list.",
+  "admin.campaigns.form.audienceHint":
+    "Leave blank to reach everyone. Ids are pasted as a comma-separated list.",
   "admin.campaigns.form.resellerIds": "Reseller ids (optional)",
   "admin.campaigns.form.siteIds": "Site ids (optional)",
   "admin.campaigns.form.startsAt": "Starts",
@@ -729,9 +789,11 @@ export const adminScreensEn = {
   "admin.plans.kpi.revenue": "Subscription revenue",
   "admin.plans.kpi.revenueHint": "{count} paid invoices",
   "admin.plans.empty": "No plans match this view.",
-  "admin.plans.emptyHint": "Adjust the search or filter, or create a plan to get started.",
+  "admin.plans.emptyHint":
+    "Adjust the search or filter, or create a plan to get started.",
   "admin.plans.emptyNone": "No plans yet.",
-  "admin.plans.emptyNoneHint": "Resellers cannot subscribe until at least one plan exists.",
+  "admin.plans.emptyNoneHint":
+    "Resellers cannot subscribe until at least one plan exists.",
   "admin.plans.version": "v{version}",
   "admin.plans.versionsCount": "{count} versions",
   "admin.plans.current": "Current",
@@ -772,9 +834,11 @@ export const adminScreensEn = {
   "admin.plans.form.step.of": "Step {current} of {total}",
   "admin.plans.form.step.next": "Continue",
   "admin.plans.form.step.back": "Back",
-  "admin.plans.form.step.identityLead": "Name the plan resellers will recognise.",
+  "admin.plans.form.step.identityLead":
+    "Name the plan resellers will recognise.",
   "admin.plans.form.step.pricingLead": "Set what they pay and how often.",
-  "admin.plans.form.step.featuresLead": "Decide what the portal actually allows.",
+  "admin.plans.form.step.featuresLead":
+    "Decide what the portal actually allows.",
   "admin.plans.form.step.launchLead": "Trial, demo flag, then publish.",
   "admin.plans.form.previewTitle": "What resellers will see",
   "admin.plans.form.section.identity": "Identity",
@@ -782,7 +846,8 @@ export const adminScreensEn = {
   "admin.plans.form.section.limits": "What resellers get",
   "admin.plans.form.section.trial": "Trial & classification",
   "admin.plans.form.code": "Plan code",
-  "admin.plans.form.codeHint": "Lowercase letters, digits and dashes. Reusing a code publishes the next version.",
+  "admin.plans.form.codeHint":
+    "Lowercase letters, digits and dashes. Reusing a code publishes the next version.",
   "admin.plans.form.codePlaceholder": "e.g. basic",
   "admin.plans.form.name": "Display name",
   "admin.plans.form.namePlaceholder": "e.g. Basic",
@@ -791,7 +856,8 @@ export const adminScreensEn = {
   "admin.plans.form.periodDays": "Billing period",
   "admin.plans.form.periodDaysHint": "Days each payment covers.",
   "admin.plans.form.descriptionLabel": "Description",
-  "admin.plans.form.descriptionHint": "Shown to resellers wherever the plan is offered.",
+  "admin.plans.form.descriptionHint":
+    "Shown to resellers wherever the plan is offered.",
   "admin.plans.form.maxSites": "Max sites",
   "admin.plans.form.maxDevices": "Max devices",
   "admin.plans.form.maxPackages": "Max packages",
@@ -799,9 +865,11 @@ export const adminScreensEn = {
   "admin.plans.form.trialDays": "Trial length",
   "admin.plans.form.trialDaysHint": "Only used when a trial is offered.",
   "admin.plans.form.isDemo": "Demo plan (not a real price)",
-  "admin.plans.form.isDemoHint": "Demo plans are excluded from production reporting.",
+  "admin.plans.form.isDemoHint":
+    "Demo plans are excluded from production reporting.",
   "admin.plans.form.preview": "Resellers pay {price} every {days} days",
-  "admin.plans.form.willReplace": "Nothing uses this plan yet, so saving replaces it in place — no new version.",
+  "admin.plans.form.willReplace":
+    "Nothing uses this plan yet, so saving replaces it in place — no new version.",
   "admin.plans.form.willVersion":
     "{count} subscription(s) already use this plan. Saving publishes a new version and archives this one; existing subscribers keep their terms.",
   "admin.plans.form.submitCreate": "Create plan",
@@ -810,13 +878,27 @@ export const adminScreensEn = {
   "admin.plans.form.successCreate": "Plan created and on sale.",
   "admin.plans.form.successEdit": "Plan saved.",
   "admin.plans.form.done": "Done",
+  "admin.plans.form.tier": "Capacity tier",
+  "admin.plans.form.tierHint":
+    "Starter, Growth, Business Pro and Enterprise own their capacity. Picking a tier fills the limits; the two commercial options of a tier must share them.",
+  "admin.plans.form.tierNone": "Not in the package grid",
+  "admin.plans.form.planType": "Commercial option",
+  "admin.plans.form.planTypeHint":
+    "Advo Partner shows Advo advertising and Explore pages at the lower price; Independent removes them for a higher price. Everything else stays the same.",
+  "admin.plans.form.planTypeNone": "Untagged",
+  "admin.plans.form.priceFrom": "Sold “from” this price",
+  "admin.plans.form.priceFromHint":
+    "Enterprise is a sales conversation, so the card says “from” instead of a fixed price.",
+  "admin.plans.typeMismatch":
+    "This plan's advertising placements do not match its commercial option — resellers would be sold something the portal does not deliver.",
 
   // ── Plans · feature & policy editor ──────────────────────────────────────
   "admin.plans.form.section.features": "Features & policy",
   "admin.plans.form.featuresHint":
     "Behaviour follows these keys, never the plan name — so renaming a plan changes nothing in the guest portal.",
   "admin.plans.preset.label": "Start from a preset",
-  "admin.plans.preset.hint": "A preset fills every value below; you can still change any of them.",
+  "admin.plans.preset.hint":
+    "A preset fills every value below; you can still change any of them.",
   "admin.plans.preset.sponsored": "Sponsored",
   "admin.plans.preset.brand-control": "Brand Control",
   "admin.plans.preset.ad-free": "Ad Free",
@@ -839,9 +921,11 @@ export const adminScreensEn = {
   "admin.plans.mode.REQUIRED": "Required",
   "admin.plans.mode.OPTIONAL": "Optional",
   "admin.plans.mode.DISABLED": "Disabled",
-  "admin.plans.mode.REQUIRED.hint": "Always visible — the reseller cannot turn it off",
+  "admin.plans.mode.REQUIRED.hint":
+    "Always visible — the reseller cannot turn it off",
   "admin.plans.mode.OPTIONAL.hint": "The reseller decides, per site",
-  "admin.plans.mode.DISABLED.hint": "Hidden, and its creatives are not returned at all",
+  "admin.plans.mode.DISABLED.hint":
+    "Hidden, and its creatives are not returned at all",
   "admin.plans.placement.ads.banner": "Home banner",
   "admin.plans.placement.ads.explore": "Connected · Explore",
   "admin.plans.placement.discovery.promote_business": "Promote your business",
@@ -858,7 +942,8 @@ export const adminScreensEn = {
   "admin.plans.branding.primary": "Default primary colour",
   "admin.plans.branding.accent": "Default accent colour",
   "admin.plans.branding.contrast": "Contrast {ratio}:1 against white text",
-  "admin.plans.branding.contrastFail": "Below the {min}:1 minimum — white button text would be unreadable.",
+  "admin.plans.branding.contrastFail":
+    "Below the {min}:1 minimum — white button text would be unreadable.",
   "admin.plans.cards.title": "Package cards",
   "admin.plans.cards.allowed": "Allowed styles",
   "admin.plans.cards.default": "Default style",
@@ -887,12 +972,15 @@ export const adminScreensEn = {
   "admin.plans.issues.title": "{count} problem(s) would block publishing",
   "admin.plans.issues.ok": "Nothing blocks publishing.",
   "admin.plans.preview.title": "Preview as a new reseller",
-  "admin.plans.preview.hint": "What a site resolves to before the reseller changes a single preference.",
+  "admin.plans.preview.hint":
+    "What a site resolves to before the reseller changes a single preference.",
   "admin.plans.preview.visible": "Visible",
   "admin.plans.preview.hidden": "Hidden",
   "admin.plans.preview.locked": "Locked",
-  "admin.plans.preview.hideAll": "A reseller could hide all five placements at once",
-  "admin.plans.preview.hideAllNo": "A reseller cannot hide everything — at least one placement is Required",
+  "admin.plans.preview.hideAll":
+    "A reseller could hide all five placements at once",
+  "admin.plans.preview.hideAllNo":
+    "A reseller cannot hide everything — at least one placement is Required",
   "admin.plans.preview.voucherOn": "Voucher redemption on",
   "admin.plans.preview.voucherOff": "Voucher redemption off",
   "admin.plans.preview.styles": "{count} card style(s) allowed",
@@ -903,7 +991,8 @@ export const adminScreensEn = {
   "admin.plans.dialog.publishNote":
     "The draft is validated and becomes the sellable version of this code; the version that was live is archived.",
   "admin.plans.publishSuccess": "Published {name} v{version}",
-  "admin.plans.adFreeOk": "Every sponsored and discovery placement is disabled — the Ad Free promise holds.",
+  "admin.plans.adFreeOk":
+    "Every sponsored and discovery placement is disabled — the Ad Free promise holds.",
 
   // ── Plans · version migrations ───────────────────────────────────────────
   "admin.plans.migration.action": "Migrate subscribers",
@@ -912,13 +1001,17 @@ export const adminScreensEn = {
     "Publishing only changes what is sold. Moving the people already paying is a separate decision: pick who moves, when, and the change is recorded with the old and new version.",
   "admin.plans.migration.scopeLabel": "Who moves",
   "admin.plans.migration.scope.NEW_ONLY": "New subscribers only",
-  "admin.plans.migration.scope.NEW_ONLY.hint": "Nobody moves. The version is already the one new subscribers get.",
+  "admin.plans.migration.scope.NEW_ONLY.hint":
+    "Nobody moves. The version is already the one new subscribers get.",
   "admin.plans.migration.scope.ON_RENEWAL": "On renewal",
-  "admin.plans.migration.scope.ON_RENEWAL.hint": "Each subscription moves when its paid period ends — never mid-period.",
+  "admin.plans.migration.scope.ON_RENEWAL.hint":
+    "Each subscription moves when its paid period ends — never mid-period.",
   "admin.plans.migration.scope.SELECTED": "Selected resellers",
-  "admin.plans.migration.scope.SELECTED.hint": "Only the resellers you pick below.",
+  "admin.plans.migration.scope.SELECTED.hint":
+    "Only the resellers you pick below.",
   "admin.plans.migration.scope.ALL": "All subscribers",
-  "admin.plans.migration.scope.ALL.hint": "Everyone still on an earlier version of this plan code, on the effective date.",
+  "admin.plans.migration.scope.ALL.hint":
+    "Everyone still on an earlier version of this plan code, on the effective date.",
   "admin.plans.migration.selectResellers": "Resellers to move",
   "admin.plans.migration.noResellers": "No resellers to choose from.",
   "admin.plans.migration.effectiveAt": "Effective date",
@@ -927,13 +1020,16 @@ export const adminScreensEn = {
   "admin.plans.migration.noteHint": "Optional. Stored with the migration.",
   "admin.plans.migration.previewTitle": "Old → new",
   "admin.plans.migration.previewLoading": "Checking who this would move…",
-  "admin.plans.migration.previewEmpty": "No subscription matches this scope right now.",
-  "admin.plans.migration.previewNewOnly": "Nothing moves: new subscribers already get this version.",
+  "admin.plans.migration.previewEmpty":
+    "No subscription matches this scope right now.",
+  "admin.plans.migration.previewNewOnly":
+    "Nothing moves: new subscribers already get this version.",
   "admin.plans.migration.noPlan": "no plan",
   "admin.plans.migration.schedule": "Schedule migration",
   "admin.plans.migration.scheduling": "Scheduling…",
   "admin.plans.migration.cancel": "Cancel",
-  "admin.plans.migration.scheduled": "Migration scheduled for {count} subscriber(s)",
+  "admin.plans.migration.scheduled":
+    "Migration scheduled for {count} subscriber(s)",
   "admin.plans.migration.historyTitle": "Migrations",
   "admin.plans.migration.status.SCHEDULED": "Scheduled",
   "admin.plans.migration.status.PARTIAL": "In progress",
@@ -945,18 +1041,22 @@ export const adminScreensEn = {
 
   // ── Plans · archive / delete dialogs ─────────────────────────────────────
   "admin.plans.dialog.deleteTitle": "Delete {name}?",
-  "admin.plans.deleteBlocked": "{count} subscription(s) or invoice(s) already use this plan — archive it instead.",
+  "admin.plans.deleteBlocked":
+    "{count} subscription(s) or invoice(s) already use this plan — archive it instead.",
   "admin.plans.dialog.deleteNote":
     "This permanently removes the version. It is only allowed while no subscription or invoice points at it.",
   "admin.plans.dialog.archiveTitle": "Archive {name}?",
-  "admin.plans.dialog.archiveNote": "Resellers will no longer be offered this plan. Subscribers keep it until their period ends.",
+  "admin.plans.dialog.archiveNote":
+    "Resellers will no longer be offered this plan. Subscribers keep it until their period ends.",
   "admin.plans.dialog.reactivateTitle": "Put {name} back on sale?",
   "admin.plans.dialog.reactivateNote":
     "Resellers can subscribe again. Whichever version of this code is currently on sale is archived, so a code always has exactly one live price.",
   "admin.plans.dialog.reason": "Reason",
   "admin.plans.dialog.reasonPlaceholder": "e.g. price review for Q4",
-  "admin.plans.dialog.reasonHint": "At least 3 characters. This is stored in the audit log.",
-  "admin.plans.dialog.reasonTooShort": "A reason of at least 3 characters is required.",
+  "admin.plans.dialog.reasonHint":
+    "At least 3 characters. This is stored in the audit log.",
+  "admin.plans.dialog.reasonTooShort":
+    "A reason of at least 3 characters is required.",
   "admin.plans.dialog.confirm": "Continue",
   "admin.plans.dialog.cancel": "Cancel",
 
@@ -973,13 +1073,15 @@ export const adminScreensEn = {
   "admin.commissions.kpi.accrued": "Total credited",
   "admin.commissions.kpi.accruedHint": "{count} accrual(s) on record",
   "admin.commissions.kpi.onHold": "On hold",
-  "admin.commissions.kpi.onHoldHint": "Released after each policy's hold window",
+  "admin.commissions.kpi.onHoldHint":
+    "Released after each policy's hold window",
   "admin.commissions.kpi.available": "Available to withdraw",
   "admin.commissions.kpi.availableHint": "Released to agents, not yet paid out",
   "admin.commissions.kpi.paid": "Paid out",
   "admin.commissions.kpi.paidHint": "{reversed} reversed in total",
 
-  "admin.commissions.alert.needsReview": "{count} accrual(s) need a manual adjustment",
+  "admin.commissions.alert.needsReview":
+    "{count} accrual(s) need a manual adjustment",
   "admin.commissions.alert.needsReviewHint":
     "These were already paid when they were reversed. An external payout cannot be undone here — settle the difference with an explicit adjustment.",
 
@@ -997,20 +1099,24 @@ export const adminScreensEn = {
 
   // ── Commissions · accruals table ─────────────────────────────────────────
   "admin.commissions.accruals.title": "Earnings ledger",
-  "admin.commissions.accruals.description": "Every row is one verified subscription payment, priced at the rate that was in force that day.",
+  "admin.commissions.accruals.description":
+    "Every row is one verified subscription payment, priced at the rate that was in force that day.",
   "admin.commissions.accruals.tableLabel": "Commission accruals",
   "admin.commissions.accruals.empty": "No commission has accrued yet.",
   "admin.commissions.accruals.emptyHint":
     "Commission accrues when a reseller who was referred by an active agent pays a subscription invoice, and a policy covers that payment.",
   "admin.commissions.accruals.noMatch": "No accrual matches this view.",
-  "admin.commissions.accruals.noMatchHint": "Clear the search or pick another state.",
+  "admin.commissions.accruals.noMatchHint":
+    "Clear the search or pick another state.",
   "admin.commissions.accruals.showing": "{shown} of {total}",
-  "admin.commissions.accruals.capped": "Showing the {count} most recent accruals.",
+  "admin.commissions.accruals.capped":
+    "Showing the {count} most recent accruals.",
   "admin.commissions.accruals.rateOf": "{rate} of {base}",
   "admin.commissions.accruals.availableFrom": "Available from",
   "admin.commissions.accruals.created": "Accrued",
   "admin.commissions.accruals.outstanding": "Still owed {amount}",
-  "admin.commissions.accruals.reserved": "Reserved for a withdrawal in progress",
+  "admin.commissions.accruals.reserved":
+    "Reserved for a withdrawal in progress",
   "admin.commissions.accruals.action.reverse": "Reverse",
   "admin.commissions.accruals.action.reverseTitle": "Reverse this commission",
   "admin.commissions.col.agent": "Agent",
@@ -1026,11 +1132,15 @@ export const adminScreensEn = {
 
   // ── Commissions · policy cards ───────────────────────────────────────────
   "admin.commissions.policies.title": "Commission policies",
-  "admin.commissions.policies.description": "Rates are effective-dated: one policy per agent and trigger is live at a time, and older ones stay on record.",
-  "admin.commissions.policies.empty": "No policies yet — agents currently earn nothing.",
-  "admin.commissions.policies.emptyHint": "Create a policy to decide what a referral is worth.",
+  "admin.commissions.policies.description":
+    "Rates are effective-dated: one policy per agent and trigger is live at a time, and older ones stay on record.",
+  "admin.commissions.policies.empty":
+    "No policies yet — agents currently earn nothing.",
+  "admin.commissions.policies.emptyHint":
+    "Create a policy to decide what a referral is worth.",
   "admin.commissions.policies.noMatch": "No policy matches this view.",
-  "admin.commissions.policies.noMatchHint": "Clear the search or pick another status.",
+  "admin.commissions.policies.noMatchHint":
+    "Clear the search or pick another status.",
   "admin.commissions.policies.count": "Policies: {count}",
   "admin.commissions.policies.status.OPEN": "LIVE",
   "admin.commissions.policies.status.SCHEDULED": "SCHEDULED",
@@ -1045,7 +1155,8 @@ export const adminScreensEn = {
   "admin.commissions.policies.holdDaysZero": "Released immediately",
   "admin.commissions.policies.referralWindow": "Referral window",
   "admin.commissions.policies.referralWindowNone": "Any time",
-  "admin.commissions.policies.referralWindowDays": "{days} day(s) after referral",
+  "admin.commissions.policies.referralWindowDays":
+    "{days} day(s) after referral",
   "admin.commissions.policies.plans": "Plans covered",
   "admin.commissions.policies.plansAll": "All plans",
   "admin.commissions.policies.effectiveFrom": "From {date}",
@@ -1058,9 +1169,12 @@ export const adminScreensEn = {
   "admin.commissions.policies.action.replace": "Replace",
   "admin.commissions.policies.action.end": "End",
   "admin.commissions.policies.action.delete": "Delete",
-  "admin.commissions.policies.deleteBlocked": "This policy already produced {count} accrual(s) — end it instead.",
-  "admin.commissions.policies.endBlocked": "A policy that has not started yet cannot be ended — delete it instead.",
-  "admin.commissions.policies.endsNow": "Ending it stops it from today. Past accruals keep the rate they were paid at.",
+  "admin.commissions.policies.deleteBlocked":
+    "This policy already produced {count} accrual(s) — end it instead.",
+  "admin.commissions.policies.endBlocked":
+    "A policy that has not started yet cannot be ended — delete it instead.",
+  "admin.commissions.policies.endsNow":
+    "Ending it stops it from today. Past accruals keep the rate they were paid at.",
 
   // ── Commissions · policy form ────────────────────────────────────────────
   "admin.commissions.form.titleCreate": "New commission policy",
@@ -1076,10 +1190,14 @@ export const adminScreensEn = {
   "admin.commissions.form.step.of": "Step {current} of {total}",
   "admin.commissions.form.step.next": "Continue",
   "admin.commissions.form.step.back": "Back",
-  "admin.commissions.form.step.identityLead": "Name the policy and who it covers.",
-  "admin.commissions.form.step.rateLead": "Set how much agents earn on each paid invoice.",
-  "admin.commissions.form.step.eligibilityLead": "Limit which plans and referral windows qualify.",
-  "admin.commissions.form.step.launchLead": "Hold window, start time, then publish.",
+  "admin.commissions.form.step.identityLead":
+    "Name the policy and who it covers.",
+  "admin.commissions.form.step.rateLead":
+    "Set how much agents earn on each paid invoice.",
+  "admin.commissions.form.step.eligibilityLead":
+    "Limit which plans and referral windows qualify.",
+  "admin.commissions.form.step.launchLead":
+    "Hold window, start time, then publish.",
   "admin.commissions.form.section.identity": "Who and when",
   "admin.commissions.form.section.rate": "What it pays",
   "admin.commissions.form.section.eligibility": "What qualifies",
@@ -1088,7 +1206,8 @@ export const adminScreensEn = {
   "admin.commissions.form.namePlaceholder": "e.g. Standard 10%",
   "admin.commissions.form.agent": "Agent",
   "admin.commissions.form.agentAll": "All agents",
-  "admin.commissions.form.agentHint": "A specific agent's policy always wins over the all-agents one.",
+  "admin.commissions.form.agentHint":
+    "A specific agent's policy always wins over the all-agents one.",
   "admin.commissions.form.trigger": "Pays on",
   "admin.commissions.form.triggerFirst": "First subscription payment",
   "admin.commissions.form.triggerRenewal": "Every subscription renewal",
@@ -1096,25 +1215,33 @@ export const adminScreensEn = {
   "admin.commissions.form.mode.PERCENTAGE": "Percentage of the invoice",
   "admin.commissions.form.mode.FIXED": "Fixed amount",
   "admin.commissions.form.percent": "Percentage",
-  "admin.commissions.form.percentHint": "Whole number or up to two decimals, e.g. 7.5.",
+  "admin.commissions.form.percentHint":
+    "Whole number or up to two decimals, e.g. 7.5.",
   "admin.commissions.form.fixedTzs": "Fixed amount (TZS)",
   "admin.commissions.form.fixedTzsHint": "Paid on every qualifying invoice.",
   "admin.commissions.form.cap": "Cap per invoice (TZS)",
-  "admin.commissions.form.capHint": "Optional ceiling. The commission is never more than the invoice itself.",
+  "admin.commissions.form.capHint":
+    "Optional ceiling. The commission is never more than the invoice itself.",
   "admin.commissions.form.holdDays": "Hold days",
-  "admin.commissions.form.holdDaysHint": "Days before the money becomes withdrawable. Use 0 to release immediately.",
+  "admin.commissions.form.holdDaysHint":
+    "Days before the money becomes withdrawable. Use 0 to release immediately.",
   "admin.commissions.form.referralDays": "Referral window (days)",
-  "admin.commissions.form.referralDaysHint": "Only pay for payments made within this many days of the referral.",
+  "admin.commissions.form.referralDaysHint":
+    "Only pay for payments made within this many days of the referral.",
   "admin.commissions.form.planCodes": "Plans covered",
-  "admin.commissions.form.planCodesHint": "Comma-separated plan codes. Leave blank for all plans.",
+  "admin.commissions.form.planCodesHint":
+    "Comma-separated plan codes. Leave blank for all plans.",
   "admin.commissions.form.effectiveFrom": "Starts from",
   "admin.commissions.form.effectiveFromHint": "Leave blank to start now.",
   "admin.commissions.form.isDemo": "Demo policy (not a real rate)",
-  "admin.commissions.form.isDemoHint": "Demo policies are excluded from production reporting.",
+  "admin.commissions.form.isDemoHint":
+    "Demo policies are excluded from production reporting.",
   "admin.commissions.form.previewTitle": "Preview",
-  "admin.commissions.form.preview": "Agent earns {amount} on a sample {base} invoice.",
+  "admin.commissions.form.preview":
+    "Agent earns {amount} on a sample {base} invoice.",
   "admin.commissions.form.previewCap": "Capped at {amount} per invoice.",
-  "admin.commissions.form.previewCloses": "Saving closes the policy that is live now for this scope.",
+  "admin.commissions.form.previewCloses":
+    "Saving closes the policy that is live now for this scope.",
   "admin.commissions.form.submitCreate": "Create policy",
   "admin.commissions.form.submitReplace": "Replace policy",
   "admin.commissions.form.cancel": "Cancel",
@@ -1124,16 +1251,20 @@ export const adminScreensEn = {
 
   // ── Commissions · dialogs ────────────────────────────────────────────────
   "admin.commissions.dialog.endTitle": "End {name}?",
-  "admin.commissions.dialog.endNote": "It stops applying from today. Accruals it already produced keep the rate they were paid at, and you can still see it in the policy list.",
+  "admin.commissions.dialog.endNote":
+    "It stops applying from today. Accruals it already produced keep the rate they were paid at, and you can still see it in the policy list.",
   "admin.commissions.dialog.deleteTitle": "Delete {name}?",
-  "admin.commissions.dialog.deleteNote": "This permanently removes a policy that never produced an accrual.",
+  "admin.commissions.dialog.deleteNote":
+    "This permanently removes a policy that never produced an accrual.",
   "admin.commissions.dialog.reverseTitle": "Reverse this commission?",
   "admin.commissions.dialog.reverseNote":
     "The unpaid part is reversed and the agent's balance drops. Money already paid out is left alone and flagged for a manual adjustment.",
   "admin.commissions.dialog.reason": "Reason",
   "admin.commissions.dialog.reasonPlaceholder": "e.g. refunded subscription",
-  "admin.commissions.dialog.reasonHint": "At least 3 characters. This is stored in the audit log.",
-  "admin.commissions.dialog.reasonTooShort": "A reason of at least 3 characters is required.",
+  "admin.commissions.dialog.reasonHint":
+    "At least 3 characters. This is stored in the audit log.",
+  "admin.commissions.dialog.reasonTooShort":
+    "A reason of at least 3 characters is required.",
   "admin.commissions.dialog.confirm": "Continue",
   "admin.commissions.dialog.cancel": "Cancel",
   "admin.commissions.dialog.endSuccess": "Policy ended — {name}",
@@ -1163,7 +1294,8 @@ export const adminScreensEn = {
   "admin.controllers.kpi.sitesHint": "{devices} devices adopted",
   "admin.controllers.kpi.sitesFailing": "{count} mapping(s) need attention",
   "admin.controllers.kpi.coverage": "Verified capabilities",
-  "admin.controllers.kpi.coverageHint": "{verified} of {total} recorded operations",
+  "admin.controllers.kpi.coverageHint":
+    "{verified} of {total} recorded operations",
   "admin.controllers.kpi.coverageNone": "No evidence recorded yet",
 
   // ── Controllers · toolbar & empty states ─────────────────────────────────
@@ -1191,7 +1323,8 @@ export const adminScreensEn = {
   "admin.controllers.card.health.checked": "checked {when}",
   "admin.controllers.card.credentials.stored": "Credentials stored",
   "admin.controllers.card.credentials.none": "No credentials",
-  "admin.controllers.card.retiredNote": "Retired — new sites are no longer provisioned here.",
+  "admin.controllers.card.retiredNote":
+    "Retired — new sites are no longer provisioned here.",
   "admin.controllers.card.failing": "{count} mapping(s) need attention",
   "admin.controllers.card.baseUrl": "Base URL",
   "admin.controllers.card.version": "Version",
@@ -1249,37 +1382,51 @@ export const adminScreensEn = {
     "Simulated controllers are refused in production. Use them for lab work and demos only.",
   "admin.controllers.form.name": "Name",
   "admin.controllers.form.namePlaceholder": "Mwanza DC Controller",
-  "admin.controllers.form.nameHint": "How operators will recognise this Controller.",
+  "admin.controllers.form.nameHint":
+    "How operators will recognise this Controller.",
   "admin.controllers.form.baseUrl": "Base URL",
-  "admin.controllers.form.baseUrlHint": "Must start with https:// outside production.",
+  "admin.controllers.form.baseUrlHint":
+    "Must start with https:// outside production.",
   "admin.controllers.form.omadacId": "omadacId",
-  "admin.controllers.form.omadacIdHint": "Found on the Controller's Open API page.",
+  "admin.controllers.form.omadacIdHint":
+    "Found on the Controller's Open API page.",
   "admin.controllers.form.version": "Controller version",
   "admin.controllers.form.versionHint": "From Settings → Controller → About.",
   "admin.controllers.form.portalTime": "Portal time field meaning",
-  "admin.controllers.form.portalTimeHint": "How the Controller reports hotspot voucher expiry.",
+  "admin.controllers.form.portalTimeHint":
+    "How the Controller reports hotspot voucher expiry.",
   "admin.controllers.form.portalTimeAbsolute": "Absolute expiry timestamp",
   "admin.controllers.form.portalTimeDuration": "Duration from now",
   "admin.controllers.form.credentials": "Open API credentials",
-  "admin.controllers.form.credentialsHint": "Encrypted at rest. Leave a field blank to keep what is already stored.",
+  "admin.controllers.form.credentialsHint":
+    "Encrypted at rest. Leave a field blank to keep what is already stored.",
   "admin.controllers.form.clientId": "Open API client ID",
   "admin.controllers.form.clientSecret": "Open API client secret",
-  "admin.controllers.form.clientSecretHint": "Leave blank to keep the stored secret.",
+  "admin.controllers.form.clientSecretHint":
+    "Leave blank to keep the stored secret.",
   "admin.controllers.form.operatorUsername": "Hotspot operator username",
   "admin.controllers.form.operatorPassword": "Hotspot operator password",
-  "admin.controllers.form.operatorPasswordHint": "Leave blank to keep the stored password.",
+  "admin.controllers.form.operatorPasswordHint":
+    "Leave blank to keep the stored password.",
   "admin.controllers.form.contract": "Open API contract (JSON)",
-  "admin.controllers.form.contractHint": "Optional. Paste the contract exported from your Controller documentation.",
+  "admin.controllers.form.contractHint":
+    "Optional. Paste the contract exported from your Controller documentation.",
   "admin.controllers.form.makeDefault": "Default controller for new sites",
-  "admin.controllers.form.makeDefaultHint": "Only one Controller can be the default; promoting this one demotes the rest.",
+  "admin.controllers.form.makeDefaultHint":
+    "Only one Controller can be the default; promoting this one demotes the rest.",
   "admin.controllers.form.submitCreate": "Save controller",
   "admin.controllers.form.submitEdit": "Save changes",
   "admin.controllers.form.cancel": "Cancel",
-  "admin.controllers.form.error.name": "Give the Controller a name of at least 2 characters.",
-  "admin.controllers.form.error.baseUrl": "LIVE controllers need a Base URL starting with http:// or https://.",
-  "admin.controllers.form.error.omadacId": "LIVE controllers need the omadacId from the Controller's Open API page.",
-  "admin.controllers.form.error.version": "LIVE controllers need the Controller version.",
-  "admin.controllers.form.error.contract": "The Open API contract must be valid JSON.",
+  "admin.controllers.form.error.name":
+    "Give the Controller a name of at least 2 characters.",
+  "admin.controllers.form.error.baseUrl":
+    "LIVE controllers need a Base URL starting with http:// or https://.",
+  "admin.controllers.form.error.omadacId":
+    "LIVE controllers need the omadacId from the Controller's Open API page.",
+  "admin.controllers.form.error.version":
+    "LIVE controllers need the Controller version.",
+  "admin.controllers.form.error.contract":
+    "The Open API contract must be valid JSON.",
   "admin.controllers.form.successCreate": "Controller registered — {name}",
   "admin.controllers.form.successEdit": "Controller updated — {name}",
 
@@ -1290,18 +1437,23 @@ export const adminScreensEn = {
   "admin.controllers.evidence.operation": "Operation",
   "admin.controllers.evidence.operationPlaceholder": "e.g. authorizeClient",
   "admin.controllers.evidence.supported": "Supported by this Controller",
-  "admin.controllers.evidence.supportedHint": "Recorded even when unverified, so nobody assumes it works.",
+  "admin.controllers.evidence.supportedHint":
+    "Recorded even when unverified, so nobody assumes it works.",
   "admin.controllers.evidence.verified": "Verified in lab",
   "admin.controllers.evidence.verifiedHint": "Requires an evidence note below.",
   "admin.controllers.evidence.reason": "Reason / scope",
-  "admin.controllers.evidence.reasonPlaceholder": "e.g. only for hotspot vouchers",
+  "admin.controllers.evidence.reasonPlaceholder":
+    "e.g. only for hotspot vouchers",
   "admin.controllers.evidence.notes": "Evidence",
-  "admin.controllers.evidence.notesPlaceholder": "Test id, firmware build and the date it was run",
+  "admin.controllers.evidence.notesPlaceholder":
+    "Test id, firmware build and the date it was run",
   "admin.controllers.evidence.notesHint": "Required when marking verified.",
   "admin.controllers.evidence.existing": "Already recorded",
   "admin.controllers.evidence.submit": "Save evidence",
-  "admin.controllers.evidence.error.operation": "Name the operation with at least 2 characters.",
-  "admin.controllers.evidence.error.notes": "Verified capabilities need a lab evidence note.",
+  "admin.controllers.evidence.error.operation":
+    "Name the operation with at least 2 characters.",
+  "admin.controllers.evidence.error.notes":
+    "Verified capabilities need a lab evidence note.",
   "admin.controllers.evidence.success": "Evidence recorded for {operation}",
 
   // ── Controllers · inspection dialog ──────────────────────────────────────
@@ -1310,7 +1462,8 @@ export const adminScreensEn = {
     "A reachable Controller is not proof that a feature works — capabilities are read back live.",
   "admin.controllers.inspect.reachable": "Reachable",
   "admin.controllers.inspect.unreachable": "Unreachable",
-  "admin.controllers.inspect.simulated": "Simulated adapter — nothing here touched real hardware.",
+  "admin.controllers.inspect.simulated":
+    "Simulated adapter — nothing here touched real hardware.",
   "admin.controllers.inspect.detail": "Detail from the Controller",
   "admin.controllers.inspect.capabilities": "Reported capabilities",
   "admin.controllers.inspect.raw": "Raw response",
@@ -1326,7 +1479,8 @@ export const adminScreensEn = {
   "admin.controllers.dialog.deactivateTitle": "Deactivate {name}?",
   "admin.controllers.dialog.deactivateNote":
     "New sites stop being provisioned here. Devices already adopted keep working through their existing mapping.",
-  "admin.controllers.dialog.deactivateReason": "Why this Controller is being retired",
+  "admin.controllers.dialog.deactivateReason":
+    "Why this Controller is being retired",
   "admin.controllers.dialog.deactivateDefaultWarning":
     "This is the current default. {name} takes over as the default Controller the moment this one is retired.",
   "admin.controllers.dialog.deactivateDefaultWarningLast":
@@ -1335,20 +1489,28 @@ export const adminScreensEn = {
   "admin.controllers.dialog.reactivateTitle": "Reactivate {name}?",
   "admin.controllers.dialog.reactivateNote":
     "It becomes eligible to provision sites again. It does not become the default unless you promote it.",
-  "admin.controllers.dialog.reactivateReason": "Why this Controller is coming back",
+  "admin.controllers.dialog.reactivateReason":
+    "Why this Controller is coming back",
   "admin.controllers.dialog.reactivateConfirm": "Reactivate",
   "admin.controllers.dialog.deleteTitle": "Delete {name}?",
   "admin.controllers.dialog.deleteNote":
     "Only a Controller with no site mapping and no adopted device can be deleted. This cannot be undone.",
-  "admin.controllers.dialog.deleteReason": "Why this Controller is being deleted",
+  "admin.controllers.dialog.deleteReason":
+    "Why this Controller is being deleted",
   "admin.controllers.dialog.deleteConfirm": "Delete Controller",
-  "admin.controllers.dialog.reasonPlaceholder": "e.g. hardware replaced at the site",
-  "admin.controllers.dialog.reasonHint": "At least 3 characters. Stored in the audit log.",
-  "admin.controllers.dialog.reasonTooShort": "A reason of at least 3 characters is required.",
+  "admin.controllers.dialog.reasonPlaceholder":
+    "e.g. hardware replaced at the site",
+  "admin.controllers.dialog.reasonHint":
+    "At least 3 characters. Stored in the audit log.",
+  "admin.controllers.dialog.reasonTooShort":
+    "A reason of at least 3 characters is required.",
   "admin.controllers.dialog.cancel": "Cancel",
-  "admin.controllers.dialog.defaultSuccess": "{name} is now the default Controller.",
-  "admin.controllers.dialog.deactivateSuccess": "Controller deactivated — {name}",
-  "admin.controllers.dialog.reactivateSuccess": "Controller reactivated — {name}",
+  "admin.controllers.dialog.defaultSuccess":
+    "{name} is now the default Controller.",
+  "admin.controllers.dialog.deactivateSuccess":
+    "Controller deactivated — {name}",
+  "admin.controllers.dialog.reactivateSuccess":
+    "Controller reactivated — {name}",
   "admin.controllers.dialog.deleteSuccess": "Controller deleted — {name}",
 
   // ── Network · header ─────────────────────────────────────────────────────
@@ -1365,14 +1527,16 @@ export const adminScreensEn = {
 
   // ── Network · KPI row ────────────────────────────────────────────────────
   "admin.network.kpi.sites": "Sites",
-  "admin.network.kpi.sitesHint": "{ready} ready · {provisioning} still provisioning",
+  "admin.network.kpi.sitesHint":
+    "{ready} ready · {provisioning} still provisioning",
   "admin.network.kpi.sitesHintEmpty": "No sites registered yet",
   "admin.network.kpi.claims": "Claims awaiting review",
   "admin.network.kpi.claimsHint": "{adopted} adopted · {rejected} rejected",
   "admin.network.kpi.claimsHintEmpty": "No device claims have been submitted",
   "admin.network.kpi.mappings": "Sites on a Controller",
   "admin.network.kpi.mappingsHint": "{provisioned} of {total} provisioned",
-  "admin.network.kpi.mappingsHintEmpty": "No site is mapped to a Controller yet",
+  "admin.network.kpi.mappingsHintEmpty":
+    "No site is mapped to a Controller yet",
   "admin.network.kpi.mappingsFailing": "{count} need an operator decision",
   "admin.network.kpi.mappingsUnmapped": "{count} sites have no Controller yet",
   "admin.network.kpi.devices": "Devices carried",
@@ -1380,21 +1544,28 @@ export const adminScreensEn = {
   "admin.network.kpi.devicesUnassigned": "{count} have no Controller",
   "admin.network.kpi.devicesHintEmpty": "No devices registered yet",
   "admin.network.kpi.operations": "Network operations",
-  "admin.network.kpi.operationsHint": "{succeeded} succeeded · {running} running",
+  "admin.network.kpi.operationsHint":
+    "{succeeded} succeeded · {running} running",
   "admin.network.kpi.operationsStuck": "{count} stuck after exhausting retries",
-  "admin.network.kpi.operationsHintEmpty": "Nothing has been sent to a Controller yet",
+  "admin.network.kpi.operationsHintEmpty":
+    "Nothing has been sent to a Controller yet",
 
   // ── Network · distribution cards ─────────────────────────────────────────
   "admin.network.distribution.title": "Where everything stands",
-  "admin.network.distribution.description": "Every state currently held by the network, counted.",
+  "admin.network.distribution.description":
+    "Every state currently held by the network, counted.",
   "admin.network.distribution.sites": "Site states",
-  "admin.network.distribution.sitesHint": "Reseller sites and how far provisioning got",
+  "admin.network.distribution.sitesHint":
+    "Reseller sites and how far provisioning got",
   "admin.network.distribution.mappings": "Controller mappings",
-  "admin.network.distribution.mappingsHint": "How each site was accepted by its Controller",
+  "admin.network.distribution.mappingsHint":
+    "How each site was accepted by its Controller",
   "admin.network.distribution.claims": "Device claims",
-  "admin.network.distribution.claimsHint": "Ownership review and what adoption reported",
+  "admin.network.distribution.claimsHint":
+    "Ownership review and what adoption reported",
   "admin.network.distribution.operations": "Network operations",
-  "admin.network.distribution.operationsHint": "Work queued for, or answered by, a Controller",
+  "admin.network.distribution.operationsHint":
+    "Work queued for, or answered by, a Controller",
   "admin.network.distribution.empty": "Nothing recorded yet",
   "admin.network.distribution.total": "{count} total",
 
@@ -1426,7 +1597,8 @@ export const adminScreensEn = {
   "admin.network.claims.empty": "No device claims waiting.",
   "admin.network.claims.approve": "Approve",
   "admin.network.claims.reject": "Reject",
-  "admin.network.claims.approvePrompt": "Approval note (e.g. label photo checked)",
+  "admin.network.claims.approvePrompt":
+    "Approval note (e.g. label photo checked)",
   "admin.network.claims.rejectPrompt": "Reason for rejecting",
   "admin.network.claims.col.reseller": "Reseller / site",
   "admin.network.claims.col.device": "Device",
@@ -1444,13 +1616,15 @@ export const adminScreensEn = {
 
   // ── Network · sites table ────────────────────────────────────────────────
   "admin.network.sites.title": "Sites",
-  "admin.network.sites.description": "Every reseller site and the Controller that carries it.",
+  "admin.network.sites.description":
+    "Every reseller site and the Controller that carries it.",
   "admin.network.sites.empty": "No sites yet.",
   "admin.network.sites.searchTitle": "Find a site",
   "admin.network.sites.search": "Search site, reseller or slug",
   "admin.network.sites.showing": "{shown} of {total}",
   "admin.network.sites.noMatch": "No sites match these filters.",
-  "admin.network.sites.noMatchHint": "Clear the search or pick another state / mapping filter.",
+  "admin.network.sites.noMatchHint":
+    "Clear the search or pick another state / mapping filter.",
   "admin.network.sites.filter.all": "All",
   "admin.network.sites.filter.mappingAll": "Any mapping",
   "admin.network.sites.filter.mapped": "On a Controller",
@@ -1462,11 +1636,13 @@ export const adminScreensEn = {
   "admin.network.sites.col.created": "Created",
   "admin.network.sites.noMapping": "none",
   "admin.network.sites.reprovision": "Retry provisioning",
-  "admin.network.sites.reprovisionHint": "Re-queues the Controller site; safe to run repeatedly.",
+  "admin.network.sites.reprovisionHint":
+    "Re-queues the Controller site; safe to run repeatedly.",
 
   // ── Network · operations table ───────────────────────────────────────────
   "admin.network.ops.title": "Network operations",
-  "admin.network.ops.description": "Work sent to a Controller, with its retry trail kept intact.",
+  "admin.network.ops.description":
+    "Work sent to a Controller, with its retry trail kept intact.",
   "admin.network.ops.empty": "No network operations recorded.",
   "admin.network.ops.filterTitle": "Filter operations",
   "admin.network.ops.col.operation": "Operation",
@@ -1494,11 +1670,13 @@ export const adminScreensEn = {
 
   // ── Payments · trends & mix ──────────────────────────────────────────────
   "admin.payments.trend.title": "Collection trend",
-  "admin.payments.trend.description": "Completed Snippe collections over the last {days} days",
+  "admin.payments.trend.description":
+    "Completed Snippe collections over the last {days} days",
   "admin.payments.trend.guest": "Guest WiFi",
   "admin.payments.trend.subscription": "Subscriptions",
   "admin.payments.mix.title": "Snippe attempt status",
-  "admin.payments.mix.description": "Where every payment attempt sits in the provider lifecycle",
+  "admin.payments.mix.description":
+    "Where every payment attempt sits in the provider lifecycle",
   "admin.payments.mix.center": "Attempts",
   "admin.payments.tab.attempts": "Transactions",
   "admin.payments.tab.webhooks": "Webhooks",
@@ -1510,11 +1688,14 @@ export const adminScreensEn = {
   "admin.payments.kpi.collectedHint": "{count} completed attempts",
   "admin.payments.kpi.collectedEmpty": "No payment has completed yet",
   "admin.payments.kpi.successful": "Successful payments",
-  "admin.payments.kpi.successfulHint": "{rate}% of {total} attempts reached money received",
+  "admin.payments.kpi.successfulHint":
+    "{rate}% of {total} attempts reached money received",
   "admin.payments.kpi.successfulHintEmpty": "No payment attempt recorded yet",
   "admin.payments.kpi.settlement": "Awaiting settlement",
-  "admin.payments.kpi.settlementHint": "{amount} of completed sales still waiting for a provider fee",
-  "admin.payments.kpi.settlementClear": "Every completed sale has a recorded provider fee",
+  "admin.payments.kpi.settlementHint":
+    "{amount} of completed sales still waiting for a provider fee",
+  "admin.payments.kpi.settlementClear":
+    "Every completed sale has a recorded provider fee",
   "admin.payments.kpi.review": "Waiting on an operator",
   "admin.payments.kpi.reviewHint":
     "{review} attempts need a decision · {webhooks} webhooks failed or quarantined · {unsettled} awaiting settlement",
@@ -1525,15 +1706,20 @@ export const adminScreensEn = {
 
   // ── Payments · distribution cards ────────────────────────────────────────
   "admin.payments.distribution.title": "Where the money stands",
-  "admin.payments.distribution.description": "Every state currently held by a payment or a webhook, counted.",
+  "admin.payments.distribution.description":
+    "Every state currently held by a payment or a webhook, counted.",
   "admin.payments.distribution.attempts": "Payment states",
-  "admin.payments.distribution.attemptsHint": "How far each attempt got with the provider",
+  "admin.payments.distribution.attemptsHint":
+    "How far each attempt got with the provider",
   "admin.payments.distribution.orders": "Order payment states",
-  "admin.payments.distribution.ordersHint": "What the order itself believes about payment",
+  "admin.payments.distribution.ordersHint":
+    "What the order itself believes about payment",
   "admin.payments.distribution.providers": "Provider mix",
-  "admin.payments.distribution.providersHint": "Attempts per provider, with money received",
+  "admin.payments.distribution.providersHint":
+    "Attempts per provider, with money received",
   "admin.payments.distribution.webhooks": "Webhook inbox",
-  "admin.payments.distribution.webhooksHint": "Every signed event the provider delivered",
+  "admin.payments.distribution.webhooksHint":
+    "Every signed event the provider delivered",
   "admin.payments.distribution.empty": "Nothing recorded yet",
   "admin.payments.distribution.total": "{count} total",
 
@@ -1567,7 +1753,8 @@ export const adminScreensEn = {
 
   // ── Payments · attempts table ────────────────────────────────────────────
   "admin.payments.attempts.title": "Payment attempts",
-  "admin.payments.attempts.description": "One row per attempt to collect money, with the order it belongs to.",
+  "admin.payments.attempts.description":
+    "One row per attempt to collect money, with the order it belongs to.",
   "admin.payments.attempts.empty": "No payment attempts match.",
   "admin.payments.attempts.search": "Search reference, reseller, site or payer",
   "admin.payments.attempts.filterState": "Filter by state",
@@ -1601,14 +1788,22 @@ export const adminScreensEn = {
   "admin.payments.attempts.reconcileFailed": "Provider lookup failed: {error}",
 
   // ── Payments · reconcile outcomes ────────────────────────────────────────
-  "admin.payments.reconcile.result.applied": "The payment was confirmed and applied.",
-  "admin.payments.reconcile.result.duplicate": "The provider confirmed a payment that was already recorded.",
-  "admin.payments.reconcile.result.overpaid": "A second payment was confirmed and recorded as an overpayment.",
-  "admin.payments.reconcile.result.ignored": "The provider answered, but this attempt had already finished.",
-  "admin.payments.reconcile.result.pending": "The provider still reports this payment as pending.",
-  "admin.payments.reconcile.result.unmatched": "The provider has no payment for this reference.",
-  "admin.payments.reconcile.result.mismatch": "The amount or currency does not match the order.",
-  "admin.payments.reconcile.result.lookup_failed": "The provider lookup failed; check the attempt's last error.",
+  "admin.payments.reconcile.result.applied":
+    "The payment was confirmed and applied.",
+  "admin.payments.reconcile.result.duplicate":
+    "The provider confirmed a payment that was already recorded.",
+  "admin.payments.reconcile.result.overpaid":
+    "A second payment was confirmed and recorded as an overpayment.",
+  "admin.payments.reconcile.result.ignored":
+    "The provider answered, but this attempt had already finished.",
+  "admin.payments.reconcile.result.pending":
+    "The provider still reports this payment as pending.",
+  "admin.payments.reconcile.result.unmatched":
+    "The provider has no payment for this reference.",
+  "admin.payments.reconcile.result.mismatch":
+    "The amount or currency does not match the order.",
+  "admin.payments.reconcile.result.lookup_failed":
+    "The provider lookup failed; check the attempt's last error.",
 
   // ── Payments · reconcile dialog ──────────────────────────────────────────
   "admin.payments.reconcile.title": "Reconcile with the provider",
@@ -1621,12 +1816,16 @@ export const adminScreensEn = {
   "admin.payments.settle.note":
     "The sale completed before the provider fee was known, so the reseller's money is held pending settlement. Recording the real fee releases it.",
   "admin.payments.settle.feeLabel": "Provider fee (TZS)",
-  "admin.payments.settle.feeHint": "Read it from the provider statement. It cannot exceed the held balance.",
+  "admin.payments.settle.feeHint":
+    "Read it from the provider statement. It cannot exceed the held balance.",
   "admin.payments.settle.pendingLabel": "Held pending settlement",
   "admin.payments.settle.reasonLabel": "Reason (audited)",
-  "admin.payments.settle.reasonPlaceholder": "e.g. M-Pesa statement 2026-10-02, line 14",
-  "admin.payments.settle.tooShort": "A reason of at least 3 characters is required.",
-  "admin.payments.settle.feeRequired": "Enter the provider fee from the statement.",
+  "admin.payments.settle.reasonPlaceholder":
+    "e.g. M-Pesa statement 2026-10-02, line 14",
+  "admin.payments.settle.tooShort":
+    "A reason of at least 3 characters is required.",
+  "admin.payments.settle.feeRequired":
+    "Enter the provider fee from the statement.",
   "admin.payments.settle.confirm": "Record fee",
   "admin.payments.settle.success": "Provider fee recorded — {amount}",
 
@@ -1659,7 +1858,8 @@ export const adminScreensEn = {
 
   // ── Payments · webhook inbox ─────────────────────────────────────────────
   "admin.payments.webhooks.title": "Webhook inbox",
-  "admin.payments.webhooks.description": "Every signed event the provider delivered, and what we did with it.",
+  "admin.payments.webhooks.description":
+    "Every signed event the provider delivered, and what we did with it.",
   "admin.payments.webhooks.empty": "No webhooks match.",
   "admin.payments.webhooks.filterState": "Filter webhooks by state",
   "admin.payments.webhooks.allStates": "All states",
@@ -1680,14 +1880,17 @@ export const adminScreensEn = {
   // ── Withdrawals ─────────────────────────────────────────────────────────
   "admin.withdrawals.eyebrow": "Money · Payouts",
   "admin.withdrawals.title": "Withdrawals & payouts",
-  "admin.withdrawals.description": "Beneficiary funds are reserved in the ledger the moment a payout is requested. Approval dispatches a provider payout; rejection or failure releases the reserve. Every decision is audited and needs a reason.",
+  "admin.withdrawals.description":
+    "Beneficiary funds are reserved in the ledger the moment a payout is requested. Approval dispatches a provider payout; rejection or failure releases the reserve. Every decision is audited and needs a reason.",
   "admin.withdrawals.action.refresh": "Refresh counts",
   "admin.withdrawals.trend.title": "Payout trend",
-  "admin.withdrawals.trend.description": "Completed payouts over the last {days} days",
+  "admin.withdrawals.trend.description":
+    "Completed payouts over the last {days} days",
   "admin.withdrawals.trend.reseller": "Resellers",
   "admin.withdrawals.trend.agent": "Agents",
   "admin.withdrawals.mix.title": "Request status",
-  "admin.withdrawals.mix.description": "Where every payout request sits in the lifecycle",
+  "admin.withdrawals.mix.description":
+    "Where every payout request sits in the lifecycle",
   "admin.withdrawals.mix.center": "Requests",
   "admin.withdrawals.requests.filterTitle": "Find a payout",
   "admin.withdrawals.hero.reserveHeld": "Held in reserve",
@@ -1702,42 +1905,53 @@ export const adminScreensEn = {
   "admin.withdrawals.filter.clear": "Clear filters",
   "admin.withdrawals.filter.none": "No filters match this view.",
   "admin.withdrawals.kpi.awaiting.title": "Awaiting decision",
-  "admin.withdrawals.kpi.awaiting.hint": "{count} request(s) hold {amount} of reserve",
+  "admin.withdrawals.kpi.awaiting.hint":
+    "{count} request(s) hold {amount} of reserve",
   "admin.withdrawals.kpi.awaiting.empty": "Nothing is waiting on you",
   "admin.withdrawals.kpi.awaiting.oldest": "Oldest has waited {hours}h",
   "admin.withdrawals.kpi.inFlight.title": "In flight",
-  "admin.withdrawals.kpi.inFlight.hint": "Approved or dispatched, not settled yet",
+  "admin.withdrawals.kpi.inFlight.hint":
+    "Approved or dispatched, not settled yet",
   "admin.withdrawals.kpi.inFlight.empty": "No payout is in flight",
   "admin.withdrawals.kpi.inFlight.stale": "{count} stuck past the retry window",
   "admin.withdrawals.kpi.paid.title": "Paid out",
-  "admin.withdrawals.kpi.paid.hint": "{count} settled · average {amount} per payout",
+  "admin.withdrawals.kpi.paid.hint":
+    "{count} settled · average {amount} per payout",
   "admin.withdrawals.kpi.paid.empty": "No payout has settled yet",
   "admin.withdrawals.kpi.paid.fees": "Provider fees {amount}",
   "admin.withdrawals.kpi.reserve.title": "Reserve held",
-  "admin.withdrawals.kpi.reserve.hint": "Committed to {count} unsettled payout(s)",
+  "admin.withdrawals.kpi.reserve.hint":
+    "Committed to {count} unsettled payout(s)",
   "admin.withdrawals.kpi.reserve.empty": "Nothing is reserved",
   "admin.withdrawals.kpi.reserve.released": "{amount} released back",
   "admin.withdrawals.kpi.attention.title": "Needs admin",
-  "admin.withdrawals.kpi.attention.hint": "{review} need review · {unknown} outcome unknown · {stale} stuck",
+  "admin.withdrawals.kpi.attention.hint":
+    "{review} need review · {unknown} outcome unknown · {stale} stuck",
   "admin.withdrawals.kpi.attention.clear": "Everything is accounted for",
   "admin.withdrawals.kpi.failed": "{count} failed",
   "admin.withdrawals.board.title": "Where the money stands",
-  "admin.withdrawals.board.hint": "Four views of the same reserve: request states, provider attempts, who is being paid, and what the reserve became.",
+  "admin.withdrawals.board.hint":
+    "Four views of the same reserve: request states, provider attempts, who is being paid, and what the reserve became.",
   "admin.withdrawals.states.title": "Request states",
-  "admin.withdrawals.states.hint": "Where every payout request ended up. Click a row to filter the table.",
+  "admin.withdrawals.states.hint":
+    "Where every payout request ended up. Click a row to filter the table.",
   "admin.withdrawals.states.total": "{count} total",
   "admin.withdrawals.states.empty": "No payout request recorded yet.",
   "admin.withdrawals.attempts.title": "Payout attempts",
-  "admin.withdrawals.attempts.hint": "What the provider actually received, including the ones we are unsure about.",
+  "admin.withdrawals.attempts.hint":
+    "What the provider actually received, including the ones we are unsure about.",
   "admin.withdrawals.attempts.empty": "No attempt has been sent to a provider.",
   "admin.withdrawals.attempts.open": "{count} open",
   "admin.withdrawals.attempts.stale": "{count} cannot be retried safely",
   "admin.withdrawals.beneficiaries.title": "Beneficiary mix",
-  "admin.withdrawals.beneficiaries.hint": "Whose money is leaving, and how much of it.",
+  "admin.withdrawals.beneficiaries.hint":
+    "Whose money is leaving, and how much of it.",
   "admin.withdrawals.beneficiaries.total": "{count} beneficiaries",
-  "admin.withdrawals.beneficiaries.empty": "No beneficiary has requested a payout.",
+  "admin.withdrawals.beneficiaries.empty":
+    "No beneficiary has requested a payout.",
   "admin.withdrawals.money.title": "Where the reserve went",
-  "admin.withdrawals.money.hint": "Reserved money either settled with the provider or came back to the beneficiary.",
+  "admin.withdrawals.money.hint":
+    "Reserved money either settled with the provider or came back to the beneficiary.",
   "admin.withdrawals.money.held": "Still held",
   "admin.withdrawals.money.heldHint": "{count} request(s) not settled",
   "admin.withdrawals.money.paidOut": "Paid to beneficiaries",
@@ -1746,8 +1960,10 @@ export const adminScreensEn = {
   "admin.withdrawals.money.releasedHint": "{count} failed or rejected",
   "admin.withdrawals.money.providerFees": "Provider fees paid",
   "admin.withdrawals.money.platformFees": "Platform fee earned",
-  "admin.withdrawals.money.platformFeesUnset": "No platform withdrawal fee is configured, so this is zero.",
-  "admin.withdrawals.money.absorbed": "The provider charged {amount} more than quoted on settled payouts; the platform absorbed it.",
+  "admin.withdrawals.money.platformFeesUnset":
+    "No platform withdrawal fee is configured, so this is zero.",
+  "admin.withdrawals.money.absorbed":
+    "The provider charged {amount} more than quoted on settled payouts; the platform absorbed it.",
   "admin.withdrawals.money.absorbedShort": "{amount} absorbed",
   "admin.withdrawals.money.principal": "Beneficiary principal",
   "admin.withdrawals.state.REQUESTED": "Awaiting decision",
@@ -1779,12 +1995,14 @@ export const adminScreensEn = {
   "admin.withdrawals.accountMasked": "Account {phone}",
   "admin.withdrawals.noContact": "No phone on file",
   "admin.withdrawals.requests.title": "Payout requests",
-  "admin.withdrawals.requests.description": "Newest first. Approve or reject a request, or ask the provider for the truth about a stuck payout.",
+  "admin.withdrawals.requests.description":
+    "Newest first. Approve or reject a request, or ask the provider for the truth about a stuck payout.",
   "admin.withdrawals.requests.empty": "No payout request has been made yet.",
   "admin.withdrawals.requests.noMatch": "No request matches these filters.",
   "admin.withdrawals.requests.count": "{shown} of {total} requests",
   "admin.withdrawals.requests.showMore": "Show {count} more",
-  "admin.withdrawals.requests.truncated": "Only the newest {total} requests are loaded.",
+  "admin.withdrawals.requests.truncated":
+    "Only the newest {total} requests are loaded.",
   "admin.withdrawals.col.beneficiary": "Beneficiary",
   "admin.withdrawals.col.payout": "Payout",
   "admin.withdrawals.col.fees": "Fees",
@@ -1802,40 +2020,61 @@ export const adminScreensEn = {
   "admin.withdrawals.action.reconcile": "Reconcile",
   "admin.withdrawals.action.detail": "Detail",
   "admin.withdrawals.decision.approveTitle": "Approve this payout?",
-  "admin.withdrawals.decision.approveNote": "The reserve is already in the ledger. Approving dispatches the payout to the provider and cannot be undone from here.",
+  "admin.withdrawals.decision.approveNote":
+    "The reserve is already in the ledger. Approving dispatches the payout to the provider and cannot be undone from here.",
   "admin.withdrawals.decision.rejectTitle": "Reject this payout?",
-  "admin.withdrawals.decision.rejectNote": "The full reserve — principal, provider fee and platform fee — returns to the beneficiary's balance straight away.",
-  "admin.withdrawals.decision.rejectWarning": "The beneficiary sees this note. Say what to fix, not just that it failed.",
+  "admin.withdrawals.decision.rejectNote":
+    "The full reserve — principal, provider fee and platform fee — returns to the beneficiary's balance straight away.",
+  "admin.withdrawals.decision.rejectWarning":
+    "The beneficiary sees this note. Say what to fix, not just that it failed.",
   "admin.withdrawals.decision.approveReasonLabel": "Approval note (audited)",
-  "admin.withdrawals.decision.rejectReasonLabel": "Reason for rejection (shown to the beneficiary)",
-  "admin.withdrawals.decision.reasonPlaceholder": "e.g. destination verified by phone call on 02 Oct",
-  "admin.withdrawals.decision.tooShort": "Give a reason of at least 3 characters.",
+  "admin.withdrawals.decision.rejectReasonLabel":
+    "Reason for rejection (shown to the beneficiary)",
+  "admin.withdrawals.decision.reasonPlaceholder":
+    "e.g. destination verified by phone call on 02 Oct",
+  "admin.withdrawals.decision.tooShort":
+    "Give a reason of at least 3 characters.",
   "admin.withdrawals.decision.summary.beneficiary": "Beneficiary",
   "admin.withdrawals.decision.summary.destination": "Destination",
   "admin.withdrawals.decision.summary.amount": "Beneficiary receives",
-  "admin.withdrawals.decision.summary.totalDebit": "Total leaving their balance",
+  "admin.withdrawals.decision.summary.totalDebit":
+    "Total leaving their balance",
   "admin.withdrawals.decision.summary.waiting": "Waiting",
   "admin.withdrawals.reconcile.title": "Ask the provider",
-  "admin.withdrawals.reconcile.note": "Looks the payout up at the provider and applies whatever they report. Nothing is changed when the provider cannot answer.",
+  "admin.withdrawals.reconcile.note":
+    "Looks the payout up at the provider and applies whatever they report. Nothing is changed when the provider cannot answer.",
   "admin.withdrawals.reconcile.attempt": "Latest attempt",
   "admin.withdrawals.reconcile.reference": "Provider reference",
-  "admin.withdrawals.reconcile.noReference": "No reference yet — this attempt never reached the provider",
-  "admin.withdrawals.reconcile.none": "No attempt has been sent for this request.",
+  "admin.withdrawals.reconcile.noReference":
+    "No reference yet — this attempt never reached the provider",
+  "admin.withdrawals.reconcile.none":
+    "No attempt has been sent for this request.",
   "admin.withdrawals.reconcile.run": "Reconcile now",
   "admin.withdrawals.reconcile.running": "Asking the provider…",
   "admin.withdrawals.reconcile.close": "Close",
   "admin.withdrawals.reconcile.result": "Provider said",
-  "admin.withdrawals.reconcile.result.no_attempt": "Nothing was ever sent for this request.",
-  "admin.withdrawals.reconcile.result.pending": "Still processing at the provider. The reserve stays held.",
-  "admin.withdrawals.reconcile.result.completed": "Confirmed settled. The reserve is now released as paid.",
-  "admin.withdrawals.reconcile.result.failed": "The provider reports a failure. The reserve is back with the beneficiary.",
-  "admin.withdrawals.reconcile.result.reversed": "The provider reversed the payout. Only the principal was returned.",
-  "admin.withdrawals.reconcile.result.needs_review": "The provider could not tell us, and it is too late to retry safely. Escalated for review.",
-  "admin.withdrawals.reconcile.result.duplicate": "Already applied — the provider reported this outcome before.",
-  "admin.withdrawals.reconcile.result.unmatched": "The provider returned a reference we do not recognise.",
-  "admin.withdrawals.reconcile.result.ignored": "The provider reported a status we do not act on.",
-  "admin.withdrawals.reconcile.result.lookup_failed": "The provider did not answer. Nothing changed.",
-  "admin.withdrawals.reconcile.result.error": "The lookup failed. Nothing changed.",
+  "admin.withdrawals.reconcile.result.no_attempt":
+    "Nothing was ever sent for this request.",
+  "admin.withdrawals.reconcile.result.pending":
+    "Still processing at the provider. The reserve stays held.",
+  "admin.withdrawals.reconcile.result.completed":
+    "Confirmed settled. The reserve is now released as paid.",
+  "admin.withdrawals.reconcile.result.failed":
+    "The provider reports a failure. The reserve is back with the beneficiary.",
+  "admin.withdrawals.reconcile.result.reversed":
+    "The provider reversed the payout. Only the principal was returned.",
+  "admin.withdrawals.reconcile.result.needs_review":
+    "The provider could not tell us, and it is too late to retry safely. Escalated for review.",
+  "admin.withdrawals.reconcile.result.duplicate":
+    "Already applied — the provider reported this outcome before.",
+  "admin.withdrawals.reconcile.result.unmatched":
+    "The provider returned a reference we do not recognise.",
+  "admin.withdrawals.reconcile.result.ignored":
+    "The provider reported a status we do not act on.",
+  "admin.withdrawals.reconcile.result.lookup_failed":
+    "The provider did not answer. Nothing changed.",
+  "admin.withdrawals.reconcile.result.error":
+    "The lookup failed. Nothing changed.",
   "admin.withdrawals.detail.title": "Payout request",
   "admin.withdrawals.detail.section.identity": "Who is withdrawing",
   "admin.withdrawals.detail.section.money": "Money",
@@ -1871,9 +2110,12 @@ export const adminScreensEn = {
   "admin.withdrawals.detail.attemptError": "Provider error",
   "admin.withdrawals.detail.attemptChecked": "Last checked",
   "admin.withdrawals.detail.attemptCreated": "Sent",
-  "admin.withdrawals.detail.noAttempts": "Nothing has been sent to the provider yet.",
-  "admin.withdrawals.detail.noAllocations": "No Agent commission accrual is attached to this request.",
-  "admin.withdrawals.detail.allocationTotal": "{count} allocation(s) · {amount}",
+  "admin.withdrawals.detail.noAttempts":
+    "Nothing has been sent to the provider yet.",
+  "admin.withdrawals.detail.noAllocations":
+    "No Agent commission accrual is attached to this request.",
+  "admin.withdrawals.detail.allocationTotal":
+    "{count} allocation(s) · {amount}",
   "admin.withdrawals.detail.close": "Close",
   "admin.withdrawals.none": "—",
   "admin.withdrawals.dialog.cancel": "Cancel",
@@ -1903,10 +2145,13 @@ export const adminScreensEn = {
   "admin.ledger.hero.unbalanced": "Out of balance by {amount}",
   "admin.ledger.kpi.debits.title": "Debits posted",
   "admin.ledger.kpi.debits.hint": "{count} debit-normal account(s) contribute",
-  "admin.ledger.kpi.debits.empty": "Nothing has been posted to a debit account.",
+  "admin.ledger.kpi.debits.empty":
+    "Nothing has been posted to a debit account.",
   "admin.ledger.kpi.credits.title": "Credits posted",
-  "admin.ledger.kpi.credits.hint": "{count} credit-normal account(s) contribute",
-  "admin.ledger.kpi.credits.empty": "Nothing has been posted to a credit account.",
+  "admin.ledger.kpi.credits.hint":
+    "{count} credit-normal account(s) contribute",
+  "admin.ledger.kpi.credits.empty":
+    "Nothing has been posted to a credit account.",
   "admin.ledger.kpi.journals.title": "Journals",
   "admin.ledger.kpi.journals.hint": "{events} event type(s) · oldest {date}",
   "admin.ledger.kpi.journals.empty": "Nothing has been posted yet.",
@@ -1914,25 +2159,31 @@ export const adminScreensEn = {
   "admin.ledger.kpi.accounts.title": "Accounts",
   "admin.ledger.kpi.accounts.hint": "{count} of {total} hold a balance",
   "admin.ledger.kpi.accounts.empty": "No account holds a balance yet.",
-  "admin.ledger.kpi.accounts.sides": "{debit} debit-normal · {credit} credit-normal",
+  "admin.ledger.kpi.accounts.sides":
+    "{debit} debit-normal · {credit} credit-normal",
   "admin.ledger.kpi.integrity.title": "Trial balance",
   "admin.ledger.kpi.integrity.balanced": "In balance",
   "admin.ledger.kpi.integrity.unbalanced": "Out of balance",
-  "admin.ledger.kpi.integrity.hint.balanced": "Every posting has a matching leg. The book is sound.",
-  "admin.ledger.kpi.integrity.hint.unbalanced": "Debits and credits differ by {amount}. Freeze payouts and investigate.",
+  "admin.ledger.kpi.integrity.hint.balanced":
+    "Every posting has a matching leg. The book is sound.",
+  "admin.ledger.kpi.integrity.hint.unbalanced":
+    "Debits and credits differ by {amount}. Freeze payouts and investigate.",
   "admin.ledger.kpi.integrity.reversals": "{count} reversal entry(ies)",
   "admin.ledger.kpi.integrity.noReversals": "No corrections have been posted",
   "admin.ledger.notice.unbalanced":
     "Debits and credits differ by {amount}. Do not approve payouts until this is explained.",
 
   "admin.ledger.board.title": "How the book is shaped",
-  "admin.ledger.board.hint": "Four cuts of the same ledger. Pick any row to filter the tables below.",
+  "admin.ledger.board.hint":
+    "Four cuts of the same ledger. Pick any row to filter the tables below.",
   "admin.ledger.events.title": "Posted by event",
-  "admin.ledger.events.hint": "Money in and out, grouped by the business event that caused it.",
+  "admin.ledger.events.hint":
+    "Money in and out, grouped by the business event that caused it.",
   "admin.ledger.events.total": "{count} journals",
   "admin.ledger.events.empty": "No journal has been posted yet.",
   "admin.ledger.obligations.title": "Owed to each party",
-  "admin.ledger.obligations.hint": "Obligation accounts only — what the platform still holds for someone else.",
+  "admin.ledger.obligations.hint":
+    "Obligation accounts only — what the platform still holds for someone else.",
   "admin.ledger.obligations.total": "{amount} owed",
   "admin.ledger.obligations.empty": "Nothing is owed to anyone right now.",
   "admin.ledger.families.title": "Where the money sits",
@@ -1940,7 +2191,8 @@ export const adminScreensEn = {
   "admin.ledger.families.total": "{count} accounts",
   "admin.ledger.families.empty": "No accounts have been opened yet.",
   "admin.ledger.sides.title": "The two sides of the book",
-  "admin.ledger.sides.hint": "Assets and costs against liabilities and revenue. Both sides must match.",
+  "admin.ledger.sides.hint":
+    "Assets and costs against liabilities and revenue. Both sides must match.",
   "admin.ledger.sides.total": "{count} postings",
   "admin.ledger.sides.empty": "Nothing has been posted yet.",
   "admin.ledger.sides.debit": "Debit side (assets, costs)",
@@ -1963,12 +2215,14 @@ export const adminScreensEn = {
   "admin.ledger.account.COMMISSION_EXPENSE": "Commission expense",
   "admin.ledger.account.OVERPAYMENT_LIABILITY": "Overpayments owed",
   "admin.ledger.account.RESELLER_PAYABLE": "Reseller payable",
-  "admin.ledger.account.RESELLER_PENDING_SETTLEMENT": "Reseller pending settlement",
+  "admin.ledger.account.RESELLER_PENDING_SETTLEMENT":
+    "Reseller pending settlement",
   "admin.ledger.account.AGENT_PENDING_PAYABLE": "Agent pending",
   "admin.ledger.account.AGENT_AVAILABLE_PAYABLE": "Agent available",
   "admin.ledger.account.WITHDRAWAL_RESERVE": "Withdrawal reserve",
   "admin.ledger.account.PLATFORM_SALE_FEE_REVENUE": "Sale fee revenue",
-  "admin.ledger.account.PLATFORM_WITHDRAWAL_FEE_REVENUE": "Withdrawal fee revenue",
+  "admin.ledger.account.PLATFORM_WITHDRAWAL_FEE_REVENUE":
+    "Withdrawal fee revenue",
   "admin.ledger.account.PLATFORM_SUBSCRIPTION_REVENUE": "Subscription revenue",
 
   "admin.ledger.event.wifi_sale_receipt": "Wi-Fi sale received",
@@ -1985,7 +2239,8 @@ export const adminScreensEn = {
   "admin.ledger.event.commission_reversal": "Commission reversed",
 
   "admin.ledger.journals.title": "Journal",
-  "admin.ledger.journals.description": "Append-only, newest first. Open an entry to see both legs of every posting.",
+  "admin.ledger.journals.description":
+    "Append-only, newest first. Open an entry to see both legs of every posting.",
   "admin.ledger.journals.filter.search": "Search description or source key",
   "admin.ledger.journals.filter.event": "Event",
   "admin.ledger.journals.filter.allEvents": "All events",
@@ -1994,7 +2249,8 @@ export const adminScreensEn = {
   "admin.ledger.journals.empty": "No journal has been posted.",
   "admin.ledger.journals.noMatch": "No journal matches these filters.",
   "admin.ledger.journals.showMore": "Show {count} more",
-  "admin.ledger.journals.truncated": "Only the newest {total} journals are loaded.",
+  "admin.ledger.journals.truncated":
+    "Only the newest {total} journals are loaded.",
   "admin.ledger.journals.col.entry": "Entry",
   "admin.ledger.journals.col.event": "Event",
   "admin.ledger.journals.col.legs": "Legs",
@@ -2007,7 +2263,8 @@ export const adminScreensEn = {
   "admin.ledger.journals.action.detail": "Detail",
 
   "admin.ledger.accounts.title": "Chart of accounts",
-  "admin.ledger.accounts.description": "Every account with its postings and its balance. Money first.",
+  "admin.ledger.accounts.description":
+    "Every account with its postings and its balance. Money first.",
   "admin.ledger.accounts.filter.search": "Search owner, handle or account",
   "admin.ledger.accounts.filter.owner": "Owner",
   "admin.ledger.accounts.filter.allOwners": "All owners",
@@ -2044,7 +2301,8 @@ export const adminScreensEn = {
   "admin.ledger.detail.status.reversal": "Reversal entry",
   "admin.ledger.detail.reverses": "Reverses",
   "admin.ledger.detail.reversedBy": "Reversed by",
-  "admin.ledger.detail.noTrail": "No correction has been posted against this entry.",
+  "admin.ledger.detail.noTrail":
+    "No correction has been posted against this entry.",
   "admin.ledger.detail.balanced": "Debits equal credits",
   "admin.ledger.detail.unbalanced": "This entry does not balance",
   "admin.ledger.detail.col.account": "Account",
@@ -2083,7 +2341,8 @@ export const adminScreensEn = {
   "admin.settings.kpi.saleFee.unset": "Not set",
   "admin.settings.kpi.saleFee.bps": "{bps} basis points",
   "admin.settings.kpi.withdrawalFee.title": "Withdrawal fee",
-  "admin.settings.kpi.withdrawalFee.hint": "Fixed charge on each payout request",
+  "admin.settings.kpi.withdrawalFee.hint":
+    "Fixed charge on each payout request",
   "admin.settings.kpi.withdrawalFee.unset": "Not set",
   "admin.settings.kpi.withdrawalFee.perPayout": "On top of the amount paid out",
   "admin.settings.kpi.revenue.title": "Fee revenue (30d)",
@@ -2092,7 +2351,8 @@ export const adminScreensEn = {
   "admin.settings.kpi.revenue.allTime": "{amount} all time",
   "admin.settings.kpi.sales.title": "Guest sales (30d)",
   "admin.settings.kpi.sales.hint": "{count} sale(s) totalling {amount}",
-  "admin.settings.kpi.sales.empty": "No guest sale has settled in the last 30 days.",
+  "admin.settings.kpi.sales.empty":
+    "No guest sale has settled in the last 30 days.",
   "admin.settings.kpi.sales.average": "Average ticket {amount}",
   "admin.settings.kpi.lastChange.title": "Last change",
   "admin.settings.kpi.lastChange.never": "Neither fee has ever been changed",
@@ -2100,21 +2360,25 @@ export const adminScreensEn = {
   "admin.settings.kpi.lastChange.version": "Revision {version}",
 
   "admin.settings.board.title": "What these numbers are doing",
-  "admin.settings.board.hint": "A fee means nothing without the volume it applies to. These four cuts show both.",
+  "admin.settings.board.hint":
+    "A fee means nothing without the volume it applies to. These four cuts show both.",
   "admin.settings.revenue.title": "Fee revenue",
-  "admin.settings.revenue.hint": "What each fee earned, as the ledger recorded it.",
+  "admin.settings.revenue.hint":
+    "What each fee earned, as the ledger recorded it.",
   "admin.settings.revenue.total": "{amount} in 30 days",
   "admin.settings.revenue.empty": "No fee revenue has been recorded yet.",
   "admin.settings.revenue.sale": "Sale fees",
   "admin.settings.revenue.withdrawal": "Payout fees",
   "admin.settings.volume.title": "Amount the fees apply to",
-  "admin.settings.volume.hint": "The base each fee is charged against, last 30 days.",
+  "admin.settings.volume.hint":
+    "The base each fee is charged against, last 30 days.",
   "admin.settings.volume.total": "{count} in 30 days",
   "admin.settings.volume.empty": "Nothing has moved in the last 30 days.",
   "admin.settings.volume.sales": "Guest sales",
   "admin.settings.volume.withdrawals": "Payout requests",
   "admin.settings.impact.title": "What the fee takes",
-  "admin.settings.impact.hint": "The current sale fee applied to three real ticket sizes.",
+  "admin.settings.impact.hint":
+    "The current sale fee applied to three real ticket sizes.",
   "admin.settings.impact.total": "at {percent}",
   "admin.settings.impact.empty": "Set a sale fee to see its impact.",
   "admin.settings.impact.small": "Small sale (TZS 1,000)",
@@ -2140,13 +2404,17 @@ export const adminScreensEn = {
   "admin.settings.editor.notSet": "Not set",
   "admin.settings.editor.sale.label": "Percent of each guest sale",
   "admin.settings.editor.sale.unit": "%",
-  "admin.settings.editor.sale.hint": "Between 0% and 50%, in hundredths of a percent.",
+  "admin.settings.editor.sale.hint":
+    "Between 0% and 50%, in hundredths of a percent.",
   "admin.settings.editor.withdrawal.label": "Fixed TZS per payout",
   "admin.settings.editor.withdrawal.unit": "TZS",
   "admin.settings.editor.withdrawal.hint": "Between TZS 0 and TZS 1,000,000.",
-  "admin.settings.editor.preview.sale": "At the 30-day average ticket of {amount}, one sale earns {fee}.",
-  "admin.settings.editor.preview.sale.noVolume": "No sales in the last 30 days, so there is no average ticket to price against.",
-  "admin.settings.editor.preview.withdrawal": "One payout of {amount} would debit {total} from the beneficiary.",
+  "admin.settings.editor.preview.sale":
+    "At the 30-day average ticket of {amount}, one sale earns {fee}.",
+  "admin.settings.editor.preview.sale.noVolume":
+    "No sales in the last 30 days, so there is no average ticket to price against.",
+  "admin.settings.editor.preview.withdrawal":
+    "One payout of {amount} would debit {total} from the beneficiary.",
   "admin.settings.editor.preview.withdrawal.noBase":
     "No payout in the last 30 days, so there is no typical amount to price against.",
   "admin.settings.editor.unchanged": "No change yet",
@@ -2156,7 +2424,8 @@ export const adminScreensEn = {
   "admin.settings.editor.saved": "Saved. New records use {value}.",
   "admin.settings.editor.invalid": "Enter a number between {min} and {max}.",
   "admin.settings.editor.lastChange": "Last changed {date}",
-  "admin.settings.editor.lastChange.none": "Never changed — this is the initial value.",
+  "admin.settings.editor.lastChange.none":
+    "Never changed — this is the initial value.",
   "admin.settings.editor.lastChange.by": "by {actor}",
   "admin.settings.editor.reason.title.sale": "Change the guest sale fee?",
   "admin.settings.editor.reason.title.withdrawal": "Change the withdrawal fee?",
@@ -2168,13 +2437,16 @@ export const adminScreensEn = {
   "admin.settings.editor.reason.warning":
     "Sales and payouts already created keep their own snapshotted fee. Only new records use this value.",
   "admin.settings.editor.reason.label": "Reason for this change (audited)",
-  "admin.settings.editor.reason.placeholder": "e.g. Q4 pricing review approved by the board",
-  "admin.settings.editor.reason.tooShort": "Give a reason of at least 3 characters.",
+  "admin.settings.editor.reason.placeholder":
+    "e.g. Q4 pricing review approved by the board",
+  "admin.settings.editor.reason.tooShort":
+    "Give a reason of at least 3 characters.",
   "admin.settings.editor.reason.confirm": "Save",
   "admin.settings.editor.reason.cancel": "Cancel",
 
   "admin.settings.historyTable.title": "Change history",
-  "admin.settings.historyTable.description": "Every fee change, with the old value, the new value and the reason given.",
+  "admin.settings.historyTable.description":
+    "Every fee change, with the old value, the new value and the reason given.",
   "admin.settings.historyTable.empty": "Neither fee has been changed yet.",
   "admin.settings.historyTable.col.when": "When",
   "admin.settings.historyTable.col.setting": "Setting",
@@ -2196,16 +2468,21 @@ export const adminScreensEn = {
     "Jobs, opportunities, local events and holiday offers shown to guests in the WiFi portal — created by hand or found by Advowifi AI.",
   "admin.listings.new": "Add listing",
   "admin.listings.edit": "Edit listing",
-  "admin.listings.formHint": "Only active listings reach guests. Lower sort order shows first.",
+  "admin.listings.formHint":
+    "Only active listings reach guests. Lower sort order shows first.",
   "admin.listings.kind": "Type",
   "admin.listings.kind.JOB": "Job",
   "admin.listings.kind.OPPORTUNITY": "Opportunity",
   "admin.listings.kind.LOCAL_EVENT": "Local event",
   "admin.listings.kind.HOLIDAY": "Holiday",
-  "admin.listings.hint.JOB": "A live vacancy with an application link or contact.",
-  "admin.listings.hint.OPPORTUNITY": "Training, funding, internships or another open opportunity.",
-  "admin.listings.hint.LOCAL_EVENT": "Something happening soon — add the venue and start time.",
-  "admin.listings.hint.HOLIDAY": "A trip or getaway offer with a place and a price hint.",
+  "admin.listings.hint.JOB":
+    "A live vacancy with an application link or contact.",
+  "admin.listings.hint.OPPORTUNITY":
+    "Training, funding, internships or another open opportunity.",
+  "admin.listings.hint.LOCAL_EVENT":
+    "Something happening soon — add the venue and start time.",
+  "admin.listings.hint.HOLIDAY":
+    "A trip or getaway offer with a place and a price hint.",
   "admin.listings.searchPlaceholder": "Search title, organizer, venue or tag…",
   "admin.listings.filter.type": "Type",
   "admin.listings.filter.source": "Source",
@@ -2235,7 +2512,8 @@ export const adminScreensEn = {
   "admin.listings.bulk.activate": "Publish",
   "admin.listings.bulk.deactivate": "Unpublish",
   "admin.listings.bulk.delete": "Delete",
-  "admin.listings.bulk.confirmDelete": "Delete {count} listings? Guests will no longer see them.",
+  "admin.listings.bulk.confirmDelete":
+    "Delete {count} listings? Guests will no longer see them.",
   "admin.listings.goesLive": "Goes live {date}",
   "admin.listings.sourceLink": "Source",
   "admin.listings.hide": "Hide",
@@ -2249,7 +2527,8 @@ export const adminScreensEn = {
   "admin.listings.venue": "Venue",
   "admin.listings.region": "Region",
   "admin.listings.employmentType": "Employment type",
-  "admin.listings.employmentTypePlaceholder": "Full-time, shift work, training…",
+  "admin.listings.employmentTypePlaceholder":
+    "Full-time, shift work, training…",
   "admin.listings.startsAtJob": "Starts",
   "admin.listings.endsAtJob": "Application deadline",
   "admin.listings.endsAtJobHint": "Guests stop seeing it after this date.",
@@ -2263,7 +2542,8 @@ export const adminScreensEn = {
   "admin.listings.linkJob": "Application link",
   "admin.listings.linkEvent": "Event link",
   "admin.listings.linkHoliday": "Offer link",
-  "admin.listings.linkHint": "Guests open this to apply, register or read more.",
+  "admin.listings.linkHint":
+    "Guests open this to apply, register or read more.",
   "admin.listings.summary": "Summary",
   "admin.listings.description": "Description",
   "admin.listings.tags": "Tags",
@@ -2273,12 +2553,15 @@ export const adminScreensEn = {
   "admin.listings.image.uploading": "Uploading and optimising…",
   "admin.listings.image.replace": "Replace",
   "admin.listings.image.remove": "Remove",
-  "admin.listings.image.uploadFailed": "That image could not be uploaded. Try again.",
+  "admin.listings.image.uploadFailed":
+    "That image could not be uploaded. Try again.",
   "admin.listings.image.previewAlt": "Listing card preview",
-  "admin.listings.image.saved": "This image is the cover of the card guests see in Explore.",
+  "admin.listings.image.saved":
+    "This image is the cover of the card guests see in Explore.",
   "admin.listings.image.compressNote":
     "Upload straight from your phone or designer — we shrink it to a fast WebP and keep it sharp on a phone screen.",
-  "admin.listings.image.urlFallback": "Use an image already hosted somewhere else",
+  "admin.listings.image.urlFallback":
+    "Use an image already hosted somewhere else",
   "admin.listings.sourceUrl": "Source URL",
   "admin.listings.sortOrder": "Sort order",
   "admin.listings.active": "Visible to guests",
@@ -2288,8 +2571,10 @@ export const adminScreensEn = {
   "admin.listings.cancel": "Cancel",
   "admin.listings.delete": "Delete",
   "admin.listings.deleted": "Listing deleted.",
-  "admin.listings.confirmDelete": "Delete this listing? Guests will no longer see it.",
-  "admin.listings.empty": "Nothing here yet. Add the first listing or switch on Advowifi AI.",
+  "admin.listings.confirmDelete":
+    "Delete this listing? Guests will no longer see it.",
+  "admin.listings.empty":
+    "Nothing here yet. Add the first listing or switch on Advowifi AI.",
   "admin.listings.emptyFilter": "No listings match these filters.",
   "admin.listings.filter.all": "All types",
   "admin.listings.tableLabel": "Explore listings",
@@ -2315,7 +2600,8 @@ export const adminScreensEn = {
   "admin.listings.ai.apiKeyMissing":
     "GEMINI_API_KEY is not configured on the server, so the assistant cannot run yet.",
   "admin.listings.ai.enabled": "Run the assistant automatically",
-  "admin.listings.ai.enabledHint": "It searches at the times below and saves what it finds.",
+  "admin.listings.ai.enabledHint":
+    "It searches at the times below and saves what it finds.",
   "admin.listings.ai.assistantName": "Assistant name",
   "admin.listings.ai.model": "Gemini model",
   "admin.listings.ai.modelHint":
@@ -2323,15 +2609,18 @@ export const adminScreensEn = {
   "admin.listings.ai.analysesPerDay": "Searches per day",
   "admin.listings.ai.postsPerDay": "Maximum posts per day",
   "admin.listings.ai.times": "Run times",
-  "admin.listings.ai.timesHint": "24-hour HH:MM, comma separated. Extra times are ignored past the daily limit.",
+  "admin.listings.ai.timesHint":
+    "24-hour HH:MM, comma separated. Extra times are ignored past the daily limit.",
   "admin.listings.ai.timezone": "Timezone",
   "admin.listings.ai.kinds": "What it looks for",
   "admin.listings.ai.regions": "Regions",
-  "admin.listings.ai.regionsHint": "Comma separated. Leave empty to search all of Tanzania.",
+  "admin.listings.ai.regionsHint":
+    "Comma separated. Leave empty to search all of Tanzania.",
   "admin.listings.ai.publishDelay": "Publish delay (minutes)",
   "admin.listings.ai.delayHint": "Wait this long before guests see an AI find.",
   "admin.listings.ai.minScore": "Minimum confidence",
-  "admin.listings.ai.minScoreHint": "0–100. Higher means fewer, safer listings.",
+  "admin.listings.ai.minScoreHint":
+    "0–100. Higher means fewer, safer listings.",
   "admin.listings.ai.autoPublish": "Publish AI finds automatically",
   "admin.listings.ai.autoPublishHint":
     "Off keeps new finds as drafts so you can review them before guests see them.",
@@ -2341,7 +2630,8 @@ export const adminScreensEn = {
   "admin.listings.ai.runSkipped": "Run skipped: {message}",
   "admin.listings.ai.lastRuns": "Recent runs",
   "admin.listings.ai.noRuns": "The assistant has not run yet.",
-  "admin.listings.ai.runCounts": "{posted} posted · {analysed} analysed · {skipped} skipped",
+  "admin.listings.ai.runCounts":
+    "{posted} posted · {analysed} analysed · {skipped} skipped",
   "admin.listings.ai.status.RUNNING": "Running",
   "admin.listings.ai.status.SUCCEEDED": "Succeeded",
   "admin.listings.ai.status.FAILED": "Failed",
@@ -2372,12 +2662,15 @@ export const adminScreensEn = {
   "admin.hotspots.image.uploading": "Uploading and optimising…",
   "admin.hotspots.image.replace": "Replace",
   "admin.hotspots.image.remove": "Remove",
-  "admin.hotspots.image.uploadFailed": "That image could not be uploaded. Try again.",
+  "admin.hotspots.image.uploadFailed":
+    "That image could not be uploaded. Try again.",
   "admin.hotspots.image.previewAlt": "Hotspot card preview",
-  "admin.hotspots.image.saved": "This image is the cover of the hotspot card on the marketing site.",
+  "admin.hotspots.image.saved":
+    "This image is the cover of the hotspot card on the marketing site.",
   "admin.hotspots.image.compressNote":
     "Upload straight from your phone or designer — we shrink it to a fast WebP and keep it sharp on a phone screen.",
-  "admin.hotspots.image.urlFallback": "Use an image already hosted somewhere else",
+  "admin.hotspots.image.urlFallback":
+    "Use an image already hosted somewhere else",
   "admin.hotspots.portalSlug": "Portal slug",
   "admin.hotspots.portalSlugPlaceholder": "Optional site brand slug",
   "admin.hotspots.sortOrder": "Sort order",
@@ -2387,8 +2680,10 @@ export const adminScreensEn = {
   "admin.hotspots.saved": "Hotspot saved.",
   "admin.hotspots.cancel": "Cancel",
   "admin.hotspots.delete": "Delete",
-  "admin.hotspots.confirmDelete": "Delete this hotspot? It will disappear from the public map.",
-  "admin.hotspots.empty": "No hotspots yet. Add the first location for the marketing map.",
+  "admin.hotspots.confirmDelete":
+    "Delete this hotspot? It will disappear from the public map.",
+  "admin.hotspots.empty":
+    "No hotspots yet. Add the first location for the marketing map.",
   "admin.hotspots.filter.all": "All",
   "admin.hotspots.filter.active": "Visible",
   "admin.hotspots.filter.hidden": "Hidden",
@@ -2405,7 +2700,8 @@ export const adminScreensEn = {
   "admin.hotspots.owner.createHint":
     "The site is created under the account you choose, exactly as that account would create it, including its plan limits and controller setup.",
   "admin.hotspots.owner.account": "Owner account",
-  "admin.hotspots.owner.accountPlaceholder": "Choose the account that owns this site",
+  "admin.hotspots.owner.accountPlaceholder":
+    "Choose the account that owns this site",
   "admin.hotspots.owner.siteName": "Site name",
   "admin.hotspots.owner.siteLocation": "Location",
   "admin.hotspots.owner.createSubmit": "Create site",
@@ -2419,7 +2715,8 @@ export const adminScreensEn = {
 
   "admin.hotspotPerformance.back": "Back to hotspots",
   "admin.hotspotPerformance.badge": "Performance",
-  "admin.hotspotPerformance.subtitle": "Paid sales, packages and payment health for the site behind this location.",
+  "admin.hotspotPerformance.subtitle":
+    "Paid sales, packages and payment health for the site behind this location.",
   "admin.hotspotPerformance.window": "Window",
   "admin.hotspotPerformance.window.7": "7 days",
   "admin.hotspotPerformance.window.30": "30 days",
@@ -2438,17 +2735,21 @@ export const adminScreensEn = {
   "admin.hotspotPerformance.kpi.averageLabel": "Average order",
   "admin.hotspotPerformance.kpi.averageHint": "Across {count} paid orders",
   "admin.hotspotPerformance.kpi.clients": "Unique clients",
-  "admin.hotspotPerformance.kpi.clientsHint": "Buyers with at least one paid order",
+  "admin.hotspotPerformance.kpi.clientsHint":
+    "Buyers with at least one paid order",
   "admin.hotspotPerformance.kpi.activeGrants": "Active grants",
   "admin.hotspotPerformance.kpi.activeGrantsHint": "Guests connected right now",
   "admin.hotspotPerformance.trend.title": "Revenue trend",
-  "admin.hotspotPerformance.trend.description": "Paid Wi-Fi sales per day over the last {days} days.",
+  "admin.hotspotPerformance.trend.description":
+    "Paid Wi-Fi sales per day over the last {days} days.",
   "admin.hotspotPerformance.packages.title": "Package mix",
-  "admin.hotspotPerformance.packages.description": "Which packages guests buy, ranked by revenue in the window.",
+  "admin.hotspotPerformance.packages.description":
+    "Which packages guests buy, ranked by revenue in the window.",
   "admin.hotspotPerformance.packages.empty": "No package sales in this window.",
   "admin.hotspotPerformance.packages.center": "Window revenue",
   "admin.hotspotPerformance.payments.title": "Payment health",
-  "admin.hotspotPerformance.payments.description": "Every order state in the window, so failed payments stay visible.",
+  "admin.hotspotPerformance.payments.description":
+    "Every order state in the window, so failed payments stay visible.",
   "admin.hotspotPerformance.payments.empty": "No orders in this window.",
   "admin.hotspotPerformance.payments.center": "Orders",
   "admin.hotspotPerformance.payments.paid": "Paid",
@@ -2462,14 +2763,16 @@ export const adminScreensEn = {
   "admin.hotspotPerformance.unlinked.title": "This hotspot has no site",
   "admin.hotspotPerformance.unlinked.body":
     "Performance is reported from a site's paid orders. Edit the hotspot and link the site it operates to see revenue here.",
-  "admin.hotspotPerformance.error.export": "The export could not be downloaded. Try again.",
+  "admin.hotspotPerformance.error.export":
+    "The export could not be downloaded. Try again.",
 };
 
 export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.overview.greeting.morning": "Habari za asubuhi",
   "admin.overview.greeting.afternoon": "Habari za mchana",
   "admin.overview.greeting.evening": "Habari za jioni",
-  "admin.overview.subtitle": "Afya ya jukwaa, mapato na foleni zinazosubiri msimamizi.",
+  "admin.overview.subtitle":
+    "Afya ya jukwaa, mapato na foleni zinazosubiri msimamizi.",
   "admin.overview.system.healthy": "Mifumo yote inafanya kazi",
   "admin.overview.system.attention": "Vitu {count} vinahitaji uangalizi",
   "admin.overview.system.attentionOne": "Kitu 1 kinahitaji uangalizi",
@@ -2479,16 +2782,19 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.overview.action.operations": "Uendeshaji",
 
   "admin.overview.kpi.collections": "Makusanyo ya wageni leo",
-  "admin.overview.kpi.collectionsHint": "Oda {count} za wageni zilizolipwa · ghafi",
+  "admin.overview.kpi.collectionsHint":
+    "Oda {count} za wageni zilizolipwa · ghafi",
   "admin.overview.kpi.subRevenue": "Mapato ya usajili",
   "admin.overview.kpi.subRevenueHint": "Ankara {count} zilizolipwa leo",
   "admin.overview.kpi.resellers": "Wauzaji hai",
-  "admin.overview.kpi.resellersHint": "{suspended} wamesimamishwa · {pending} wanasubiri",
+  "admin.overview.kpi.resellersHint":
+    "{suspended} wamesimamishwa · {pending} wanasubiri",
   "admin.overview.kpi.agents": "Mawakala hai",
   "admin.overview.kpi.agentsHint": "Wanapata kamisheni kwa rufaa",
 
   "admin.overview.attention.title": "Vinahitaji uangalizi wako",
-  "admin.overview.attention.description": "Foleni zinazosubiri uamuzi wa msimamizi.",
+  "admin.overview.attention.description":
+    "Foleni zinazosubiri uamuzi wa msimamizi.",
   "admin.overview.attention.clear": "Hakuna kinachosubiri — jukwaa ni safi.",
   "admin.overview.attention.claims": "Madai ya vifaa",
   "admin.overview.attention.claimsHint": "Yanasubiri idhini",
@@ -2502,7 +2808,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.overview.attention.deadHint": "Yamezidi majaribio",
 
   "admin.overview.revenue.title": "Mwenendo wa Mapato",
-  "admin.overview.revenue.description": "Oda zilizolipwa katika siku {days} zilizopita",
+  "admin.overview.revenue.description":
+    "Oda zilizolipwa katika siku {days} zilizopita",
   "admin.overview.revenue.guest": "Mauzo ya wageni",
   "admin.overview.revenue.subscription": "Usajili",
   "admin.overview.revenue.total": "Jumla",
@@ -2513,7 +2820,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.overview.mix.center": "oda",
 
   "admin.overview.controllers.title": "Vidhibiti",
-  "admin.overview.controllers.description": "Vidhibiti vya Omada na afya yao ya mwisho",
+  "admin.overview.controllers.description":
+    "Vidhibiti vya Omada na afya yao ya mwisho",
   "admin.overview.controllers.empty":
     "Hakuna kidhibiti kilichosajiliwa. Maeneo hayawezi kusanidiwa hadi msimamizi aongeze kimoja.",
   "admin.overview.controllers.add": "Ongeza kidhibiti",
@@ -2522,7 +2830,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.overview.controllers.never": "Haijawahi kukaguliwa",
 
   "admin.overview.activity.title": "Shughuli za Hivi Karibuni",
-  "admin.overview.activity.description": "Vitendo vya mwisho vya msimamizi vilivyokaguliwa",
+  "admin.overview.activity.description":
+    "Vitendo vya mwisho vya msimamizi vilivyokaguliwa",
   "admin.overview.activity.empty": "Hakuna matukio ya ukaguzi bado.",
 
   "admin.overview.orders.title": "Oda za Wageni za Hivi Karibuni",
@@ -2567,20 +2876,24 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.operations.kpi.pendingHint": "Yanasubiri mfanyakazi kuyachukua",
   "admin.operations.kpi.pendingHintNone": "Hakuna kwenye foleni kwa sasa",
   "admin.operations.kpi.dead": "Matukio yaliyoshindikana",
-  "admin.operations.kpi.deadHint": "Yamezidi majaribio {max} — rudisha safu, kisha sambaza",
+  "admin.operations.kpi.deadHint":
+    "Yamezidi majaribio {max} — rudisha safu, kisha sambaza",
   "admin.operations.kpi.deadHintNone": "Hakuna tukio lililoishiwa majaribio",
   "admin.operations.kpi.oldest": "La zamani zaidi",
   "admin.operations.kpi.oldestHint": "Liliingia {when}",
   "admin.operations.kpi.oldestHintNone": "Hakuna linalosubiri",
   "admin.operations.kpi.oldestValueNone": "—",
   "admin.operations.kpi.pressure": "Shinikizo la majaribio",
-  "admin.operations.kpi.pressureHint": "Idadi kubwa ya majaribio kwenye foleni (kati ya {max})",
+  "admin.operations.kpi.pressureHint":
+    "Idadi kubwa ya majaribio kwenye foleni (kati ya {max})",
   "admin.operations.kpi.pressureHintNone": "Hakuna majaribio yaliyorekodiwa",
 
   // ── Uendeshaji · uokoaji wa mwisho ───────────────────────────────────────
   "admin.operations.outcome.title": "Uokoaji wa mwisho",
-  "admin.operations.outcome.description": "Kile uendeshaji wa mkono ulibadilisha, mapya kwanza",
-  "admin.operations.outcome.empty": "Hakuna uokoaji ulioendeshwa kwenye kipindi hiki.",
+  "admin.operations.outcome.description":
+    "Kile uendeshaji wa mkono ulibadilisha, mapya kwanza",
+  "admin.operations.outcome.empty":
+    "Hakuna uokoaji ulioendeshwa kwenye kipindi hiki.",
   "admin.operations.outcome.emptyHint":
     "Kusambaza huwasilisha matukio yaliyosubiri; visafishaji hurudia webhooks zilizochelewa, hulinganisha malipo na uondoaji, hutoa kamisheni na kumaliza usajili ulioisha.",
   "admin.operations.outcome.action.drain": "Sambaza matukio",
@@ -2594,14 +2907,18 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.operations.outcome.commissionsReleased": "Kamisheni zilizotolewa",
   "admin.operations.outcome.subscriptionsExpired": "Usajili ulioisha",
   "admin.operations.outcome.grantsExpired": "Ruhusa zilizoisha",
-  "admin.operations.outcome.grantsActivationFailed": "Uanzishaji ulioshindikana",
-  "admin.operations.outcome.note": "Kila kishughulikiaji ni salama kurudiwa — mzunguko wa pili hauweki fedha mara mbili.",
+  "admin.operations.outcome.grantsActivationFailed":
+    "Uanzishaji ulioshindikana",
+  "admin.operations.outcome.note":
+    "Kila kishughulikiaji ni salama kurudiwa — mzunguko wa pili hauweki fedha mara mbili.",
 
   // ── Uendeshaji · jedwali la outbox ───────────────────────────────────────
   "admin.operations.table.title": "Matukio yasiyowasilishwa",
-  "admin.operations.table.description": "Jaribio la zamani kwanza, hadi safu 200",
+  "admin.operations.table.description":
+    "Jaribio la zamani kwanza, hadi safu 200",
   "admin.operations.table.empty": "Matukio yote yamewasilishwa",
-  "admin.operations.table.emptyHint": "Outbox ni tupu — oda zilizolipwa zimesindikwa kikamilifu.",
+  "admin.operations.table.emptyHint":
+    "Outbox ni tupu — oda zilizolipwa zimesindikwa kikamilifu.",
   "admin.operations.col.event": "Tukio",
   "admin.operations.col.aggregate": "Kipengele",
   "admin.operations.col.retries": "Majaribio",
@@ -2618,16 +2935,19 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.audit.description":
     "Kila tendo linalohusu usalama na fedha, pamoja na msimamizi, lengo na sababu iliyotolewa.",
   "admin.audit.filter.title": "Chuja matukio",
-  "admin.audit.filter.description": "Punguza kumbukumbu kwa kiambishi cha tendo",
+  "admin.audit.filter.description":
+    "Punguza kumbukumbu kwa kiambishi cha tendo",
   "admin.audit.filter.label": "Kiambishi cha tendo",
   "admin.audit.filter.placeholder": "withdrawal.",
   "admin.audit.filter.apply": "Weka kichujio",
   "admin.audit.filter.clear": "Ondoa",
   "admin.audit.filter.active": "Unachuja kwa “{value}”",
-  "admin.audit.empty": "Hakuna matukio ya ukaguzi yanayolingana na kichujio hiki.",
+  "admin.audit.empty":
+    "Hakuna matukio ya ukaguzi yanayolingana na kichujio hiki.",
   "admin.audit.emptyHint": "Ondoa kichujio kuona kumbukumbu zote.",
   "admin.audit.emptyNone": "Hakuna matukio ya ukaguzi bado.",
-  "admin.audit.emptyNoneHint": "Vitendo vya msimamizi vitaonekana hapa vinapotokea.",
+  "admin.audit.emptyNoneHint":
+    "Vitendo vya msimamizi vitaonekana hapa vinapotokea.",
   "admin.audit.kpi.events": "Matukio yanayoonyeshwa",
   "admin.audit.kpi.eventsHint": "Mapya kwanza, kumbukumbu ya kusoma tu",
   "admin.audit.kpi.operators": "Wasimamizi",
@@ -2639,7 +2959,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.audit.kpi.latestHintAt": "saa {when}",
   "admin.audit.quick.title": "Kichujio cha haraka",
   "admin.audit.quick.all": "Maeneo yote",
-  "admin.audit.quick.description": "Nenda moja kwa moja kwenye eneo moja badala ya kuandika kiambishi.",
+  "admin.audit.quick.description":
+    "Nenda moja kwa moja kwenye eneo moja badala ya kuandika kiambishi.",
   "admin.audit.table.description": "Kumbukumbu isiyobadilika, mpya kwanza.",
   "admin.audit.role.admin": "Msimamizi",
   "admin.audit.role.reseller": "Muuzaji",
@@ -2665,7 +2986,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.action.open": "Fungua",
   "admin.resellers.action.edit": "Hariri taarifa",
   "admin.resellers.count": "Wauzaji {count}",
-  "admin.resellers.search.placeholder": "Tafuta biashara, mmiliki, barua pepe au slug",
+  "admin.resellers.search.placeholder":
+    "Tafuta biashara, mmiliki, barua pepe au slug",
   "admin.resellers.search.label": "Tafuta wauzaji",
   "admin.resellers.filter.all": "Wote",
   "admin.resellers.filter.active": "Hai",
@@ -2680,9 +3002,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.kpi.devices": "Vifaa vilivyopo",
   "admin.resellers.kpi.devicesHint": "Kwenye maeneo {sites}",
   "admin.resellers.empty": "Hakuna muuzaji anayelingana na mwonekano huu.",
-  "admin.resellers.emptyHint": "Badilisha utafutaji au kichujio, au unda muuzaji kuanza.",
+  "admin.resellers.emptyHint":
+    "Badilisha utafutaji au kichujio, au unda muuzaji kuanza.",
   "admin.resellers.emptyNone": "Hakuna wauzaji bado.",
-  "admin.resellers.emptyNoneHint": "Unda muuzaji wa kwanza kuanza kuandikisha washirika.",
+  "admin.resellers.emptyNoneHint":
+    "Unda muuzaji wa kwanza kuanza kuandikisha washirika.",
   "admin.resellers.col.business": "Biashara",
   "admin.resellers.col.status": "Hali",
   "admin.resellers.col.plan": "Mpango",
@@ -2712,22 +3036,28 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "{name} amefungwa na kuondolewa kwenye orodha; ankara zake zinabaki kwenye hesabu.",
   "admin.resellers.reason.suspend": "Sababu ya kumsimamisha {name}",
   "admin.resellers.reason.reactivate": "Sababu ya kumrejesha {name}",
-  "admin.resellers.reason.attribution": "Sababu ya kurekebisha aliyemleta wakala",
+  "admin.resellers.reason.attribution":
+    "Sababu ya kurekebisha aliyemleta wakala",
   "admin.resellers.reason.impersonate": "Kwa nini unaingia kama {name}?",
-  "admin.resellers.reason.impersonateHint": "Itaandikwa kwenye kumbukumbu ya ukaguzi pamoja na kikao.",
+  "admin.resellers.reason.impersonateHint":
+    "Itaandikwa kwenye kumbukumbu ya ukaguzi pamoja na kikao.",
 
   // ── Resellers · operator dialog (suspend / attribution / impersonation) ──
   "admin.resellers.dialog.reason": "Sababu",
-  "admin.resellers.dialog.reasonPlaceholder": "mf. mmiliki ameomba msaada kwa malipo yaliyokwama",
-  "admin.resellers.dialog.reasonHint": "Angalau herufi 3. Hii huhifadhiwa kwenye kumbukumbu ya ukaguzi.",
-  "admin.resellers.dialog.reasonTooShort": "Sababu ya angalau herufi 3 inahitajika.",
+  "admin.resellers.dialog.reasonPlaceholder":
+    "mf. mmiliki ameomba msaada kwa malipo yaliyokwama",
+  "admin.resellers.dialog.reasonHint":
+    "Angalau herufi 3. Hii huhifadhiwa kwenye kumbukumbu ya ukaguzi.",
+  "admin.resellers.dialog.reasonTooShort":
+    "Sababu ya angalau herufi 3 inahitajika.",
   "admin.resellers.dialog.agent": "Mpe wakala huyu sifa",
   "admin.resellers.dialog.agentNone": "— Ondoa sifa (usajili wa moja kwa moja)",
   "admin.resellers.dialog.statusTitleSuspend": "Simamisha {name}",
   "admin.resellers.dialog.statusTitleReactivate": "Rejesha {name}",
   "admin.resellers.dialog.statusNoteSuspend":
     "Vikao vinavyotumika vinakatwa na muuzaji hawezi kuuza tena hadi arejeshwe.",
-  "admin.resellers.dialog.statusNoteReactivate": "Muuzaji ataweza kuingia na kuuza tena mara moja.",
+  "admin.resellers.dialog.statusNoteReactivate":
+    "Muuzaji ataweza kuingia na kuuza tena mara moja.",
   "admin.resellers.dialog.attributionTitle": "Rekebisha sifa ya {name}",
   "admin.resellers.dialog.attributionNote":
     "Ni mwendeshaji anayetatua hili tu anayeweza kulibadilisha tena — badiliko hukaguliwa.",
@@ -2749,12 +3079,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.create.phone": "Simu ya mmiliki",
   "admin.resellers.create.phoneHint": "Simu ya Tanzania, mf. 0712 345 678",
   "admin.resellers.create.password": "Neno la siri la muda",
-  "admin.resellers.create.passwordHint": "Angalau herufi 10. Mpe kwa njia salama.",
+  "admin.resellers.create.passwordHint":
+    "Angalau herufi 10. Mpe kwa njia salama.",
   "admin.resellers.create.referralCode": "Msimbo wa wakala",
-  "admin.resellers.create.referralCodeHint": "Si lazima — mpe wakala sifa kwa kuleta muuzaji huyu.",
+  "admin.resellers.create.referralCodeHint":
+    "Si lazima — mpe wakala sifa kwa kuleta muuzaji huyu.",
   "admin.resellers.create.submit": "Unda muuzaji",
   "admin.resellers.create.cancel": "Ghairi",
-  "admin.resellers.create.success": "Muuzaji ameundwa. Mpe neno la siri la muda kwa njia salama.",
+  "admin.resellers.create.success":
+    "Muuzaji ameundwa. Mpe neno la siri la muda kwa njia salama.",
   "admin.resellers.create.openNew": "Fungua muuzaji mpya",
 
   // ── Resellers · detail ───────────────────────────────────────────────────
@@ -2772,7 +3105,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.detail.kpi.subscription": "Usajili uliolipwa",
   "admin.resellers.detail.kpi.subscriptionHint": "Ankara {count} zilizolipwa",
   "admin.resellers.detail.kpi.wallet": "Salio la pochi",
-  "admin.resellers.detail.kpi.walletHint": "{pending} inasubiri · {reserved} imewekwa akiba",
+  "admin.resellers.detail.kpi.walletHint":
+    "{pending} inasubiri · {reserved} imewekwa akiba",
   "admin.resellers.tab.profile": "Wasifu",
   "admin.resellers.tab.plan": "Mpango wa jukwaa",
   "admin.resellers.tab.devices": "Vifaa",
@@ -2796,11 +3130,13 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.edit.ownerName": "Jina la mmiliki",
   "admin.resellers.edit.email": "Barua pepe ya mmiliki",
   "admin.resellers.edit.phone": "Simu ya mmiliki",
-  "admin.resellers.edit.phoneHint": "Namba ya simu ya Tanzania, mfano 0712 345 678.",
+  "admin.resellers.edit.phoneHint":
+    "Namba ya simu ya Tanzania, mfano 0712 345 678.",
   "admin.resellers.edit.emailVerified": "Barua pepe imethibitishwa",
   "admin.resellers.edit.emailVerifiedHint":
     "Weka alama hii tu baada ya kuthibitisha anwani kwa simu au kwa ujumbe kutoka kwayo.",
-  "admin.resellers.edit.reasonPlaceholder": "mfano Mmiliki amerekebisha jina la duka na namba ya simu",
+  "admin.resellers.edit.reasonPlaceholder":
+    "mfano Mmiliki amerekebisha jina la duka na namba ya simu",
   "admin.resellers.edit.save": "Hifadhi mabadiliko",
   "admin.resellers.edit.saving": "Inahifadhi…",
   "admin.resellers.edit.close": "Funga",
@@ -2819,18 +3155,21 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.planEdit.stateHint":
     "Hai au Jaribio pekee zinaweza kuuza. Hali ya kuchelewa na kuisha muda hukokotolewa kutoka kipindi.",
   "admin.resellers.planEdit.suspendedReason": "Imesimamishwa kwa sababu",
-  "admin.resellers.planEdit.suspendedReasonPlaceholder": "Inaonyeshwa kwa muuzaji",
+  "admin.resellers.planEdit.suspendedReasonPlaceholder":
+    "Inaonyeshwa kwa muuzaji",
   "admin.resellers.planEdit.periodStart": "Kipindi kinaanza",
   "admin.resellers.planEdit.periodEnd": "Kipindi kinaisha",
   "admin.resellers.planEdit.periodHint":
     "Tarehe zinasomwa kwa saa za Dar es Salaam. Kuhifadhi huweka kipindi kwenye mipaka ya siku hizo, na tarehe ya mwisho huweka mpango hai siku nzima.",
   "admin.resellers.planEdit.trialUsed": "Jaribio limeshatumika",
-  "admin.resellers.planEdit.trialUsedHint": "Ondoa alama ili muuzaji huyu aanze jaribio tena.",
+  "admin.resellers.planEdit.trialUsedHint":
+    "Ondoa alama ili muuzaji huyu aanze jaribio tena.",
   "admin.resellers.planEdit.overrides": "Vikomo maalum",
   "admin.resellers.planEdit.overridesHint":
     "Acha sehemu wazi kufuata mpango. Thamani inabadilisha kikomo cha mpango kwa muuzaji huyu pekee.",
   "admin.resellers.planEdit.overridePlaceholder": "Kutoka mpango",
-  "admin.resellers.planEdit.reasonPlaceholder": "mfano Amelipa miezi 3 kwa benki, kumbukumbu 88213",
+  "admin.resellers.planEdit.reasonPlaceholder":
+    "mfano Amelipa miezi 3 kwa benki, kumbukumbu 88213",
   "admin.resellers.planEdit.save": "Hifadhi mpango",
   "admin.resellers.planEdit.saving": "Inahifadhi…",
   "admin.resellers.planEdit.close": "Funga",
@@ -2838,7 +3177,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Resellers · profile tab ──────────────────────────────────────────────
   "admin.resellers.profile.title": "Wasifu wa muuzaji",
-  "admin.resellers.profile.description": "Utambulisho, mawasiliano na aliyemleta",
+  "admin.resellers.profile.description":
+    "Utambulisho, mawasiliano na aliyemleta",
   "admin.resellers.profile.contact": "Mawasiliano",
   "admin.resellers.profile.verified": "Barua pepe imethibitishwa",
   "admin.resellers.profile.unverified": "Barua pepe haijathibitishwa",
@@ -2846,7 +3186,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.profile.mfaOn": "Umewashwa",
   "admin.resellers.profile.mfaOff": "Haujawashwa",
   "admin.resellers.profile.attribution": "Aliyeleta",
-  "admin.resellers.profile.attributionNone": "Alijiunga moja kwa moja — hakuna wakala",
+  "admin.resellers.profile.attributionNone":
+    "Alijiunga moja kwa moja — hakuna wakala",
   "admin.resellers.profile.limits": "Mipaka ya mpango",
   "admin.resellers.profile.entitlements": "Haki zilizoruhusiwa",
   "admin.resellers.profile.customers": "Wateja",
@@ -2856,7 +3197,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   // ── Resellers · plan tab ─────────────────────────────────────────────────
   "admin.resellers.plan.title": "Usajili na mpango",
   "admin.resellers.plan.description": "Kile muuzaji huyu analipia",
-  "admin.resellers.plan.none": "Hakuna mpango uliounganishwa na muuzaji huyu bado.",
+  "admin.resellers.plan.none":
+    "Hakuna mpango uliounganishwa na muuzaji huyu bado.",
   "admin.resellers.plan.state": "Hali",
   "admin.resellers.plan.period": "Kipindi cha sasa",
   "admin.resellers.plan.periodValue": "{start} → {end}",
@@ -2871,7 +3213,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.plan.yes": "Ndiyo",
   "admin.resellers.plan.no": "Hapana",
   "admin.resellers.plan.sourcePlan": "Inafuata vikomo vya mpango wenyewe",
-  "admin.resellers.plan.sourceCustom": "Vikomo maalum vimewekwa kwa muuzaji huyu",
+  "admin.resellers.plan.sourceCustom":
+    "Vikomo maalum vimewekwa kwa muuzaji huyu",
   "admin.resellers.plan.invoices": "Ankara za usajili",
   "admin.resellers.plan.invoicesDescription": "Malipo ya mpango na hali yao",
   "admin.resellers.plan.invoicesEmpty": "Hakuna ankara bado.",
@@ -2885,9 +3228,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.devices.title": "Maeneo na vifaa",
   "admin.resellers.devices.description": "maeneo {sites} · vifaa {devices}",
   "admin.resellers.devices.sites": "Maeneo",
-  "admin.resellers.devices.sitesEmpty": "Hakuna eneo bado. Muuzaji hajaandaa eneo lolote.",
+  "admin.resellers.devices.sitesEmpty":
+    "Hakuna eneo bado. Muuzaji hajaandaa eneo lolote.",
   "admin.resellers.devices.list": "Vifaa",
-  "admin.resellers.devices.empty": "Hakuna kifaa kilichosajiliwa kwa muuzaji huyu.",
+  "admin.resellers.devices.empty":
+    "Hakuna kifaa kilichosajiliwa kwa muuzaji huyu.",
   "admin.resellers.col.site": "Eneo",
   "admin.resellers.col.location": "Mahali",
   "admin.resellers.col.devices": "Vifaa",
@@ -2902,7 +3247,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Resellers · payments tab ─────────────────────────────────────────────
   "admin.resellers.payments.title": "Historia ya malipo",
-  "admin.resellers.payments.description": "Malipo ya wageni, ankara za usajili na malipo ya kutolewa",
+  "admin.resellers.payments.description":
+    "Malipo ya wageni, ankara za usajili na malipo ya kutolewa",
   "admin.resellers.payments.orders": "Oda za wageni",
   "admin.resellers.payments.ordersEmpty": "Hakuna oda za wageni bado.",
   "admin.resellers.payments.withdrawals": "Malipo yaliyotolewa",
@@ -2918,8 +3264,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Resellers · activity tab ─────────────────────────────────────────────
   "admin.resellers.activity.title": "Shughuli na ukaguzi",
-  "admin.resellers.activity.description": "Kila tendo la msimamizi lililorekodiwa kwa muuzaji huyu",
-  "admin.resellers.activity.empty": "Hakuna shughuli iliyorekodiwa kwa muuzaji huyu bado.",
+  "admin.resellers.activity.description":
+    "Kila tendo la msimamizi lililorekodiwa kwa muuzaji huyu",
+  "admin.resellers.activity.empty":
+    "Hakuna shughuli iliyorekodiwa kwa muuzaji huyu bado.",
   "admin.resellers.activity.col.action": "Tendo",
   "admin.resellers.activity.col.actor": "Aliyetenda",
   "admin.resellers.activity.col.reason": "Sababu",
@@ -2928,7 +3276,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Impersonation ────────────────────────────────────────────────────────
   "admin.impersonation.banner": "Umeingia kama {name}",
-  "admin.impersonation.bannerHint": "Msimamizi {admin} · alianza {when}. Matendo yanarekodiwa kwenye kumbukumbu ya ukaguzi.",
+  "admin.impersonation.bannerHint":
+    "Msimamizi {admin} · alianza {when}. Matendo yanarekodiwa kwenye kumbukumbu ya ukaguzi.",
   "admin.impersonation.exit": "Ondoka urudi kama Msimamizi",
   "admin.impersonation.exiting": "Inarudi…",
   "admin.impersonation.started": "Sasa unafanya kazi kama {name}.",
@@ -2941,7 +3290,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.action.create": "Wakala mpya",
   "admin.agents.action.open": "Fungua",
   "admin.agents.count": "Mawakala {count}",
-  "admin.agents.search.placeholder": "Tafuta jina, barua pepe au msimbo wa rufaa",
+  "admin.agents.search.placeholder":
+    "Tafuta jina, barua pepe au msimbo wa rufaa",
   "admin.agents.search.label": "Tafuta mawakala",
   "admin.agents.filter.all": "Wote",
   "admin.agents.filter.active": "Hai",
@@ -2955,9 +3305,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.kpi.earned": "Kamisheni iliyowekwa",
   "admin.agents.kpi.earnedHint": "Malimbikizo {count} yamerekodiwa",
   "admin.agents.empty": "Hakuna wakala anayelingana na mwonekano huu.",
-  "admin.agents.emptyHint": "Badilisha utafutaji au kichujio, au unda wakala kuanza.",
+  "admin.agents.emptyHint":
+    "Badilisha utafutaji au kichujio, au unda wakala kuanza.",
   "admin.agents.emptyNone": "Hakuna mawakala bado.",
-  "admin.agents.emptyNoneHint": "Unda wakala wa kwanza kuanza kujenga mtandao wa washirika.",
+  "admin.agents.emptyNoneHint":
+    "Unda wakala wa kwanza kuanza kujenga mtandao wa washirika.",
   "admin.agents.col.agent": "Wakala",
   "admin.agents.col.code": "Msimbo wa rufaa",
   "admin.agents.col.status": "Hali",
@@ -2979,12 +3331,14 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.create.phoneHint": "Simu ya Tanzania, mf. 0712 345 678",
   "admin.agents.create.referralCode": "Msimbo wa rufaa",
   "admin.agents.create.referralCodePlaceholder": "mf. NEEMA01",
-  "admin.agents.create.referralCodeHint": "Herufi kubwa, tarakimu, kistari au mstari chini. Wauzaji wanaandika huu kumpa sifa wakala.",
+  "admin.agents.create.referralCodeHint":
+    "Herufi kubwa, tarakimu, kistari au mstari chini. Wauzaji wanaandika huu kumpa sifa wakala.",
   "admin.agents.create.password": "Neno la siri la muda",
   "admin.agents.create.passwordHint": "Angalau herufi 10. Mpe kwa njia salama.",
   "admin.agents.create.submit": "Unda wakala",
   "admin.agents.create.cancel": "Ghairi",
-  "admin.agents.create.success": "Wakala ameundwa. Mpe neno la siri la muda kwa njia salama.",
+  "admin.agents.create.success":
+    "Wakala ameundwa. Mpe neno la siri la muda kwa njia salama.",
   "admin.agents.create.openNew": "Fungua wakala mpya",
 
   // ── Agents · detail ──────────────────────────────────────────────────────
@@ -2995,7 +3349,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.detail.kpi.paid": "Kamisheni iliyolipwa",
   "admin.agents.detail.kpi.paidHint": "Malimbikizo {count} yamelipwa",
   "admin.agents.detail.kpi.wallet": "Salio la pochi",
-  "admin.agents.detail.kpi.walletHint": "{pending} inasubiri · {reserved} imehifadhiwa",
+  "admin.agents.detail.kpi.walletHint":
+    "{pending} inasubiri · {reserved} imehifadhiwa",
   "admin.agents.detail.kpi.referrals": "Wauzaji walioletwa",
   "admin.agents.detail.kpi.referralsHint": "{active} bado wanafanya biashara",
   "admin.agents.tab.profile": "Wasifu",
@@ -3004,7 +3359,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.tab.leads": "Wateja",
   "admin.agents.tab.activity": "Shughuli",
   "admin.agents.profile.title": "Wasifu wa wakala",
-  "admin.agents.profile.description": "Utambulisho, mawasiliano na hali ya akaunti",
+  "admin.agents.profile.description":
+    "Utambulisho, mawasiliano na hali ya akaunti",
   "admin.agents.profile.referralCode": "Msimbo wa rufaa",
   "admin.agents.profile.contact": "Mawasiliano",
   "admin.agents.profile.verified": "Barua pepe imethibitishwa",
@@ -3021,18 +3377,23 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.profile.walletPending": "Inasubiri",
   "admin.agents.profile.walletReserved": "Imehifadhiwa kwa malipo",
   "admin.agents.referrals.title": "Wauzaji walioletwa",
-  "admin.agents.referrals.description": "Kila muuzaji ambaye wakala huyu anapewa sifa",
-  "admin.agents.referrals.empty": "Wakala huyu hajapewa sifa ya muuzaji yeyote bado.",
+  "admin.agents.referrals.description":
+    "Kila muuzaji ambaye wakala huyu anapewa sifa",
+  "admin.agents.referrals.empty":
+    "Wakala huyu hajapewa sifa ya muuzaji yeyote bado.",
   "admin.agents.referrals.source": "Chanzo",
   "admin.agents.col.business": "Biashara",
   "admin.agents.col.subscription": "Usajili",
   "admin.agents.col.since": "Sifa tangu",
   "admin.agents.col.orders": "Oda",
   "admin.agents.commissions.title": "Leja ya kamisheni",
-  "admin.agents.commissions.description": "Malimbikizo yaliyopatikana kutoka kwa wauzaji walioletwa",
-  "admin.agents.commissions.empty": "Hakuna kamisheni iliyolimbikizwa kwa wakala huyu bado.",
+  "admin.agents.commissions.description":
+    "Malimbikizo yaliyopatikana kutoka kwa wauzaji walioletwa",
+  "admin.agents.commissions.empty":
+    "Hakuna kamisheni iliyolimbikizwa kwa wakala huyu bado.",
   "admin.agents.commissions.policies": "Sera zinazotumika",
-  "admin.agents.commissions.policiesEmpty": "Hakuna sera ya kamisheni inayomhusu wakala huyu.",
+  "admin.agents.commissions.policiesEmpty":
+    "Hakuna sera ya kamisheni inayomhusu wakala huyu.",
   "admin.agents.commissions.policyGlobal": "Mawakala wote",
   "admin.agents.col.reseller": "Muuzaji",
   "admin.agents.col.trigger": "Kichocheo",
@@ -3047,7 +3408,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.mode.FIXED": "Kiasi maalum",
   "admin.agents.mode.PERCENTAGE": "Asilimia",
   "admin.agents.leads.title": "Wateja",
-  "admin.agents.leads.description": "Wateja waliokaribishwa na wakala kwenye Advo",
+  "admin.agents.leads.description":
+    "Wateja waliokaribishwa na wakala kwenye Advo",
   "admin.agents.leads.empty": "Wakala huyu hajamkaribisha mtu yeyote bado.",
   "admin.agents.col.contact": "Mawasiliano",
   "admin.agents.col.invitedAt": "Alikaribishwa",
@@ -3055,8 +3417,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.leads.expired": "Umeisha",
   "admin.agents.leads.accepted": "Umekubaliwa {when}",
   "admin.agents.activity.title": "Shughuli & ukaguzi",
-  "admin.agents.activity.description": "Kila tendo la mwendeshaji lililorekodiwa kwa wakala huyu",
-  "admin.agents.activity.empty": "Hakuna shughuli iliyorekodiwa kwa wakala huyu bado.",
+  "admin.agents.activity.description":
+    "Kila tendo la mwendeshaji lililorekodiwa kwa wakala huyu",
+  "admin.agents.activity.empty":
+    "Hakuna shughuli iliyorekodiwa kwa wakala huyu bado.",
   "admin.agents.col.action": "Tendo",
   "admin.agents.col.actor": "Mtekelezaji",
   "admin.agents.col.reason": "Sababu",
@@ -3067,7 +3431,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.agents.dialog.statusTitleReactivate": "Rejesha {name}",
   "admin.agents.dialog.statusNoteSuspend":
     "Vikao vinavyotumika vinakatwa na wakala hawezi kualika wauzaji tena hadi arejeshwe.",
-  "admin.agents.dialog.statusNoteReactivate": "Wakala ataweza kuingia na kualika wauzaji tena mara moja.",
+  "admin.agents.dialog.statusNoteReactivate":
+    "Wakala ataweza kuingia na kualika wauzaji tena mara moja.",
   "admin.agents.dialog.impersonateTitle": "Ingia kama {name}",
   "admin.agents.dialog.impersonateNote":
     "Utaangalia Advo kama wakala huyu kwa dakika 15. Kikao chako cha msimamizi kinabaki salama — tumia ukanda wa dhahabu juu kurudi moja kwa moja.",
@@ -3118,8 +3483,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.campaigns.dialog.pauseNote":
     "Wageni wataacha kuona kampeni hii mara moja; ubunifu wake unahifadhiwa.",
   "admin.campaigns.dialog.reason": "Sababu",
-  "admin.campaigns.dialog.reasonPlaceholder": "Kwa nini unafanya mabadiliko haya?",
-  "admin.campaigns.dialog.reasonHint": "Huhifadhiwa kwenye kumbukumbu ya ukaguzi pamoja na akaunti yako.",
+  "admin.campaigns.dialog.reasonPlaceholder":
+    "Kwa nini unafanya mabadiliko haya?",
+  "admin.campaigns.dialog.reasonHint":
+    "Huhifadhiwa kwenye kumbukumbu ya ukaguzi pamoja na akaunti yako.",
   "admin.campaigns.form.titleCreate": "Unda kampeni",
   "admin.campaigns.form.titleEdit": "Hariri “{name}”",
   "admin.campaigns.form.description":
@@ -3145,12 +3512,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.campaigns.form.image.uploading": "Inapakia na kuboresha…",
   "admin.campaigns.form.image.replace": "Badilisha",
   "admin.campaigns.form.image.remove": "Ondoa",
-  "admin.campaigns.form.image.uploadFailed": "Imeshindikana kupakia picha hiyo. Jaribu tena.",
+  "admin.campaigns.form.image.uploadFailed":
+    "Imeshindikana kupakia picha hiyo. Jaribu tena.",
   "admin.campaigns.form.image.previewAlt": "Muonekano wa picha ya kampeni",
-  "admin.campaigns.form.image.saved": "Picha hii itaonekana kwenye nafasi ya tangazo kwenye portal ya mgeni.",
+  "admin.campaigns.form.image.saved":
+    "Picha hii itaonekana kwenye nafasi ya tangazo kwenye portal ya mgeni.",
   "admin.campaigns.form.image.compressNote":
     "Ukubwa wowote hadi 6 MB. Seva hubadilisha picha kuwa WebP na kuiweka hadi pikseli 1600, hivyo faili inakuwa ndogo zaidi bila kupoteza ubora unaoonekana — picha iliyo pana kuliko urefu inafaa zaidi kwenye nafasi zote mbili.",
-  "admin.campaigns.form.image.urlFallback": "Tumia picha iliyopo tayari mahali pengine",
+  "admin.campaigns.form.image.urlFallback":
+    "Tumia picha iliyopo tayari mahali pengine",
   "admin.campaigns.form.phone": "Namba ya simu au WhatsApp (si lazima)",
   "admin.campaigns.form.url": "Kiungo cha wavuti au ofa (si lazima)",
   "admin.campaigns.form.cta": "Kitendo cha wito",
@@ -3186,9 +3556,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.kpi.revenue": "Mapato ya usajili",
   "admin.plans.kpi.revenueHint": "Ankara {count} zilizolipwa",
   "admin.plans.empty": "Hakuna mpango unayelingana na mwonekano huu.",
-  "admin.plans.emptyHint": "Badilisha utafutaji au kichujio, au unda mpango kuanza.",
+  "admin.plans.emptyHint":
+    "Badilisha utafutaji au kichujio, au unda mpango kuanza.",
   "admin.plans.emptyNone": "Hakuna mipango bado.",
-  "admin.plans.emptyNoneHint": "Wauzaji hawawezi kujiunga hadi mpango mmoja uwepo.",
+  "admin.plans.emptyNoneHint":
+    "Wauzaji hawawezi kujiunga hadi mpango mmoja uwepo.",
   "admin.plans.version": "v{version}",
   "admin.plans.versionsCount": "Matoleo {count}",
   "admin.plans.current": "Ya sasa",
@@ -3239,7 +3611,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.form.section.limits": "Wauzaji wanapata nini",
   "admin.plans.form.section.trial": "Majaribio na uainishaji",
   "admin.plans.form.code": "Msimbo wa mpango",
-  "admin.plans.form.codeHint": "Herufi ndogo, tarakimu na kistari. Kutumia msimbo tena huzaa toleo linalofuata.",
+  "admin.plans.form.codeHint":
+    "Herufi ndogo, tarakimu na kistari. Kutumia msimbo tena huzaa toleo linalofuata.",
   "admin.plans.form.codePlaceholder": "mf. basic",
   "admin.plans.form.name": "Jina la kuonyesha",
   "admin.plans.form.namePlaceholder": "mf. Basic",
@@ -3248,7 +3621,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.form.periodDays": "Kipindi cha malipo",
   "admin.plans.form.periodDaysHint": "Siku ambazo kila malipo yanashughulikia.",
   "admin.plans.form.descriptionLabel": "Maelezo",
-  "admin.plans.form.descriptionHint": "Huonyeshwa kwa wauzaji popote mpango unapotolewa.",
+  "admin.plans.form.descriptionHint":
+    "Huonyeshwa kwa wauzaji popote mpango unapotolewa.",
   "admin.plans.form.maxSites": "Maeneo ya juu",
   "admin.plans.form.maxDevices": "Vifaa vya juu",
   "admin.plans.form.maxPackages": "Vifurushi vya juu",
@@ -3256,9 +3630,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.form.trialDays": "Urefu wa majaribio",
   "admin.plans.form.trialDaysHint": "Inatumika tu pale majaribio yanapotolewa.",
   "admin.plans.form.isDemo": "Mpango wa onyesho (si bei halisi)",
-  "admin.plans.form.isDemoHint": "Mipango ya onyesho haijumuishwi kwenye ripoti za uzalishaji.",
+  "admin.plans.form.isDemoHint":
+    "Mipango ya onyesho haijumuishwi kwenye ripoti za uzalishaji.",
   "admin.plans.form.preview": "Wauzaji wanalipa {price} kila siku {days}",
-  "admin.plans.form.willReplace": "Hakuna kinachotumia mpango huu bado, hivyo kuhifadhi kunabadilisha moja kwa moja — hakuna toleo jipya.",
+  "admin.plans.form.willReplace":
+    "Hakuna kinachotumia mpango huu bado, hivyo kuhifadhi kunabadilisha moja kwa moja — hakuna toleo jipya.",
   "admin.plans.form.willVersion":
     "Usajili {count} unatumia mpango huu. Kuhifadhi kutatoa toleo jipya na kuweka hili kando; wateja wa sasa wanabaki na masharti yao.",
   "admin.plans.form.submitCreate": "Unda mpango",
@@ -3267,13 +3643,27 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.form.successCreate": "Mpango umeundwa na unauzwa.",
   "admin.plans.form.successEdit": "Mpango umehifadhiwa.",
   "admin.plans.form.done": "Imekamilika",
+  "admin.plans.form.tier": "Kiwango cha uwezo",
+  "admin.plans.form.tierHint":
+    "Starter, Growth, Business Pro na Enterprise zinamiliki uwezo wake. Kuchagua kiwango hujaza vikomo; chaguo mbili za kibiashara za kiwango kimoja lazima zilingane.",
+  "admin.plans.form.tierNone": "Nje ya gridi ya vifurushi",
+  "admin.plans.form.planType": "Chaguo la kibiashara",
+  "admin.plans.form.planTypeHint":
+    "Advo Partner huonyesha matangazo ya Advo na kurasa za Explore kwa bei ya chini; Independent huziondoa kwa bei ya juu. Mengine yote hubaki sawa.",
+  "admin.plans.form.planTypeNone": "Bila lebo",
+  "admin.plans.form.priceFrom": "Inauzwa “kuanzia” bei hii",
+  "admin.plans.form.priceFromHint":
+    "Enterprise ni mazungumzo ya mauzo, kwa hiyo kadi inasema “kuanzia” badala ya bei maalum.",
+  "admin.plans.typeMismatch":
+    "Mipangilio ya matangazo ya kifurushi hiki haiendani na chaguo lake la kibiashara — wauzaji wangeuziwa kitu ambacho lango haliwasilishi.",
 
   // ── Plans · kihariri cha vipengele na sera ───────────────────────────────
   "admin.plans.form.section.features": "Vipengele na sera",
   "admin.plans.form.featuresHint":
     "Tabia hufuata funguo hizi, kamwe si jina la mpango — hivyo kubadilisha jina la mpango hakubadilishi chochote kwenye portal ya mgeni.",
   "admin.plans.preset.label": "Anza na kiolezo",
-  "admin.plans.preset.hint": "Kiolezo hujaza kila thamani hapa chini; bado unaweza kubadilisha yoyote.",
+  "admin.plans.preset.hint":
+    "Kiolezo hujaza kila thamani hapa chini; bado unaweza kubadilisha yoyote.",
   "admin.plans.preset.sponsored": "Iliyodhaminiwa",
   "admin.plans.preset.brand-control": "Udhibiti wa Chapa",
   "admin.plans.preset.ad-free": "Bila Matangazo",
@@ -3296,9 +3686,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.mode.REQUIRED": "Inahitajika",
   "admin.plans.mode.OPTIONAL": "Si lazima",
   "admin.plans.mode.DISABLED": "Imezimwa",
-  "admin.plans.mode.REQUIRED.hint": "Huonekana kila wakati — muuzaji hawezi kuizima",
+  "admin.plans.mode.REQUIRED.hint":
+    "Huonekana kila wakati — muuzaji hawezi kuizima",
   "admin.plans.mode.OPTIONAL.hint": "Muuzaji huamua, kwa kila tovuti",
-  "admin.plans.mode.DISABLED.hint": "Imefichwa, na ubunifu wake haurudishwi kabisa",
+  "admin.plans.mode.DISABLED.hint":
+    "Imefichwa, na ubunifu wake haurudishwi kabisa",
   "admin.plans.placement.ads.banner": "Bango la mwanzo",
   "admin.plans.placement.ads.explore": "Umeunganishwa · Gundua",
   "admin.plans.placement.discovery.promote_business": "Tangaza biashara yako",
@@ -3314,8 +3706,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Matangazo na utambulisho ni ruhusa tofauti: mpango Bila Matangazo unaweza kubaki na beji.",
   "admin.plans.branding.primary": "Rangi kuu ya chaguo-msingi",
   "admin.plans.branding.accent": "Rangi ya msisitizo ya chaguo-msingi",
-  "admin.plans.branding.contrast": "Utofautishaji {ratio}:1 dhidi ya maandishi meupe",
-  "admin.plans.branding.contrastFail": "Chini ya kiwango cha {min}:1 — maandishi meupe ya kitufe hayatasomeka.",
+  "admin.plans.branding.contrast":
+    "Utofautishaji {ratio}:1 dhidi ya maandishi meupe",
+  "admin.plans.branding.contrastFail":
+    "Chini ya kiwango cha {min}:1 — maandishi meupe ya kitufe hayatasomeka.",
   "admin.plans.cards.title": "Kadi za vifurushi",
   "admin.plans.cards.allowed": "Mitindo inayoruhusiwa",
   "admin.plans.cards.default": "Mtindo wa chaguo-msingi",
@@ -3337,19 +3731,23 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.payments.voucher": "Ruhusu kutumia vocha",
   "admin.plans.limits.sites": "Tovuti",
   "admin.plans.limits.devices": "Vifaa",
-  "admin.plans.limits.packagesPerSite": "Vifurushi vinavyotumika kwa kila tovuti",
+  "admin.plans.limits.packagesPerSite":
+    "Vifurushi vinavyotumika kwa kila tovuti",
   "admin.plans.limits.unlimited": "Bila kikomo",
   "admin.plans.limits.note":
     "Vikomo haviharibu: kupunguza mpango huacha tovuti na vifurushi vilivyopo na huzuia nyongeza pekee.",
   "admin.plans.issues.title": "Shida {count} zitazuia kuchapisha",
   "admin.plans.issues.ok": "Hakuna kizuizi cha kuchapisha.",
   "admin.plans.preview.title": "Onyesho kama muuzaji mpya",
-  "admin.plans.preview.hint": "Kile tovuti huonyesha kabla muuzaji kubadilisha mapendeleo yoyote.",
+  "admin.plans.preview.hint":
+    "Kile tovuti huonyesha kabla muuzaji kubadilisha mapendeleo yoyote.",
   "admin.plans.preview.visible": "Inaonekana",
   "admin.plans.preview.hidden": "Imefichwa",
   "admin.plans.preview.locked": "Imefungwa",
-  "admin.plans.preview.hideAll": "Muuzaji anaweza kuficha nafasi zote tano kwa mpigo",
-  "admin.plans.preview.hideAllNo": "Muuzaji hawezi kuficha zote — angalau nafasi moja Inahitajika",
+  "admin.plans.preview.hideAll":
+    "Muuzaji anaweza kuficha nafasi zote tano kwa mpigo",
+  "admin.plans.preview.hideAllNo":
+    "Muuzaji hawezi kuficha zote — angalau nafasi moja Inahitajika",
   "admin.plans.preview.voucherOn": "Kutumia vocha kumewashwa",
   "admin.plans.preview.voucherOff": "Kutumia vocha kumezimwa",
   "admin.plans.preview.styles": "Mitindo {count} ya kadi inaruhusiwa",
@@ -3360,7 +3758,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.plans.dialog.publishNote":
     "Rasimu huhakikiwa na kuwa toleo linalouzwa la msimbo huu; toleo lililokuwa likiuzwa huwekwa kando.",
   "admin.plans.publishSuccess": "Imechapishwa {name} v{version}",
-  "admin.plans.adFreeOk": "Nafasi zote zilizodhaminiwa na za ugunduzi zimezimwa — ahadi ya Bila Matangazo inasimama.",
+  "admin.plans.adFreeOk":
+    "Nafasi zote zilizodhaminiwa na za ugunduzi zimezimwa — ahadi ya Bila Matangazo inasimama.",
 
   // ── Plans · version migrations ───────────────────────────────────────────
   "admin.plans.migration.action": "Hamisha wateja",
@@ -3369,23 +3768,31 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Kuchapisha hubadilisha tu kile kinachouzwa. Kuhamisha wale wanaolipa tayari ni uamuzi tofauti: chagua nani ahamishwe, lini, na mabadiliko yanarekodiwa na toleo la zamani na jipya.",
   "admin.plans.migration.scopeLabel": "Nani anahamishwa",
   "admin.plans.migration.scope.NEW_ONLY": "Wateja wapya pekee",
-  "admin.plans.migration.scope.NEW_ONLY.hint": "Hakuna anayehamishwa. Toleo hili tayari ndilo wateja wapya wanalipata.",
+  "admin.plans.migration.scope.NEW_ONLY.hint":
+    "Hakuna anayehamishwa. Toleo hili tayari ndilo wateja wapya wanalipata.",
   "admin.plans.migration.scope.ON_RENEWAL": "Wakati wa kuongeza muda",
-  "admin.plans.migration.scope.ON_RENEWAL.hint": "Kila usajili huhamishwa kipindi chake kilicholipiwa kikimalizika — kamwe katikati ya kipindi.",
+  "admin.plans.migration.scope.ON_RENEWAL.hint":
+    "Kila usajili huhamishwa kipindi chake kilicholipiwa kikimalizika — kamwe katikati ya kipindi.",
   "admin.plans.migration.scope.SELECTED": "Wauzaji waliochaguliwa",
-  "admin.plans.migration.scope.SELECTED.hint": "Wauzaji unaowachagua hapa chini pekee.",
+  "admin.plans.migration.scope.SELECTED.hint":
+    "Wauzaji unaowachagua hapa chini pekee.",
   "admin.plans.migration.scope.ALL": "Wateja wote",
-  "admin.plans.migration.scope.ALL.hint": "Kila aliye bado kwenye toleo la awali la msimbo huu, siku itakayowekwa.",
+  "admin.plans.migration.scope.ALL.hint":
+    "Kila aliye bado kwenye toleo la awali la msimbo huu, siku itakayowekwa.",
   "admin.plans.migration.selectResellers": "Wauzaji wa kuhamishwa",
   "admin.plans.migration.noResellers": "Hakuna wauzaji wa kuchagua.",
   "admin.plans.migration.effectiveAt": "Siku itakayotumika",
-  "admin.plans.migration.effectiveAtHint": "Hakuna kinachohamishwa kabla ya muda huu.",
+  "admin.plans.migration.effectiveAtHint":
+    "Hakuna kinachohamishwa kabla ya muda huu.",
   "admin.plans.migration.note": "Dokezo",
-  "admin.plans.migration.noteHint": "Si lazima. Huhifadhiwa pamoja na uhamishaji.",
+  "admin.plans.migration.noteHint":
+    "Si lazima. Huhifadhiwa pamoja na uhamishaji.",
   "admin.plans.migration.previewTitle": "Zamani → mpya",
   "admin.plans.migration.previewLoading": "Inaangalia nani atahamishwa…",
-  "admin.plans.migration.previewEmpty": "Hakuna usajili unaolingana na wigo huu kwa sasa.",
-  "admin.plans.migration.previewNewOnly": "Hakuna anayehamishwa: wateja wapya tayari wanapata toleo hili.",
+  "admin.plans.migration.previewEmpty":
+    "Hakuna usajili unaolingana na wigo huu kwa sasa.",
+  "admin.plans.migration.previewNewOnly":
+    "Hakuna anayehamishwa: wateja wapya tayari wanapata toleo hili.",
   "admin.plans.migration.noPlan": "hakuna mpango",
   "admin.plans.migration.schedule": "Panga uhamishaji",
   "admin.plans.migration.scheduling": "Inapanga…",
@@ -3402,18 +3809,22 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Plans · archive / delete dialogs ─────────────────────────────────────
   "admin.plans.dialog.deleteTitle": "Futa {name}?",
-  "admin.plans.deleteBlocked": "Usajili au ankara {count} tayari unatumia mpango huu — weka kando badala yake.",
+  "admin.plans.deleteBlocked":
+    "Usajili au ankara {count} tayari unatumia mpango huu — weka kando badala yake.",
   "admin.plans.dialog.deleteNote":
     "Hii inaondoa toleo hili kabisa. Inaruhusiwa tu wakati hakuna usajili au ankara inayolirejelea.",
   "admin.plans.dialog.archiveTitle": "Weka {name} kando?",
-  "admin.plans.dialog.archiveNote": "Wauzaji hawatapewa mpango huu tena. Wateja wanabaki nao hadi kipindi chao kiishe.",
+  "admin.plans.dialog.archiveNote":
+    "Wauzaji hawatapewa mpango huu tena. Wateja wanabaki nao hadi kipindi chao kiishe.",
   "admin.plans.dialog.reactivateTitle": "Rudisha {name} kuuzwa?",
   "admin.plans.dialog.reactivateNote":
     "Wauzaji wanaweza kujiunga tena. Toleo lolote la msimbo huu linalouzwa sasa liwekwa kando, hivyo msimbo huwa na bei moja hai.",
   "admin.plans.dialog.reason": "Sababu",
   "admin.plans.dialog.reasonPlaceholder": "mf. mapitio ya bei kwa robo ya nne",
-  "admin.plans.dialog.reasonHint": "Angalau herufi 3. Hii inahifadhiwa kwenye kumbukumbu ya ukaguzi.",
-  "admin.plans.dialog.reasonTooShort": "Sababu ya angalau herufi 3 inahitajika.",
+  "admin.plans.dialog.reasonHint":
+    "Angalau herufi 3. Hii inahifadhiwa kwenye kumbukumbu ya ukaguzi.",
+  "admin.plans.dialog.reasonTooShort":
+    "Sababu ya angalau herufi 3 inahitajika.",
   "admin.plans.dialog.confirm": "Endelea",
   "admin.plans.dialog.cancel": "Ghairi",
 
@@ -3432,11 +3843,13 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.commissions.kpi.onHold": "Yanasubiri",
   "admin.commissions.kpi.onHoldHint": "Hutolewa baada ya kipindi cha kila sera",
   "admin.commissions.kpi.available": "Inapatikana kuchukuliwa",
-  "admin.commissions.kpi.availableHint": "Imetolewa kwa mawakala, bado haijalipwa",
+  "admin.commissions.kpi.availableHint":
+    "Imetolewa kwa mawakala, bado haijalipwa",
   "admin.commissions.kpi.paid": "Iliyolipwa",
   "admin.commissions.kpi.paidHint": "{reversed} imerejeshwa kwa jumla",
 
-  "admin.commissions.alert.needsReview": "Limbikizo {count} linahitaji marekebisho ya mkono",
+  "admin.commissions.alert.needsReview":
+    "Limbikizo {count} linahitaji marekebisho ya mkono",
   "admin.commissions.alert.needsReviewHint":
     "Haya yalikuwa yamelipwa yaliporejeshwa. Malipo ya nje hayawezi kufutwa hapa — rekebisha tofauti kwa marekebisho maalum.",
 
@@ -3454,20 +3867,25 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Commissions · accruals table ─────────────────────────────────────────
   "admin.commissions.accruals.title": "Kumbukumbu ya mapato",
-  "admin.commissions.accruals.description": "Kila mstari ni malipo moja ya usajili yaliyothibitishwa, kwa kiwango kilichokuwa kinaanza siku hiyo.",
+  "admin.commissions.accruals.description":
+    "Kila mstari ni malipo moja ya usajili yaliyothibitishwa, kwa kiwango kilichokuwa kinaanza siku hiyo.",
   "admin.commissions.accruals.tableLabel": "Malimbikizo ya kamisheni",
   "admin.commissions.accruals.empty": "Hakuna kamisheni iliyolimbikizwa bado.",
   "admin.commissions.accruals.emptyHint":
     "Kamisheni hulimbikizwa pale muuzaji aliyefikishwa na wakala hai analipa ankara ya usajili, na sera inashughulikia malipo hayo.",
-  "admin.commissions.accruals.noMatch": "Hakuna limbikizo linalolingana na mwonekano huu.",
-  "admin.commissions.accruals.noMatchHint": "Futa utafutaji au chagua hali nyingine.",
+  "admin.commissions.accruals.noMatch":
+    "Hakuna limbikizo linalolingana na mwonekano huu.",
+  "admin.commissions.accruals.noMatchHint":
+    "Futa utafutaji au chagua hali nyingine.",
   "admin.commissions.accruals.showing": "{shown} kati ya {total}",
-  "admin.commissions.accruals.capped": "Inaonyesha malimbikizo {count} ya hivi karibuni.",
+  "admin.commissions.accruals.capped":
+    "Inaonyesha malimbikizo {count} ya hivi karibuni.",
   "admin.commissions.accruals.rateOf": "{rate} ya {base}",
   "admin.commissions.accruals.availableFrom": "Inapatikana kuanzia",
   "admin.commissions.accruals.created": "Ililimbikizwa",
   "admin.commissions.accruals.outstanding": "Bado inadaiwa {amount}",
-  "admin.commissions.accruals.reserved": "Imehifadhiwa kwa uchukuzi unaoendelea",
+  "admin.commissions.accruals.reserved":
+    "Imehifadhiwa kwa uchukuzi unaoendelea",
   "admin.commissions.accruals.action.reverse": "Rejesha",
   "admin.commissions.accruals.action.reverseTitle": "Rejesha kamisheni hii",
   "admin.commissions.col.agent": "Wakala",
@@ -3483,11 +3901,16 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Commissions · policy cards ───────────────────────────────────────────
   "admin.commissions.policies.title": "Sera za kamisheni",
-  "admin.commissions.policies.description": "Viwango vina tarehe ya kuanza: sera moja kwa wakala na kichocheo huwa hai kwa wakati mmoja, na za zamani zinabaki kwenye kumbukumbu.",
-  "admin.commissions.policies.empty": "Hakuna sera bado — mawakala hawapati chochote kwa sasa.",
-  "admin.commissions.policies.emptyHint": "Unda sera ili kuamua thamani ya mwanachama anayefikishwa.",
-  "admin.commissions.policies.noMatch": "Hakuna sera inayolingana na mwonekano huu.",
-  "admin.commissions.policies.noMatchHint": "Futa utafutaji au chagua hali nyingine.",
+  "admin.commissions.policies.description":
+    "Viwango vina tarehe ya kuanza: sera moja kwa wakala na kichocheo huwa hai kwa wakati mmoja, na za zamani zinabaki kwenye kumbukumbu.",
+  "admin.commissions.policies.empty":
+    "Hakuna sera bado — mawakala hawapati chochote kwa sasa.",
+  "admin.commissions.policies.emptyHint":
+    "Unda sera ili kuamua thamani ya mwanachama anayefikishwa.",
+  "admin.commissions.policies.noMatch":
+    "Hakuna sera inayolingana na mwonekano huu.",
+  "admin.commissions.policies.noMatchHint":
+    "Futa utafutaji au chagua hali nyingine.",
   "admin.commissions.policies.count": "Sera: {count}",
   "admin.commissions.policies.status.OPEN": "INAFANYA KAZI",
   "admin.commissions.policies.status.SCHEDULED": "IMEPANGWA",
@@ -3502,7 +3925,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.commissions.policies.holdDaysZero": "Hutolewa mara moja",
   "admin.commissions.policies.referralWindow": "Kipindi cha ufikiishaji",
   "admin.commissions.policies.referralWindowNone": "Wakati wowote",
-  "admin.commissions.policies.referralWindowDays": "Siku {days} baada ya kufikishwa",
+  "admin.commissions.policies.referralWindowDays":
+    "Siku {days} baada ya kufikishwa",
   "admin.commissions.policies.plans": "Mipango inayohusika",
   "admin.commissions.policies.plansAll": "Mipango yote",
   "admin.commissions.policies.effectiveFrom": "Kuanzia {date}",
@@ -3515,9 +3939,12 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.commissions.policies.action.replace": "Badilisha",
   "admin.commissions.policies.action.end": "Isa",
   "admin.commissions.policies.action.delete": "Futa",
-  "admin.commissions.policies.deleteBlocked": "Sera hii ilishatoa malimbikizo {count} — iishe badala yake.",
-  "admin.commissions.policies.endBlocked": "Sera ambayo haijaanza haiwezi kuiswa — ifute badala yake.",
-  "admin.commissions.policies.endsNow": "Kuiisa kunaisimamisha kuanzia leo. Malimbikizo ya nyuma yanabaki na kiwango chake.",
+  "admin.commissions.policies.deleteBlocked":
+    "Sera hii ilishatoa malimbikizo {count} — iishe badala yake.",
+  "admin.commissions.policies.endBlocked":
+    "Sera ambayo haijaanza haiwezi kuiswa — ifute badala yake.",
+  "admin.commissions.policies.endsNow":
+    "Kuiisa kunaisimamisha kuanzia leo. Malimbikizo ya nyuma yanabaki na kiwango chake.",
 
   // ── Commissions · policy form ────────────────────────────────────────────
   "admin.commissions.form.titleCreate": "Sera mpya ya kamisheni",
@@ -3533,10 +3960,14 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.commissions.form.step.of": "Hatua {current} kati ya {total}",
   "admin.commissions.form.step.next": "Endelea",
   "admin.commissions.form.step.back": "Rudi",
-  "admin.commissions.form.step.identityLead": "Peana jina la sera na inahusu nani.",
-  "admin.commissions.form.step.rateLead": "Weka kiasi mawakala wanapata kwa kila ankara iliyolipwa.",
-  "admin.commissions.form.step.eligibilityLead": "Weka mipango na dirisha la rufaa zinazostahili.",
-  "admin.commissions.form.step.launchLead": "Muda wa kushikilia, mwanzo, kisha chapisha.",
+  "admin.commissions.form.step.identityLead":
+    "Peana jina la sera na inahusu nani.",
+  "admin.commissions.form.step.rateLead":
+    "Weka kiasi mawakala wanapata kwa kila ankara iliyolipwa.",
+  "admin.commissions.form.step.eligibilityLead":
+    "Weka mipango na dirisha la rufaa zinazostahili.",
+  "admin.commissions.form.step.launchLead":
+    "Muda wa kushikilia, mwanzo, kisha chapisha.",
   "admin.commissions.form.section.identity": "Nani na lini",
   "admin.commissions.form.section.rate": "Inalipa nini",
   "admin.commissions.form.section.eligibility": "Kinachostahili",
@@ -3545,7 +3976,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.commissions.form.namePlaceholder": "mf. Kawaida 10%",
   "admin.commissions.form.agent": "Wakala",
   "admin.commissions.form.agentAll": "Mawakala wote",
-  "admin.commissions.form.agentHint": "Sera ya wakala mahususi hushinda ile ya mawakala wote.",
+  "admin.commissions.form.agentHint":
+    "Sera ya wakala mahususi hushinda ile ya mawakala wote.",
   "admin.commissions.form.trigger": "Hulipa kwa",
   "admin.commissions.form.triggerFirst": "Malipo ya kwanza ya usajili",
   "admin.commissions.form.triggerRenewal": "Kila upyaishaji wa usajili",
@@ -3553,25 +3985,34 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.commissions.form.mode.PERCENTAGE": "Asilimia ya ankara",
   "admin.commissions.form.mode.FIXED": "Kiasi kisichobadilika",
   "admin.commissions.form.percent": "Asilimia",
-  "admin.commissions.form.percentHint": "Namba nzima au hadi desimali mbili, mf. 7.5.",
+  "admin.commissions.form.percentHint":
+    "Namba nzima au hadi desimali mbili, mf. 7.5.",
   "admin.commissions.form.fixedTzs": "Kiasi kisichobadilika (TZS)",
-  "admin.commissions.form.fixedTzsHint": "Hulipwa kwa kila ankara inayostahili.",
+  "admin.commissions.form.fixedTzsHint":
+    "Hulipwa kwa kila ankara inayostahili.",
   "admin.commissions.form.cap": "Kikomo kwa ankara (TZS)",
-  "admin.commissions.form.capHint": "Kikomo cha hiari. Kamisheni haizidi ankara yenyewe.",
+  "admin.commissions.form.capHint":
+    "Kikomo cha hiari. Kamisheni haizidi ankara yenyewe.",
   "admin.commissions.form.holdDays": "Siku za kusubiri",
-  "admin.commissions.form.holdDaysHint": "Siku kabla fedha kuchukuliwa. Tumia 0 kutoa mara moja.",
+  "admin.commissions.form.holdDaysHint":
+    "Siku kabla fedha kuchukuliwa. Tumia 0 kutoa mara moja.",
   "admin.commissions.form.referralDays": "Kipindi cha ufikiishaji (siku)",
-  "admin.commissions.form.referralDaysHint": "Lipa tu malipo yaliyofanyika ndani ya siku hizi baada ya kufikishwa.",
+  "admin.commissions.form.referralDaysHint":
+    "Lipa tu malipo yaliyofanyika ndani ya siku hizi baada ya kufikishwa.",
   "admin.commissions.form.planCodes": "Mipango inayohusika",
-  "admin.commissions.form.planCodesHint": "Misimbo ya mipango ikitenganishwa kwa koma. Acha wazi kwa mipango yote.",
+  "admin.commissions.form.planCodesHint":
+    "Misimbo ya mipango ikitenganishwa kwa koma. Acha wazi kwa mipango yote.",
   "admin.commissions.form.effectiveFrom": "Inaanza kuanzia",
   "admin.commissions.form.effectiveFromHint": "Acha wazi kuanza sasa.",
   "admin.commissions.form.isDemo": "Sera ya onyesho (si kiwango halisi)",
-  "admin.commissions.form.isDemoHint": "Sera za onyesho hazijumuishwi kwenye ripoti za uzalishaji.",
+  "admin.commissions.form.isDemoHint":
+    "Sera za onyesho hazijumuishwi kwenye ripoti za uzalishaji.",
   "admin.commissions.form.previewTitle": "Onyesho",
-  "admin.commissions.form.preview": "Wakala anapata {amount} kwenye ankara ya mfano ya {base}.",
+  "admin.commissions.form.preview":
+    "Wakala anapata {amount} kwenye ankara ya mfano ya {base}.",
   "admin.commissions.form.previewCap": "Kikomo cha {amount} kwa ankara.",
-  "admin.commissions.form.previewCloses": "Kuhifadhi kunaisa sera inayofanya kazi sasa kwa upeo huu.",
+  "admin.commissions.form.previewCloses":
+    "Kuhifadhi kunaisa sera inayofanya kazi sasa kwa upeo huu.",
   "admin.commissions.form.submitCreate": "Unda sera",
   "admin.commissions.form.submitReplace": "Badilisha sera",
   "admin.commissions.form.cancel": "Ghairi",
@@ -3581,16 +4022,20 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Commissions · dialogs ────────────────────────────────────────────────
   "admin.commissions.dialog.endTitle": "Isa {name}?",
-  "admin.commissions.dialog.endNote": "Inaacha kutumika kuanzia leo. Malimbikizo iliyokwisha toa yanabaki na kiwango chake, na bado unaiona kwenye orodha ya sera.",
+  "admin.commissions.dialog.endNote":
+    "Inaacha kutumika kuanzia leo. Malimbikizo iliyokwisha toa yanabaki na kiwango chake, na bado unaiona kwenye orodha ya sera.",
   "admin.commissions.dialog.deleteTitle": "Futa {name}?",
-  "admin.commissions.dialog.deleteNote": "Hii inaondoa kabisa sera ambayo haikutoa limbikizo lolote.",
+  "admin.commissions.dialog.deleteNote":
+    "Hii inaondoa kabisa sera ambayo haikutoa limbikizo lolote.",
   "admin.commissions.dialog.reverseTitle": "Rejesha kamisheni hii?",
   "admin.commissions.dialog.reverseNote":
     "Sehemu ambayo haijalipwa inarejeshwa na salio la wakala linapungua. Fedha iliyokwisha lipwa haigusiwi na inaonyeshwa kwa marekebisho ya mkono.",
   "admin.commissions.dialog.reason": "Sababu",
   "admin.commissions.dialog.reasonPlaceholder": "mf. usajili ulirejeshwa",
-  "admin.commissions.dialog.reasonHint": "Angalau herufi 3. Hii inahifadhiwa kwenye kumbukumbu ya ukaguzi.",
-  "admin.commissions.dialog.reasonTooShort": "Sababu ya angalau herufi 3 inahitajika.",
+  "admin.commissions.dialog.reasonHint":
+    "Angalau herufi 3. Hii inahifadhiwa kwenye kumbukumbu ya ukaguzi.",
+  "admin.commissions.dialog.reasonTooShort":
+    "Sababu ya angalau herufi 3 inahitajika.",
   "admin.commissions.dialog.confirm": "Endelea",
   "admin.commissions.dialog.cancel": "Ghairi",
   "admin.commissions.dialog.endSuccess": "Sera imeiswa — {name}",
@@ -3618,9 +4063,11 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.kpi.reachableNever": "Hakuna ukaguzi uliofanyika",
   "admin.controllers.kpi.sites": "Vituo vilivyounganishwa",
   "admin.controllers.kpi.sitesHint": "Vifaa {devices} vimesajiliwa",
-  "admin.controllers.kpi.sitesFailing": "Uunganishaji {count} unahitaji uangalizi",
+  "admin.controllers.kpi.sitesFailing":
+    "Uunganishaji {count} unahitaji uangalizi",
   "admin.controllers.kpi.coverage": "Uwezo uliothibitishwa",
-  "admin.controllers.kpi.coverageHint": "{verified} kati ya shughuli {total} zilizorekodiwa",
+  "admin.controllers.kpi.coverageHint":
+    "{verified} kati ya shughuli {total} zilizorekodiwa",
   "admin.controllers.kpi.coverageNone": "Hakuna ushahidi uliorekodiwa bado",
 
   // ── Controllers · toolbar & empty states ─────────────────────────────────
@@ -3635,7 +4082,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.empty.title": "Hakuna Kidhibiti kilichosajiliwa",
   "admin.controllers.empty.body":
     "Sajili Kidhibiti cha Omada kitakachosajili vituo, kisha rekodi kinachoweza kufanya kweli kabla ya kukiamini katika mazingira ya uzalishaji.",
-  "admin.controllers.empty.filtered": "Hakuna Kidhibiti kinacholingana na vichujio hivi.",
+  "admin.controllers.empty.filtered":
+    "Hakuna Kidhibiti kinacholingana na vichujio hivi.",
 
   // ── Controllers · card ───────────────────────────────────────────────────
   "admin.controllers.card.default": "CHAGUO-MSINGI",
@@ -3648,7 +4096,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.card.health.checked": "kimekaguliwa {when}",
   "admin.controllers.card.credentials.stored": "Vitambulisho vimehifadhiwa",
   "admin.controllers.card.credentials.none": "Hakuna vitambulisho",
-  "admin.controllers.card.retiredNote": "Kimestaafu — vituo vipya havisajiliwi hapa tena.",
+  "admin.controllers.card.retiredNote":
+    "Kimestaafu — vituo vipya havisajiliwi hapa tena.",
   "admin.controllers.card.failing": "Uunganishaji {count} unahitaji uangalizi",
   "admin.controllers.card.baseUrl": "URL ya msingi",
   "admin.controllers.card.version": "Toleo",
@@ -3686,7 +4135,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.matrix.verified": "Imethibitishwa maabara",
   "admin.controllers.matrix.notes": "Maelezo",
   "admin.controllers.matrix.updated": "Ilisasishwa",
-  "admin.controllers.matrix.empty": "Hakuna ushahidi wa uwezo uliorekodiwa bado.",
+  "admin.controllers.matrix.empty":
+    "Hakuna ushahidi wa uwezo uliorekodiwa bado.",
   "admin.controllers.matrix.yes": "NDIYO",
   "admin.controllers.matrix.no": "HAPANA",
   "admin.controllers.matrix.verifiedTag": "IMETHIBITISHWA",
@@ -3706,37 +4156,52 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Vidhibiti vya kuiga vinakataliwa katika uzalishaji. Vitumie kwa maabara na maonyesho pekee.",
   "admin.controllers.form.name": "Jina",
   "admin.controllers.form.namePlaceholder": "Kidhibiti cha Mwanza DC",
-  "admin.controllers.form.nameHint": "Jinsi waendeshaji watatambua Kidhibiti hiki.",
+  "admin.controllers.form.nameHint":
+    "Jinsi waendeshaji watatambua Kidhibiti hiki.",
   "admin.controllers.form.baseUrl": "URL ya msingi",
-  "admin.controllers.form.baseUrlHint": "Lazima ianze na https:// nje ya uzalishaji.",
+  "admin.controllers.form.baseUrlHint":
+    "Lazima ianze na https:// nje ya uzalishaji.",
   "admin.controllers.form.omadacId": "omadacId",
-  "admin.controllers.form.omadacIdHint": "Inapatikana kwenye ukurasa wa Open API wa Kidhibiti.",
+  "admin.controllers.form.omadacIdHint":
+    "Inapatikana kwenye ukurasa wa Open API wa Kidhibiti.",
   "admin.controllers.form.version": "Toleo la Kidhibiti",
   "admin.controllers.form.versionHint": "Kutoka Settings → Controller → About.",
   "admin.controllers.form.portalTime": "Maana ya sehemu ya muda wa portal",
-  "admin.controllers.form.portalTimeHint": "Jinsi Kidhibiti kinaripoti mwisho wa kuponi za hotspot.",
+  "admin.controllers.form.portalTimeHint":
+    "Jinsi Kidhibiti kinaripoti mwisho wa kuponi za hotspot.",
   "admin.controllers.form.portalTimeAbsolute": "Muda kamili wa mwisho",
   "admin.controllers.form.portalTimeDuration": "Muda kuanzia sasa",
   "admin.controllers.form.credentials": "Vitambulisho vya Open API",
-  "admin.controllers.form.credentialsHint": "Vimesimbwa. Acha sehemu wazi ili kuhifadhi vilivyopo.",
+  "admin.controllers.form.credentialsHint":
+    "Vimesimbwa. Acha sehemu wazi ili kuhifadhi vilivyopo.",
   "admin.controllers.form.clientId": "Kitambulisho cha mteja wa Open API",
   "admin.controllers.form.clientSecret": "Siri ya mteja wa Open API",
-  "admin.controllers.form.clientSecretHint": "Acha wazi ili kuhifadhi siri iliyopo.",
+  "admin.controllers.form.clientSecretHint":
+    "Acha wazi ili kuhifadhi siri iliyopo.",
   "admin.controllers.form.operatorUsername": "Jina la mtumiaji wa hotspot",
   "admin.controllers.form.operatorPassword": "Nenosiri la hotspot",
-  "admin.controllers.form.operatorPasswordHint": "Acha wazi ili kuhifadhi nenosiri lililopo.",
+  "admin.controllers.form.operatorPasswordHint":
+    "Acha wazi ili kuhifadhi nenosiri lililopo.",
   "admin.controllers.form.contract": "Mkataba wa Open API (JSON)",
-  "admin.controllers.form.contractHint": "Si lazima. Bandika mkataba uliotolewa kwenye nyaraka za Kidhibiti chako.",
-  "admin.controllers.form.makeDefault": "Kidhibiti chaguo-msingi kwa vituo vipya",
-  "admin.controllers.form.makeDefaultHint": "Kidhibiti kimoja pekee kinaweza kuwa chaguo-msingi; kukipandisha hiki kunashusha vingine.",
+  "admin.controllers.form.contractHint":
+    "Si lazima. Bandika mkataba uliotolewa kwenye nyaraka za Kidhibiti chako.",
+  "admin.controllers.form.makeDefault":
+    "Kidhibiti chaguo-msingi kwa vituo vipya",
+  "admin.controllers.form.makeDefaultHint":
+    "Kidhibiti kimoja pekee kinaweza kuwa chaguo-msingi; kukipandisha hiki kunashusha vingine.",
   "admin.controllers.form.submitCreate": "Hifadhi Kidhibiti",
   "admin.controllers.form.submitEdit": "Hifadhi mabadiliko",
   "admin.controllers.form.cancel": "Ghairi",
-  "admin.controllers.form.error.name": "Ipe Kidhibiti jina la angalau herufi 2.",
-  "admin.controllers.form.error.baseUrl": "Vidhibiti vya LIVE vinahitaji URL ya msingi inayoanza na http:// au https://.",
-  "admin.controllers.form.error.omadacId": "Vidhibiti vya LIVE vinahitaji omadacId kutoka ukurasa wa Open API.",
-  "admin.controllers.form.error.version": "Vidhibiti vya LIVE vinahitaji toleo la Kidhibiti.",
-  "admin.controllers.form.error.contract": "Mkataba wa Open API lazima uwe JSON halali.",
+  "admin.controllers.form.error.name":
+    "Ipe Kidhibiti jina la angalau herufi 2.",
+  "admin.controllers.form.error.baseUrl":
+    "Vidhibiti vya LIVE vinahitaji URL ya msingi inayoanza na http:// au https://.",
+  "admin.controllers.form.error.omadacId":
+    "Vidhibiti vya LIVE vinahitaji omadacId kutoka ukurasa wa Open API.",
+  "admin.controllers.form.error.version":
+    "Vidhibiti vya LIVE vinahitaji toleo la Kidhibiti.",
+  "admin.controllers.form.error.contract":
+    "Mkataba wa Open API lazima uwe JSON halali.",
   "admin.controllers.form.successCreate": "Kidhibiti kimesajiliwa — {name}",
   "admin.controllers.form.successEdit": "Kidhibiti kimesasishwa — {name}",
 
@@ -3747,18 +4212,24 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.evidence.operation": "Shughuli",
   "admin.controllers.evidence.operationPlaceholder": "mf. authorizeClient",
   "admin.controllers.evidence.supported": "Inaungwa mkono na Kidhibiti hiki",
-  "admin.controllers.evidence.supportedHint": "Hurekodiwa hata bila kuthibitishwa, ili mtu asidhani inafanya kazi.",
+  "admin.controllers.evidence.supportedHint":
+    "Hurekodiwa hata bila kuthibitishwa, ili mtu asidhani inafanya kazi.",
   "admin.controllers.evidence.verified": "Imethibitishwa maabara",
-  "admin.controllers.evidence.verifiedHint": "Inahitaji maelezo ya ushahidi hapa chini.",
+  "admin.controllers.evidence.verifiedHint":
+    "Inahitaji maelezo ya ushahidi hapa chini.",
   "admin.controllers.evidence.reason": "Sababu / upeo",
   "admin.controllers.evidence.reasonPlaceholder": "mf. kuponi za hotspot pekee",
   "admin.controllers.evidence.notes": "Ushahidi",
-  "admin.controllers.evidence.notesPlaceholder": "Namba ya jaribio, toleo la firmware na tarehe ilipoendeshwa",
-  "admin.controllers.evidence.notesHint": "Inahitajika wakati unaweka alama ya kuthibitishwa.",
+  "admin.controllers.evidence.notesPlaceholder":
+    "Namba ya jaribio, toleo la firmware na tarehe ilipoendeshwa",
+  "admin.controllers.evidence.notesHint":
+    "Inahitajika wakati unaweka alama ya kuthibitishwa.",
   "admin.controllers.evidence.existing": "Zilizorekodiwa tayari",
   "admin.controllers.evidence.submit": "Hifadhi ushahidi",
-  "admin.controllers.evidence.error.operation": "Taja shughuli kwa angalau herufi 2.",
-  "admin.controllers.evidence.error.notes": "Uwezo uliothibitishwa unahitaji maelezo ya ushahidi wa maabara.",
+  "admin.controllers.evidence.error.operation":
+    "Taja shughuli kwa angalau herufi 2.",
+  "admin.controllers.evidence.error.notes":
+    "Uwezo uliothibitishwa unahitaji maelezo ya ushahidi wa maabara.",
   "admin.controllers.evidence.success": "Ushahidi umerekodiwa kwa {operation}",
 
   // ── Controllers · inspection dialog ──────────────────────────────────────
@@ -3767,7 +4238,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Kidhibiti kinachopatikana si uthibitisho kwamba kipengele kinafanya kazi — uwezo husomwa moja kwa moja.",
   "admin.controllers.inspect.reachable": "Kinapatikana",
   "admin.controllers.inspect.unreachable": "Hakipatikani",
-  "admin.controllers.inspect.simulated": "Adapta ya kuiga — hakuna kifaa halisi kilichoguswa.",
+  "admin.controllers.inspect.simulated":
+    "Adapta ya kuiga — hakuna kifaa halisi kilichoguswa.",
   "admin.controllers.inspect.detail": "Maelezo kutoka Kidhibiti",
   "admin.controllers.inspect.capabilities": "Uwezo ulioripotiwa",
   "admin.controllers.inspect.raw": "Jibu ghafi",
@@ -3783,7 +4255,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.dialog.deactivateTitle": "Zima {name}?",
   "admin.controllers.dialog.deactivateNote":
     "Vituo vipya havitasajiliwa hapa tena. Vifaa vilivyokwisha sajiliwa vinaendelea kufanya kazi kupitia uunganishaji wake.",
-  "admin.controllers.dialog.deactivateReason": "Sababu ya kustaafisha Kidhibiti hiki",
+  "admin.controllers.dialog.deactivateReason":
+    "Sababu ya kustaafisha Kidhibiti hiki",
   "admin.controllers.dialog.deactivateDefaultWarning":
     "Hiki ni chaguo-msingi la sasa. {name} linachukua nafasi ya Kidhibiti chaguo-msingi mara hiki kinapostaafishwa.",
   "admin.controllers.dialog.deactivateDefaultWarningLast":
@@ -3792,20 +4265,26 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.controllers.dialog.reactivateTitle": "Washa tena {name}?",
   "admin.controllers.dialog.reactivateNote":
     "Kinarudi kuwa tayari kusajili vituo. Hakiwi chaguo-msingi bila wewe kukipandisha.",
-  "admin.controllers.dialog.reactivateReason": "Sababu ya kurudisha Kidhibiti hiki",
+  "admin.controllers.dialog.reactivateReason":
+    "Sababu ya kurudisha Kidhibiti hiki",
   "admin.controllers.dialog.reactivateConfirm": "Washa tena",
   "admin.controllers.dialog.deleteTitle": "Futa {name}?",
   "admin.controllers.dialog.deleteNote":
     "Kidhibiti kisichokuwa na uunganishaji wa kituo wala kifaa kilichosajiliwa pekee kinaweza kufutwa. Hii haiwezi kurudishwa.",
   "admin.controllers.dialog.deleteReason": "Sababu ya kufuta Kidhibiti hiki",
   "admin.controllers.dialog.deleteConfirm": "Futa Kidhibiti",
-  "admin.controllers.dialog.reasonPlaceholder": "mf. vifaa vilibadilishwa kituoni",
-  "admin.controllers.dialog.reasonHint": "Angalau herufi 3. Huhifadhiwa kwenye kumbukumbu ya ukaguzi.",
-  "admin.controllers.dialog.reasonTooShort": "Sababu ya angalau herufi 3 inahitajika.",
+  "admin.controllers.dialog.reasonPlaceholder":
+    "mf. vifaa vilibadilishwa kituoni",
+  "admin.controllers.dialog.reasonHint":
+    "Angalau herufi 3. Huhifadhiwa kwenye kumbukumbu ya ukaguzi.",
+  "admin.controllers.dialog.reasonTooShort":
+    "Sababu ya angalau herufi 3 inahitajika.",
   "admin.controllers.dialog.cancel": "Ghairi",
-  "admin.controllers.dialog.defaultSuccess": "{name} sasa ni Kidhibiti chaguo-msingi.",
+  "admin.controllers.dialog.defaultSuccess":
+    "{name} sasa ni Kidhibiti chaguo-msingi.",
   "admin.controllers.dialog.deactivateSuccess": "Kidhibiti kimezimwa — {name}",
-  "admin.controllers.dialog.reactivateSuccess": "Kidhibiti kimewashwa tena — {name}",
+  "admin.controllers.dialog.reactivateSuccess":
+    "Kidhibiti kimewashwa tena — {name}",
   "admin.controllers.dialog.deleteSuccess": "Kidhibiti kimefutwa — {name}",
 
   // ── Mtandao · kichwa ─────────────────────────────────────────────────────
@@ -3822,14 +4301,18 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Mtandao · safu ya viashiria ──────────────────────────────────────────
   "admin.network.kpi.sites": "Eneo",
-  "admin.network.kpi.sitesHint": "{ready} tayari · {provisioning} zinaendelea kusajiliwa",
+  "admin.network.kpi.sitesHint":
+    "{ready} tayari · {provisioning} zinaendelea kusajiliwa",
   "admin.network.kpi.sitesHintEmpty": "Hakuna eneo lililosajiliwa bado",
   "admin.network.kpi.claims": "Madai yanayosubiri ukaguzi",
-  "admin.network.kpi.claimsHint": "{adopted} zimesajiliwa · {rejected} zimekataliwa",
+  "admin.network.kpi.claimsHint":
+    "{adopted} zimesajiliwa · {rejected} zimekataliwa",
   "admin.network.kpi.claimsHintEmpty": "Hakuna dai la kifaa lililowasilishwa",
   "admin.network.kpi.mappings": "Eneo kwenye Kidhibiti",
-  "admin.network.kpi.mappingsHint": "{provisioned} kati ya {total} zimekamilika",
-  "admin.network.kpi.mappingsHintEmpty": "Hakuna eneo lililounganishwa na Kidhibiti bado",
+  "admin.network.kpi.mappingsHint":
+    "{provisioned} kati ya {total} zimekamilika",
+  "admin.network.kpi.mappingsHintEmpty":
+    "Hakuna eneo lililounganishwa na Kidhibiti bado",
   "admin.network.kpi.mappingsFailing": "{count} zinahitaji uamuzi wa mtendaji",
   "admin.network.kpi.mappingsUnmapped": "Eneo {count} hazina Kidhibiti bado",
   "admin.network.kpi.devices": "Vifaa vinavyohudumiwa",
@@ -3837,21 +4320,29 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.network.kpi.devicesUnassigned": "{count} havina Kidhibiti",
   "admin.network.kpi.devicesHintEmpty": "Hakuna kifaa kilichosajiliwa bado",
   "admin.network.kpi.operations": "Shughuli za mtandao",
-  "admin.network.kpi.operationsHint": "{succeeded} zimefanikiwa · {running} zinaendelea",
-  "admin.network.kpi.operationsStuck": "{count} zimekwama baada ya kumaliza majaribio",
-  "admin.network.kpi.operationsHintEmpty": "Hakuna kilichotumwa kwa Kidhibiti bado",
+  "admin.network.kpi.operationsHint":
+    "{succeeded} zimefanikiwa · {running} zinaendelea",
+  "admin.network.kpi.operationsStuck":
+    "{count} zimekwama baada ya kumaliza majaribio",
+  "admin.network.kpi.operationsHintEmpty":
+    "Hakuna kilichotumwa kwa Kidhibiti bado",
 
   // ── Mtandao · kadi za mgawanyo ───────────────────────────────────────────
   "admin.network.distribution.title": "Hali ya kila kitu",
-  "admin.network.distribution.description": "Kila hali iliyopo kwenye mtandao, imehesabiwa.",
+  "admin.network.distribution.description":
+    "Kila hali iliyopo kwenye mtandao, imehesabiwa.",
   "admin.network.distribution.sites": "Hali za eneo",
-  "admin.network.distribution.sitesHint": "Eneo za wauzaji na kiwango ambacho usajili ulifikia",
+  "admin.network.distribution.sitesHint":
+    "Eneo za wauzaji na kiwango ambacho usajili ulifikia",
   "admin.network.distribution.mappings": "Uunganishaji wa Kidhibiti",
-  "admin.network.distribution.mappingsHint": "Jinsi kila eneo lilivyokubaliwa na Kidhibiti chake",
+  "admin.network.distribution.mappingsHint":
+    "Jinsi kila eneo lilivyokubaliwa na Kidhibiti chake",
   "admin.network.distribution.claims": "Madai ya vifaa",
-  "admin.network.distribution.claimsHint": "Ukaguzi wa umiliki na kile usajili ulioripoti",
+  "admin.network.distribution.claimsHint":
+    "Ukaguzi wa umiliki na kile usajili ulioripoti",
   "admin.network.distribution.operations": "Shughuli za mtandao",
-  "admin.network.distribution.operationsHint": "Kazi zilizopangwa kwa Kidhibiti, au zilizojibiwa nacho",
+  "admin.network.distribution.operationsHint":
+    "Kazi zilizopangwa kwa Kidhibiti, au zilizojibiwa nacho",
   "admin.network.distribution.empty": "Hakuna kilichorekodiwa bado",
   "admin.network.distribution.total": "{count} jumla",
 
@@ -3883,7 +4374,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.network.claims.empty": "Hakuna dai la kifaa linalosubiri.",
   "admin.network.claims.approve": "Idhinisha",
   "admin.network.claims.reject": "Kataa",
-  "admin.network.claims.approvePrompt": "Maelezo ya kuidhinisha (mf. picha ya lebo ilikaguliwa)",
+  "admin.network.claims.approvePrompt":
+    "Maelezo ya kuidhinisha (mf. picha ya lebo ilikaguliwa)",
   "admin.network.claims.rejectPrompt": "Sababu ya kukataa",
   "admin.network.claims.col.reseller": "Muuza / eneo",
   "admin.network.claims.col.device": "Kifaa",
@@ -3901,13 +4393,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Mtandao · jedwali la eneo ────────────────────────────────────────────
   "admin.network.sites.title": "Eneo",
-  "admin.network.sites.description": "Kila eneo la muuza na Kidhibiti kinachokihudumia.",
+  "admin.network.sites.description":
+    "Kila eneo la muuza na Kidhibiti kinachokihudumia.",
   "admin.network.sites.empty": "Hakuna eneo bado.",
   "admin.network.sites.searchTitle": "Tafuta eneo",
   "admin.network.sites.search": "Tafuta eneo, muuza au slug",
   "admin.network.sites.showing": "{shown} kati ya {total}",
   "admin.network.sites.noMatch": "Hakuna eneo linalolingana na vichujio hivi.",
-  "admin.network.sites.noMatchHint": "Futa utafutaji au chagua hali / uunganishaji mwingine.",
+  "admin.network.sites.noMatchHint":
+    "Futa utafutaji au chagua hali / uunganishaji mwingine.",
   "admin.network.sites.filter.all": "Zote",
   "admin.network.sites.filter.mappingAll": "Uunganishaji wowote",
   "admin.network.sites.filter.mapped": "Kwenye Kidhibiti",
@@ -3919,11 +4413,13 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.network.sites.col.created": "Kimeundwa",
   "admin.network.sites.noMapping": "hakuna",
   "admin.network.sites.reprovision": "Jaribu kusanidi tena",
-  "admin.network.sites.reprovisionHint": "Huweka tena ombi la eneo kwa Kidhibiti; ni salama kurudia.",
+  "admin.network.sites.reprovisionHint":
+    "Huweka tena ombi la eneo kwa Kidhibiti; ni salama kurudia.",
 
   // ── Mtandao · jedwali la shughuli ────────────────────────────────────────
   "admin.network.ops.title": "Shughuli za mtandao",
-  "admin.network.ops.description": "Kazi zilizotumwa kwa Kidhibiti, na rekodi yake ya majaribio ikihifadhiwa kikamilifu.",
+  "admin.network.ops.description":
+    "Kazi zilizotumwa kwa Kidhibiti, na rekodi yake ya majaribio ikihifadhiwa kikamilifu.",
   "admin.network.ops.empty": "Hakuna shughuli za mtandao zilizorekodiwa.",
   "admin.network.ops.filterTitle": "Chuja shughuli",
   "admin.network.ops.col.operation": "Shughuli",
@@ -3951,11 +4447,13 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Malipo · mwenendo & mchanganyiko ─────────────────────────────────────
   "admin.payments.trend.title": "Mwenendo wa makusanyo",
-  "admin.payments.trend.description": "Makusanyo ya Snippe yaliyokamilika katika siku {days} zilizopita",
+  "admin.payments.trend.description":
+    "Makusanyo ya Snippe yaliyokamilika katika siku {days} zilizopita",
   "admin.payments.trend.guest": "WiFi ya wageni",
   "admin.payments.trend.subscription": "Usajili",
   "admin.payments.mix.title": "Hali ya majaribio ya Snippe",
-  "admin.payments.mix.description": "Mahali kila jaribio la malipo lilipo katika mzunguko wa mtoa huduma",
+  "admin.payments.mix.description":
+    "Mahali kila jaribio la malipo lilipo katika mzunguko wa mtoa huduma",
   "admin.payments.mix.center": "Majaribio",
   "admin.payments.tab.attempts": "Miamala",
   "admin.payments.tab.webhooks": "Webhook",
@@ -3967,30 +4465,40 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.payments.kpi.collectedHint": "Majaribio {count} yaliyokamilika",
   "admin.payments.kpi.collectedEmpty": "Hakuna malipo yaliyokamilika bado",
   "admin.payments.kpi.successful": "Malipo yaliyofanikiwa",
-  "admin.payments.kpi.successfulHint": "{rate}% ya majaribio {total} yalifikia fedha kupokelewa",
-  "admin.payments.kpi.successfulHintEmpty": "Hakuna jaribio la malipo lililorekodiwa bado",
+  "admin.payments.kpi.successfulHint":
+    "{rate}% ya majaribio {total} yalifikia fedha kupokelewa",
+  "admin.payments.kpi.successfulHintEmpty":
+    "Hakuna jaribio la malipo lililorekodiwa bado",
   "admin.payments.kpi.settlement": "Yanasubiri usuluhishaji",
-  "admin.payments.kpi.settlementHint": "{amount} ya mauzo yaliyokamilika yanasubiri ada ya mtoa huduma",
-  "admin.payments.kpi.settlementClear": "Kila mauzo yaliyokamilika yana ada ya mtoa huduma iliyorekodiwa",
+  "admin.payments.kpi.settlementHint":
+    "{amount} ya mauzo yaliyokamilika yanasubiri ada ya mtoa huduma",
+  "admin.payments.kpi.settlementClear":
+    "Kila mauzo yaliyokamilika yana ada ya mtoa huduma iliyorekodiwa",
   "admin.payments.kpi.review": "Zinasubiri msimamizi",
   "admin.payments.kpi.reviewHint":
     "Majaribio {review} yanahitaji uamuzi · webhooks {webhooks} zimeshindikana au zimetengwa · {unsettled} zinasubiri usuluhishaji",
   "admin.payments.kpi.reviewClear": "Hakuna kinachosubiri msimamizi",
   "admin.payments.kpi.fees": "Ada za mtoa huduma",
   "admin.payments.kpi.feesHint": "Salio baada ya ada {net}",
-  "admin.payments.kpi.feesEmpty": "Hakuna ada ya mtoa huduma iliyorekodiwa bado",
+  "admin.payments.kpi.feesEmpty":
+    "Hakuna ada ya mtoa huduma iliyorekodiwa bado",
 
   // ── Malipo · kadi za mgawanyo ────────────────────────────────────────────
   "admin.payments.distribution.title": "Fedha zilipo",
-  "admin.payments.distribution.description": "Kila hali inayoshikiliwa na malipo au webhook kwa sasa, ikihesabiwa.",
+  "admin.payments.distribution.description":
+    "Kila hali inayoshikiliwa na malipo au webhook kwa sasa, ikihesabiwa.",
   "admin.payments.distribution.attempts": "Hali za malipo",
-  "admin.payments.distribution.attemptsHint": "Kila jaribio lilifikia wapi na mtoa huduma",
+  "admin.payments.distribution.attemptsHint":
+    "Kila jaribio lilifikia wapi na mtoa huduma",
   "admin.payments.distribution.orders": "Hali za malipo ya oda",
-  "admin.payments.distribution.ordersHint": "Oda yenyewe inaamini nini kuhusu malipo",
+  "admin.payments.distribution.ordersHint":
+    "Oda yenyewe inaamini nini kuhusu malipo",
   "admin.payments.distribution.providers": "Mchanganyiko wa watoa huduma",
-  "admin.payments.distribution.providersHint": "Majaribio kwa mtoa huduma, na fedha zilizopokelewa",
+  "admin.payments.distribution.providersHint":
+    "Majaribio kwa mtoa huduma, na fedha zilizopokelewa",
   "admin.payments.distribution.webhooks": "Kikasha cha webhooks",
-  "admin.payments.distribution.webhooksHint": "Kila tukio lililosainiwa lililotumwa na mtoa huduma",
+  "admin.payments.distribution.webhooksHint":
+    "Kila tukio lililosainiwa lililotumwa na mtoa huduma",
   "admin.payments.distribution.empty": "Hakuna kilichorekodiwa bado",
   "admin.payments.distribution.total": "Jumla {count}",
 
@@ -4024,7 +4532,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Malipo · jedwali la majaribio ────────────────────────────────────────
   "admin.payments.attempts.title": "Majaribio ya malipo",
-  "admin.payments.attempts.description": "Safu moja kwa kila jaribio la kukusanya fedha, pamoja na oda inayohusika.",
+  "admin.payments.attempts.description":
+    "Safu moja kwa kila jaribio la kukusanya fedha, pamoja na oda inayohusika.",
   "admin.payments.attempts.empty": "Hakuna jaribio la malipo linalolingana.",
   "admin.payments.attempts.search": "Tafuta kumbukumbu, muuza, eneo au mlipaji",
   "admin.payments.attempts.filterState": "Chuja kwa hali",
@@ -4055,17 +4564,26 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.payments.attempts.action.detail": "Maelezo",
   "admin.payments.attempts.action.showMore": "Onyesha zaidi",
   "admin.payments.attempts.reconcileSuccess": "Mtoa huduma amejibu — {result}",
-  "admin.payments.attempts.reconcileFailed": "Ukaguzi kwa mtoa huduma umeshindikana: {error}",
+  "admin.payments.attempts.reconcileFailed":
+    "Ukaguzi kwa mtoa huduma umeshindikana: {error}",
 
   // ── Malipo · matokeo ya kusuluhisha ──────────────────────────────────────
-  "admin.payments.reconcile.result.applied": "Malipo yalithibitishwa na kutumika.",
-  "admin.payments.reconcile.result.duplicate": "Mtoa huduma alithibitisha malipo ambayo yalikuwa yamerekodiwa tayari.",
-  "admin.payments.reconcile.result.overpaid": "Malipo ya pili yalithibitishwa na kurekodiwa kama malipo ya ziada.",
-  "admin.payments.reconcile.result.ignored": "Mtoa huduma alijibu, lakini jaribio hili lilikuwa limekwisha.",
-  "admin.payments.reconcile.result.pending": "Mtoa huduma bado anaripoti malipo haya kama yanasubiri.",
-  "admin.payments.reconcile.result.unmatched": "Mtoa huduma hana malipo ya kumbukumbu hii.",
-  "admin.payments.reconcile.result.mismatch": "Kiasi au sarafu hailingani na oda.",
-  "admin.payments.reconcile.result.lookup_failed": "Ukaguzi kwa mtoa huduma umeshindikana; angalia hitilafu ya mwisho ya jaribio.",
+  "admin.payments.reconcile.result.applied":
+    "Malipo yalithibitishwa na kutumika.",
+  "admin.payments.reconcile.result.duplicate":
+    "Mtoa huduma alithibitisha malipo ambayo yalikuwa yamerekodiwa tayari.",
+  "admin.payments.reconcile.result.overpaid":
+    "Malipo ya pili yalithibitishwa na kurekodiwa kama malipo ya ziada.",
+  "admin.payments.reconcile.result.ignored":
+    "Mtoa huduma alijibu, lakini jaribio hili lilikuwa limekwisha.",
+  "admin.payments.reconcile.result.pending":
+    "Mtoa huduma bado anaripoti malipo haya kama yanasubiri.",
+  "admin.payments.reconcile.result.unmatched":
+    "Mtoa huduma hana malipo ya kumbukumbu hii.",
+  "admin.payments.reconcile.result.mismatch":
+    "Kiasi au sarafu hailingani na oda.",
+  "admin.payments.reconcile.result.lookup_failed":
+    "Ukaguzi kwa mtoa huduma umeshindikana; angalia hitilafu ya mwisho ya jaribio.",
 
   // ── Malipo · kidirisha cha kusuluhisha ───────────────────────────────────
   "admin.payments.reconcile.title": "Suluhisha na mtoa huduma",
@@ -4078,12 +4596,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.payments.settle.note":
     "Mauzo yalikamilika kabla ada ya mtoa huduma kujulikana, hivyo fedha za muuza zimehifadhiwa hadi usuluhishaji. Kurekodi ada halisi huziachilia.",
   "admin.payments.settle.feeLabel": "Ada ya mtoa huduma (TZS)",
-  "admin.payments.settle.feeHint": "Isome kutoka taarifa ya mtoa huduma. Haiwezi kuzidi salio lililohifadhiwa.",
+  "admin.payments.settle.feeHint":
+    "Isome kutoka taarifa ya mtoa huduma. Haiwezi kuzidi salio lililohifadhiwa.",
   "admin.payments.settle.pendingLabel": "Limehifadhiwa hadi usuluhishaji",
   "admin.payments.settle.reasonLabel": "Sababu (inakaguliwa)",
-  "admin.payments.settle.reasonPlaceholder": "mf. taarifa ya M-Pesa 2026-10-02, mstari 14",
+  "admin.payments.settle.reasonPlaceholder":
+    "mf. taarifa ya M-Pesa 2026-10-02, mstari 14",
   "admin.payments.settle.tooShort": "Sababu ya angalau herufi 3 inahitajika.",
-  "admin.payments.settle.feeRequired": "Weka ada ya mtoa huduma kutoka taarifa.",
+  "admin.payments.settle.feeRequired":
+    "Weka ada ya mtoa huduma kutoka taarifa.",
   "admin.payments.settle.confirm": "Rekodi ada",
   "admin.payments.settle.success": "Ada ya mtoa huduma imerekodiwa — {amount}",
 
@@ -4116,7 +4637,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
 
   // ── Malipo · kikasha cha webhooks ────────────────────────────────────────
   "admin.payments.webhooks.title": "Kikasha cha webhooks",
-  "admin.payments.webhooks.description": "Kila tukio lililosainiwa lililotumwa na mtoa huduma, na tulichokifanya.",
+  "admin.payments.webhooks.description":
+    "Kila tukio lililosainiwa lililotumwa na mtoa huduma, na tulichokifanya.",
   "admin.payments.webhooks.empty": "Hakuna webhook inayolingana.",
   "admin.payments.webhooks.filterState": "Chuja webhooks kwa hali",
   "admin.payments.webhooks.allStates": "Hali zote",
@@ -4137,14 +4659,17 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   // ── Withdrawals ─────────────────────────────────────────────────────────
   "admin.withdrawals.eyebrow": "Fedha · Malipo ya kutolewa",
   "admin.withdrawals.title": "Utoaji fedha & malipo ya kutolewa",
-  "admin.withdrawals.description": "Fedha za mnufaika hufungwa kwenye leja mara ombi linapotumwa. Kuidhinisha hutuma malipo kwa mtoa huduma; kukataa au kushindwa hurejesha kile kilichofungwa. Kila uamuzi huandikwa kwenye kumbukumbu na unahitaji sababu.",
+  "admin.withdrawals.description":
+    "Fedha za mnufaika hufungwa kwenye leja mara ombi linapotumwa. Kuidhinisha hutuma malipo kwa mtoa huduma; kukataa au kushindwa hurejesha kile kilichofungwa. Kila uamuzi huandikwa kwenye kumbukumbu na unahitaji sababu.",
   "admin.withdrawals.action.refresh": "Onyesha upya hesabu",
   "admin.withdrawals.trend.title": "Mwenendo wa malipo ya kutolewa",
-  "admin.withdrawals.trend.description": "Malipo yaliyokamilika katika siku {days} zilizopita",
+  "admin.withdrawals.trend.description":
+    "Malipo yaliyokamilika katika siku {days} zilizopita",
   "admin.withdrawals.trend.reseller": "Wauzaji",
   "admin.withdrawals.trend.agent": "Mawakala",
   "admin.withdrawals.mix.title": "Hali ya maombi",
-  "admin.withdrawals.mix.description": "Mahali kila ombi la malipo lilipo katika mzunguko",
+  "admin.withdrawals.mix.description":
+    "Mahali kila ombi la malipo lilipo katika mzunguko",
   "admin.withdrawals.mix.center": "Maombi",
   "admin.withdrawals.requests.filterTitle": "Tafuta malipo",
   "admin.withdrawals.hero.reserveHeld": "Imefungwa",
@@ -4161,40 +4686,52 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.withdrawals.kpi.awaiting.title": "Yanasubiri uamuzi",
   "admin.withdrawals.kpi.awaiting.hint": "Maombi {count} yanashikilia {amount}",
   "admin.withdrawals.kpi.awaiting.empty": "Hakuna kinachokusubiri",
-  "admin.withdrawals.kpi.awaiting.oldest": "La zamani zaidi limesubiri saa {hours}",
+  "admin.withdrawals.kpi.awaiting.oldest":
+    "La zamani zaidi limesubiri saa {hours}",
   "admin.withdrawals.kpi.inFlight.title": "Njiani",
-  "admin.withdrawals.kpi.inFlight.hint": "Yameidhinishwa au yametumwa, hayajakamilika",
+  "admin.withdrawals.kpi.inFlight.hint":
+    "Yameidhinishwa au yametumwa, hayajakamilika",
   "admin.withdrawals.kpi.inFlight.empty": "Hakuna malipo yaliyo njiani",
-  "admin.withdrawals.kpi.inFlight.stale": "{count} yamekwama nje ya muda wa kujaribu tena",
+  "admin.withdrawals.kpi.inFlight.stale":
+    "{count} yamekwama nje ya muda wa kujaribu tena",
   "admin.withdrawals.kpi.paid.title": "Yamelipwa",
-  "admin.withdrawals.kpi.paid.hint": "{count} zimekamilika · wastani {amount} kwa malipo",
+  "admin.withdrawals.kpi.paid.hint":
+    "{count} zimekamilika · wastani {amount} kwa malipo",
   "admin.withdrawals.kpi.paid.empty": "Hakuna malipo yaliyokamilika",
   "admin.withdrawals.kpi.paid.fees": "Ada za mtoa huduma {amount}",
   "admin.withdrawals.kpi.reserve.title": "Akiba iliyofungwa",
-  "admin.withdrawals.kpi.reserve.hint": "Imeahidiwa kwa malipo {count} yasiyokamilika",
+  "admin.withdrawals.kpi.reserve.hint":
+    "Imeahidiwa kwa malipo {count} yasiyokamilika",
   "admin.withdrawals.kpi.reserve.empty": "Hakuna kilichofungwa",
   "admin.withdrawals.kpi.reserve.released": "{amount} imerejeshwa",
   "admin.withdrawals.kpi.attention.title": "Zinahitaji msimamizi",
-  "admin.withdrawals.kpi.attention.hint": "{review} zinahitaji ukaguzi · {unknown} hazijulikani · {stale} zimekwama",
+  "admin.withdrawals.kpi.attention.hint":
+    "{review} zinahitaji ukaguzi · {unknown} hazijulikani · {stale} zimekwama",
   "admin.withdrawals.kpi.attention.clear": "Kila kitu kimehesabiwa",
   "admin.withdrawals.kpi.failed": "{count} zimeshindwa",
   "admin.withdrawals.board.title": "Fedha zilipo",
-  "admin.withdrawals.board.hint": "Mitazamo minne ya akiba hiyo hiyo: hali za maombi, majaribio ya mtoa huduma, wanufaika wanaolipwa, na akiba ilipoishia.",
+  "admin.withdrawals.board.hint":
+    "Mitazamo minne ya akiba hiyo hiyo: hali za maombi, majaribio ya mtoa huduma, wanufaika wanaolipwa, na akiba ilipoishia.",
   "admin.withdrawals.states.title": "Hali za maombi",
-  "admin.withdrawals.states.hint": "Kila ombi la malipo liliishia wapi. Bonyeza mstari kuchuja jedwali.",
+  "admin.withdrawals.states.hint":
+    "Kila ombi la malipo liliishia wapi. Bonyeza mstari kuchuja jedwali.",
   "admin.withdrawals.states.total": "Jumla {count}",
   "admin.withdrawals.states.empty": "Hakuna ombi la malipo lililorekodiwa.",
   "admin.withdrawals.attempts.title": "Majaribio ya malipo",
-  "admin.withdrawals.attempts.hint": "Kile mtoa huduma alipokea kweli, ikiwemo tusiyo na uhakika nayo.",
-  "admin.withdrawals.attempts.empty": "Hakuna jaribio lililotumwa kwa mtoa huduma.",
+  "admin.withdrawals.attempts.hint":
+    "Kile mtoa huduma alipokea kweli, ikiwemo tusiyo na uhakika nayo.",
+  "admin.withdrawals.attempts.empty":
+    "Hakuna jaribio lililotumwa kwa mtoa huduma.",
   "admin.withdrawals.attempts.open": "{count} wazi",
   "admin.withdrawals.attempts.stale": "{count} hayawezi kujaribiwa tena salama",
   "admin.withdrawals.beneficiaries.title": "Mchanganyiko wa wanufaika",
-  "admin.withdrawals.beneficiaries.hint": "Fedha za nani zinatoka, na kiasi gani.",
+  "admin.withdrawals.beneficiaries.hint":
+    "Fedha za nani zinatoka, na kiasi gani.",
   "admin.withdrawals.beneficiaries.total": "Wanufaika {count}",
   "admin.withdrawals.beneficiaries.empty": "Hakuna mnufaika aliyeomba malipo.",
   "admin.withdrawals.money.title": "Akiba ilienda wapi",
-  "admin.withdrawals.money.hint": "Fedha zilizofungwa zilikamilika kwa mtoa huduma au zilirudi kwa mnufaika.",
+  "admin.withdrawals.money.hint":
+    "Fedha zilizofungwa zilikamilika kwa mtoa huduma au zilirudi kwa mnufaika.",
   "admin.withdrawals.money.held": "Bado imefungwa",
   "admin.withdrawals.money.heldHint": "Maombi {count} hayajakamilika",
   "admin.withdrawals.money.paidOut": "Imelipwa kwa wanufaika",
@@ -4203,8 +4740,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.withdrawals.money.releasedHint": "{count} zimeshindwa au zimekataliwa",
   "admin.withdrawals.money.providerFees": "Ada za mtoa huduma zilizolipwa",
   "admin.withdrawals.money.platformFees": "Ada ya jukwaa iliyopatikana",
-  "admin.withdrawals.money.platformFeesUnset": "Hakuna ada ya utoaji ya jukwaa iliyowekwa, kwa hiyo hii ni sifuri.",
-  "admin.withdrawals.money.absorbed": "Mtoa huduma alitoza {amount} zaidi ya ilivyokadiriwa kwenye malipo yaliyokamilika; jukwaa lililipia tofauti hiyo.",
+  "admin.withdrawals.money.platformFeesUnset":
+    "Hakuna ada ya utoaji ya jukwaa iliyowekwa, kwa hiyo hii ni sifuri.",
+  "admin.withdrawals.money.absorbed":
+    "Mtoa huduma alitoza {amount} zaidi ya ilivyokadiriwa kwenye malipo yaliyokamilika; jukwaa lililipia tofauti hiyo.",
   "admin.withdrawals.money.absorbedShort": "{amount} imelipiwa na jukwaa",
   "admin.withdrawals.money.principal": "Kiasi cha mnufaika",
   "admin.withdrawals.state.REQUESTED": "Inasubiri uamuzi",
@@ -4236,12 +4775,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.withdrawals.accountMasked": "Akaunti {phone}",
   "admin.withdrawals.noContact": "Hakuna simu iliyorekodiwa",
   "admin.withdrawals.requests.title": "Maombi ya malipo",
-  "admin.withdrawals.requests.description": "Mapya kwanza. Idhinisha au kataa ombi, au uliza mtoa huduma ukweli kuhusu malipo yaliyokwama.",
+  "admin.withdrawals.requests.description":
+    "Mapya kwanza. Idhinisha au kataa ombi, au uliza mtoa huduma ukweli kuhusu malipo yaliyokwama.",
   "admin.withdrawals.requests.empty": "Hakuna ombi la malipo lililofanywa.",
-  "admin.withdrawals.requests.noMatch": "Hakuna ombi linalolingana na vichujio hivi.",
+  "admin.withdrawals.requests.noMatch":
+    "Hakuna ombi linalolingana na vichujio hivi.",
   "admin.withdrawals.requests.count": "{shown} kati ya maombi {total}",
   "admin.withdrawals.requests.showMore": "Onyesha {count} zaidi",
-  "admin.withdrawals.requests.truncated": "Maombi {total} mapya pekee yamepakiwa.",
+  "admin.withdrawals.requests.truncated":
+    "Maombi {total} mapya pekee yamepakiwa.",
   "admin.withdrawals.col.beneficiary": "Mnufaika",
   "admin.withdrawals.col.payout": "Malipo",
   "admin.withdrawals.col.fees": "Ada",
@@ -4259,40 +4801,61 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.withdrawals.action.reconcile": "Linganisha",
   "admin.withdrawals.action.detail": "Maelezo",
   "admin.withdrawals.decision.approveTitle": "Idhinisha malipo haya?",
-  "admin.withdrawals.decision.approveNote": "Akiba ipo tayari kwenye leja. Kuidhinisha hutuma malipo kwa mtoa huduma na hayawezi kurudishwa kutoka hapa.",
+  "admin.withdrawals.decision.approveNote":
+    "Akiba ipo tayari kwenye leja. Kuidhinisha hutuma malipo kwa mtoa huduma na hayawezi kurudishwa kutoka hapa.",
   "admin.withdrawals.decision.rejectTitle": "Kataa malipo haya?",
-  "admin.withdrawals.decision.rejectNote": "Akiba yote — kiasi, ada ya mtoa huduma na ada ya jukwaa — inarudi mara moja kwenye salio la mnufaika.",
-  "admin.withdrawals.decision.rejectWarning": "Mnufaika anaona note hii. Sema nini kirekebishwe, si kwamba imeshindwa tu.",
-  "admin.withdrawals.decision.approveReasonLabel": "Note ya uidhinishaji (kwenye kumbukumbu)",
-  "admin.withdrawals.decision.rejectReasonLabel": "Sababu ya kukataa (inaonekana kwa mnufaika)",
-  "admin.withdrawals.decision.reasonPlaceholder": "mf. mnufaika alithibitishwa kwa simu tarehe 02 Okt",
+  "admin.withdrawals.decision.rejectNote":
+    "Akiba yote — kiasi, ada ya mtoa huduma na ada ya jukwaa — inarudi mara moja kwenye salio la mnufaika.",
+  "admin.withdrawals.decision.rejectWarning":
+    "Mnufaika anaona note hii. Sema nini kirekebishwe, si kwamba imeshindwa tu.",
+  "admin.withdrawals.decision.approveReasonLabel":
+    "Note ya uidhinishaji (kwenye kumbukumbu)",
+  "admin.withdrawals.decision.rejectReasonLabel":
+    "Sababu ya kukataa (inaonekana kwa mnufaika)",
+  "admin.withdrawals.decision.reasonPlaceholder":
+    "mf. mnufaika alithibitishwa kwa simu tarehe 02 Okt",
   "admin.withdrawals.decision.tooShort": "Toa sababu ya angalau herufi 3.",
   "admin.withdrawals.decision.summary.beneficiary": "Mnufaika",
   "admin.withdrawals.decision.summary.destination": "Marudio",
   "admin.withdrawals.decision.summary.amount": "Mnufaika anapokea",
-  "admin.withdrawals.decision.summary.totalDebit": "Jumla inayotoka kwenye salio",
+  "admin.withdrawals.decision.summary.totalDebit":
+    "Jumla inayotoka kwenye salio",
   "admin.withdrawals.decision.summary.waiting": "Muda wa kusubiri",
   "admin.withdrawals.reconcile.title": "Uliza mtoa huduma",
-  "admin.withdrawals.reconcile.note": "Inatafuta malipo kwa mtoa huduma na kutumia kile wanachoripoti. Hakuna kinachobadilishwa mtoa huduma asipojibu.",
+  "admin.withdrawals.reconcile.note":
+    "Inatafuta malipo kwa mtoa huduma na kutumia kile wanachoripoti. Hakuna kinachobadilishwa mtoa huduma asipojibu.",
   "admin.withdrawals.reconcile.attempt": "Jaribio la mwisho",
   "admin.withdrawals.reconcile.reference": "Kumbukumbu ya mtoa huduma",
-  "admin.withdrawals.reconcile.noReference": "Hakuna kumbukumbu — jaribio hili halikufika kwa mtoa huduma",
-  "admin.withdrawals.reconcile.none": "Hakuna jaribio lililotumwa kwa ombi hili.",
+  "admin.withdrawals.reconcile.noReference":
+    "Hakuna kumbukumbu — jaribio hili halikufika kwa mtoa huduma",
+  "admin.withdrawals.reconcile.none":
+    "Hakuna jaribio lililotumwa kwa ombi hili.",
   "admin.withdrawals.reconcile.run": "Linganisha sasa",
   "admin.withdrawals.reconcile.running": "Inauliza mtoa huduma…",
   "admin.withdrawals.reconcile.close": "Funga",
   "admin.withdrawals.reconcile.result": "Mtoa huduma alisema",
-  "admin.withdrawals.reconcile.result.no_attempt": "Hakuna kilichotumwa kwa ombi hili.",
-  "admin.withdrawals.reconcile.result.pending": "Bado inashughulikiwa kwa mtoa huduma. Akiba inabaki imefungwa.",
-  "admin.withdrawals.reconcile.result.completed": "Imethibitishwa kukamilika. Akiba sasa imetolewa kama iliyolipwa.",
-  "admin.withdrawals.reconcile.result.failed": "Mtoa huduma anaripoti kushindwa. Akiba imerudi kwa mnufaika.",
-  "admin.withdrawals.reconcile.result.reversed": "Mtoa huduma alirejesha malipo. Kiasi pekee kilirejeshwa.",
-  "admin.withdrawals.reconcile.result.needs_review": "Mtoa huduma hakuweza kutujibu, na ni marehemu kujaribu tena salama. Imepandishwa kwa ukaguzi.",
-  "admin.withdrawals.reconcile.result.duplicate": "Imekwisha tumika — mtoa huduma aliripoti matokeo haya awali.",
-  "admin.withdrawals.reconcile.result.unmatched": "Mtoa huduma alirudisha kumbukumbu tusiyoitambua.",
-  "admin.withdrawals.reconcile.result.ignored": "Mtoa huduma aliripoti hali tusiyoifanyia kazi.",
-  "admin.withdrawals.reconcile.result.lookup_failed": "Mtoa huduma hakujibu. Hakuna kilichobadilika.",
-  "admin.withdrawals.reconcile.result.error": "Utafutaji umeshindwa. Hakuna kilichobadilika.",
+  "admin.withdrawals.reconcile.result.no_attempt":
+    "Hakuna kilichotumwa kwa ombi hili.",
+  "admin.withdrawals.reconcile.result.pending":
+    "Bado inashughulikiwa kwa mtoa huduma. Akiba inabaki imefungwa.",
+  "admin.withdrawals.reconcile.result.completed":
+    "Imethibitishwa kukamilika. Akiba sasa imetolewa kama iliyolipwa.",
+  "admin.withdrawals.reconcile.result.failed":
+    "Mtoa huduma anaripoti kushindwa. Akiba imerudi kwa mnufaika.",
+  "admin.withdrawals.reconcile.result.reversed":
+    "Mtoa huduma alirejesha malipo. Kiasi pekee kilirejeshwa.",
+  "admin.withdrawals.reconcile.result.needs_review":
+    "Mtoa huduma hakuweza kutujibu, na ni marehemu kujaribu tena salama. Imepandishwa kwa ukaguzi.",
+  "admin.withdrawals.reconcile.result.duplicate":
+    "Imekwisha tumika — mtoa huduma aliripoti matokeo haya awali.",
+  "admin.withdrawals.reconcile.result.unmatched":
+    "Mtoa huduma alirudisha kumbukumbu tusiyoitambua.",
+  "admin.withdrawals.reconcile.result.ignored":
+    "Mtoa huduma aliripoti hali tusiyoifanyia kazi.",
+  "admin.withdrawals.reconcile.result.lookup_failed":
+    "Mtoa huduma hakujibu. Hakuna kilichobadilika.",
+  "admin.withdrawals.reconcile.result.error":
+    "Utafutaji umeshindwa. Hakuna kilichobadilika.",
   "admin.withdrawals.detail.title": "Ombi la malipo",
   "admin.withdrawals.detail.section.identity": "Nani anatoa fedha",
   "admin.withdrawals.detail.section.money": "Fedha",
@@ -4328,8 +4891,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.withdrawals.detail.attemptError": "Hitilafu ya mtoa huduma",
   "admin.withdrawals.detail.attemptChecked": "Ukaguzi wa mwisho",
   "admin.withdrawals.detail.attemptCreated": "Ilitumwa",
-  "admin.withdrawals.detail.noAttempts": "Hakuna kilichotumwa kwa mtoa huduma bado.",
-  "admin.withdrawals.detail.noAllocations": "Hakuna kamisheni ya wakala iliyounganishwa na ombi hili.",
+  "admin.withdrawals.detail.noAttempts":
+    "Hakuna kilichotumwa kwa mtoa huduma bado.",
+  "admin.withdrawals.detail.noAllocations":
+    "Hakuna kamisheni ya wakala iliyounganishwa na ombi hili.",
   "admin.withdrawals.detail.allocationTotal": "Mgawanyo {count} · {amount}",
   "admin.withdrawals.detail.close": "Funga",
   "admin.withdrawals.none": "—",
@@ -4343,7 +4908,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Kila shilingi iliyohamishwa, jinsi ilivyoandikwa. Maingizo haya yanaongezwa tu: hakuna linabadilishwa, kosa hurekebishwa kwa kuandika kinyume chake.",
   "admin.ledger.action.refresh": "Sasisha",
   "admin.ledger.trend.title": "Mwenendo wa uandikaji",
-  "admin.ledger.trend.description": "Kiasi cha majarida katika siku {days} zilizopita",
+  "admin.ledger.trend.description":
+    "Kiasi cha majarida katika siku {days} zilizopita",
   "admin.ledger.trend.inflow": "Fedha zinazoingia",
   "admin.ledger.trend.other": "Mienendo & marekebisho",
   "admin.ledger.mix.title": "Matukio ya jarida",
@@ -4360,10 +4926,12 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.hero.unbalanced": "Hazilingani kwa {amount}",
   "admin.ledger.kpi.debits.title": "Debiti zilizoandikwa",
   "admin.ledger.kpi.debits.hint": "Akaunti {count} za debiti zinachangia",
-  "admin.ledger.kpi.debits.empty": "Hakuna kilichoandikwa kwenye akaunti ya debiti.",
+  "admin.ledger.kpi.debits.empty":
+    "Hakuna kilichoandikwa kwenye akaunti ya debiti.",
   "admin.ledger.kpi.credits.title": "Krediti zilizoandikwa",
   "admin.ledger.kpi.credits.hint": "Akaunti {count} za krediti zinachangia",
-  "admin.ledger.kpi.credits.empty": "Hakuna kilichoandikwa kwenye akaunti ya krediti.",
+  "admin.ledger.kpi.credits.empty":
+    "Hakuna kilichoandikwa kwenye akaunti ya krediti.",
   "admin.ledger.kpi.journals.title": "Majarida",
   "admin.ledger.kpi.journals.hint": "Aina {events} za tukio · ya kwanza {date}",
   "admin.ledger.kpi.journals.empty": "Hakuna kilichoandikwa bado.",
@@ -4375,7 +4943,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.kpi.integrity.title": "Mizani ya jaribio",
   "admin.ledger.kpi.integrity.balanced": "Inalingana",
   "admin.ledger.kpi.integrity.unbalanced": "Haizalingani",
-  "admin.ledger.kpi.integrity.hint.balanced": "Kila ingizo lina upande wake wa pili. Leja iko sawa.",
+  "admin.ledger.kpi.integrity.hint.balanced":
+    "Kila ingizo lina upande wake wa pili. Leja iko sawa.",
   "admin.ledger.kpi.integrity.hint.unbalanced":
     "Debiti na krediti zinatofautiana kwa {amount}. Simamisha malipo na uchunguze.",
   "admin.ledger.kpi.integrity.reversals": "{count} maingizo ya kinyume",
@@ -4384,21 +4953,26 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Debiti na krediti zinatofautiana kwa {amount}. Usaidie malipo yoyote hadi hili lielezwe.",
 
   "admin.ledger.board.title": "Umbo la leja",
-  "admin.ledger.board.hint": "Mikato minne ya leja moja. Chagua safu yoyote kuchuja majedwali hapa chini.",
+  "admin.ledger.board.hint":
+    "Mikato minne ya leja moja. Chagua safu yoyote kuchuja majedwali hapa chini.",
   "admin.ledger.events.title": "Iliyoandikwa kwa tukio",
-  "admin.ledger.events.hint": "Fedha zinazoingia na kutoka, zimepangwa kwa tukio la biashara lililosababisha.",
+  "admin.ledger.events.hint":
+    "Fedha zinazoingia na kutoka, zimepangwa kwa tukio la biashara lililosababisha.",
   "admin.ledger.events.total": "{count} majarida",
   "admin.ledger.events.empty": "Hakuna jarida lililoandikwa bado.",
   "admin.ledger.obligations.title": "Inayodaiwa kwa kila upande",
-  "admin.ledger.obligations.hint": "Akaunti za madeni pekee — kile jukwaa bado linashikilia kwa mtu mwingine.",
+  "admin.ledger.obligations.hint":
+    "Akaunti za madeni pekee — kile jukwaa bado linashikilia kwa mtu mwingine.",
   "admin.ledger.obligations.total": "{amount} inayodaiwa",
-  "admin.ledger.obligations.empty": "Hakuna inayodaiwa kwa mtu yeyote kwa sasa.",
+  "admin.ledger.obligations.empty":
+    "Hakuna inayodaiwa kwa mtu yeyote kwa sasa.",
   "admin.ledger.families.title": "Fedha ziko wapi",
   "admin.ledger.families.hint": "Akaunti zimepangwa kwa kazi yao.",
   "admin.ledger.families.total": "{count} akaunti",
   "admin.ledger.families.empty": "Hakuna akaunti iliyofunguliwa bado.",
   "admin.ledger.sides.title": "Pande mbili za leja",
-  "admin.ledger.sides.hint": "Mali na gharama dhidi ya madeni na mapato. Pande zote mbili lazima zilingane.",
+  "admin.ledger.sides.hint":
+    "Mali na gharama dhidi ya madeni na mapato. Pande zote mbili lazima zilingane.",
   "admin.ledger.sides.total": "{count} maingizo",
   "admin.ledger.sides.empty": "Hakuna kilichoandikwa bado.",
   "admin.ledger.sides.debit": "Upande wa debiti (mali, gharama)",
@@ -4421,12 +4995,14 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.account.COMMISSION_EXPENSE": "Gharama ya kamisheni",
   "admin.ledger.account.OVERPAYMENT_LIABILITY": "Malipo ya ziada yanayodaiwa",
   "admin.ledger.account.RESELLER_PAYABLE": "Inayodaiwa kwa muuzaji upya",
-  "admin.ledger.account.RESELLER_PENDING_SETTLEMENT": "Inayosubiri kwa muuzaji upya",
+  "admin.ledger.account.RESELLER_PENDING_SETTLEMENT":
+    "Inayosubiri kwa muuzaji upya",
   "admin.ledger.account.AGENT_PENDING_PAYABLE": "Inayosubiri kwa wakala",
   "admin.ledger.account.AGENT_AVAILABLE_PAYABLE": "Inapatikana kwa wakala",
   "admin.ledger.account.WITHDRAWAL_RESERVE": "Akiba ya uondoaji",
   "admin.ledger.account.PLATFORM_SALE_FEE_REVENUE": "Mapato ya ada ya mauzo",
-  "admin.ledger.account.PLATFORM_WITHDRAWAL_FEE_REVENUE": "Mapato ya ada ya uondoaji",
+  "admin.ledger.account.PLATFORM_WITHDRAWAL_FEE_REVENUE":
+    "Mapato ya ada ya uondoaji",
   "admin.ledger.account.PLATFORM_SUBSCRIPTION_REVENUE": "Mapato ya usajili",
 
   "admin.ledger.event.wifi_sale_receipt": "Mauzo ya Wi-Fi yamepokelewa",
@@ -4451,7 +5027,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.journals.filter.clear": "Ondoa vichujio",
   "admin.ledger.journals.count": "{shown} kati ya {total} majarida",
   "admin.ledger.journals.empty": "Hakuna jarida lililoandikwa.",
-  "admin.ledger.journals.noMatch": "Hakuna jarida linalolingana na vichujio hivi.",
+  "admin.ledger.journals.noMatch":
+    "Hakuna jarida linalolingana na vichujio hivi.",
   "admin.ledger.journals.showMore": "Onyesha {count} zaidi",
   "admin.ledger.journals.truncated": "Majarida {total} mapya pekee yamepakiwa.",
   "admin.ledger.journals.col.entry": "Ingizo",
@@ -4466,7 +5043,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.journals.action.detail": "Maelezo",
 
   "admin.ledger.accounts.title": "Orodha ya akaunti",
-  "admin.ledger.accounts.description": "Kila akaunti na maingizo yake na salio lake. Fedha kwanza.",
+  "admin.ledger.accounts.description":
+    "Kila akaunti na maingizo yake na salio lake. Fedha kwanza.",
   "admin.ledger.accounts.filter.search": "Tafuta mmiliki, kodi au akaunti",
   "admin.ledger.accounts.filter.owner": "Mmiliki",
   "admin.ledger.accounts.filter.allOwners": "Wamiliki wote",
@@ -4476,7 +5054,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.accounts.filter.allSides": "Pande zote",
   "admin.ledger.accounts.count": "{shown} kati ya {total} akaunti",
   "admin.ledger.accounts.empty": "Hakuna akaunti iliyofunguliwa.",
-  "admin.ledger.accounts.noMatch": "Hakuna akaunti inayolingana na vichujio hivi.",
+  "admin.ledger.accounts.noMatch":
+    "Hakuna akaunti inayolingana na vichujio hivi.",
   "admin.ledger.accounts.col.account": "Akaunti",
   "admin.ledger.accounts.col.side": "Upande",
   "admin.ledger.accounts.col.debits": "Debiti",
@@ -4503,7 +5082,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.ledger.detail.status.reversal": "Ingizo la kinyume",
   "admin.ledger.detail.reverses": "Linakinyima",
   "admin.ledger.detail.reversedBy": "Limekinyimwa na",
-  "admin.ledger.detail.noTrail": "Hakuna marekebisho yaliyoandikwa dhidi ya ingizo hili.",
+  "admin.ledger.detail.noTrail":
+    "Hakuna marekebisho yaliyoandikwa dhidi ya ingizo hili.",
   "admin.ledger.detail.balanced": "Debiti na krediti zinalingana",
   "admin.ledger.detail.unbalanced": "Ingizo hili hazilingani",
   "admin.ledger.detail.col.account": "Akaunti",
@@ -4542,16 +5122,20 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.settings.kpi.saleFee.unset": "Haijawekwa",
   "admin.settings.kpi.saleFee.bps": "Pointi {bps} za msingi",
   "admin.settings.kpi.withdrawalFee.title": "Ada ya uondoaji",
-  "admin.settings.kpi.withdrawalFee.hint": "Ada isiyobadilika kwa kila ombi la malipo",
+  "admin.settings.kpi.withdrawalFee.hint":
+    "Ada isiyobadilika kwa kila ombi la malipo",
   "admin.settings.kpi.withdrawalFee.unset": "Haijawekwa",
   "admin.settings.kpi.withdrawalFee.perPayout": "Juu ya kiasi kinacholipwa",
   "admin.settings.kpi.revenue.title": "Mapato ya ada (siku 30)",
-  "admin.settings.kpi.revenue.hint": "Ada za mauzo {sale} · ada za malipo {payout}",
-  "admin.settings.kpi.revenue.empty": "Hakuna mapato ya ada yaliyoandikwa bado.",
+  "admin.settings.kpi.revenue.hint":
+    "Ada za mauzo {sale} · ada za malipo {payout}",
+  "admin.settings.kpi.revenue.empty":
+    "Hakuna mapato ya ada yaliyoandikwa bado.",
   "admin.settings.kpi.revenue.allTime": "{amount} kwa muda wote",
   "admin.settings.kpi.sales.title": "Mauzo ya wageni (siku 30)",
   "admin.settings.kpi.sales.hint": "Mauzo {count} yenye jumla ya {amount}",
-  "admin.settings.kpi.sales.empty": "Hakuna mauzo ya mgeni yaliyokamilika katika siku 30 zilizopita.",
+  "admin.settings.kpi.sales.empty":
+    "Hakuna mauzo ya mgeni yaliyokamilika katika siku 30 zilizopita.",
   "admin.settings.kpi.sales.average": "Wastani wa mauzo {amount}",
   "admin.settings.kpi.lastChange.title": "Mabadiliko ya mwisho",
   "admin.settings.kpi.lastChange.never": "Hakuna ada iliyobadilishwa",
@@ -4559,21 +5143,26 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.settings.kpi.lastChange.version": "Toleo {version}",
 
   "admin.settings.board.title": "Namba hizi zinafanya nini",
-  "admin.settings.board.hint": "Ada haina maana bila kiasi inachotozwa. Mikato hii minne inaonyesha vyote viwili.",
+  "admin.settings.board.hint":
+    "Ada haina maana bila kiasi inachotozwa. Mikato hii minne inaonyesha vyote viwili.",
   "admin.settings.revenue.title": "Mapato ya ada",
-  "admin.settings.revenue.hint": "Kilichopatikana kwa kila ada, kama leja ilivyorekodi.",
+  "admin.settings.revenue.hint":
+    "Kilichopatikana kwa kila ada, kama leja ilivyorekodi.",
   "admin.settings.revenue.total": "{amount} katika siku 30",
   "admin.settings.revenue.empty": "Hakuna mapato ya ada yaliyorekodiwa bado.",
   "admin.settings.revenue.sale": "Ada za mauzo",
   "admin.settings.revenue.withdrawal": "Ada za malipo",
   "admin.settings.volume.title": "Kiasi ambacho ada inatumika",
-  "admin.settings.volume.hint": "Msingi ambao kila ada inatozwa, siku 30 zilizopita.",
+  "admin.settings.volume.hint":
+    "Msingi ambao kila ada inatozwa, siku 30 zilizopita.",
   "admin.settings.volume.total": "{count} katika siku 30",
-  "admin.settings.volume.empty": "Hakuna kilichohamishwa katika siku 30 zilizopita.",
+  "admin.settings.volume.empty":
+    "Hakuna kilichohamishwa katika siku 30 zilizopita.",
   "admin.settings.volume.sales": "Mauzo ya wageni",
   "admin.settings.volume.withdrawals": "Maombi ya malipo",
   "admin.settings.impact.title": "Ada inachukua kiasi gani",
-  "admin.settings.impact.hint": "Ada ya mauzo ya sasa ikitumika kwa ukubwa tatu halisi wa mauzo.",
+  "admin.settings.impact.hint":
+    "Ada ya mauzo ya sasa ikitumika kwa ukubwa tatu halisi wa mauzo.",
   "admin.settings.impact.total": "kwa {percent}",
   "admin.settings.impact.empty": "Weka ada ya mauzo kuona athari yake.",
   "admin.settings.impact.small": "Mauzo madogo (TZS 1,000)",
@@ -4599,13 +5188,17 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.settings.editor.notSet": "Haijawekwa",
   "admin.settings.editor.sale.label": "Asilimia ya kila mauzo ya mgeni",
   "admin.settings.editor.sale.unit": "%",
-  "admin.settings.editor.sale.hint": "Kati ya 0% na 50%, kwa mia moja ya asilimia.",
+  "admin.settings.editor.sale.hint":
+    "Kati ya 0% na 50%, kwa mia moja ya asilimia.",
   "admin.settings.editor.withdrawal.label": "TZS isiyobadilika kwa kila malipo",
   "admin.settings.editor.withdrawal.unit": "TZS",
   "admin.settings.editor.withdrawal.hint": "Kati ya TZS 0 na TZS 1,000,000.",
-  "admin.settings.editor.preview.sale": "Kwa wastani wa siku 30 wa {amount}, mauzo moja yanapatikana {fee}.",
-  "admin.settings.editor.preview.sale.noVolume": "Hakuna mauzo katika siku 30 zilizopita, kwa hivyo hakuna wastani wa kupimia.",
-  "admin.settings.editor.preview.withdrawal": "Malipo moja ya {amount} yatatoza {total} kutoka kwa mnufaika.",
+  "admin.settings.editor.preview.sale":
+    "Kwa wastani wa siku 30 wa {amount}, mauzo moja yanapatikana {fee}.",
+  "admin.settings.editor.preview.sale.noVolume":
+    "Hakuna mauzo katika siku 30 zilizopita, kwa hivyo hakuna wastani wa kupimia.",
+  "admin.settings.editor.preview.withdrawal":
+    "Malipo moja ya {amount} yatatoza {total} kutoka kwa mnufaika.",
   "admin.settings.editor.preview.withdrawal.noBase":
     "Hakuna malipo katika siku 30 zilizopita, kwa hivyo hakuna kiasi cha kawaida cha kupimia.",
   "admin.settings.editor.unchanged": "Hakuna mabadiliko bado",
@@ -4615,7 +5208,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.settings.editor.saved": "Imehifadhiwa. Rekodi mpya zitatumia {value}.",
   "admin.settings.editor.invalid": "Weka namba kati ya {min} na {max}.",
   "admin.settings.editor.lastChange": "Ilibadilishwa mwisho {date}",
-  "admin.settings.editor.lastChange.none": "Haijabadilishwa kamwe — hii ni thamani ya kwanza.",
+  "admin.settings.editor.lastChange.none":
+    "Haijabadilishwa kamwe — hii ni thamani ya kwanza.",
   "admin.settings.editor.lastChange.by": "na {actor}",
   "admin.settings.editor.reason.title.sale": "Badilisha ada ya mauzo ya mgeni?",
   "admin.settings.editor.reason.title.withdrawal": "Badilisha ada ya uondoaji?",
@@ -4626,14 +5220,17 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.settings.editor.reason.summary.impact": "Inatumika kuanzia sasa",
   "admin.settings.editor.reason.warning":
     "Mauzo na malipo yaliyoundwa tayari yanabaki na ada yao. Rekodi mpya pekee zitatumia thamani hii.",
-  "admin.settings.editor.reason.label": "Sababu ya mabadiliko haya (inakaguliwa)",
-  "admin.settings.editor.reason.placeholder": "mf. mapitio ya bei ya robo ya mwaka yaliyoidhinishwa na bodi",
+  "admin.settings.editor.reason.label":
+    "Sababu ya mabadiliko haya (inakaguliwa)",
+  "admin.settings.editor.reason.placeholder":
+    "mf. mapitio ya bei ya robo ya mwaka yaliyoidhinishwa na bodi",
   "admin.settings.editor.reason.tooShort": "Toa sababu ya herufi 3 au zaidi.",
   "admin.settings.editor.reason.confirm": "Hifadhi",
   "admin.settings.editor.reason.cancel": "Ghairi",
 
   "admin.settings.historyTable.title": "Historia ya mabadiliko",
-  "admin.settings.historyTable.description": "Kila mabadiliko ya ada, na thamani ya zamani, mpya na sababu iliyotolewa.",
+  "admin.settings.historyTable.description":
+    "Kila mabadiliko ya ada, na thamani ya zamani, mpya na sababu iliyotolewa.",
   "admin.settings.historyTable.empty": "Hakuna ada iliyobadilishwa bado.",
   "admin.settings.historyTable.col.when": "Lini",
   "admin.settings.historyTable.col.setting": "Mpangilio",
@@ -4655,16 +5252,21 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Kazi, fursa, matukio ya karibu na ofa za likizo zinazoonyeshwa kwa wageni kwenye portal ya WiFi — zilizoongezwa kwa mkono au zilizopatikana na Advowifi AI.",
   "admin.listings.new": "Ongeza tangazo",
   "admin.listings.edit": "Hariri tangazo",
-  "admin.listings.formHint": "Matangazo yanayoonekana pekee yanawafikia wageni. Namba ndogo ya mpangilio inaonekana kwanza.",
+  "admin.listings.formHint":
+    "Matangazo yanayoonekana pekee yanawafikia wageni. Namba ndogo ya mpangilio inaonekana kwanza.",
   "admin.listings.kind": "Aina",
   "admin.listings.kind.JOB": "Kazi",
   "admin.listings.kind.OPPORTUNITY": "Fursa",
   "admin.listings.kind.LOCAL_EVENT": "Tukio la karibu",
   "admin.listings.kind.HOLIDAY": "Likizo",
-  "admin.listings.hint.JOB": "Nafasi ya kazi iliyo wazi yenye kiungo cha kuomba au mawasiliano.",
-  "admin.listings.hint.OPPORTUNITY": "Mafunzo, ufadhili, mafunzo kazini au fursa nyingine iliyo wazi.",
-  "admin.listings.hint.LOCAL_EVENT": "Kitu kinachokuja hivi karibuni — ongeza eneo na muda wa kuanza.",
-  "admin.listings.hint.HOLIDAY": "Ofa ya safari au mapumziko yenye eneo na kidokezo cha bei.",
+  "admin.listings.hint.JOB":
+    "Nafasi ya kazi iliyo wazi yenye kiungo cha kuomba au mawasiliano.",
+  "admin.listings.hint.OPPORTUNITY":
+    "Mafunzo, ufadhili, mafunzo kazini au fursa nyingine iliyo wazi.",
+  "admin.listings.hint.LOCAL_EVENT":
+    "Kitu kinachokuja hivi karibuni — ongeza eneo na muda wa kuanza.",
+  "admin.listings.hint.HOLIDAY":
+    "Ofa ya safari au mapumziko yenye eneo na kidokezo cha bei.",
   "admin.listings.searchPlaceholder": "Tafuta kichwa, mratibu, eneo au lebo…",
   "admin.listings.filter.type": "Aina",
   "admin.listings.filter.source": "Chanzo",
@@ -4694,7 +5296,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.listings.bulk.activate": "Chapisha",
   "admin.listings.bulk.deactivate": "Ficha",
   "admin.listings.bulk.delete": "Futa",
-  "admin.listings.bulk.confirmDelete": "Futa matangazo {count}? Wageni hawataliona tena.",
+  "admin.listings.bulk.confirmDelete":
+    "Futa matangazo {count}? Wageni hawataliona tena.",
   "admin.listings.goesLive": "Litaonekana {date}",
   "admin.listings.sourceLink": "Chanzo",
   "admin.listings.hide": "Ficha",
@@ -4722,22 +5325,27 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.listings.linkJob": "Kiungo cha kuomba",
   "admin.listings.linkEvent": "Kiungo cha tukio",
   "admin.listings.linkHoliday": "Kiungo cha ofa",
-  "admin.listings.linkHint": "Wageni hufungua hii kuomba, kujiandikisha au kusoma zaidi.",
+  "admin.listings.linkHint":
+    "Wageni hufungua hii kuomba, kujiandikisha au kusoma zaidi.",
   "admin.listings.summary": "Muhtasari",
   "admin.listings.description": "Maelezo",
   "admin.listings.tags": "Lebo",
-  "admin.listings.tagsHint": "Tenganisha kwa koma; hutumika kwenye utafutaji na vichujio.",
+  "admin.listings.tagsHint":
+    "Tenganisha kwa koma; hutumika kwenye utafutaji na vichujio.",
   "admin.listings.imageUrl": "Picha ya kadi",
   "admin.listings.image.drop": "Dondosha picha ya kadi au chagua faili",
   "admin.listings.image.uploading": "Inapakia na kuboresha…",
   "admin.listings.image.replace": "Badilisha",
   "admin.listings.image.remove": "Ondoa",
-  "admin.listings.image.uploadFailed": "Imeshindikana kupakia picha hiyo. Jaribu tena.",
+  "admin.listings.image.uploadFailed":
+    "Imeshindikana kupakia picha hiyo. Jaribu tena.",
   "admin.listings.image.previewAlt": "Muonekano wa picha ya kadi",
-  "admin.listings.image.saved": "Picha hii ni kifuniko cha kadi ambayo mgeni anaona kwenye Explore.",
+  "admin.listings.image.saved":
+    "Picha hii ni kifuniko cha kadi ambayo mgeni anaona kwenye Explore.",
   "admin.listings.image.compressNote":
     "Pakia moja kwa moja kutoka simu au kwa mbunifu wako — tunaipunguza kuwa WebP nyepesi na kubaki ikionekana vizuri kwenye skrini ya simu.",
-  "admin.listings.image.urlFallback": "Tumia picha iliyopo tayari mahali pengine",
+  "admin.listings.image.urlFallback":
+    "Tumia picha iliyopo tayari mahali pengine",
   "admin.listings.sourceUrl": "URL ya chanzo",
   "admin.listings.sortOrder": "Mpangilio",
   "admin.listings.active": "Inaonekana kwa wageni",
@@ -4748,8 +5356,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.listings.delete": "Futa",
   "admin.listings.deleted": "Tangazo limefutwa.",
   "admin.listings.confirmDelete": "Futa tangazo hili? Wageni hawataliona tena.",
-  "admin.listings.empty": "Hakuna kitu bado. Ongeza tangazo la kwanza au washa Advowifi AI.",
-  "admin.listings.emptyFilter": "Hakuna matangazo yanayolingana na vichujio hivi.",
+  "admin.listings.empty":
+    "Hakuna kitu bado. Ongeza tangazo la kwanza au washa Advowifi AI.",
+  "admin.listings.emptyFilter":
+    "Hakuna matangazo yanayolingana na vichujio hivi.",
   "admin.listings.filter.all": "Aina zote",
   "admin.listings.tableLabel": "Matangazo ya Explore",
   "admin.listings.col.title": "Kichwa",
@@ -4774,7 +5384,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.listings.ai.apiKeyMissing":
     "GEMINI_API_KEY haijawekwa kwenye seva, kwa hiyo msaidizi hawezi kuanza bado.",
   "admin.listings.ai.enabled": "Endesha msaidizi kiotomatiki",
-  "admin.listings.ai.enabledHint": "Hutafuta kwa nyakati zilizo hapa chini na kuhifadhi anachopata.",
+  "admin.listings.ai.enabledHint":
+    "Hutafuta kwa nyakati zilizo hapa chini na kuhifadhi anachopata.",
   "admin.listings.ai.assistantName": "Jina la msaidizi",
   "admin.listings.ai.model": "Modeli ya Gemini",
   "admin.listings.ai.modelHint":
@@ -4782,25 +5393,31 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.listings.ai.analysesPerDay": "Utafutaji kwa siku",
   "admin.listings.ai.postsPerDay": "Matangazo mengi kwa siku",
   "admin.listings.ai.times": "Nyakati za kuanza",
-  "admin.listings.ai.timesHint": "Saa 24 kwa muundo HH:MM, tenganisha kwa koma. Nyakati za ziada hupuuzwa baada ya kikomo cha siku.",
+  "admin.listings.ai.timesHint":
+    "Saa 24 kwa muundo HH:MM, tenganisha kwa koma. Nyakati za ziada hupuuzwa baada ya kikomo cha siku.",
   "admin.listings.ai.timezone": "Saa za eneo",
   "admin.listings.ai.kinds": "Anachotafuta",
   "admin.listings.ai.regions": "Mikoa",
-  "admin.listings.ai.regionsHint": "Tenganisha kwa koma. Acha wazi kutafuta Tanzania yote.",
+  "admin.listings.ai.regionsHint":
+    "Tenganisha kwa koma. Acha wazi kutafuta Tanzania yote.",
   "admin.listings.ai.publishDelay": "Kuchelewesha kuchapisha (dakika)",
-  "admin.listings.ai.delayHint": "Subiri muda huu kabla wageni kuona tangazo la AI.",
+  "admin.listings.ai.delayHint":
+    "Subiri muda huu kabla wageni kuona tangazo la AI.",
   "admin.listings.ai.minScore": "Kiwango cha chini cha uhakika",
-  "admin.listings.ai.minScoreHint": "0–100. Juu zaidi maana yake matangazo machache lakini salama.",
+  "admin.listings.ai.minScoreHint":
+    "0–100. Juu zaidi maana yake matangazo machache lakini salama.",
   "admin.listings.ai.autoPublish": "Chapisha matangazo ya AI kiotomatiki",
   "admin.listings.ai.autoPublishHint":
     "Ikizimwa, matangazo mapya hubaki kama rasimu ili uyakague kabla wageni kuyaona.",
   "admin.listings.ai.save": "Hifadhi mipangilio ya AI",
   "admin.listings.ai.saved": "Mipangilio ya AI imehifadhiwa.",
-  "admin.listings.ai.runDone": "Utafutaji umekamilika — matangazo {count} mapya yameongezwa.",
+  "admin.listings.ai.runDone":
+    "Utafutaji umekamilika — matangazo {count} mapya yameongezwa.",
   "admin.listings.ai.runSkipped": "Utafutaji umeachwa: {message}",
   "admin.listings.ai.lastRuns": "Utafutaji wa hivi karibuni",
   "admin.listings.ai.noRuns": "Msaidizi hajaanza kufanya kazi bado.",
-  "admin.listings.ai.runCounts": "{posted} yamechapishwa · {analysed} yamechanganuliwa · {skipped} yameachwa",
+  "admin.listings.ai.runCounts":
+    "{posted} yamechapishwa · {analysed} yamechanganuliwa · {skipped} yameachwa",
   "admin.listings.ai.status.RUNNING": "Inaendelea",
   "admin.listings.ai.status.SUCCEEDED": "Imefanikiwa",
   "admin.listings.ai.status.FAILED": "Imeshindikana",
@@ -4831,12 +5448,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.hotspots.image.uploading": "Inapakia na kuboresha…",
   "admin.hotspots.image.replace": "Badilisha",
   "admin.hotspots.image.remove": "Ondoa",
-  "admin.hotspots.image.uploadFailed": "Imeshindikana kupakia picha hiyo. Jaribu tena.",
+  "admin.hotspots.image.uploadFailed":
+    "Imeshindikana kupakia picha hiyo. Jaribu tena.",
   "admin.hotspots.image.previewAlt": "Muonekano wa picha ya kadi ya eneo",
-  "admin.hotspots.image.saved": "Picha hii ni kifuniko cha kadi ya eneo kwenye tovuti ya matangazo.",
+  "admin.hotspots.image.saved":
+    "Picha hii ni kifuniko cha kadi ya eneo kwenye tovuti ya matangazo.",
   "admin.hotspots.image.compressNote":
     "Pakia moja kwa moja kutoka simu au kwa mbunifu wako — tunaipunguza kuwa WebP nyepesi na kubaki ikionekana vizuri kwenye skrini ya simu.",
-  "admin.hotspots.image.urlFallback": "Tumia picha iliyopo tayari mahali pengine",
+  "admin.hotspots.image.urlFallback":
+    "Tumia picha iliyopo tayari mahali pengine",
   "admin.hotspots.portalSlug": "Slug ya portal",
   "admin.hotspots.portalSlugPlaceholder": "Slug ya brand ya site (si lazima)",
   "admin.hotspots.sortOrder": "Mpangilio",
@@ -4846,8 +5466,10 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.hotspots.saved": "Hotspot imehifadhiwa.",
   "admin.hotspots.cancel": "Ghairi",
   "admin.hotspots.delete": "Futa",
-  "admin.hotspots.confirmDelete": "Futa hotspot hii? Itaondoka kwenye ramani ya umma.",
-  "admin.hotspots.empty": "Hakuna hotspots bado. Ongeza eneo la kwanza kwa ramani ya uuzaji.",
+  "admin.hotspots.confirmDelete":
+    "Futa hotspot hii? Itaondoka kwenye ramani ya umma.",
+  "admin.hotspots.empty":
+    "Hakuna hotspots bado. Ongeza eneo la kwanza kwa ramani ya uuzaji.",
   "admin.hotspots.filter.all": "Zote",
   "admin.hotspots.filter.active": "Zinazoonekana",
   "admin.hotspots.filter.hidden": "Zilizofichwa",
@@ -4864,7 +5486,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.hotspots.owner.createHint":
     "Site inaundwa chini ya akaunti unayochagua, kama akaunti hiyo ingeiumba yenyewe, ikiwemo mipaka ya kifurushi na usanidi wa controller.",
   "admin.hotspots.owner.account": "Akaunti ya mmiliki",
-  "admin.hotspots.owner.accountPlaceholder": "Chagua akaunti inayomiliki site hii",
+  "admin.hotspots.owner.accountPlaceholder":
+    "Chagua akaunti inayomiliki site hii",
   "admin.hotspots.owner.siteName": "Jina la site",
   "admin.hotspots.owner.siteLocation": "Mahali",
   "admin.hotspots.owner.createSubmit": "Unda site",
@@ -4872,13 +5495,15 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.hotspots.owner.created": "Site imeundwa na kuhusishwa.",
   "admin.hotspots.owner.card": "Mmiliki: {owner}",
   "admin.hotspots.owner.cardSite": "Site: {site}",
-  "admin.hotspots.owner.linkedCount": "{linked} kati ya {total} zimehusishwa na site",
+  "admin.hotspots.owner.linkedCount":
+    "{linked} kati ya {total} zimehusishwa na site",
   "admin.hotspots.performance": "Utendaji",
   "admin.hotspots.performanceUnavailable": "Husisha site ili kuona utendaji",
 
   "admin.hotspotPerformance.back": "Rudi kwa hotspots",
   "admin.hotspotPerformance.badge": "Utendaji",
-  "admin.hotspotPerformance.subtitle": "Mauzo yaliyolipwa, vifurushi na afya ya malipo kwa site ya eneo hili.",
+  "admin.hotspotPerformance.subtitle":
+    "Mauzo yaliyolipwa, vifurushi na afya ya malipo kwa site ya eneo hili.",
   "admin.hotspotPerformance.window": "Kipindi",
   "admin.hotspotPerformance.window.7": "Siku 7",
   "admin.hotspotPerformance.window.30": "Siku 30",
@@ -4897,17 +5522,23 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.hotspotPerformance.kpi.averageLabel": "Wastani wa oda",
   "admin.hotspotPerformance.kpi.averageHint": "Kati ya oda {count} zilizolipwa",
   "admin.hotspotPerformance.kpi.clients": "Wateja tofauti",
-  "admin.hotspotPerformance.kpi.clientsHint": "Wanunuzi wenye oda moja iliyolipwa au zaidi",
+  "admin.hotspotPerformance.kpi.clientsHint":
+    "Wanunuzi wenye oda moja iliyolipwa au zaidi",
   "admin.hotspotPerformance.kpi.activeGrants": "Ruhusa hai",
-  "admin.hotspotPerformance.kpi.activeGrantsHint": "Wageni waliounganishwa sasa",
+  "admin.hotspotPerformance.kpi.activeGrantsHint":
+    "Wageni waliounganishwa sasa",
   "admin.hotspotPerformance.trend.title": "Mwenendo wa mapato",
-  "admin.hotspotPerformance.trend.description": "Mauzo ya WiFi yaliyolipwa kwa siku katika siku {days} zilizopita.",
+  "admin.hotspotPerformance.trend.description":
+    "Mauzo ya WiFi yaliyolipwa kwa siku katika siku {days} zilizopita.",
   "admin.hotspotPerformance.packages.title": "Mchanganyiko wa vifurushi",
-  "admin.hotspotPerformance.packages.description": "Vifurushi anavyonunua mgeni, kwa mpangilio wa mapato katika kipindi.",
-  "admin.hotspotPerformance.packages.empty": "Hakuna mauzo ya vifurushi katika kipindi hiki.",
+  "admin.hotspotPerformance.packages.description":
+    "Vifurushi anavyonunua mgeni, kwa mpangilio wa mapato katika kipindi.",
+  "admin.hotspotPerformance.packages.empty":
+    "Hakuna mauzo ya vifurushi katika kipindi hiki.",
   "admin.hotspotPerformance.packages.center": "Mapato ya kipindi",
   "admin.hotspotPerformance.payments.title": "Afya ya malipo",
-  "admin.hotspotPerformance.payments.description": "Hali zote za oda katika kipindi, ili malipo yaliyoshindikana yasionekane.",
+  "admin.hotspotPerformance.payments.description":
+    "Hali zote za oda katika kipindi, ili malipo yaliyoshindikana yasionekane.",
   "admin.hotspotPerformance.payments.empty": "Hakuna oda katika kipindi hiki.",
   "admin.hotspotPerformance.payments.center": "Oda",
   "admin.hotspotPerformance.payments.paid": "Imelipwa",
@@ -4921,7 +5552,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.hotspotPerformance.unlinked.title": "Hotspot hii haina site",
   "admin.hotspotPerformance.unlinked.body":
     "Utendaji unatolewa kutoka oda zilizolipwa za site. Hariri hotspot na uhusishe site inayohudumiwa ili kuona mapato hapa.",
-  "admin.hotspotPerformance.error.export": "Imeshindwa kupakua faili. Jaribu tena.",
+  "admin.hotspotPerformance.error.export":
+    "Imeshindwa kupakua faili. Jaribu tena.",
 };
 
 export const adminScreensCatalog = { en: adminScreensEn, sw: adminScreensSw };

@@ -11,7 +11,8 @@
  */
 export const marketingEn = {
   // ── Home · hero ──────────────────────────────────────────────────────────
-  "marketing.home.hero.badge": "Tanzania Smart WiFi Billing & Omada SDN Management",
+  "marketing.home.hero.badge":
+    "Tanzania Smart WiFi Billing & Omada SDN Management",
   "marketing.home.hero.titleLead": "Turn Your WiFi Into",
   "marketing.home.hero.titleAccent": "a Money Machine",
   "marketing.home.hero.titleTrail": "Every Single Day.",
@@ -44,16 +45,20 @@ export const marketingEn = {
   "marketing.home.hero.portal.journey.pay": "Pay",
   "marketing.home.hero.portal.journey.connect": "Connect",
   "marketing.home.hero.portal.banner.business": "Ubungo Fresh Café",
-  "marketing.home.hero.portal.banner.title": "A small break. A very good coffee.",
-  "marketing.home.hero.portal.banner.body": "Fresh brews, warm bites and a little time for yourself.",
+  "marketing.home.hero.portal.banner.title":
+    "A small break. A very good coffee.",
+  "marketing.home.hero.portal.banner.body":
+    "Fresh brews, warm bites and a little time for yourself.",
   "marketing.home.hero.portal.banner.cta": "Take a little break",
   "marketing.home.hero.portal.banner.credit": "Partner spotlight · AdvoWiFi",
-  "marketing.home.hero.portal.welcome.eyebrow": "Your neighbourhood. Your connection.",
+  "marketing.home.hero.portal.welcome.eyebrow":
+    "Your neighbourhood. Your connection.",
   "marketing.home.hero.portal.welcome.title": "Welcome to {name}.",
   "marketing.home.hero.portal.welcome.body":
     "A little work, a little play. Pick your pass and make yourself at home online.",
   "marketing.home.hero.portal.packages.title": "Choose your pass.",
-  "marketing.home.hero.portal.packages.subtitle": "Your time starts when you connect.",
+  "marketing.home.hero.portal.packages.subtitle":
+    "Your time starts when you connect.",
   "marketing.home.hero.portal.filter.daily": "Daily passes",
   "marketing.home.hero.portal.filter.long": "Longer stays",
   "marketing.home.hero.portal.select": "Choose this pass",
@@ -76,25 +81,33 @@ export const marketingEn = {
   "marketing.home.hero.portal.pick": "Choose Your Package",
   "marketing.home.hero.portal.pay": "Pay TZS {amount}",
   "marketing.home.hero.portal.checkout.title": "Your pass to good WiFi.",
-  "marketing.home.hero.portal.checkout.subtitle": "Pay with mobile money. Get connected in a moment.",
+  "marketing.home.hero.portal.checkout.subtitle":
+    "Pay with mobile money. Get connected in a moment.",
   "marketing.home.hero.portal.checkout.phone": "Mobile money number",
-  "marketing.home.hero.portal.checkout.phoneHelp": "Enter 07… / 06… or a number starting with +255.",
+  "marketing.home.hero.portal.checkout.phoneHelp":
+    "Enter 07… / 06… or a number starting with +255.",
   "marketing.home.hero.portal.checkout.total": "Total to pay",
   "marketing.home.hero.portal.checkout.providedBy": "Provided by {name}",
-  "marketing.home.hero.portal.checkout.terms": "By continuing, you agree to the WiFi terms.",
+  "marketing.home.hero.portal.checkout.terms":
+    "By continuing, you agree to the WiFi terms.",
   "marketing.home.hero.portal.waiting.title": "Check your phone.",
   "marketing.home.hero.portal.waiting.body":
     "Approve the mobile money request on your phone. Never enter your mobile money PIN here.",
   "marketing.home.hero.portal.connecting.title": "Making room for you.",
-  "marketing.home.hero.portal.connecting.body": "Payment approved. Connecting you to {name}…",
+  "marketing.home.hero.portal.connecting.body":
+    "Payment approved. Connecting you to {name}…",
   "marketing.home.hero.portal.pushTitle": "M-Pesa",
-  "marketing.home.hero.portal.pushBody": "Enter PIN to pay TZS {amount} to ADVO TZ WiFi",
+  "marketing.home.hero.portal.pushBody":
+    "Enter PIN to pay TZS {amount} to ADVO TZ WiFi",
   "marketing.home.hero.portal.requesting": "Sending the M-Pesa request…",
   "marketing.home.hero.portal.authorizing": "Omada is authorizing this device…",
-  "marketing.home.hero.portal.confirmPin": "Confirm the PIN prompt on your phone.",
-  "marketing.home.hero.portal.connected.eyebrow": "Payment complete · WiFi active",
+  "marketing.home.hero.portal.confirmPin":
+    "Confirm the PIN prompt on your phone.",
+  "marketing.home.hero.portal.connected.eyebrow":
+    "Payment complete · WiFi active",
   "marketing.home.hero.portal.connected": "You're connected.",
-  "marketing.home.hero.portal.connectedBody": "Good things are a connection away.",
+  "marketing.home.hero.portal.connectedBody":
+    "Good things are a connection away.",
   "marketing.home.hero.portal.browse": "Start browsing",
   "marketing.home.hero.portal.receiptButton": "View receipt",
   "marketing.home.hero.portal.ticket.activePass": "Your active pass",
@@ -113,23 +126,29 @@ export const marketingEn = {
   "marketing.home.hero.portal.secure": "Secured by Advo TZ · No extra charges",
   "marketing.home.hero.portal.explore.eyebrow": "A little discovery, on us.",
   "marketing.home.hero.portal.explore.title": "Explore around you.",
-  "marketing.home.hero.portal.explore.body": "Local favourites and offers worth a look.",
+  "marketing.home.hero.portal.explore.body":
+    "Local favourites and offers worth a look.",
   "marketing.home.hero.portal.explore.offer": "View offer",
-  "marketing.home.hero.portal.explore.note": "Sponsored discoveries, curated by AdvoWiFi.",
+  "marketing.home.hero.portal.explore.note":
+    "Sponsored discoveries, curated by AdvoWiFi.",
   "marketing.home.hero.portal.biz1.name": "Sinza Tech Point",
   "marketing.home.hero.portal.biz1.category": "Tech & gadgets",
-  "marketing.home.hero.portal.biz1.body": "Headphones, phones and accessories in Sinza.",
+  "marketing.home.hero.portal.biz1.body":
+    "Headphones, phones and accessories in Sinza.",
   "marketing.home.hero.portal.biz1.location": "Sinza",
   "marketing.home.hero.portal.biz2.name": "Kimara Style Studio",
   "marketing.home.hero.portal.biz2.category": "Beauty & fashion",
-  "marketing.home.hero.portal.biz2.body": "A fresh look, a favourite find, right here.",
+  "marketing.home.hero.portal.biz2.body":
+    "A fresh look, a favourite find, right here.",
   "marketing.home.hero.portal.biz2.location": "Kimara",
   "marketing.home.hero.portal.shortcut.website": "Discover Advotz",
   "marketing.home.hero.portal.shortcut.websiteSub": "A little more to explore",
   "marketing.home.hero.portal.shortcut.jobs": "Jobs & opportunities",
-  "marketing.home.hero.portal.shortcut.jobsSub": "Your next chapter starts here",
+  "marketing.home.hero.portal.shortcut.jobsSub":
+    "Your next chapter starts here",
   "marketing.home.hero.portal.shortcut.promote": "Promote your business",
-  "marketing.home.hero.portal.shortcut.promoteSub": "Be discovered in your neighbourhood",
+  "marketing.home.hero.portal.shortcut.promoteSub":
+    "Be discovered in your neighbourhood",
   "marketing.home.hero.portal.poweredBy": "Powered by",
   "marketing.home.hero.portal.receipt": "Payment received",
   "marketing.home.hero.portal.receiptDevice": "Kariakoo Hub · Omada OC200",
@@ -146,7 +165,8 @@ export const marketingEn = {
 
   // ── Home · solutions ─────────────────────────────────────────────────────
   "marketing.home.solutions.badge": "Purpose-Built Solutions",
-  "marketing.home.solutions.title": "Purpose-Built For Every Kind Of Business In Tanzania",
+  "marketing.home.solutions.title":
+    "Purpose-Built For Every Kind Of Business In Tanzania",
   "marketing.home.solutions.subtitle":
     "Whether you run a restaurant in Kariakoo, a tourist hotel in Zanzibar or a student hostel in Dodoma, Advo TZ gives you full power to manage and sell internet.",
   "marketing.home.solutions.cafe.title": "Cafés, Bars & Lounges",
@@ -201,13 +221,15 @@ export const marketingEn = {
   "marketing.home.features.omada.title": "TP-Link Omada SDN Native Integration",
   "marketing.home.features.omada.desc":
     "No fragile Mikrotik scripts that stall under load. Advo TZ works directly with the Omada Open API, authorizing and cutting off devices at exactly the right second.",
-  "marketing.home.features.device.title": "Smart Device Limit & Battery Recovery",
+  "marketing.home.features.device.title":
+    "Smart Device Limit & Battery Recovery",
   "marketing.home.features.device.desc":
     "If a customer's phone dies or they switch devices, they don't lose their money. Our system issues a recovery token so they can connect a new device within the device limit they paid for.",
   "marketing.home.features.vouchers.title": "Printable Vouchers & QR Codes",
   "marketing.home.features.vouchers.desc":
     "Generate a batch of 50 or 1,000 vouchers in a single second. They carry short numeric codes and a QR code for customers who want to scan with a camera. Export to CSV or print them directly.",
-  "marketing.home.features.agents.title": "Agent Network (Recurring Commissions)",
+  "marketing.home.features.agents.title":
+    "Agent Network (Recurring Commissions)",
   "marketing.home.features.agents.desc":
     "Incentivise the technicians and resellers who bring in new WiFi owners. Agents earn up to 15% of the monthly fee automatically through our referral attribution system.",
   "marketing.home.features.reports.title": "Real-Time Reports & Withdrawals",
@@ -256,7 +278,8 @@ export const marketingEn = {
     "Open an account, start the {days}-day free trial on {plan}, connect your TP-Link Omada and test WiFi sales in your real environment. If it doesn't meet your expectations, you're under no obligation to continue.",
   "marketing.pricing.guarantee.cta": "Start The Trial",
   "marketing.pricing.guarantee.ctaNoTrial": "Open An Account",
-  "marketing.pricing.guarantee.noTrial.title": "No Joining Fee And No Contracts",
+  "marketing.pricing.guarantee.noTrial.title":
+    "No Joining Fee And No Contracts",
   "marketing.pricing.guarantee.noTrial.body":
     "Open an account, connect your TP-Link Omada and test WiFi sales in your real environment. You are under no obligation to continue.",
 
@@ -275,6 +298,9 @@ export const marketingEn = {
   "marketing.plans.perMonth": "per month",
   "marketing.plans.demo": "Demo price",
   "marketing.plans.adFree": "Ad Free promise",
+  "marketing.plans.partner": "Advo Partner",
+  "marketing.plans.independent": "Independent",
+  "marketing.plans.from": "from",
   "marketing.plans.ads.none": "No advertising at all",
   "marketing.plans.ads.optional": "You choose when ads show",
   "marketing.plans.ads.required": "Sponsored ads required",
@@ -286,7 +312,8 @@ export const marketingEn = {
   "marketing.plans.unlimitedSites": "Unlimited sites & devices",
   "marketing.plans.choose": "Choose this plan",
   "marketing.plans.contact": "Talk to our team",
-  "marketing.plans.empty": "New pricing is being finalised. Talk to our team for a quote.",
+  "marketing.plans.empty":
+    "New pricing is being finalised. Talk to our team for a quote.",
 
   // ── Features page ────────────────────────────────────────────────────────
   "marketing.features.badge": "In-Depth Features",
@@ -303,14 +330,18 @@ export const marketingEn = {
   "marketing.features.omada.desc":
     "The system connects directly to all Omada controllers: hardware controllers (OC200, OC300) or software controllers. It talks to the controller to authorize paying customers' MAC addresses and cut them off once time runs out.",
   "marketing.features.omada.feature1": "No failing Mikrotik scripts",
-  "marketing.features.omada.feature2": "Speed control (bandwidth limit per user)",
-  "marketing.features.omada.feature3": "Status monitoring for every access point",
+  "marketing.features.omada.feature2":
+    "Speed control (bandwidth limit per user)",
+  "marketing.features.omada.feature3":
+    "Status monitoring for every access point",
   "marketing.features.vouchers.title": "Paper Vouchers With Barcode & QR",
   "marketing.features.vouchers.desc":
     "Generate 100 or 1,000 vouchers in a second. Each voucher has an easy-to-read short code or a QR code a customer's phone can scan. You can sell them for cash at the counter or in a shop.",
   "marketing.features.vouchers.feature1": "Print cards with your own logo",
-  "marketing.features.vouchers.feature2": "CSV export for point-of-sale (POS) software",
-  "marketing.features.vouchers.feature3": "Void vouchers that haven't been used",
+  "marketing.features.vouchers.feature2":
+    "CSV export for point-of-sale (POS) software",
+  "marketing.features.vouchers.feature3":
+    "Void vouchers that haven't been used",
   "marketing.features.ledger.title": "Double-Entry Financial Ledger",
   "marketing.features.ledger.desc":
     "Every mobile payment is split in accounting terms (gross sale, network provider fee, platform fee and the owner's net payable). The database refuses to delete or change any record, keeping the ledger permanently balanced.",
@@ -320,15 +351,18 @@ export const marketingEn = {
   "marketing.features.devices.title": "Device Limits & Roaming",
   "marketing.features.devices.desc":
     "Stop customers from sharing one voucher with a whole street. Each package can carry its own limit (for example 1 device for a regular customer, or 2 devices for a VIP). Guests move from one access point to another without dropping off.",
-  "marketing.features.devices.feature1": "Seamless roaming across the whole building",
-  "marketing.features.devices.feature2": "Battery recovery token if a customer's phone dies",
+  "marketing.features.devices.feature1":
+    "Seamless roaming across the whole building",
+  "marketing.features.devices.feature2":
+    "Battery recovery token if a customer's phone dies",
   "marketing.features.devices.feature3": "Protect bandwidth from being abused",
   "marketing.features.agents.title": "Agent Network",
   "marketing.features.agents.desc":
     "Grow your business by bringing in network technicians or sales agents. Agents get their own referral codes and dashboard, earning monthly commissions automatically when their customers pay their fees.",
   "marketing.features.agents.feature1": "Recurring monthly commission",
   "marketing.features.agents.feature2": "Commission payouts to M-Pesa",
-  "marketing.features.agents.feature3": "Track the customers your agents bring in",
+  "marketing.features.agents.feature3":
+    "Track the customers your agents bring in",
   "marketing.features.cta.title": "Ready To Start Using These Features?",
   "marketing.features.cta.body":
     "Join hundreds of businesses using Advo TZ to run their network efficiently and securely.",
@@ -415,7 +449,8 @@ export const marketingEn = {
   "marketing.calculator.result.dailyGross": "Total Sales Per Day:",
   "marketing.calculator.result.monthlyGross": "Monthly Sales (Gross):",
   "marketing.calculator.result.fees": "Mobile Money & Platform Fees:",
-  "marketing.calculator.result.netProfit": "Your Real Profit In Hand (Net Profit):",
+  "marketing.calculator.result.netProfit":
+    "Your Real Profit In Hand (Net Profit):",
   "marketing.calculator.result.yearly":
     "In just one month, you could earn more than TZS {amount} a year!",
   "marketing.calculator.cta": "Start Earning This Revenue Today",
@@ -454,7 +489,8 @@ export const marketingEn = {
   "marketing.hotspots.title": "Our Hotspots",
   "marketing.hotspots.subtitle":
     "Places across Tanzania where Advo WiFi is live — browse by region, city, or search.",
-  "marketing.hotspots.searchPlaceholder": "Search by name, city, region, or category…",
+  "marketing.hotspots.searchPlaceholder":
+    "Search by name, city, region, or category…",
   "marketing.hotspots.allRegions": "All regions",
   "marketing.hotspots.allCities": "All cities",
   "marketing.hotspots.count": "{count} hotspots",
@@ -462,7 +498,8 @@ export const marketingEn = {
   "marketing.hotspots.empty": "No hotspots to show yet. Check back soon.",
   "marketing.hotspots.emptyFilter": "No hotspots match your search.",
   "marketing.hotspots.selectHint": "Tap a card to see more details.",
-  "marketing.hotspots.noDescription": "More details about this hotspot coming soon.",
+  "marketing.hotspots.noDescription":
+    "More details about this hotspot coming soon.",
   "marketing.hotspots.openMaps": "Open in Google Maps",
   "marketing.hotspots.visitPortal": "Open guest portal",
   "marketing.hotspots.listLabel": "Hotspot list",
@@ -523,7 +560,8 @@ export type MarketingKey = keyof typeof marketingEn;
 
 export const marketingSw: Record<MarketingKey, string> = {
   // ── Home · hero ──────────────────────────────────────────────────────────
-  "marketing.home.hero.badge": "Malipo ya WiFi Mahiri Tanzania & Usimamizi wa Omada SDN",
+  "marketing.home.hero.badge":
+    "Malipo ya WiFi Mahiri Tanzania & Usimamizi wa Omada SDN",
   "marketing.home.hero.titleLead": "Badili WiFi Yako Kuwa",
   "marketing.home.hero.titleAccent": "Mashine Ya Mapato",
   "marketing.home.hero.titleTrail": "Ya Kila Siku.",
@@ -554,8 +592,10 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.hero.portal.journey.pay": "Lipia",
   "marketing.home.hero.portal.journey.connect": "Ungana",
   "marketing.home.hero.portal.banner.business": "Ubungo Fresh Café",
-  "marketing.home.hero.portal.banner.title": "Pumzika kidogo. Kahawa nzuri kabisa.",
-  "marketing.home.hero.portal.banner.body": "Kahawa mbichi, vitafunio vya moto na muda wako kidogo.",
+  "marketing.home.hero.portal.banner.title":
+    "Pumzika kidogo. Kahawa nzuri kabisa.",
+  "marketing.home.hero.portal.banner.body":
+    "Kahawa mbichi, vitafunio vya moto na muda wako kidogo.",
   "marketing.home.hero.portal.banner.cta": "Pumzika kidogo",
   "marketing.home.hero.portal.banner.credit": "Washirika wetu · AdvoWiFi",
   "marketing.home.hero.portal.welcome.eyebrow": "Mtaa wako. Muunganisho wako.",
@@ -563,7 +603,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.hero.portal.welcome.body":
     "Kazi kidogo, starehe kidogo. Chagua kifurushi chako na ujisikie uko nyumbani mtandaoni.",
   "marketing.home.hero.portal.packages.title": "Chagua kifurushi chako.",
-  "marketing.home.hero.portal.packages.subtitle": "Muda wako unaanza unapounganishwa.",
+  "marketing.home.hero.portal.packages.subtitle":
+    "Muda wako unaanza unapounganishwa.",
   "marketing.home.hero.portal.filter.daily": "Vifurushi vya siku",
   "marketing.home.hero.portal.filter.long": "Kukaa kwa muda mrefu",
   "marketing.home.hero.portal.select": "Chagua kifurushi hiki",
@@ -573,7 +614,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.hero.portal.voucherCode": "Weka msimbo",
   "marketing.home.hero.portal.payWith": "Lipia kwa",
   "marketing.home.hero.portal.service.instant": "Ungana baada ya malipo",
-  "marketing.home.hero.portal.service.noAccount": "Hakuna akaunti inayohitajika",
+  "marketing.home.hero.portal.service.noAccount":
+    "Hakuna akaunti inayohitajika",
   "marketing.home.hero.portal.service.support": "Msaada wa karibu, kila wakati",
   "marketing.home.hero.portal.pkg1.name": "Ufikiaji wa Haraka",
   "marketing.home.hero.portal.pkg1.duration": "Saa 1",
@@ -585,29 +627,38 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.hero.portal.pkg4.duration": "Siku 30",
   "marketing.home.hero.portal.pick": "Chagua Kifurushi Chako",
   "marketing.home.hero.portal.pay": "Lipia TZS {amount}",
-  "marketing.home.hero.portal.checkout.title": "Kifurushi chako cha WiFi nzuri.",
-  "marketing.home.hero.portal.checkout.subtitle": "Lipia kwa mobile money. Unganishwa papo hapo.",
+  "marketing.home.hero.portal.checkout.title":
+    "Kifurushi chako cha WiFi nzuri.",
+  "marketing.home.hero.portal.checkout.subtitle":
+    "Lipia kwa mobile money. Unganishwa papo hapo.",
   "marketing.home.hero.portal.checkout.phone": "Namba ya mobile money",
-  "marketing.home.hero.portal.checkout.phoneHelp": "Weka 07… / 06… au namba inayoanza na +255.",
+  "marketing.home.hero.portal.checkout.phoneHelp":
+    "Weka 07… / 06… au namba inayoanza na +255.",
   "marketing.home.hero.portal.checkout.total": "Jumla ya kulipa",
   "marketing.home.hero.portal.checkout.providedBy": "Inatolewa na {name}",
-  "marketing.home.hero.portal.checkout.terms": "Kwa kuendelea, unakubali masharti ya WiFi.",
+  "marketing.home.hero.portal.checkout.terms":
+    "Kwa kuendelea, unakubali masharti ya WiFi.",
   "marketing.home.hero.portal.waiting.title": "Angalia simu yako.",
   "marketing.home.hero.portal.waiting.body":
     "Thibitisha ombi la mobile money kwenye simu yako. Usiweke PIN yako ya mobile money hapa.",
   "marketing.home.hero.portal.connecting.title": "Tunakutafutia nafasi.",
-  "marketing.home.hero.portal.connecting.body": "Malipo yamethibitishwa. Tunakuunganisha na {name}…",
+  "marketing.home.hero.portal.connecting.body":
+    "Malipo yamethibitishwa. Tunakuunganisha na {name}…",
   "marketing.home.hero.portal.pushTitle": "M-Pesa",
-  "marketing.home.hero.portal.pushBody": "Weka PIN kulipa TZS {amount} kwa ADVO TZ WiFi",
+  "marketing.home.hero.portal.pushBody":
+    "Weka PIN kulipa TZS {amount} kwa ADVO TZ WiFi",
   "marketing.home.hero.portal.requesting": "Inatuma ombi la M-Pesa…",
   "marketing.home.hero.portal.authorizing": "Omada inaruhusu kifaa hiki…",
   "marketing.home.hero.portal.confirmPin": "Thibitisha PIN kwenye simu yako.",
-  "marketing.home.hero.portal.connected.eyebrow": "Malipo yamekamilika · WiFi inafanya kazi",
+  "marketing.home.hero.portal.connected.eyebrow":
+    "Malipo yamekamilika · WiFi inafanya kazi",
   "marketing.home.hero.portal.connected": "Umeunganishwa.",
-  "marketing.home.hero.portal.connectedBody": "Vitu vizuri viko mbali na muunganisho.",
+  "marketing.home.hero.portal.connectedBody":
+    "Vitu vizuri viko mbali na muunganisho.",
   "marketing.home.hero.portal.browse": "Anza kuvinjari",
   "marketing.home.hero.portal.receiptButton": "Ona risiti",
-  "marketing.home.hero.portal.ticket.activePass": "Kifurushi chako kinachotumika",
+  "marketing.home.hero.portal.ticket.activePass":
+    "Kifurushi chako kinachotumika",
   "marketing.home.hero.portal.ticket.connected": "Umeunganishwa",
   "marketing.home.hero.portal.ticket.ended": "Imeisha",
   "marketing.home.hero.portal.ticket.device": "kifaa",
@@ -620,24 +671,31 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.hero.portal.ticket.paid": "{amount} imelipwa",
   "marketing.home.hero.portal.remaining": "Muda Uliobaki",
   "marketing.home.hero.portal.recovery": "Recovery token imetumwa kwa SMS",
-  "marketing.home.hero.portal.secure": "Inalindwa na Advo TZ · Hakuna gharama za ziada",
-  "marketing.home.hero.portal.explore.eyebrow": "Ugunduzi kidogo, kwa niaba yetu.",
+  "marketing.home.hero.portal.secure":
+    "Inalindwa na Advo TZ · Hakuna gharama za ziada",
+  "marketing.home.hero.portal.explore.eyebrow":
+    "Ugunduzi kidogo, kwa niaba yetu.",
   "marketing.home.hero.portal.explore.title": "Gundua karibu nawe.",
-  "marketing.home.hero.portal.explore.body": "Vitu vya kupenda na ofa zinazostahili kutazamwa.",
+  "marketing.home.hero.portal.explore.body":
+    "Vitu vya kupenda na ofa zinazostahili kutazamwa.",
   "marketing.home.hero.portal.explore.offer": "Ona ofa",
-  "marketing.home.hero.portal.explore.note": "Ugunduzi uliodhaminiwa, ukichaguliwa na AdvoWiFi.",
+  "marketing.home.hero.portal.explore.note":
+    "Ugunduzi uliodhaminiwa, ukichaguliwa na AdvoWiFi.",
   "marketing.home.hero.portal.biz1.name": "Sinza Tech Point",
   "marketing.home.hero.portal.biz1.category": "Teknolojia na vifaa",
-  "marketing.home.hero.portal.biz1.body": "Vifaa vya sauti, simu na vifaa vingine Sinza.",
+  "marketing.home.hero.portal.biz1.body":
+    "Vifaa vya sauti, simu na vifaa vingine Sinza.",
   "marketing.home.hero.portal.biz1.location": "Sinza",
   "marketing.home.hero.portal.biz2.name": "Kimara Style Studio",
   "marketing.home.hero.portal.biz2.category": "Uzuri na mitindo",
-  "marketing.home.hero.portal.biz2.body": "Muonekano mpya, kipenzi chako, hapa hapa.",
+  "marketing.home.hero.portal.biz2.body":
+    "Muonekano mpya, kipenzi chako, hapa hapa.",
   "marketing.home.hero.portal.biz2.location": "Kimara",
   "marketing.home.hero.portal.shortcut.website": "Gundua Advotz",
   "marketing.home.hero.portal.shortcut.websiteSub": "Kuna zaidi ya kugundua",
   "marketing.home.hero.portal.shortcut.jobs": "Kazi na fursa",
-  "marketing.home.hero.portal.shortcut.jobsSub": "Sura yako inayofuata inaanza hapa",
+  "marketing.home.hero.portal.shortcut.jobsSub":
+    "Sura yako inayofuata inaanza hapa",
   "marketing.home.hero.portal.shortcut.promote": "Tangaza biashara yako",
   "marketing.home.hero.portal.shortcut.promoteSub": "Julikana katika mtaa wako",
   "marketing.home.hero.portal.poweredBy": "Inaendeshwa na",
@@ -645,7 +703,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.hero.portal.receiptDevice": "Kariakoo Hub · Omada OC200",
   "marketing.home.hero.social.label": "Wamiliki wa WiFi wanaozalisha mapato",
   "marketing.home.hero.social.rating": "4.9/5",
-  "marketing.home.hero.social.reviews": "kutoka kwa wamiliki 120+ Tanzania nzima",
+  "marketing.home.hero.social.reviews":
+    "kutoka kwa wamiliki 120+ Tanzania nzima",
 
   // ── Home · impact stats ──────────────────────────────────────────────────
   "marketing.home.stats.speedValue": "Sekunde 3",
@@ -656,7 +715,8 @@ export const marketingSw: Record<MarketingKey, string> = {
 
   // ── Home · solutions ─────────────────────────────────────────────────────
   "marketing.home.solutions.badge": "Suluhisho Maalum",
-  "marketing.home.solutions.title": "Imetengenezwa Maalum Kwa Kila Aina Ya Biashara Tanzania",
+  "marketing.home.solutions.title":
+    "Imetengenezwa Maalum Kwa Kila Aina Ya Biashara Tanzania",
   "marketing.home.solutions.subtitle":
     "Iwe unamiliki mgahawa Kariakoo, hoteli ya watalii Zanzibar au hosteli ya wanafunzi Dodoma, Advo TZ inakupa uwezo kamili wa kudhibiti na kuuza internet.",
   "marketing.home.solutions.cafe.title": "Mikahawa, Bar & Lounges",
@@ -709,19 +769,23 @@ export const marketingSw: Record<MarketingKey, string> = {
     "Leja ya Kihasibu Isiyofutika (Append-Only Double-Entry)",
   "marketing.home.features.ledger.desc":
     "Tofauti na mifumo mingine inayofuta kumbukumbu, Advo TZ inatumia mfumo wa benki wa leja pacha. Hakuna salio linaloweza kuongezwa au kupunguzwa bila muamala kamili unaoacha stakabadhi isiyofutika.",
-  "marketing.home.features.omada.title": "Ushirikiano wa Asili na TP-Link Omada SDN",
+  "marketing.home.features.omada.title":
+    "Ushirikiano wa Asili na TP-Link Omada SDN",
   "marketing.home.features.omada.desc":
     "Hakuna script dhaifu za Mikrotik zinazogoma wakati wa msongamano. Advo TZ inafanya kazi moja kwa moja na Omada Open API, ikiruhusu na kusimamisha vifaa kwa wakati sahihi sekunde kwa sekunde.",
-  "marketing.home.features.device.title": "Kikomo cha Vifaa Mahiri & Recovery ya Chaji",
+  "marketing.home.features.device.title":
+    "Kikomo cha Vifaa Mahiri & Recovery ya Chaji",
   "marketing.home.features.device.desc":
     "Mteja akizima simu au kubadili kifaa, hatapoteza pesa yake. Mfumo wetu unatoa Recovery Token inayomruhusu kuunganisha kifaa kipya ndani ya kikomo cha vifaa alicholipia.",
   "marketing.home.features.vouchers.title": "Vocha za Kuchapisha & QR Codes",
   "marketing.home.features.vouchers.desc":
     "Tengeneza batch ya vocha 50 au 1,000 kwa sekunde moja. Zina kodi fupi za tarakimu na QR code kwa ajili ya wateja wanaotaka kuscan kwa kamera. Export kwa CSV au chapisha moja kwa moja.",
-  "marketing.home.features.agents.title": "Mfumo wa Mawakala (Kamisheni za Kila Mwezi)",
+  "marketing.home.features.agents.title":
+    "Mfumo wa Mawakala (Kamisheni za Kila Mwezi)",
   "marketing.home.features.agents.desc":
     "Wape motisha mafundi na wafanyabiashara wanaoleta wamiliki wapya wa WiFi. Mawakala wanapata hadi 15% ya malipo ya kila mwezi kiotomatiki kupitia mfumo wetu wa Referral Attributions.",
-  "marketing.home.features.reports.title": "Ripoti za Wakati Halisi & Utoaji wa Fedha",
+  "marketing.home.features.reports.title":
+    "Ripoti za Wakati Halisi & Utoaji wa Fedha",
   "marketing.home.features.reports.desc":
     "Tazama kila kifaa kilichopo mtandaoni, bandwidth inayotumika, na jumla ya fedha zilizokusanywa. Toa fedha zako papo hapo kuelekea M-Pesa / Tigo Pesa muda wowote unaotaka.",
 
@@ -733,7 +797,8 @@ export const marketingSw: Record<MarketingKey, string> = {
 
   // ── Home · testimonials ──────────────────────────────────────────────────
   "marketing.home.testimonials.badge": "Ushuhuda wa Wateja",
-  "marketing.home.testimonials.title": "Wanachosema Wamiliki Wa Biashara Tanzania",
+  "marketing.home.testimonials.title":
+    "Wanachosema Wamiliki Wa Biashara Tanzania",
   "marketing.home.testimonials.subtitle":
     "Gundua jinsi wenzako wanavyopata faida ya kila siku kupitia Advo TZ.",
   "marketing.home.testimonials.1.quote":
@@ -741,7 +806,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.home.testimonials.1.role": "Mmiliki, City Bistro · Kariakoo, DSM",
   "marketing.home.testimonials.2.quote":
     "Kwenye lodge yetu Zanzibar, wageni wengi wanataka internet yenye kasi na inayojiunga bila maswali mengi. Omada + Advo TZ imekuwa mkombozi. Mteja anachagua saa 24, anapokea prompt ya simu na kuunganishwa mara moja bila kwenda reception.",
-  "marketing.home.testimonials.2.role": "Meneja wa Uendeshaji · Nungwi, Zanzibar",
+  "marketing.home.testimonials.2.role":
+    "Meneja wa Uendeshaji · Nungwi, Zanzibar",
   "marketing.home.testimonials.3.quote":
     "Mimi ni fundi wa mitandao (Network Installer). Nimeunganisha zaidi ya wateja 12 kwenye mfumo wa Advo TZ kama Agent. Kila mwezi napata kamisheni yangu moja kwa moja kwenye wallet yangu bila kucheleweshwa. Ni chanzo kizuri sana cha kipato cha ziada.",
   "marketing.home.testimonials.3.role": "IT Specialist & Advo Agent · Arusha",
@@ -767,7 +833,8 @@ export const marketingSw: Record<MarketingKey, string> = {
     "Fungua akaunti, anza jaribio la bure la siku {days} kwenye {plan}, unganisha TP-Link Omada yako na ujaribu mauzo ya WiFi kwenye mazingira yako halisi. Kama haitakidhi matarajio yako, huna wajibu wa kuendelea.",
   "marketing.pricing.guarantee.cta": "Anza Majaribio",
   "marketing.pricing.guarantee.ctaNoTrial": "Fungua Akaunti",
-  "marketing.pricing.guarantee.noTrial.title": "Hakuna Ada Ya Kujiunga Wala Mkataba",
+  "marketing.pricing.guarantee.noTrial.title":
+    "Hakuna Ada Ya Kujiunga Wala Mkataba",
   "marketing.pricing.guarantee.noTrial.body":
     "Fungua akaunti, unganisha TP-Link Omada yako na ujaribu mauzo ya WiFi kwenye mazingira yako halisi. Huna wajibu wa kuendelea.",
 
@@ -786,6 +853,9 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.plans.perMonth": "kwa mwezi",
   "marketing.plans.demo": "Bei ya Demo",
   "marketing.plans.adFree": "Ahadi ya Bila Matangazo",
+  "marketing.plans.partner": "Advo Partner",
+  "marketing.plans.independent": "Independent",
+  "marketing.plans.from": "kuanzia",
   "marketing.plans.ads.none": "Hakuna matangazo kabisa",
   "marketing.plans.ads.optional": "Wewe unaamua matangazo yanaonekana lini",
   "marketing.plans.ads.required": "Matangazo ya wadhamini yanahitajika",
@@ -797,7 +867,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.plans.unlimitedSites": "Site na vifaa bila kikomo",
   "marketing.plans.choose": "Chagua kifurushi hiki",
   "marketing.plans.contact": "Wasiliana na timu yetu",
-  "marketing.plans.empty": "Bei mpya inakamilishwa. Wasiliana na timu yetu kwa bei maalum.",
+  "marketing.plans.empty":
+    "Bei mpya inakamilishwa. Wasiliana na timu yetu kwa bei maalum.",
 
   // ── Features page ────────────────────────────────────────────────────────
   "marketing.features.badge": "Vipengele vya Kina",
@@ -817,11 +888,13 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.features.omada.feature1": "Hakuna mikrotik scripts zinazofeli",
   "marketing.features.omada.feature2":
     "Udhibiti wa kasi (Bandwidth limit per user)",
-  "marketing.features.omada.feature3": "Ufuatiliaji wa hali ya kila Access Point",
+  "marketing.features.omada.feature3":
+    "Ufuatiliaji wa hali ya kila Access Point",
   "marketing.features.vouchers.title": "Vocha za Karatasi Zenye Barcode & QR",
   "marketing.features.vouchers.desc":
     "Zalisha vocha 100 au 1,000 kwa sekunde moja. Kila vocha ina namba fupi inayosomeka kirahisi au QR code inayoweza kuskaniwa na simu ya mteja. Unaweza kuuza kwa fedha taslimu (Cash) mezani au dukani.",
-  "marketing.features.vouchers.feature1": "Uchapishaji wa kadi zenye nembo yako",
+  "marketing.features.vouchers.feature1":
+    "Uchapishaji wa kadi zenye nembo yako",
   "marketing.features.vouchers.feature2":
     "Export ya CSV kwa programu za mauzo (POS)",
   "marketing.features.vouchers.feature3": "Kufuta vocha ambazo hazijatumika",
@@ -831,7 +904,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.features.ledger.feature1": "Usalama wa kiwango cha kibenki",
   "marketing.features.ledger.feature2": "Ripoti za kina za ukaguzi (Audit Log)",
   "marketing.features.ledger.feature3": "Utoaji salama wa fedha (Withdrawals)",
-  "marketing.features.devices.title": "Kikomo cha Vifaa (Device Limits) & Roaming",
+  "marketing.features.devices.title":
+    "Kikomo cha Vifaa (Device Limits) & Roaming",
   "marketing.features.devices.desc":
     "Zuia wateja kusambaza vocha moja kwa mtaa mzima. Kila kifurushi kinaweza kuwekewa kikomo maalum (mfano kifaa 1 kwa mteja wa kawaida, au vifaa 2 kwa mteja wa VIP). Mteja anatembea kutoka Access Point moja hadi nyingine bila kukatika.",
   "marketing.features.devices.feature1": "Seamless Roaming kwenye jengo lote",
@@ -972,15 +1046,19 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.hotspots.title": "Hotspots Zetu",
   "marketing.hotspots.subtitle":
     "Maeneo nchini Tanzania ambapo Advo WiFi inapatikana — tafuta kwa mkoa, jiji, au jina.",
-  "marketing.hotspots.searchPlaceholder": "Tafuta kwa jina, jiji, mkoa, au aina…",
+  "marketing.hotspots.searchPlaceholder":
+    "Tafuta kwa jina, jiji, mkoa, au aina…",
   "marketing.hotspots.allRegions": "Mikoa yote",
   "marketing.hotspots.allCities": "Miji yote",
   "marketing.hotspots.count": "Hotspots {count}",
   "marketing.hotspots.countOne": "Hotspot 1",
-  "marketing.hotspots.empty": "Bado hakuna hotspots za kuonyesha. Rudi baadaye.",
-  "marketing.hotspots.emptyFilter": "Hakuna hotspots zinazolingana na utafutaji wako.",
+  "marketing.hotspots.empty":
+    "Bado hakuna hotspots za kuonyesha. Rudi baadaye.",
+  "marketing.hotspots.emptyFilter":
+    "Hakuna hotspots zinazolingana na utafutaji wako.",
   "marketing.hotspots.selectHint": "Bofya kadi kuona maelezo zaidi.",
-  "marketing.hotspots.noDescription": "Maelezo zaidi ya hotspot hii yatakuja hivi karibuni.",
+  "marketing.hotspots.noDescription":
+    "Maelezo zaidi ya hotspot hii yatakuja hivi karibuni.",
   "marketing.hotspots.openMaps": "Fungua Google Maps",
   "marketing.hotspots.visitPortal": "Fungua portal ya wageni",
   "marketing.hotspots.listLabel": "Orodha ya hotspots",
@@ -1035,7 +1113,6 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.services.local.pharmacy.category": "Maduka & Huduma",
   "marketing.services.local.pharmacy.body":
     "Pata maduka ya dawa yenye dawa, huduma ya kwanza na bidhaa za afya za kila siku.",
-
 };
 
 export const marketingCatalog = { en: marketingEn, sw: marketingSw };

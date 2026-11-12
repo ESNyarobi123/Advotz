@@ -303,6 +303,12 @@ enum PlanVisibility {
   PRIVATE
 }
 
+/// The commercial option a plan is sold under; the second axis of the catalog.
+enum PlanType {
+  PARTNER
+  INDEPENDENT
+}
+
 model PlatformPlan {
   id                String         @id @default(uuid()) @db.Uuid
   code              String
@@ -311,8 +317,14 @@ model PlatformPlan {
   description       String         @default("")
   priceTzs          BigInt
   periodDays        Int
+  /// Enterprise is sold "from" a price, so a card must not present it as fixed.
+  priceFrom         Boolean        @default(false)
   trialEligible     Boolean        @default(false)
   trialDays         Int?
+  /// The capacity tier this version belongs to (starter/growth/…); NULL = untagged.
+  tierKey           String?
+  /// Advo Partner (with advertising) or Independent (without); NULL = untagged.
+  planType          PlanType?
   /// Legacy per-reseller caps, kept in step with `features.limits`; NULL means unlimited.
   maxSites          Int?
   maxDevices        Int?
@@ -335,6 +347,7 @@ model PlatformPlan {
   @@unique([code, version])
   @@index([active])
   @@index([lifecycle, visibility])
+  @@index([tierKey, planType])
 }
 
 model Subscription {

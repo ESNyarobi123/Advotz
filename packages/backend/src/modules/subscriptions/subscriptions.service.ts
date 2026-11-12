@@ -1,15 +1,25 @@
 import { prisma, type PlatformPlan, type Prisma } from "@advo/db";
 import {
   planFeaturesWithDefaults,
+  tierRank,
   validatePlanFeatures,
   type CommercialPromise,
   type PlanFeatures,
+  type PlanType,
   type PlatformPlanInput,
 } from "@advo/contracts";
-import { badRequest, conflict, forbidden, notFound } from "../../common/errors.js";
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+} from "../../common/errors.js";
 import { audit, emitOutbox, OutboxEventType } from "../../common/events.js";
 import { invalidatePortalCacheForPlanChange } from "./portal-cache.js";
-import { ensurePaymentAttempt, type Payer } from "../payments/payments.service.js";
+import {
+  ensurePaymentAttempt,
+  type Payer,
+} from "../payments/payments.service.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -32,7 +42,11 @@ export type Entitlements = {
 
 /** Whether the stored JSON carries its own limits, so a legacy row can still be read. */
 function hasStoredLimits(raw: unknown): boolean {
-  return Boolean(raw && typeof raw === "object" && "limits" in (raw as Record<string, unknown>));
+  return Boolean(
+    raw &&
+    typeof raw === "object" &&
+    "limits" in (raw as Record<string, unknown>),
+  );
 }
 
 /**
@@ -43,7 +57,12 @@ function hasStoredLimits(raw: unknown): boolean {
  * decides, rather than the value being `null`. Rows predating the feature catalog
  * keep falling back to the legacy reseller-wide columns.
  */
-export function planLimitsOf(plan: Pick<PlatformPlan, "features" | "maxSites" | "maxDevices" | "maxPackages">) {
+export function planLimitsOf(
+  plan: Pick<
+    PlatformPlan,
+    "features" | "maxSites" | "maxDevices" | "maxPackages"
+  >,
+) {
   const features = planFeaturesWithDefaults(plan.features);
   const stored = hasStoredLimits(plan.features);
   return {
@@ -55,7 +74,8 @@ export function planLimitsOf(plan: Pick<PlatformPlan, "features" | "maxSites" | 
 }
 
 /** The entitlement snapshot stored on a subscription when it moves to a plan. */
-export function entitlementsOf(plan: PlatformPlan): Entitlements {  const limits = planLimitsOf(plan);
+export function entitlementsOf(plan: PlatformPlan): Entitlements {
+  const limits = planLimitsOf(plan);
   return {
     planCode: plan.code,
     planVersion: plan.version,
@@ -92,10 +112,20 @@ export function resolvePlanFeatures(input: PlatformPlanInput): PlanFeatures {
  * normalizer strips unknown keys, so validating only what it returns would let
  * a typo'd feature key look saved while doing nothing.
  */
-function assertPublishable(features: unknown, commercialPromise: CommercialPromise) {
-  const issues = validatePlanFeatures(features, { commercialPromise });
+function assertPublishable(
+  features: unknown,
+  commercialPromise: CommercialPromise,
+  catalog: { planType?: string | null; tierKey?: string | null } = {},
+) {
+  const issues = validatePlanFeatures(features, {
+    commercialPromise,
+    planType: (catalog.planType as PlanType | null | undefined) ?? null,
+    tierKey: catalog.tierKey ?? null,
+  });
   if (issues.length > 0) {
-    badRequest(`This plan cannot be published: ${issues.map((issue) => `${issue.key} — ${issue.message}`).join("; ")}`);
+    badRequest(
+      `This plan cannot be published: ${issues.map((issue) => `${issue.key} — ${issue.message}`).join("; ")}`,
+    );
   }
 }
 
@@ -107,10 +137,14 @@ export function planSnapshot(plan: PlatformPlan) {
     name: plan.name,
     description: plan.description,
     priceTzs: plan.priceTzs.toString(),
+    priceFrom: plan.priceFrom,
     periodDays: plan.periodDays,
+    tierKey: plan.tierKey,
+    planType: plan.planType,
     maxSites: planLimitsOf(plan).sites,
     maxDevices: planLimitsOf(plan).devices,
-    maxPackages: planLimitsOf(plan).packagesPerSite ?? planLimitsOf(plan).packagesTotal,
+    maxPackages:
+      planLimitsOf(plan).packagesPerSite ?? planLimitsOf(plan).packagesTotal,
     maxPackagesPerSite: planLimitsOf(plan).packagesPerSite,
     commercialPromise: plan.commercialPromise,
     lifecycle: plan.lifecycle,
@@ -121,6 +155,37 @@ export function planSnapshot(plan: PlatformPlan) {
 
 // ───────────────────────────── Plans (Admin) ─────────────────────────────
 
+/**
+ * A tier sells exactly two options: one Partner, one Independent.
+ *
+ * Publishing a second live plan into the same slot would make the reseller
+ * chooser show three prices for one package, so both axes together act as a
+ * unique key — but only while a plan is tagged and actually on sale.
+ */
+async function assertCatalogSlotFree(
+  tx: Tx | typeof prisma,
+  input: PlatformPlanInput,
+  currentPlanId?: string | null,
+) {
+  if (!input.tierKey || !input.planType || input.lifecycle !== "PUBLISHED")
+    return;
+  const clash = await tx.platformPlan.findFirst({
+    where: {
+      tierKey: input.tierKey,
+      planType: input.planType,
+      active: true,
+      lifecycle: "PUBLISHED",
+      ...(currentPlanId ? { NOT: { id: currentPlanId } } : {}),
+    },
+    select: { code: true, version: true },
+  });
+  if (clash) {
+    conflict(
+      `"${input.tierKey}" already sells a ${input.planType.toLowerCase()} option (${clash.code} v${clash.version}) — edit that plan instead of adding a second one.`,
+    );
+  }
+}
+
 /** The mutable columns of a plan, shared by create and update so the two cannot drift. */
 function planFields(input: PlatformPlanInput) {
   const features = resolvePlanFeatures(input);
@@ -129,6 +194,11 @@ function planFields(input: PlatformPlanInput) {
     description: input.description,
     priceTzs: input.priceTzs,
     periodDays: input.periodDays,
+    // The catalog axes travel with the version they were published on, so a
+    // reprice of Growth never re-tags Starter's Partner option.
+    priceFrom: input.priceFrom ?? false,
+    tierKey: input.tierKey ?? null,
+    planType: (input.planType as PlanType | null | undefined) ?? null,
     trialEligible: input.trialEligible,
     trialDays: input.trialEligible ? (input.trialDays ?? null) : null,
     maxSites: features.limits.sites,
@@ -145,13 +215,24 @@ function planFields(input: PlatformPlanInput) {
 }
 
 /** Editing a plan creates a new version; paid invoices keep their own snapshot. */
-export async function upsertPlan(adminUserId: string, input: PlatformPlanInput) {
+export async function upsertPlan(
+  adminUserId: string,
+  input: PlatformPlanInput,
+) {
   return prisma.$transaction(async (tx) => {
-    const latest = await tx.platformPlan.findFirst({ where: { code: input.code }, orderBy: { version: "desc" } });
+    const latest = await tx.platformPlan.findFirst({
+      where: { code: input.code },
+      orderBy: { version: "desc" },
+    });
     if (input.lifecycle === "PUBLISHED") {
-      assertPublishable(input.features, input.commercialPromise);
+      assertPublishable(input.features, input.commercialPromise, input);
     }
-    if (latest) await tx.platformPlan.updateMany({ where: { code: input.code, active: true }, data: { active: false } });
+    await assertCatalogSlotFree(tx, input, latest?.id);
+    if (latest)
+      await tx.platformPlan.updateMany({
+        where: { code: input.code, active: true },
+        data: { active: false },
+      });
     const plan = await tx.platformPlan.create({
       data: {
         code: input.code,
@@ -160,7 +241,13 @@ export async function upsertPlan(adminUserId: string, input: PlatformPlanInput) 
         ...planFields(input),
       },
     });
-    await audit(tx, { actorUserId: adminUserId, action: "plan.versioned", targetType: "PlatformPlan", targetId: plan.id, metadata: { code: plan.code, version: plan.version } });
+    await audit(tx, {
+      actorUserId: adminUserId,
+      action: "plan.versioned",
+      targetType: "PlatformPlan",
+      targetId: plan.id,
+      metadata: { code: plan.code, version: plan.version },
+    });
     return plan;
   });
 }
@@ -176,35 +263,54 @@ export async function upsertPlan(adminUserId: string, input: PlatformPlanInput) 
  *   retired. Live subscribers keep the terms they signed up for, and their invoices keep
  *   the snapshot they were billed against.
  */
-export async function updatePlan(adminUserId: string, planId: string, input: PlatformPlanInput) {
+export async function updatePlan(
+  adminUserId: string,
+  planId: string,
+  input: PlatformPlanInput,
+) {
   const existing = await prisma.platformPlan.findUnique({
     where: { id: planId },
     include: { _count: { select: { subscriptions: true, invoices: true } } },
   });
   if (!existing) notFound("Plan not found");
 
-  const referenced = existing._count.subscriptions > 0 || existing._count.invoices > 0;
-  if (input.lifecycle === "PUBLISHED") assertPublishable(input.features, input.commercialPromise);
+  const referenced =
+    existing._count.subscriptions > 0 || existing._count.invoices > 0;
+  if (input.lifecycle === "PUBLISHED")
+    assertPublishable(input.features, input.commercialPromise, input);
 
   if (!referenced) {
     if (input.code !== existing.code) {
       const clash = await prisma.platformPlan.findFirst({
-        where: { code: input.code, version: existing.version, NOT: { id: planId } },
+        where: {
+          code: input.code,
+          version: existing.version,
+          NOT: { id: planId },
+        },
         select: { id: true },
       });
-      if (clash) conflict(`Version ${existing.version} of "${input.code}" already exists`);
+      if (clash)
+        conflict(
+          `Version ${existing.version} of "${input.code}" already exists`,
+        );
     }
     return prisma.$transaction(async (tx) => {
+      await assertCatalogSlotFree(tx, input, planId);
       const fields = planFields(input);
       if (fields.active) {
-        await tx.platformPlan.updateMany({ where: { code: input.code, active: true, NOT: { id: planId } }, data: { active: false } });
+        await tx.platformPlan.updateMany({
+          where: { code: input.code, active: true, NOT: { id: planId } },
+          data: { active: false },
+        });
       }
       const updated = await tx.platformPlan.update({
         where: { id: planId },
         data: {
           code: input.code,
           ...fields,
-          publishedAt: fields.active ? (existing.publishedAt ?? new Date()) : null,
+          publishedAt: fields.active
+            ? (existing.publishedAt ?? new Date())
+            : null,
         },
       });
       await audit(tx, {
@@ -216,7 +322,12 @@ export async function updatePlan(adminUserId: string, planId: string, input: Pla
           code: updated.code,
           version: updated.version,
           lifecycle: updated.lifecycle,
-          before: { code: existing.code, name: existing.name, priceTzs: existing.priceTzs.toString(), lifecycle: existing.lifecycle },
+          before: {
+            code: existing.code,
+            name: existing.name,
+            priceTzs: existing.priceTzs.toString(),
+            lifecycle: existing.lifecycle,
+          },
         },
       });
       return updated;
@@ -224,9 +335,16 @@ export async function updatePlan(adminUserId: string, planId: string, input: Pla
   }
 
   return prisma.$transaction(async (tx) => {
-    const latest = await tx.platformPlan.findFirst({ where: { code: input.code }, orderBy: { version: "desc" } });
+    const latest = await tx.platformPlan.findFirst({
+      where: { code: input.code },
+      orderBy: { version: "desc" },
+    });
+    await assertCatalogSlotFree(tx, input, existing.id);
     const fields = planFields(input);
-    await tx.platformPlan.updateMany({ where: { code: input.code, active: true }, data: { active: false } });
+    await tx.platformPlan.updateMany({
+      where: { code: input.code, active: true },
+      data: { active: false },
+    });
     const created = await tx.platformPlan.create({
       data: {
         code: input.code,
@@ -237,21 +355,34 @@ export async function updatePlan(adminUserId: string, planId: string, input: Pla
     });
     // The edited row can live under a different code, in which case the sweep above missed it.
     if (existing.active && existing.id !== created.id) {
-      await tx.platformPlan.update({ where: { id: existing.id }, data: { active: false } });
+      await tx.platformPlan.update({
+        where: { id: existing.id },
+        data: { active: false },
+      });
     }
     await audit(tx, {
       actorUserId: adminUserId,
       action: "plan.versioned",
       targetType: "PlatformPlan",
       targetId: created.id,
-      metadata: { code: created.code, version: created.version, supersededPlanId: existing.id, supersededVersion: existing.version },
+      metadata: {
+        code: created.code,
+        version: created.version,
+        supersededPlanId: existing.id,
+        supersededVersion: existing.version,
+      },
     });
     return created;
   });
 }
 
 export async function archivePlan(adminUserId: string, planId: string) {
-  return setPlanActive(adminUserId, planId, false, "Archived from the plans screen");
+  return setPlanActive(
+    adminUserId,
+    planId,
+    false,
+    "Archived from the plans screen",
+  );
 }
 
 /**
@@ -261,7 +392,11 @@ export async function archivePlan(adminUserId: string, planId: string) {
  * `SubscriptionInvoice.planId` are `Restrict`, so a referenced plan must be archived
  * instead — deleting would either fail at the database or orphan billing history.
  */
-export async function deletePlan(adminUserId: string, planId: string, reason: string) {
+export async function deletePlan(
+  adminUserId: string,
+  planId: string,
+  reason: string,
+) {
   const plan = await prisma.platformPlan.findUnique({
     where: { id: planId },
     include: { _count: { select: { subscriptions: true, invoices: true } } },
@@ -283,7 +418,12 @@ export async function deletePlan(adminUserId: string, planId: string, reason: st
       targetType: "PlatformPlan",
       targetId: planId,
       reason,
-      metadata: { code: plan.code, version: plan.version, name: plan.name, priceTzs: plan.priceTzs.toString() },
+      metadata: {
+        code: plan.code,
+        version: plan.version,
+        name: plan.name,
+        priceTzs: plan.priceTzs.toString(),
+      },
     });
   });
   return { deleted: true };
@@ -295,10 +435,19 @@ export async function deletePlan(adminUserId: string, planId: string, reason: st
  * Activating retires whichever version of the same code was live, so a code always
  * resolves to exactly one sellable plan — otherwise checkout could pick either one.
  */
-export async function setPlanActive(adminUserId: string, planId: string, active: boolean, reason: string) {
+export async function setPlanActive(
+  adminUserId: string,
+  planId: string,
+  active: boolean,
+  reason: string,
+) {
   const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
   if (!plan) notFound("Plan not found");
-  if (active) assertPublishable(plan.features, plan.commercialPromise as CommercialPromise);
+  if (active)
+    assertPublishable(
+      plan.features,
+      plan.commercialPromise as CommercialPromise,
+    );
 
   return prisma.$transaction(async (tx) => {
     if (active) {
@@ -313,7 +462,9 @@ export async function setPlanActive(adminUserId: string, planId: string, active:
       data: {
         active,
         lifecycle: active ? "PUBLISHED" : "ARCHIVED",
-        publishedAt: active ? (plan.publishedAt ?? new Date()) : plan.publishedAt,
+        publishedAt: active
+          ? (plan.publishedAt ?? new Date())
+          : plan.publishedAt,
       },
     });
     await audit(tx, {
@@ -339,7 +490,10 @@ export async function setPlanActive(adminUserId: string, planId: string, active:
 export async function publishPlan(adminUserId: string, planId: string) {
   const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
   if (!plan) notFound("Plan not found");
-  if (plan.lifecycle === "ARCHIVED") conflict("An archived version cannot be published; create a new version instead");
+  if (plan.lifecycle === "ARCHIVED")
+    conflict(
+      "An archived version cannot be published; create a new version instead",
+    );
   assertPublishable(plan.features, plan.commercialPromise as CommercialPromise);
 
   return prisma.$transaction(async (tx) => {
@@ -356,7 +510,11 @@ export async function publishPlan(adminUserId: string, planId: string) {
       action: "plan.published",
       targetType: "PlatformPlan",
       targetId: planId,
-      metadata: { code: published.code, version: published.version, commercialPromise: published.commercialPromise },
+      metadata: {
+        code: published.code,
+        version: published.version,
+        commercialPromise: published.commercialPromise,
+      },
     });
     return published;
   });
@@ -382,7 +540,11 @@ export async function previewPlan(planId: string) {
     features,
     limits: planLimitsOf(plan),
     // Preview validates the raw stored payload so a typo'd key is visible here too.
-    issues: validatePlanFeatures(plan.features, { commercialPromise: promise }),
+    issues: validatePlanFeatures(plan.features, {
+      commercialPromise: promise,
+      planType: (plan.planType as PlanType | null) ?? null,
+      tierKey: plan.tierKey,
+    }),
   };
 }
 
@@ -407,7 +569,9 @@ export async function listPlans() {
   ]);
 
   const revenueByPlan = new Map(paid.map((row) => [row.planId, row]));
-  const subscriptionsByPlan = new Map(live.map((row) => [row.planId, row._count]));
+  const subscriptionsByPlan = new Map(
+    live.map((row) => [row.planId, row._count]),
+  );
 
   return plans.map((plan) => ({
     ...plan,
@@ -418,25 +582,49 @@ export async function listPlans() {
 }
 
 /** Only published, sellable versions reach the reseller catalog. */
-export function listActivePlans() {
-  return prisma.platformPlan.findMany({ where: { active: true, lifecycle: "PUBLISHED" }, orderBy: { priceTzs: "asc" } });
+export async function listActivePlans() {
+  const plans = await prisma.platformPlan.findMany({
+    where: { active: true, lifecycle: "PUBLISHED" },
+  });
+  // A catalog is a matrix, not a price list: tiers in the order they are sold,
+  // and inside a tier the cheaper Partner option before Independent. Untagged
+  // plans (created before the two axes existed) sort after the matrix.
+  return plans.sort((a, b) => {
+    const byRank = tierRank(a.tierKey) - tierRank(b.tierKey);
+    if (byRank !== 0) return byRank;
+    if (a.priceTzs === b.priceTzs) return a.name.localeCompare(b.name);
+    return a.priceTzs < b.priceTzs ? -1 : 1;
+  });
 }
 
 // ───────────────────────────── Subscription (Reseller) ───────────────────
 
-export async function ensureSubscription(tx: Tx | typeof prisma, resellerId: string) {
-  return tx.subscription.upsert({ where: { resellerId }, create: { resellerId, state: "NONE" }, update: {} });
+export async function ensureSubscription(
+  tx: Tx | typeof prisma,
+  resellerId: string,
+) {
+  return tx.subscription.upsert({
+    where: { resellerId },
+    create: { resellerId, state: "NONE" },
+    update: {},
+  });
 }
 
 export async function getSubscriptionView(resellerId: string) {
   const sub = await ensureSubscription(prisma, resellerId);
   const [plan, invoices] = await Promise.all([
-    sub.planId ? prisma.platformPlan.findUnique({ where: { id: sub.planId } }) : null,
+    sub.planId
+      ? prisma.platformPlan.findUnique({ where: { id: sub.planId } })
+      : null,
     prisma.subscriptionInvoice.findMany({
       where: { resellerId },
       orderBy: { createdAt: "desc" },
       take: 24,
-      include: { order: { include: { attempts: { orderBy: { createdAt: "desc" }, take: 1 } } } },
+      include: {
+        order: {
+          include: { attempts: { orderBy: { createdAt: "desc" }, take: 1 } },
+        },
+      },
     }),
   ]);
   return {
@@ -457,7 +645,10 @@ export async function getSubscriptionView(resellerId: string) {
       paidAt: i.paidAt,
       createdAt: i.createdAt,
       payment: i.order?.attempts[0]
-        ? { state: i.order.attempts[0].state, lastError: i.order.attempts[0].lastError }
+        ? {
+            state: i.order.attempts[0].state,
+            lastError: i.order.attempts[0].lastError,
+          }
         : null,
     })),
   };
@@ -469,19 +660,33 @@ function effectiveState(sub: { state: string; currentPeriodEnd: Date | null }) {
   if (sub.state === "ACTIVE" && sub.currentPeriodEnd) {
     const now = new Date();
     if (sub.currentPeriodEnd < now) {
-      const graceEnd = new Date(sub.currentPeriodEnd.getTime() + SUBSCRIPTION_GRACE_PERIOD_DAYS * 86400_000);
+      const graceEnd = new Date(
+        sub.currentPeriodEnd.getTime() +
+          SUBSCRIPTION_GRACE_PERIOD_DAYS * 86400_000,
+      );
       return now < graceEnd ? "PAST_DUE" : "EXPIRED";
     }
   }
-  if (sub.state === "TRIALING" && sub.currentPeriodEnd && sub.currentPeriodEnd < new Date()) {
+  if (
+    sub.state === "TRIALING" &&
+    sub.currentPeriodEnd &&
+    sub.currentPeriodEnd < new Date()
+  ) {
     return "EXPIRED";
   }
   return sub.state;
 }
 
-export async function startTrial(resellerId: string, planId: string, actorUserId: string) {
+export async function startTrial(
+  resellerId: string,
+  planId: string,
+  actorUserId: string,
+) {
   return prisma.$transaction(async (tx) => {
-    const reseller = await tx.reseller.findUniqueOrThrow({ where: { id: resellerId }, include: { owner: true } });
+    const reseller = await tx.reseller.findUniqueOrThrow({
+      where: { id: resellerId },
+      include: { owner: true },
+    });
     if (!reseller.owner.emailVerifiedAt || reseller.status !== "ACTIVE") {
       forbidden("Verify your contact details before starting a trial");
     }
@@ -490,11 +695,16 @@ export async function startTrial(resellerId: string, planId: string, actorUserId
     // first-trial requests would both pass the trialUsedAt guard.
     await tx.$queryRaw`SELECT id FROM "Reseller" WHERE id = ${resellerId}::uuid FOR UPDATE`;
     const sub = await ensureSubscription(tx, resellerId);
-    if (sub.trialUsedAt) conflict("The trial has already been used for this business");
-    if (sub.state === "ACTIVE") conflict("A paid subscription is already active");
-    const plan = await tx.platformPlan.findFirst({ where: { id: planId, active: true } });
+    if (sub.trialUsedAt)
+      conflict("The trial has already been used for this business");
+    if (sub.state === "ACTIVE")
+      conflict("A paid subscription is already active");
+    const plan = await tx.platformPlan.findFirst({
+      where: { id: planId, active: true },
+    });
     if (!plan) notFound("Plan not found");
-    if (!plan.trialEligible || !plan.trialDays) badRequest("This plan has no trial");
+    if (!plan.trialEligible || !plan.trialDays)
+      badRequest("This plan has no trial");
 
     const now = new Date();
     const updated = await tx.subscription.update({
@@ -508,22 +718,44 @@ export async function startTrial(resellerId: string, planId: string, actorUserId
         trialUsedAt: now,
       },
     });
-    await tx.reseller.update({ where: { id: resellerId }, data: { onboardingStep: "SITE" } });
-    await audit(tx, { actorUserId, action: "subscription.trial_started", targetType: "Subscription", targetId: sub.id, resellerId });
+    await tx.reseller.update({
+      where: { id: resellerId },
+      data: { onboardingStep: "SITE" },
+    });
+    await audit(tx, {
+      actorUserId,
+      action: "subscription.trial_started",
+      targetType: "Subscription",
+      targetId: sub.id,
+      resellerId,
+    });
     return updated;
   });
 }
 
-export async function checkoutSubscription(resellerId: string, input: { planId: string; idempotencyKey: string } & Payer) {
+export async function checkoutSubscription(
+  resellerId: string,
+  input: { planId: string; idempotencyKey: string } & Payer,
+) {
   const existingOrder = await prisma.order.findUnique({
-    where: { resellerId_requestIdempotencyKey: { resellerId, requestIdempotencyKey: input.idempotencyKey } },
+    where: {
+      resellerId_requestIdempotencyKey: {
+        resellerId,
+        requestIdempotencyKey: input.idempotencyKey,
+      },
+    },
   });
   const order =
     existingOrder ??
     (await prisma.$transaction(async (tx) => {
-      const reseller = await tx.reseller.findUniqueOrThrow({ where: { id: resellerId } });
-      if (reseller.status !== "ACTIVE") forbidden("Account must be active to purchase a plan");
-      const plan = await tx.platformPlan.findFirst({ where: { id: input.planId, active: true } });
+      const reseller = await tx.reseller.findUniqueOrThrow({
+        where: { id: resellerId },
+      });
+      if (reseller.status !== "ACTIVE")
+        forbidden("Account must be active to purchase a plan");
+      const plan = await tx.platformPlan.findFirst({
+        where: { id: input.planId, active: true },
+      });
       if (!plan) notFound("Plan not found");
       const sub = await ensureSubscription(tx, resellerId);
       const snapshot = planSnapshot(plan);
@@ -549,30 +781,55 @@ export async function checkoutSubscription(resellerId: string, input: { planId: 
       });
     }));
   const attempt = await ensurePaymentAttempt(order.id, input);
-  return { orderId: order.id, invoiceId: order.invoiceId, payment: { state: attempt.state, lastError: attempt.lastError } };
+  return {
+    orderId: order.id,
+    invoiceId: order.invoiceId,
+    payment: { state: attempt.state, lastError: attempt.lastError },
+  };
 }
 
 /** Fulfillment for a verified PLATFORM_SUBSCRIPTION receipt; safe to call repeatedly. */
-export async function activateSubscriptionForOrder(orderId: string, paymentAttemptId: string) {
+export async function activateSubscriptionForOrder(
+  orderId: string,
+  paymentAttemptId: string,
+) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
     if (!order.invoiceId || order.paymentState === "UNPAID") return "not_paid";
     await tx.$queryRaw`SELECT id FROM "SubscriptionInvoice" WHERE id = ${order.invoiceId}::uuid FOR UPDATE`;
-    const invoice = await tx.subscriptionInvoice.findUniqueOrThrow({ where: { id: order.invoiceId } });
+    const invoice = await tx.subscriptionInvoice.findUniqueOrThrow({
+      where: { id: order.invoiceId },
+    });
     if (invoice.status === "PAID") return "already_active";
 
-    const priorPaid = await tx.subscriptionInvoice.count({ where: { resellerId: invoice.resellerId, status: "PAID" } });
-    const sub = await tx.subscription.findUniqueOrThrow({ where: { id: invoice.subscriptionId } });
+    const priorPaid = await tx.subscriptionInvoice.count({
+      where: { resellerId: invoice.resellerId, status: "PAID" },
+    });
+    const sub = await tx.subscription.findUniqueOrThrow({
+      where: { id: invoice.subscriptionId },
+    });
     const now = new Date();
     // Renewal policy: extend from the later of now and the current paid period end.
     const start =
-      sub.state === "ACTIVE" && sub.currentPeriodEnd && sub.currentPeriodEnd > now ? sub.currentPeriodEnd : now;
+      sub.state === "ACTIVE" &&
+      sub.currentPeriodEnd &&
+      sub.currentPeriodEnd > now
+        ? sub.currentPeriodEnd
+        : now;
     const end = new Date(start.getTime() + invoice.periodDays * 86400_000);
-    const plan = await tx.platformPlan.findUniqueOrThrow({ where: { id: invoice.planId } });
+    const plan = await tx.platformPlan.findUniqueOrThrow({
+      where: { id: invoice.planId },
+    });
 
     await tx.subscriptionInvoice.update({
       where: { id: invoice.id },
-      data: { status: "PAID", paidAt: now, periodStart: start, periodEnd: end, isFirstPayment: priorPaid === 0 },
+      data: {
+        status: "PAID",
+        paidAt: now,
+        periodStart: start,
+        periodEnd: end,
+        isFirstPayment: priorPaid === 0,
+      },
     });
     await tx.subscription.update({
       where: { id: sub.id },
@@ -580,22 +837,42 @@ export async function activateSubscriptionForOrder(orderId: string, paymentAttem
         state: "ACTIVE",
         planId: plan.id,
         entitlements: entitlementsOf(plan),
-        currentPeriodStart: sub.state === "ACTIVE" ? sub.currentPeriodStart : start,
+        currentPeriodStart:
+          sub.state === "ACTIVE" ? sub.currentPeriodStart : start,
         currentPeriodEnd: end,
       },
     });
-    await tx.order.update({ where: { id: order.id }, data: { fulfillmentState: "FULFILLED" } });
-    await tx.reseller.updateMany({ where: { id: invoice.resellerId, onboardingStep: { in: ["PROFILE", "PLAN"] } }, data: { onboardingStep: "SITE" } });
-    await emitOutbox(tx, OutboxEventType.SUBSCRIPTION_ACTIVATED, "SubscriptionInvoice", invoice.id, {
-      invoiceId: invoice.id,
-      paymentAttemptId,
+    await tx.order.update({
+      where: { id: order.id },
+      data: { fulfillmentState: "FULFILLED" },
     });
+    await tx.reseller.updateMany({
+      where: {
+        id: invoice.resellerId,
+        onboardingStep: { in: ["PROFILE", "PLAN"] },
+      },
+      data: { onboardingStep: "SITE" },
+    });
+    await emitOutbox(
+      tx,
+      OutboxEventType.SUBSCRIPTION_ACTIVATED,
+      "SubscriptionInvoice",
+      invoice.id,
+      {
+        invoiceId: invoice.id,
+        paymentAttemptId,
+      },
+    );
     await audit(tx, {
       action: "subscription.activated",
       targetType: "Subscription",
       targetId: sub.id,
       resellerId: invoice.resellerId,
-      metadata: { invoiceId: invoice.id, periodEnd: end.toISOString(), firstPayment: priorPaid === 0 },
+      metadata: {
+        invoiceId: invoice.id,
+        periodEnd: end.toISOString(),
+        firstPayment: priorPaid === 0,
+      },
     });
     return "activated";
   });
@@ -603,9 +880,14 @@ export async function activateSubscriptionForOrder(orderId: string, paymentAttem
 
 /** Scheduled: mark lapsed subscriptions PAST_DUE (during grace period) or EXPIRED. Existing paid WiFi grants remain honoured. */
 export async function expireSubscriptions(now = new Date()) {
-  const graceThreshold = new Date(now.getTime() - SUBSCRIPTION_GRACE_PERIOD_DAYS * 86400_000);
+  const graceThreshold = new Date(
+    now.getTime() - SUBSCRIPTION_GRACE_PERIOD_DAYS * 86400_000,
+  );
   const pastDueRes = await prisma.subscription.updateMany({
-    where: { state: "ACTIVE", currentPeriodEnd: { lt: now, gte: graceThreshold } },
+    where: {
+      state: "ACTIVE",
+      currentPeriodEnd: { lt: now, gte: graceThreshold },
+    },
     data: { state: "PAST_DUE" },
   });
   const expiredRes = await prisma.subscription.updateMany({
@@ -624,7 +906,9 @@ export async function expireSubscriptions(now = new Date()) {
 /** New customer sales/grants require an active or trialing subscription. */
 export async function assertCanSell(resellerId: string) {
   const sub = await prisma.subscription.findUnique({ where: { resellerId } });
-  const reseller = await prisma.reseller.findUnique({ where: { id: resellerId } });
+  const reseller = await prisma.reseller.findUnique({
+    where: { id: resellerId },
+  });
   const ok =
     reseller?.status === "ACTIVE" &&
     sub &&
@@ -633,9 +917,12 @@ export async function assertCanSell(resellerId: string) {
   return Boolean(ok);
 }
 
-export async function currentEntitlements(resellerId: string): Promise<Entitlements | null> {
+export async function currentEntitlements(
+  resellerId: string,
+): Promise<Entitlements | null> {
   const sub = await prisma.subscription.findUnique({ where: { resellerId } });
-  if (!sub || !(sub.state === "ACTIVE" || sub.state === "TRIALING")) return null;
+  if (!sub || !(sub.state === "ACTIVE" || sub.state === "TRIALING"))
+    return null;
   if (sub.currentPeriodEnd && sub.currentPeriodEnd < new Date()) return null;
   return (sub.entitlements as Entitlements | null) ?? null;
 }

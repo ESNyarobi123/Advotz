@@ -24,10 +24,17 @@ import {
   type PlanFeatures,
   type PlanLifecycle,
   type PlanPresetKey,
+  type PlanType,
   type VisibilityKey,
 } from "@advo/contracts";
 import { AdvoSelect, Notice, StatusChip } from "@advo/ui";
-import { Check, Infinity as InfinityIcon, Lock, ShieldAlert, Sparkles } from "lucide-react";
+import {
+  Check,
+  Infinity as InfinityIcon,
+  Lock,
+  ShieldAlert,
+  Sparkles,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -51,14 +58,19 @@ export type PlanDraft = {
 
 /** Reads a stored plan row into an editable draft, filling every missing key. */
 export function planDraftFrom(
-  plan: { features?: unknown; commercialPromise?: string; lifecycle?: string } | null,
+  plan: {
+    features?: unknown;
+    commercialPromise?: string;
+    lifecycle?: string;
+  } | null,
   // A brand-new plan keeps the previous behaviour and goes on sale; the segmented
   // control next to it is what turns it into a draft instead.
   fallbackLifecycle: PlanLifecycle = "PUBLISHED",
 ): PlanDraft {
   return {
     features: planFeaturesWithDefaults(plan?.features),
-    commercialPromise: (plan?.commercialPromise as CommercialPromise) ?? "standard",
+    commercialPromise:
+      (plan?.commercialPromise as CommercialPromise) ?? "standard",
     lifecycle: (plan?.lifecycle as PlanLifecycle) ?? fallbackLifecycle,
     // An existing plan was not written by a preset, so it starts as custom.
     preset: "custom",
@@ -119,7 +131,9 @@ export function PlanFeatureEditor({
 
   return (
     <div className="space-y-5">
-      <p className="text-xs leading-relaxed text-[#526174]">{t("admin.plans.form.featuresHint")}</p>
+      <p className="text-xs leading-relaxed text-[#526174]">
+        {t("admin.plans.form.featuresHint")}
+      </p>
 
       {/* ── Preset ── */}
       <FeatureSection icon={<Sparkles />} title={t("admin.plans.preset.label")}>
@@ -147,12 +161,17 @@ export function PlanFeatureEditor({
               </span>
             ) : null}
           </div>
-          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.preset.hint")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">
+            {t("admin.plans.preset.hint")}
+          </p>
         </div>
       </FeatureSection>
 
       {/* ── Promise & lifecycle ── */}
-      <FeatureSection icon={<ShieldAlert />} title={t("admin.plans.promise.label")}>
+      <FeatureSection
+        icon={<ShieldAlert />}
+        title={t("admin.plans.promise.label")}
+      >
         <div className="space-y-4">
           <Segmented
             onChange={(value) => patch({ commercialPromise: value })}
@@ -163,7 +182,9 @@ export function PlanFeatureEditor({
             value={commercialPromise}
           />
           {commercialPromise === "ad_free" ? (
-            <Notice tone="warning">{t("admin.plans.promise.adFreeNote")}</Notice>
+            <Notice tone="warning">
+              {t("admin.plans.promise.adFreeNote")}
+            </Notice>
           ) : null}
 
           <div>
@@ -174,11 +195,16 @@ export function PlanFeatureEditor({
               onChange={(value) => patch({ lifecycle: value })}
               options={[
                 { id: "DRAFT", label: t("admin.plans.lifecycle.DRAFT") },
-                { id: "PUBLISHED", label: t("admin.plans.lifecycle.PUBLISHED") },
+                {
+                  id: "PUBLISHED",
+                  label: t("admin.plans.lifecycle.PUBLISHED"),
+                },
               ]}
               value={lifecycle === "ARCHIVED" ? "DRAFT" : lifecycle}
             />
-            <p className="mt-1.5 text-[11px] leading-snug text-[#526174]">{t("admin.plans.lifecycleHint")}</p>
+            <p className="mt-1.5 text-[11px] leading-snug text-[#526174]">
+              {t("admin.plans.lifecycleHint")}
+            </p>
           </div>
         </div>
       </FeatureSection>
@@ -186,7 +212,9 @@ export function PlanFeatureEditor({
       {/* ── Placement policy ── */}
       <FeatureSection icon={<Lock />} title={t("admin.plans.visibility.title")}>
         <div className="space-y-3">
-          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.visibility.hint")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">
+            {t("admin.plans.visibility.hint")}
+          </p>
           <PlacementGroup
             keys={SPONSORED_KEYS}
             label={t("admin.plans.placement.group.sponsored")}
@@ -209,34 +237,74 @@ export function PlanFeatureEditor({
             <Toggle
               checked={features.branding.logo_upload}
               label={t("admin.plans.branding.logoUpload")}
-              onChange={(checked) => patch({ features: { ...features, branding: { ...features.branding, logo_upload: checked } } })}
+              onChange={(checked) =>
+                patch({
+                  features: {
+                    ...features,
+                    branding: { ...features.branding, logo_upload: checked },
+                  },
+                })
+              }
             />
             <Toggle
               checked={features.branding.colors_edit}
               label={t("admin.plans.branding.colorsEdit")}
-              onChange={(checked) => patch({ features: { ...features, branding: { ...features.branding, colors_edit: checked } } })}
+              onChange={(checked) =>
+                patch({
+                  features: {
+                    ...features,
+                    branding: { ...features.branding, colors_edit: checked },
+                  },
+                })
+              }
             />
             <Toggle
               checked={features.branding.platform_badge_removable}
               label={t("admin.plans.branding.badgeRemovable")}
               onChange={(checked) =>
-                patch({ features: { ...features, branding: { ...features.branding, platform_badge_removable: checked } } })
+                patch({
+                  features: {
+                    ...features,
+                    branding: {
+                      ...features.branding,
+                      platform_badge_removable: checked,
+                    },
+                  },
+                })
               }
             />
           </div>
-          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.branding.badgeNote")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">
+            {t("admin.plans.branding.badgeNote")}
+          </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <ColorField
               label={t("admin.plans.branding.primary")}
               onChange={(hex) =>
-                patch({ features: { ...features, branding: { ...features.branding, default_primary_color: hex } } })
+                patch({
+                  features: {
+                    ...features,
+                    branding: {
+                      ...features.branding,
+                      default_primary_color: hex,
+                    },
+                  },
+                })
               }
               value={features.branding.default_primary_color}
             />
             <ColorField
               label={t("admin.plans.branding.accent")}
               onChange={(hex) =>
-                patch({ features: { ...features, branding: { ...features.branding, default_accent_color: hex } } })
+                patch({
+                  features: {
+                    ...features,
+                    branding: {
+                      ...features.branding,
+                      default_accent_color: hex,
+                    },
+                  },
+                })
               }
               value={features.branding.default_accent_color}
             />
@@ -265,9 +333,13 @@ export function PlanFeatureEditor({
                   key={style}
                   // The last style cannot be removed: publishing requires at least one.
                   onClick={() => {
-                    const next = on ? allowed.filter((s) => s !== style) : [...allowed, style];
+                    const next = on
+                      ? allowed.filter((s) => s !== style)
+                      : [...allowed, style];
                     if (next.length === 0) return;
-                    const fallback = next.includes(features.package_cards.default_style)
+                    const fallback = next.includes(
+                      features.package_cards.default_style,
+                    )
                       ? features.package_cards.default_style
                       : next[0];
                     patch({
@@ -298,7 +370,15 @@ export function PlanFeatureEditor({
               <AdvoSelect
                 className={`mt-1 ${lightSelect}`}
                 onChange={(e) =>
-                  patch({ features: { ...features, package_cards: { ...features.package_cards, default_style: e.target.value as PackageCardStyle } } })
+                  patch({
+                    features: {
+                      ...features,
+                      package_cards: {
+                        ...features.package_cards,
+                        default_style: e.target.value as PackageCardStyle,
+                      },
+                    },
+                  })
                 }
                 value={features.package_cards.default_style}
               >
@@ -313,7 +393,14 @@ export function PlanFeatureEditor({
               <Toggle
                 checked={features.packages.order_edit}
                 label={t("admin.plans.cards.orderEdit")}
-                onChange={(checked) => patch({ features: { ...features, packages: { order_edit: checked } } })}
+                onChange={(checked) =>
+                  patch({
+                    features: {
+                      ...features,
+                      packages: { order_edit: checked },
+                    },
+                  })
+                }
               />
             </div>
           </div>
@@ -337,9 +424,13 @@ export function PlanFeatureEditor({
                   }`}
                   key={layout}
                   onClick={() => {
-                    const next = on ? allowed.filter((l) => l !== layout) : [...allowed, layout];
+                    const next = on
+                      ? allowed.filter((l) => l !== layout)
+                      : [...allowed, layout];
                     if (next.length === 0) return;
-                    const fallback = next.includes(features.package_cards.default_layout)
+                    const fallback = next.includes(
+                      features.package_cards.default_layout,
+                    )
                       ? features.package_cards.default_layout
                       : next[0];
                     patch({
@@ -397,35 +488,66 @@ export function PlanFeatureEditor({
             <Toggle
               checked={features.payments.voucher}
               label={t("admin.plans.payments.voucher")}
-              onChange={(checked) => patch({ features: { ...features, payments: { voucher: checked } } })}
+              onChange={(checked) =>
+                patch({
+                  features: { ...features, payments: { voucher: checked } },
+                })
+              }
             />
           </div>
         </div>
       </FeatureSection>
 
       {/* ── Limits ── */}
-      <FeatureSection icon={<InfinityIcon />} title={t("admin.plans.form.section.limits")}>
+      <FeatureSection
+        icon={<InfinityIcon />}
+        title={t("admin.plans.form.section.limits")}
+      >
         <div className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <LimitField
               label={t("admin.plans.limits.sites")}
-              onChange={(value) => patch({ features: { ...features, limits: { ...features.limits, sites: value } } })}
+              onChange={(value) =>
+                patch({
+                  features: {
+                    ...features,
+                    limits: { ...features.limits, sites: value },
+                  },
+                })
+              }
               value={features.limits.sites}
             />
             <LimitField
               label={t("admin.plans.limits.devices")}
-              onChange={(value) => patch({ features: { ...features, limits: { ...features.limits, devices: value } } })}
+              onChange={(value) =>
+                patch({
+                  features: {
+                    ...features,
+                    limits: { ...features.limits, devices: value },
+                  },
+                })
+              }
               value={features.limits.devices}
             />
             <LimitField
               label={t("admin.plans.limits.packagesPerSite")}
               onChange={(value) =>
-                patch({ features: { ...features, limits: { ...features.limits, wifi_packages_per_site: value } } })
+                patch({
+                  features: {
+                    ...features,
+                    limits: {
+                      ...features.limits,
+                      wifi_packages_per_site: value,
+                    },
+                  },
+                })
               }
               value={features.limits.wifi_packages_per_site}
             />
           </div>
-          <p className="text-[11px] leading-snug text-[#526174]">{t("admin.plans.limits.note")}</p>
+          <p className="text-[11px] leading-snug text-[#526174]">
+            {t("admin.plans.limits.note")}
+          </p>
         </div>
       </FeatureSection>
 
@@ -436,11 +558,14 @@ export function PlanFeatureEditor({
             <Notice tone="success">{t("admin.plans.issues.ok")}</Notice>
           ) : (
             <Notice tone="danger">
-              <span className="block font-bold">{t("admin.plans.issues.title", { count: issues.length })}</span>
+              <span className="block font-bold">
+                {t("admin.plans.issues.title", { count: issues.length })}
+              </span>
               <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
                 {issues.map((issue) => (
                   <li key={`${issue.key}:${issue.message}`}>
-                    <span className="font-mono font-bold">{issue.key}</span> — {issue.message}
+                    <span className="font-mono font-bold">{issue.key}</span> —{" "}
+                    {issue.message}
                   </li>
                 ))}
               </ul>
@@ -467,21 +592,38 @@ export function PlanFeaturePreview({ features }: { features: PlanFeatures }) {
 
   return (
     <div className="rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] p-3.5">
-      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">{t("admin.plans.preview.title")}</p>
-      <p className="mt-0.5 mb-2.5 text-[11px] leading-snug text-[#526174]">{t("admin.plans.preview.hint")}</p>
+      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
+        {t("admin.plans.preview.title")}
+      </p>
+      <p className="mt-0.5 mb-2.5 text-[11px] leading-snug text-[#526174]">
+        {t("admin.plans.preview.hint")}
+      </p>
       <ul className="space-y-1.5">
         {VISIBILITY_KEYS.map((key) => {
           const policy = placementOf(normalized, key);
-          const decision = resolveVisibility(policy.mode, undefined, policy.default_visible);
+          const decision = resolveVisibility(
+            policy.mode,
+            undefined,
+            policy.default_visible,
+          );
           return (
-            <li className="flex items-center justify-between gap-2 text-[11px]" key={key}>
-              <span className="truncate font-semibold text-[#18212F]">{t(`admin.plans.placement.${key}`)}</span>
+            <li
+              className="flex items-center justify-between gap-2 text-[11px]"
+              key={key}
+            >
+              <span className="truncate font-semibold text-[#18212F]">
+                {t(`admin.plans.placement.${key}`)}
+              </span>
               <span className="flex shrink-0 items-center gap-1.5">
                 <StatusChip tone={decision.visible ? "success" : "default"}>
-                  {decision.visible ? t("admin.plans.preview.visible") : t("admin.plans.preview.hidden")}
+                  {decision.visible
+                    ? t("admin.plans.preview.visible")
+                    : t("admin.plans.preview.hidden")}
                 </StatusChip>
                 {decision.lock ? (
-                  <StatusChip tone={decision.lock === "REQUIRED" ? "accent" : "default"}>
+                  <StatusChip
+                    tone={decision.lock === "REQUIRED" ? "accent" : "default"}
+                  >
                     {t(`admin.plans.mode.${decision.lock}`)}
                   </StatusChip>
                 ) : null}
@@ -492,13 +634,21 @@ export function PlanFeaturePreview({ features }: { features: PlanFeatures }) {
       </ul>
       <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-[#DFE5EC] pt-2.5">
         <StatusChip tone={normalized.payments.voucher ? "success" : "default"}>
-          {normalized.payments.voucher ? t("admin.plans.preview.voucherOn") : t("admin.plans.preview.voucherOff")}
+          {normalized.payments.voucher
+            ? t("admin.plans.preview.voucherOn")
+            : t("admin.plans.preview.voucherOff")}
         </StatusChip>
         <StatusChip tone="accent">
-          {t("admin.plans.preview.styles", { count: normalized.package_cards.allowed_styles.length })}
+          {t("admin.plans.preview.styles", {
+            count: normalized.package_cards.allowed_styles.length,
+          })}
         </StatusChip>
-        <StatusChip tone={canHideAllSponsored(normalized) ? "success" : "warning"}>
-          {canHideAllSponsored(normalized) ? t("admin.plans.preview.hideAll") : t("admin.plans.preview.hideAllNo")}
+        <StatusChip
+          tone={canHideAllSponsored(normalized) ? "success" : "warning"}
+        >
+          {canHideAllSponsored(normalized)
+            ? t("admin.plans.preview.hideAll")
+            : t("admin.plans.preview.hideAllNo")}
         </StatusChip>
       </div>
     </div>
@@ -506,8 +656,16 @@ export function PlanFeaturePreview({ features }: { features: PlanFeatures }) {
 }
 
 /** The live validation list on its own, so a card can show it without the editor. */
-export function planIssues(features: PlanFeatures, commercialPromise: CommercialPromise) {
-  return validatePlanFeatures(features, { commercialPromise });
+export function planIssues(
+  features: PlanFeatures,
+  commercialPromise: CommercialPromise,
+  catalog: { planType?: string | null; tierKey?: string | null } = {},
+) {
+  return validatePlanFeatures(features, {
+    commercialPromise,
+    planType: (catalog.planType as PlanType | null | undefined) ?? null,
+    tierKey: catalog.tierKey ?? null,
+  });
 }
 
 /* ─────────────────────────────── Pieces ─────────────────────────────── */
@@ -529,13 +687,23 @@ function PlacementRow({
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] px-3.5 py-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-bold text-[#18212F]">{t(`admin.plans.placement.${placementKey}`)}</p>
-        <p className="mt-0.5 text-[11px] leading-snug text-[#526174]">{t(`admin.plans.mode.${policy.mode}.hint`)}</p>
+        <p className="truncate text-xs font-bold text-[#18212F]">
+          {t(`admin.plans.placement.${placementKey}`)}
+        </p>
+        <p className="mt-0.5 text-[11px] leading-snug text-[#526174]">
+          {t(`admin.plans.mode.${policy.mode}.hint`)}
+        </p>
       </div>
       <AdvoSelect
         aria-label={t(`admin.plans.placement.${placementKey}`)}
         className="w-36 shrink-0 border border-[#DFE5EC] !bg-white py-2 text-[11px] font-semibold !text-[#18212F] shadow-none hover:!bg-white focus:!bg-white focus:ring-2 focus:ring-[#1B5EA4]/20"
-        onChange={(e) => onPatch({ features: setPlacement(features, placementKey, { mode: e.target.value as AdMode }) })}
+        onChange={(e) =>
+          onPatch({
+            features: setPlacement(features, placementKey, {
+              mode: e.target.value as AdMode,
+            }),
+          })
+        }
         value={policy.mode}
       >
         {AD_MODES.map((mode) => (
@@ -553,7 +721,13 @@ function PlacementRow({
           checked={policy.default_visible}
           className="h-3.5 w-3.5 accent-[#1B5EA4] disabled:opacity-60"
           disabled={locked}
-          onChange={(e) => onPatch({ features: setPlacement(features, placementKey, { default_visible: e.target.checked }) })}
+          onChange={(e) =>
+            onPatch({
+              features: setPlacement(features, placementKey, {
+                default_visible: e.target.checked,
+              }),
+            })
+          }
           type="checkbox"
         />
         {t("admin.plans.visibility.default")}
@@ -576,10 +750,17 @@ function PlacementGroup({
 }) {
   return (
     <div>
-      <p className="mb-2 text-[10px] font-bold tracking-wider text-[#526174] uppercase">{label}</p>
+      <p className="mb-2 text-[10px] font-bold tracking-wider text-[#526174] uppercase">
+        {label}
+      </p>
       <ul className="space-y-2">
         {keys.map((key) => (
-          <PlacementRow features={features} key={key} onPatch={onPatch} placementKey={key} />
+          <PlacementRow
+            features={features}
+            key={key}
+            onPatch={onPatch}
+            placementKey={key}
+          />
         ))}
       </ul>
     </div>
@@ -648,7 +829,15 @@ function Toggle({
  * step, and only a complete hex is committed — half-typed values never reach the
  * plan, which is why the backend can trust the stored colour.
  */
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (hex: string) => void }) {
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (hex: string) => void;
+}) {
   const { t } = useI18n();
   const [text, setText] = useState(value);
 
@@ -659,7 +848,9 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 
   return (
     <div>
-      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">{label}</p>
+      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
+        {label}
+      </p>
       <div className="mt-1 flex items-center gap-2">
         <input
           aria-label={label}
@@ -680,7 +871,9 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
           value={text}
         />
       </div>
-      <p className={`mt-1 text-[11px] font-semibold ${ok ? "text-emerald-700" : "text-[#b45309]"}`}>
+      <p
+        className={`mt-1 text-[11px] font-semibold ${ok ? "text-emerald-700" : "text-[#b45309]"}`}
+      >
         {ok
           ? t("admin.plans.branding.contrast", { ratio: ratio.toFixed(1) })
           : t("admin.plans.branding.contrastFail", { min: MIN_BRAND_CONTRAST })}
@@ -709,7 +902,9 @@ function LimitField({
 
   return (
     <div className="rounded-2xl border border-[#DFE5EC] bg-[#F7F9FC] px-3.5 py-3">
-      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">{label}</p>
+      <p className="text-[10px] font-bold tracking-wider text-[#526174] uppercase">
+        {label}
+      </p>
       <div className="mt-1.5 flex items-center gap-2">
         <input
           aria-label={label}
@@ -719,7 +914,9 @@ function LimitField({
           max={100000}
           onChange={(e) => {
             const next = Number.parseInt(e.target.value, 10);
-            onChange(Number.isNaN(next) ? 1 : Math.min(Math.max(next, 1), 100000));
+            onChange(
+              Number.isNaN(next) ? 1 : Math.min(Math.max(next, 1), 100000),
+            );
           }}
           type="number"
           value={unlimited ? "" : value}
@@ -739,7 +936,15 @@ function LimitField({
 }
 
 /** A titled group of controls inside the plan modal. */
-function FeatureSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function FeatureSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <fieldset className="rounded-2xl border border-[#DFE5EC] !bg-white p-4 !text-[#18212F]">
       <legend className="flex items-center gap-1.5 bg-white px-1.5 text-[10px] font-bold tracking-wider text-[#526174] uppercase">

@@ -23,7 +23,9 @@ export type PublicPlanView = PublicPlan;
 
 /** Whether the plan makes advertising compulsory, optional, or absent. */
 function advertisingLevel(features: PlanFeatures): AdvertisingLevel {
-  const modes = (["ads.banner", "ads.explore"] as const).map((key) => placementOf(features, key).mode);
+  const modes = (["ads.banner", "ads.explore"] as const).map(
+    (key) => placementOf(features, key).mode,
+  );
   if (modes.every((mode) => mode === "DISABLED")) return "none";
   if (modes.some((mode) => mode === "REQUIRED")) return "required";
   return "optional";
@@ -36,24 +38,32 @@ function toPublicPlanView(plan: {
   name: string;
   description: string;
   priceTzs: bigint;
+  priceFrom: boolean;
   periodDays: number;
   trialEligible: boolean;
   trialDays: number | null;
   isDemo: boolean;
   commercialPromise: string;
+  tierKey: string | null;
+  planType: string | null;
   features: unknown;
 }): PublicPlanView {
-  const features = normalizePlanFeatures(planFeaturesWithDefaults(plan.features));
+  const features = normalizePlanFeatures(
+    planFeaturesWithDefaults(plan.features),
+  );
   return {
     id: plan.id,
     code: plan.code,
     name: plan.name,
     description: plan.description,
     priceTzs: plan.priceTzs.toString(),
+    priceFrom: plan.priceFrom,
     periodDays: plan.periodDays,
     trialDays: plan.trialEligible ? (plan.trialDays ?? null) : null,
     isDemo: plan.isDemo,
     commercialPromise: plan.commercialPromise as CommercialPromise,
+    tierKey: plan.tierKey,
+    planType: (plan.planType as PublicPlan["planType"]) ?? null,
     capacity: {
       sites: features.limits.sites,
       devices: features.limits.devices,

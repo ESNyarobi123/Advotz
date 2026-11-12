@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { commercialPromiseSchema, packageCardStyleSchema } from "./features.js";
+import {
+  commercialPromiseSchema,
+  packageCardStyleSchema,
+  planTypeSchema,
+} from "./features.js";
 
 /**
  * The public pricing catalog.
@@ -43,11 +47,17 @@ export const publicPlanSchema = z.object({
   description: z.string(),
   /** Money crosses the wire as a decimal string; `BigInt` has no JSON literal. */
   priceTzs: z.string(),
+  /** Enterprise is sold "from" this price, so the page must not present it as fixed. */
+  priceFrom: z.boolean(),
   periodDays: z.number().int(),
   /** Trial length in days, or `null` when the plan carries no trial. */
   trialDays: z.number().int().nullable(),
   isDemo: z.boolean(),
   commercialPromise: commercialPromiseSchema,
+  /** The capacity tier this plan belongs to; `null` for plans outside the matrix. */
+  tierKey: z.string().nullable(),
+  /** Advo Partner (with advertising) or Independent (without); `null` when untagged. */
+  planType: planTypeSchema.nullable(),
   capacity: publicPlanCapacitySchema,
   advertising: advertisingLevelSchema,
   flags: publicPlanFlagsSchema,

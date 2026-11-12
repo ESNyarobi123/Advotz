@@ -38,6 +38,7 @@ import {
   type ResellerPlan as Plan,
   type PlanCapacity,
 } from "./subscription-plan-drawer";
+import { PlanCatalog, buildCatalog } from "./plan-catalog";
 
 type Invoice = {
   id: string;
@@ -90,7 +91,9 @@ function invoiceStatusLabel(t: I18n["t"], status: string): string {
   return translated === key ? status.replace(/_/g, " ") : translated;
 }
 
-function invoiceTone(status: string): "success" | "danger" | "warning" | "default" {
+function invoiceTone(
+  status: string,
+): "success" | "danger" | "warning" | "default" {
   if (status === "PAID") return "success";
   if (status === "VOID") return "danger";
   return "warning";
@@ -118,24 +121,50 @@ export function ResellerSubscriptionScreen() {
   }
 
   const currentSub = sub.data;
-  const capacity: PlanCapacity | null = currentSub?.plan ? capacityOf(currentSub.plan) : null;
+  const capacity: PlanCapacity | null = currentSub?.plan
+    ? capacityOf(currentSub.plan)
+    : null;
 
-  const trialPlan = (plans.data ?? []).find((p) => p.trialEligible && (p.trialDays ?? 0) > 0) ?? null;
-  const showTrialBanner = trialPlan !== null && !currentSub?.plan && !currentSub?.trialUsed;
+  const trialPlan =
+    (plans.data ?? []).find((p) => p.trialEligible && (p.trialDays ?? 0) > 0) ??
+    null;
+  const showTrialBanner =
+    trialPlan !== null && !currentSub?.plan && !currentSub?.trialUsed;
 
   const invoices = currentSub?.invoices ?? [];
   const paidInvoices = invoices.filter((i) => i.status === "PAID");
   const openInvoices = invoices.filter((i) => i.status === "OPEN");
-  const totalPaid = paidInvoices.reduce((acc, i) => acc + (Number(i.amountTzs) || 0), 0);
+  const totalPaid = paidInvoices.reduce(
+    (acc, i) => acc + (Number(i.amountTzs) || 0),
+    0,
+  );
 
   const invoiceFilters = useMemo(() => {
     const count = (status: InvoiceFilter) =>
-      status === "ALL" ? invoices.length : invoices.filter((i) => i.status === status).length;
+      status === "ALL"
+        ? invoices.length
+        : invoices.filter((i) => i.status === status).length;
     return [
-      { value: "ALL" as const, label: t("reseller.filter.all"), count: count("ALL") },
-      { value: "PAID" as const, label: t("reseller.subscription.invoices.filter.paid"), count: count("PAID") },
-      { value: "OPEN" as const, label: t("reseller.subscription.invoices.filter.open"), count: count("OPEN") },
-      { value: "VOID" as const, label: t("reseller.subscription.invoices.filter.void"), count: count("VOID") },
+      {
+        value: "ALL" as const,
+        label: t("reseller.filter.all"),
+        count: count("ALL"),
+      },
+      {
+        value: "PAID" as const,
+        label: t("reseller.subscription.invoices.filter.paid"),
+        count: count("PAID"),
+      },
+      {
+        value: "OPEN" as const,
+        label: t("reseller.subscription.invoices.filter.open"),
+        count: count("OPEN"),
+      },
+      {
+        value: "VOID" as const,
+        label: t("reseller.subscription.invoices.filter.void"),
+        count: count("VOID"),
+      },
     ];
   }, [invoices, t]);
 
@@ -145,7 +174,9 @@ export function ResellerSubscriptionScreen() {
       invoices.filter((i) => {
         if (invoiceFilter !== "ALL" && i.status !== invoiceFilter) return false;
         if (!term) return true;
-        const hay = [i.plan?.name ?? "", i.id, i.payment?.state ?? "", i.status].join(" ").toLowerCase();
+        const hay = [i.plan?.name ?? "", i.id, i.payment?.state ?? "", i.status]
+          .join(" ")
+          .toLowerCase();
         return hay.includes(term);
       }),
     [invoices, invoiceFilter, term],
@@ -176,10 +207,14 @@ export function ResellerSubscriptionScreen() {
         {(s) => (
           <div className="space-y-4">
             {s.state === "PAST_DUE" ? (
-              <Notice tone="warning">{t("reseller.subscription.notice.pastDue")}</Notice>
+              <Notice tone="warning">
+                {t("reseller.subscription.notice.pastDue")}
+              </Notice>
             ) : null}
             {s.state === "EXPIRED" ? (
-              <Notice tone="danger">{t("reseller.subscription.notice.expired")}</Notice>
+              <Notice tone="danger">
+                {t("reseller.subscription.notice.expired")}
+              </Notice>
             ) : null}
 
             <Card className="overflow-hidden p-0">
@@ -216,7 +251,9 @@ export function ResellerSubscriptionScreen() {
                   </span>
                   <p className="mt-0.5 text-sm font-bold text-advo-text">
                     {s.currentPeriodEnd
-                      ? t("reseller.subscription.expires", { date: formatDateTime(s.currentPeriodEnd) })
+                      ? t("reseller.subscription.expires", {
+                          date: formatDateTime(s.currentPeriodEnd),
+                        })
                       : t("reseller.subscription.notScheduled")}
                   </p>
                 </div>
@@ -250,7 +287,9 @@ export function ResellerSubscriptionScreen() {
                 icon={Package}
                 label={t("reseller.subscription.kpi.packages")}
                 tone="rose"
-                value={capacity ? formatCap(t, capacity.wifiPackagesPerSite) : "—"}
+                value={
+                  capacity ? formatCap(t, capacity.wifiPackagesPerSite) : "—"
+                }
               />
             </div>
           </div>
@@ -266,7 +305,9 @@ export function ResellerSubscriptionScreen() {
               </span>
               <div>
                 <h2 className="text-sm font-bold text-advo-text">
-                  {t("reseller.subscription.trial.title", { days: trialPlan.trialDays ?? 0 })}
+                  {t("reseller.subscription.trial.title", {
+                    days: trialPlan.trialDays ?? 0,
+                  })}
                 </h2>
                 <p className="mt-0.5 max-w-xl text-xs text-slate-600">
                   {t("reseller.subscription.trial.body", {
@@ -285,10 +326,16 @@ export function ResellerSubscriptionScreen() {
               <Sparkles className="h-3.5 w-3.5" />
               {trial.pending
                 ? t("reseller.subscription.trial.starting")
-                : t("reseller.subscription.trial.cta", { days: trialPlan.trialDays ?? 0 })}
+                : t("reseller.subscription.trial.cta", {
+                    days: trialPlan.trialDays ?? 0,
+                  })}
             </button>
           </div>
-          {trial.error ? <p className="mt-3 text-xs font-semibold text-red-600">{trial.error}</p> : null}
+          {trial.error ? (
+            <p className="mt-3 text-xs font-semibold text-red-600">
+              {trial.error}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -297,148 +344,201 @@ export function ResellerSubscriptionScreen() {
           <h2 className="text-sm font-black tracking-tight text-advo-text">
             {t("reseller.subscription.plans.title")}
           </h2>
-          <p className="text-xs text-advo-muted">{t("reseller.subscription.plans.subtitle")}</p>
+          <p className="text-xs text-advo-muted">
+            {t("reseller.subscription.plans.subtitle")}
+          </p>
         </div>
 
         <ResourceView resource={plans}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <Notice tone="default">{t("reseller.subscription.plans.empty")}</Notice>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-3">
-                {rows.map((p) => {
-                  const isSelected = selected?.id === p.id;
-                  const features = planFeaturesWithDefaults(p.features);
-                  const cap = capacityOf(p);
-                  const highlights = planHighlights(features).slice(0, 5);
-                  return (
-                    <Card
-                      key={p.id}
-                      className={`group relative flex flex-col justify-between overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-advo-lift ${
-                        isSelected
-                          ? "border-advo-blue ring-4 ring-advo-blue/10"
-                          : "border-advo-border hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-advo-blue via-advo-gold to-advo-orange" />
+          {(rows) => {
+            if (rows.length === 0) {
+              return (
+                <Notice tone="default">
+                  {t("reseller.subscription.plans.empty")}
+                </Notice>
+              );
+            }
+            const catalog = buildCatalog(rows);
+            return (
+              <div className="space-y-5">
+                {catalog.tiers.length > 0 ? (
+                  <PlanCatalog
+                    plans={rows}
+                    currentPlanId={currentSub?.plan?.id ?? null}
+                    trialUsed={Boolean(currentSub?.trialUsed)}
+                    trialPending={trial.pending}
+                    onChoose={choosePlan}
+                    onDetail={setDetail}
+                    onTrial={(plan) => void trial.run(plan.id)}
+                  />
+                ) : null}
 
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3 className="text-base font-black tracking-tight text-advo-text">{p.name}</h3>
-                            <p className="mt-0.5 font-mono text-[10px] text-slate-400">{p.code}</p>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            {p.isDemo ? (
-                              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-advo-gold">
-                                DEMO
-                              </span>
-                            ) : null}
-                            {p.commercialPromise === "ad_free" ? (
-                              <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">
-                                AD FREE
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex items-baseline gap-1">
-                          <span className="text-2xl font-black tracking-tight text-advo-text tabular-nums">
-                            {formatTzs(p.priceTzs)}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {t("reseller.subscription.plans.perDays", { days: p.periodDays })}
-                          </span>
-                        </div>
-
-                        {p.trialEligible && p.trialDays ? (
-                          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                            <Sparkles className="h-3 w-3" />
-                            {t("reseller.subscription.plans.trialBadge", { days: p.trialDays })}
-                          </p>
-                        ) : null}
-
-                        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-advo-border/60 pt-4 text-center">
-                          <div className="rounded-xl bg-advo-page px-1 py-2">
-                            <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
-                              {formatCap(t, cap.sites)}
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-500">
-                              {t("reseller.subscription.plans.sites")}
-                            </span>
-                          </div>
-                          <div className="rounded-xl bg-advo-page px-1 py-2">
-                            <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
-                              {formatCap(t, cap.devices)}
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-500">
-                              {t("reseller.subscription.plans.devices")}
-                            </span>
-                          </div>
-                          <div className="rounded-xl bg-advo-page px-1 py-2">
-                            <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
-                              {formatCap(t, cap.wifiPackagesPerSite)}
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-500">
-                              {t("reseller.subscription.plans.packages")}
-                            </span>
-                          </div>
-                        </div>
-
-                        <ul className="mt-4 space-y-2 text-xs">
-                          {highlights.map((line) => (
-                            <li className="flex items-start gap-2.5 text-slate-700" key={line}>
-                              <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                                <Check className="h-2.5 w-2.5" />
-                              </div>
-                              <span>{line}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="mt-5 space-y-2 border-t border-advo-border/60 pt-4">
-                        <button
-                          type="button"
-                          onClick={() => setDetail(p)}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-advo-page"
-                        >
-                          <Info className="h-3.5 w-3.5" />
-                          {t("reseller.subscription.plans.viewFeatures")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => choosePlan(p)}
-                          className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-sm transition ${
-                            isSelected
-                              ? "bg-advo-blue text-white ring-2 ring-advo-blue/30"
-                              : "border border-advo-blue bg-white text-advo-blue hover:bg-advo-blue/10"
-                          }`}
-                        >
-                          {isSelected ? <Check className="h-3.5 w-3.5" /> : <Smartphone className="h-3.5 w-3.5" />}
-                          {isSelected
-                            ? t("reseller.subscription.plans.selected")
-                            : t("reseller.subscription.plans.select")}
-                        </button>
-
-                        {p.trialEligible && (p.trialDays ?? 0) > 0 && !currentSub?.trialUsed ? (
-                          <button
-                            type="button"
-                            disabled={trial.pending}
-                            onClick={() => void trial.run(p.id)}
-                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-advo-page"
+                {catalog.other.length > 0 ? (
+                  <div className="space-y-2">
+                    <div>
+                      <h3 className="text-sm font-black tracking-tight text-advo-text">
+                        {t("reseller.subscription.catalog.other")}
+                      </h3>
+                      <p className="text-xs text-advo-muted">
+                        {t("reseller.subscription.catalog.otherHint")}
+                      </p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {catalog.other.map((p) => {
+                        const isSelected = selected?.id === p.id;
+                        const features = planFeaturesWithDefaults(p.features);
+                        const cap = capacityOf(p);
+                        const highlights = planHighlights(features).slice(0, 5);
+                        return (
+                          <Card
+                            key={p.id}
+                            className={`group relative flex flex-col justify-between overflow-hidden p-5 transition hover:-translate-y-0.5 hover:shadow-advo-lift ${
+                              isSelected
+                                ? "border-advo-blue ring-4 ring-advo-blue/10"
+                                : "border-advo-border hover:border-slate-300"
+                            }`}
                           >
-                            <Sparkles className="h-3.5 w-3.5 text-advo-gold" />
-                            {t("reseller.subscription.plans.startTrial", { days: p.trialDays ?? 0 })}
-                          </button>
-                        ) : null}
-                      </div>
-                    </Card>
-                  );
-                })}
+                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-advo-blue via-advo-gold to-advo-orange" />
+
+                            <div>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <h3 className="text-base font-black tracking-tight text-advo-text">
+                                    {p.name}
+                                  </h3>
+                                  <p className="mt-0.5 font-mono text-[10px] text-slate-400">
+                                    {p.code}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                  {p.isDemo ? (
+                                    <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-advo-gold">
+                                      DEMO
+                                    </span>
+                                  ) : null}
+                                  {p.commercialPromise === "ad_free" ? (
+                                    <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600">
+                                      AD FREE
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="mt-4 flex items-baseline gap-1">
+                                <span className="text-2xl font-black tracking-tight text-advo-text tabular-nums">
+                                  {formatTzs(p.priceTzs)}
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                  {t("reseller.subscription.plans.perDays", {
+                                    days: p.periodDays,
+                                  })}
+                                </span>
+                              </div>
+
+                              {p.trialEligible && p.trialDays ? (
+                                <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  <Sparkles className="h-3 w-3" />
+                                  {t("reseller.subscription.plans.trialBadge", {
+                                    days: p.trialDays,
+                                  })}
+                                </p>
+                              ) : null}
+
+                              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-advo-border/60 pt-4 text-center">
+                                <div className="rounded-xl bg-advo-page px-1 py-2">
+                                  <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
+                                    {formatCap(t, cap.sites)}
+                                  </div>
+                                  <span className="text-[10px] font-medium text-slate-500">
+                                    {t("reseller.subscription.plans.sites")}
+                                  </span>
+                                </div>
+                                <div className="rounded-xl bg-advo-page px-1 py-2">
+                                  <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
+                                    {formatCap(t, cap.devices)}
+                                  </div>
+                                  <span className="text-[10px] font-medium text-slate-500">
+                                    {t("reseller.subscription.plans.devices")}
+                                  </span>
+                                </div>
+                                <div className="rounded-xl bg-advo-page px-1 py-2">
+                                  <div className="truncate text-sm font-extrabold text-advo-text tabular-nums">
+                                    {formatCap(t, cap.wifiPackagesPerSite)}
+                                  </div>
+                                  <span className="text-[10px] font-medium text-slate-500">
+                                    {t("reseller.subscription.plans.packages")}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <ul className="mt-4 space-y-2 text-xs">
+                                {highlights.map((line) => (
+                                  <li
+                                    className="flex items-start gap-2.5 text-slate-700"
+                                    key={line}
+                                  >
+                                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                                      <Check className="h-2.5 w-2.5" />
+                                    </div>
+                                    <span>{line}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="mt-5 space-y-2 border-t border-advo-border/60 pt-4">
+                              <button
+                                type="button"
+                                onClick={() => setDetail(p)}
+                                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-advo-page"
+                              >
+                                <Info className="h-3.5 w-3.5" />
+                                {t("reseller.subscription.plans.viewFeatures")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => choosePlan(p)}
+                                className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold shadow-sm transition ${
+                                  isSelected
+                                    ? "bg-advo-blue text-white ring-2 ring-advo-blue/30"
+                                    : "border border-advo-blue bg-white text-advo-blue hover:bg-advo-blue/10"
+                                }`}
+                              >
+                                {isSelected ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Smartphone className="h-3.5 w-3.5" />
+                                )}
+                                {isSelected
+                                  ? t("reseller.subscription.plans.selected")
+                                  : t("reseller.subscription.plans.select")}
+                              </button>
+
+                              {p.trialEligible &&
+                              (p.trialDays ?? 0) > 0 &&
+                              !currentSub?.trialUsed ? (
+                                <button
+                                  type="button"
+                                  disabled={trial.pending}
+                                  onClick={() => void trial.run(p.id)}
+                                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-advo-page"
+                                >
+                                  <Sparkles className="h-3.5 w-3.5 text-advo-gold" />
+                                  {t("reseller.subscription.plans.startTrial", {
+                                    days: p.trialDays ?? 0,
+                                  })}
+                                </button>
+                              ) : null}
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            )
-          }
+            );
+          }}
         </ResourceView>
 
         {trial.error ? (
@@ -472,10 +572,14 @@ export function ResellerSubscriptionScreen() {
             <h2 className="text-sm font-black tracking-tight text-advo-text">
               {t("reseller.subscription.invoices.title")}
               <span className="ml-1.5 font-bold text-advo-muted">
-                {t("reseller.subscription.invoices.count", { count: filteredInvoices.length })}
+                {t("reseller.subscription.invoices.count", {
+                  count: filteredInvoices.length,
+                })}
               </span>
             </h2>
-            <p className="text-xs text-advo-muted">{t("reseller.subscription.invoices.subtitle")}</p>
+            <p className="text-xs text-advo-muted">
+              {t("reseller.subscription.invoices.subtitle")}
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -486,7 +590,8 @@ export function ResellerSubscriptionScreen() {
             {openInvoices.length > 0 ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">
                 <Clock className="h-3 w-3" />
-                {openInvoices.length} {t("reseller.subscription.invoices.filter.open").toLowerCase()}
+                {openInvoices.length}{" "}
+                {t("reseller.subscription.invoices.filter.open").toLowerCase()}
               </span>
             ) : null}
             <div className="relative min-w-0 w-full sm:w-56">
@@ -531,7 +636,9 @@ export function ResellerSubscriptionScreen() {
                 {f.label}
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                    active ? "bg-white/20 text-white" : "bg-advo-page text-advo-text"
+                    active
+                      ? "bg-white/20 text-white"
+                      : "bg-advo-page text-advo-text"
                   }`}
                 >
                   {f.count}
@@ -608,20 +715,30 @@ function InvoiceDetailRow({
           <span
             aria-hidden="true"
             className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-white ${
-              paid ? "bg-emerald-500" : i.status === "VOID" ? "bg-rose-400" : "bg-amber-400"
+              paid
+                ? "bg-emerald-500"
+                : i.status === "VOID"
+                  ? "bg-rose-400"
+                  : "bg-amber-400"
             }`}
           />
         </span>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-black tracking-tight text-advo-text" title={planName}>
+            <h3
+              className="truncate text-sm font-black tracking-tight text-advo-text"
+              title={planName}
+            >
               {planName}
             </h3>
-            <StatusChip tone={invoiceTone(i.status)}>{invoiceStatusLabel(t, i.status)}</StatusChip>
+            <StatusChip tone={invoiceTone(i.status)}>
+              {invoiceStatusLabel(t, i.status)}
+            </StatusChip>
             {i.payment ? (
               <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                {PAYMENT_ATTEMPT_LABELS[i.payment.state] ?? i.payment.state.replace(/_/g, " ")}
+                {PAYMENT_ATTEMPT_LABELS[i.payment.state] ??
+                  i.payment.state.replace(/_/g, " ")}
               </span>
             ) : null}
           </div>
@@ -637,7 +754,8 @@ function InvoiceDetailRow({
               <span className="inline-flex min-w-0 items-center gap-1">
                 <Calendar className="h-3 w-3 shrink-0 text-slate-400" />
                 <span className="truncate font-semibold">
-                  {t("reseller.subscription.invoice.period")}: {formatDateTime(i.periodStart)}
+                  {t("reseller.subscription.invoice.period")}:{" "}
+                  {formatDateTime(i.periodStart)}
                   {i.periodEnd ? ` → ${formatDateTime(i.periodEnd)}` : ""}
                 </span>
               </span>
@@ -649,14 +767,20 @@ function InvoiceDetailRow({
               <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
                 {t("reseller.col.reference")}
               </span>
-              <span className="font-mono text-[10px] font-bold text-advo-text">{i.id.slice(0, 8)}</span>
+              <span className="font-mono text-[10px] font-bold text-advo-text">
+                {i.id.slice(0, 8)}
+              </span>
               <button
                 aria-label={copied ? t("common.copied") : t("common.copy")}
                 className="rounded-md p-0.5 text-advo-muted transition hover:bg-white hover:text-advo-text"
                 onClick={onCopy}
                 type="button"
               >
-                {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                {copied ? (
+                  <Check className="h-3 w-3 text-emerald-600" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
               </button>
             </span>
             {err ? (
@@ -721,7 +845,9 @@ function SubscriptionCheckoutDialog({
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [periodEnd, setPeriodEnd] = useState<string | null>(null);
-  const [idempotencyKey, setIdempotencyKey] = useState(() => newIdempotencyKey("sub"));
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    newIdempotencyKey("sub"),
+  );
   const [first, ...rest] = user.name.split(" ");
 
   // The parent re-creates `onPaid` on every render; polling must not restart
@@ -743,17 +869,17 @@ function SubscriptionCheckoutDialog({
   const checkout = useAction(async (form: HTMLFormElement) => {
     if (!plan) return;
     const values = formValues(form);
-    const result = await api.post<{ invoiceId: string; payment: { state: string; lastError: string | null } }>(
-      "/reseller/subscription/checkout",
-      {
-        planId: plan.id,
-        phone: values.phone,
-        firstName: values.firstName,
-        lastName: values.lastName,
-        email: values.email,
-        idempotencyKey,
-      },
-    );
+    const result = await api.post<{
+      invoiceId: string;
+      payment: { state: string; lastError: string | null };
+    }>("/reseller/subscription/checkout", {
+      planId: plan.id,
+      phone: values.phone,
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email,
+      idempotencyKey,
+    });
     setInvoiceId(result.invoiceId);
     setIdempotencyKey(newIdempotencyKey("sub"));
     if (result.payment.state === "FAILED") {
@@ -785,7 +911,12 @@ function SubscriptionCheckoutDialog({
           return;
         }
         const state = invoice?.payment?.state;
-        if (state === "FAILED" || state === "EXPIRED" || state === "VOIDED" || state === "NEEDS_REVIEW") {
+        if (
+          state === "FAILED" ||
+          state === "EXPIRED" ||
+          state === "VOIDED" ||
+          state === "NEEDS_REVIEW"
+        ) {
           setFailure(invoice?.payment?.lastError ?? null);
           setStage("failed");
           onPaidRef.current();
@@ -823,13 +954,19 @@ function SubscriptionCheckoutDialog({
                   <p className="text-[10px] font-bold tracking-[0.16em] text-white/60 uppercase">
                     {t("reseller.subscription.checkout.eyebrow")}
                   </p>
-                  <h2 className="mt-1 truncate text-xl font-black tracking-tight">{plan.name}</h2>
+                  <h2 className="mt-1 truncate text-xl font-black tracking-tight">
+                    {plan.name}
+                  </h2>
                   <p className="mt-0.5 text-xs text-white/70">
-                    {t("reseller.subscription.checkout.period", { days: plan.periodDays })}
+                    {t("reseller.subscription.checkout.period", {
+                      days: plan.periodDays,
+                    })}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-2xl font-black tracking-tight tabular-nums">{formatTzs(plan.priceTzs)}</p>
+                  <p className="text-2xl font-black tracking-tight tabular-nums">
+                    {formatTzs(plan.priceTzs)}
+                  </p>
                   <p className="text-[10px] font-semibold text-white/60">
                     {t("reseller.subscription.checkout.amountNote")}
                   </p>
@@ -883,7 +1020,11 @@ function SubscriptionCheckoutDialog({
                     <Button onPress={onClose} type="button" variant="ghost">
                       {t("reseller.subscription.checkout.cancel")}
                     </Button>
-                    <Button isDisabled={checkout.pending} type="submit" variant="primary">
+                    <Button
+                      isDisabled={checkout.pending}
+                      type="submit"
+                      variant="primary"
+                    >
                       <Smartphone className="size-4" />
                       {checkout.pending
                         ? t("reseller.subscription.checkout.pending")
@@ -896,7 +1037,10 @@ function SubscriptionCheckoutDialog({
               {stage === "waiting" ? (
                 <div className="pt-6 text-center">
                   <div className="relative mx-auto grid size-24 place-items-center">
-                    <span aria-hidden className="absolute inset-0 animate-ping rounded-full bg-advo-blue/15" />
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 animate-ping rounded-full bg-advo-blue/15"
+                    />
                     <span
                       aria-hidden
                       className="absolute inset-3 animate-ping rounded-full bg-advo-blue/20 [animation-delay:400ms]"
@@ -921,7 +1065,9 @@ function SubscriptionCheckoutDialog({
                       <dt className="text-[9px] font-bold tracking-wider text-advo-muted uppercase">
                         {t("reseller.subscription.checkout.summaryPlan")}
                       </dt>
-                      <dd className="mt-0.5 truncate text-xs font-bold text-advo-text">{plan.name}</dd>
+                      <dd className="mt-0.5 truncate text-xs font-bold text-advo-text">
+                        {plan.name}
+                      </dd>
                     </div>
                     <div className="rounded-xl border border-advo-border/70 bg-advo-page/60 px-3 py-2">
                       <dt className="text-[9px] font-bold tracking-wider text-advo-muted uppercase">
@@ -936,7 +1082,9 @@ function SubscriptionCheckoutDialog({
                         <dt className="text-[9px] font-bold tracking-wider text-advo-muted uppercase">
                           {t("reseller.subscription.checkout.summaryReference")}
                         </dt>
-                        <dd className="mt-0.5 font-mono text-xs font-bold text-advo-text">{reference}</dd>
+                        <dd className="mt-0.5 font-mono text-xs font-bold text-advo-text">
+                          {reference}
+                        </dd>
                       </div>
                     ) : null}
                   </dl>
@@ -957,7 +1105,10 @@ function SubscriptionCheckoutDialog({
               {stage === "success" ? (
                 <div className="pt-6 text-center">
                   <div className="relative mx-auto grid size-24 place-items-center">
-                    <span aria-hidden className="absolute inset-0 rounded-full bg-emerald-100" />
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 rounded-full bg-emerald-100"
+                    />
                     <span
                       aria-hidden
                       className="advo-checkout-ring absolute inset-0 rounded-full ring-4 ring-emerald-300/70"
@@ -970,7 +1121,9 @@ function SubscriptionCheckoutDialog({
                     {t("reseller.subscription.checkout.successTitle")}
                   </h3>
                   <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-advo-muted">
-                    {t("reseller.subscription.checkout.successBody", { plan: plan.name })}
+                    {t("reseller.subscription.checkout.successBody", {
+                      plan: plan.name,
+                    })}
                   </p>
 
                   {periodEnd ? (
@@ -983,7 +1136,12 @@ function SubscriptionCheckoutDialog({
                   ) : null}
 
                   <div className="mt-6">
-                    <Button className="w-full" onPress={onClose} type="button" variant="primary">
+                    <Button
+                      className="w-full"
+                      onPress={onClose}
+                      type="button"
+                      variant="primary"
+                    >
                       {t("reseller.subscription.checkout.successCta")}
                     </Button>
                   </div>
@@ -1000,7 +1158,9 @@ function SubscriptionCheckoutDialog({
                   </h3>
                   <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-advo-muted">
                     {failure
-                      ? t("reseller.subscription.checkout.failedBody", { error: failure })
+                      ? t("reseller.subscription.checkout.failedBody", {
+                          error: failure,
+                        })
                       : t("reseller.subscription.checkout.failedBodyGeneric")}
                   </p>
                   <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
@@ -1023,7 +1183,9 @@ function SubscriptionCheckoutDialog({
             </Modal.Body>
 
             {stage === "form" ? (
-              <Modal.CloseTrigger aria-label={t("reseller.subscription.checkout.cancel")} />
+              <Modal.CloseTrigger
+                aria-label={t("reseller.subscription.checkout.cancel")}
+              />
             ) : null}
           </Modal.Dialog>
         </Modal.Container>
@@ -1063,12 +1225,19 @@ function KpiCard({
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${tones}`}>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          {label}
+        </span>
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${tones}`}
+        >
           <Icon className="h-4 w-4" />
         </div>
       </div>
-      <div className={`mt-2 truncate text-xl font-bold sm:text-2xl ${valueTone}`} title={String(value)}>
+      <div
+        className={`mt-2 truncate text-xl font-bold sm:text-2xl ${valueTone}`}
+        title={String(value)}
+      >
         {value}
       </div>
       <p className="mt-1 text-xs text-slate-500">{hint}</p>
