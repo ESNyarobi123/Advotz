@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, Res, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
 import {
   deviceClaimInputSchema,
   deviceRenameSchema,
@@ -23,11 +36,32 @@ import {
 } from "@advo/contracts";
 import { GrantState, PromotionRequestState } from "@advo/db";
 import { z } from "zod";
-import { CurrentUser, Roles, RolesGuard, SessionAuthGuard, requireResellerId, type RequestActor } from "../../common/guards/session.guard.js";
+import {
+  CurrentUser,
+  Roles,
+  RolesGuard,
+  SessionAuthGuard,
+  requireResellerId,
+  type RequestActor,
+} from "../../common/guards/session.guard.js";
 import { enumQuery, parse, type HttpReply } from "../../common/http.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
-import { getGrantForReseller, listGrants, retryGrantDevice, revokeGrant, unblockGrantDevice } from "../access/grants.service.js";
-import { archivePackage, createPackage, listPackages, packageRevisions, packageSiteOptions, setPackageStatus, updatePackage } from "../catalog/packages.service.js";
+import {
+  getGrantForReseller,
+  listGrants,
+  retryGrantDevice,
+  revokeGrant,
+  unblockGrantDevice,
+} from "../access/grants.service.js";
+import {
+  archivePackage,
+  createPackage,
+  listPackages,
+  packageRevisions,
+  packageSiteOptions,
+  setPackageStatus,
+  updatePackage,
+} from "../catalog/packages.service.js";
 import {
   archiveVoucherGroup,
   createVoucherGroup,
@@ -38,19 +72,52 @@ import {
   renameVoucherGroup,
 } from "../catalog/vouchers.service.js";
 import { accountHistory, walletSummary } from "../ledger/ledger.service.js";
-import { archiveSite, createDeviceWifi, createSite, getSite, listDeviceClaims, listDevices, listSites, removeDevice as forgetResellerDevice, renameDevice as renameResellerDevice, requestReprovision, requireOwnedSite, retryDeviceAdopt, submitDeviceClaim, updateSite } from "../network/sites.service.js";
+import {
+  archiveSite,
+  createDeviceWifi,
+  createSite,
+  getSite,
+  listDeviceClaims,
+  listDevices,
+  listSites,
+  removeDevice as forgetResellerDevice,
+  renameDevice as renameResellerDevice,
+  requestReprovision,
+  requireOwnedSite,
+  retryDeviceAdopt,
+  submitDeviceClaim,
+  updateSite,
+} from "../network/sites.service.js";
 import { kickOutbox } from "../outbox/outbox.dispatcher.js";
-import { listPromotionRequests, updatePromotionRequestState } from "../platform/listings.service.js";
-import { resellerCustomers, resellerOrders, resellerOverview } from "../reports/reports.service.js";
+import {
+  listPromotionRequests,
+  updatePromotionRequestState,
+} from "../platform/listings.service.js";
+import {
+  resellerCustomers,
+  resellerOrders,
+  resellerOverview,
+} from "../reports/reports.service.js";
 import { USAGE_RANGES, resellerUsage } from "../usage/usage.service.js";
-import { checkoutSubscription, getSubscriptionView, listActivePlans, startTrial } from "../subscriptions/subscriptions.service.js";
+import {
+  checkoutSubscription,
+  getSubscriptionInvoice,
+  getSubscriptionView,
+  listActivePlans,
+  listSubscriptionInvoices,
+  startTrial,
+} from "../subscriptions/subscriptions.service.js";
 import {
   PreferenceRejected,
   resolveResellerEntitlements,
   sitePortalState,
   updateSitePortalPreferences,
 } from "../subscriptions/entitlements.service.js";
-import { createTicket, listOwnTickets, replyToTicket } from "../support/support.service.js";
+import {
+  createTicket,
+  listOwnTickets,
+  replyToTicket,
+} from "../support/support.service.js";
 import {
   archiveDestination,
   createDestination,
@@ -63,9 +130,16 @@ import {
 } from "../withdrawals/withdrawals.service.js";
 
 const id = (v: string) => parse(uuidSchema, v);
+const invoiceQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(1_000_000).default(1),
+  status: z.enum(["PAID", "OPEN", "VOID"]).optional(),
+  q: z.string().trim().max(100).optional(),
+});
 const reasonSchema = z.object({ reason: z.string().trim().min(3).max(300) });
 const codeSchema = z.object({ code: z.string().regex(/^\d{6}$/) });
-const promotionStateSchema = z.object({ state: z.enum(["NEW", "CONTACTED", "WON", "DECLINED"]) });
+const promotionStateSchema = z.object({
+  state: z.enum(["NEW", "CONTACTED", "WON", "DECLINED"]),
+});
 
 function beneficiary(actor: RequestActor): Beneficiary {
   return { type: "RESELLER", id: requireResellerId(actor), userId: actor.id };
@@ -83,7 +157,9 @@ function preferenceViolation(error: unknown): never {
   if (error instanceof PreferenceRejected) {
     throw new ForbiddenException({
       code: FEATURE_LOCKED_BY_PLAN,
-      message: error.violations.map((violation) => violation.message).join("; "),
+      message: error.violations
+        .map((violation) => violation.message)
+        .join("; "),
       // `details` is what the API client surfaces on ApiError.details.
       details: error.violations,
     });
@@ -96,9 +172,15 @@ function preferenceViolation(error: unknown): never {
 @Roles(UserRole.RESELLER)
 export class ResellerController {
   @Get("overview")
-  async overview(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+  async overview(
+    @CurrentUser() a: RequestActor,
+    @Query("siteId") siteId?: string,
+  ) {
     const resellerId = requireResellerId(a);
-    return resellerOverview(resellerId, await optionalSiteId(resellerId, siteId));
+    return resellerOverview(
+      resellerId,
+      await optionalSiteId(resellerId, siteId),
+    );
   }
 
   // ── Subscription ──
@@ -108,13 +190,45 @@ export class ResellerController {
   }
 
   @Get("subscription")
-  subscription(@CurrentUser() a: RequestActor) {
-    return getSubscriptionView(requireResellerId(a));
+  subscription(@CurrentUser() a: RequestActor, @Query("view") view?: string) {
+    return getSubscriptionView(requireResellerId(a), view !== "summary");
+  }
+
+  @Get("subscription/invoices")
+  subscriptionInvoices(
+    @CurrentUser() a: RequestActor,
+    @Query() query: unknown,
+  ) {
+    return listSubscriptionInvoices(
+      requireResellerId(a),
+      parse(invoiceQuerySchema, query),
+    );
+  }
+
+  @Get("subscription/invoices/:id")
+  async subscriptionInvoice(
+    @CurrentUser() a: RequestActor,
+    @Param("id") invoiceId: string,
+  ) {
+    const invoice = await getSubscriptionInvoice(
+      requireResellerId(a),
+      id(invoiceId),
+    );
+    if (
+      invoice.status === "OPEN" &&
+      (invoice.paymentState === "PAID" || invoice.paymentState === "OVERPAID")
+    )
+      kickOutbox();
+    return invoice;
   }
 
   @Post("subscription/trial")
   trial(@CurrentUser() a: RequestActor, @Body() body: unknown) {
-    return startTrial(requireResellerId(a), parse(startTrialSchema, body).planId, a.id);
+    return startTrial(
+      requireResellerId(a),
+      parse(startTrialSchema, body).planId,
+      a.id,
+    );
   }
 
   // ── Plan entitlements & portal appearance ──
@@ -126,15 +240,27 @@ export class ResellerController {
 
   /** The Captive Portal designer's read model for one site. */
   @Get("sites/:id/portal-preferences")
-  portalPreferences(@CurrentUser() a: RequestActor, @Param("id") siteId: string) {
+  portalPreferences(
+    @CurrentUser() a: RequestActor,
+    @Param("id") siteId: string,
+  ) {
     return sitePortalState(requireResellerId(a), id(siteId));
   }
 
   @Patch("sites/:id/portal-preferences")
-  async updatePortalPreferences(@CurrentUser() a: RequestActor, @Param("id") siteId: string, @Body() body: unknown) {
+  async updatePortalPreferences(
+    @CurrentUser() a: RequestActor,
+    @Param("id") siteId: string,
+    @Body() body: unknown,
+  ) {
     const input = parse(sitePortalPreferenceInputSchema, body);
     try {
-      return await updateSitePortalPreferences(requireResellerId(a), a.id, id(siteId), input);
+      return await updateSitePortalPreferences(
+        requireResellerId(a),
+        a.id,
+        id(siteId),
+        input,
+      );
     } catch (error) {
       preferenceViolation(error);
     }
@@ -158,7 +284,11 @@ export class ResellerController {
 
   @Post("sites")
   async createSite(@CurrentUser() a: RequestActor, @Body() body: unknown) {
-    const result = await createSite(requireResellerId(a), a.id, parse(siteInputSchema, body));
+    const result = await createSite(
+      requireResellerId(a),
+      a.id,
+      parse(siteInputSchema, body),
+    );
     kickOutbox();
     return result;
   }
@@ -169,8 +299,16 @@ export class ResellerController {
   }
 
   @Put("sites/:id")
-  updateSite(@CurrentUser() a: RequestActor, @Param("id") siteId: string, @Body() body: unknown) {
-    return updateSite(requireResellerId(a), id(siteId), parse(siteInputSchema.partial(), body));
+  updateSite(
+    @CurrentUser() a: RequestActor,
+    @Param("id") siteId: string,
+    @Body() body: unknown,
+  ) {
+    return updateSite(
+      requireResellerId(a),
+      id(siteId),
+      parse(siteInputSchema.partial(), body),
+    );
   }
 
   @Delete("sites/:id")
@@ -179,26 +317,49 @@ export class ResellerController {
   }
 
   @Post("sites/:id/reprovision")
-  async reprovision(@CurrentUser() a: RequestActor, @Param("id") siteId: string) {
+  async reprovision(
+    @CurrentUser() a: RequestActor,
+    @Param("id") siteId: string,
+  ) {
     const op = await requestReprovision(requireResellerId(a), id(siteId));
     kickOutbox();
     return op;
   }
 
   @Get("devices")
-  async devices(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+  async devices(
+    @CurrentUser() a: RequestActor,
+    @Query("siteId") siteId?: string,
+  ) {
     const resellerId = requireResellerId(a);
     return listDevices(resellerId, await optionalSiteId(resellerId, siteId));
   }
 
   @Post("devices/:id/rename")
-  renameDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string, @Body() body: unknown) {
-    return renameResellerDevice(requireResellerId(a), a.id, id(deviceId), parse(deviceRenameSchema, body));
+  renameDevice(
+    @CurrentUser() a: RequestActor,
+    @Param("id") deviceId: string,
+    @Body() body: unknown,
+  ) {
+    return renameResellerDevice(
+      requireResellerId(a),
+      a.id,
+      id(deviceId),
+      parse(deviceRenameSchema, body),
+    );
   }
 
   @Post("devices/:id/retry")
-  retryAdopt(@CurrentUser() a: RequestActor, @Param("id") deviceId: string, @Body() body: unknown) {
-    return retryDeviceAdopt(requireResellerId(a), id(deviceId), parse(deviceRetrySchema, body));
+  retryAdopt(
+    @CurrentUser() a: RequestActor,
+    @Param("id") deviceId: string,
+    @Body() body: unknown,
+  ) {
+    return retryDeviceAdopt(
+      requireResellerId(a),
+      id(deviceId),
+      parse(deviceRetrySchema, body),
+    );
   }
 
   @Delete("devices/:id")
@@ -207,8 +368,16 @@ export class ResellerController {
   }
 
   @Post("devices/:id/wifi")
-  addWifi(@CurrentUser() a: RequestActor, @Param("id") deviceId: string, @Body() body: unknown) {
-    return createDeviceWifi(requireResellerId(a), id(deviceId), parse(deviceWifiSchema, body));
+  addWifi(
+    @CurrentUser() a: RequestActor,
+    @Param("id") deviceId: string,
+    @Body() body: unknown,
+  ) {
+    return createDeviceWifi(
+      requireResellerId(a),
+      id(deviceId),
+      parse(deviceWifiSchema, body),
+    );
   }
 
   @Get("device-claims")
@@ -219,17 +388,32 @@ export class ResellerController {
   // ── Banner promotion requests (from the guest portal) ──
   @Get("promotions")
   promotions(@CurrentUser() a: RequestActor, @Query("state") state?: string) {
-    return listPromotionRequests(requireResellerId(a), enumQuery(state, PromotionRequestState));
+    return listPromotionRequests(
+      requireResellerId(a),
+      enumQuery(state, PromotionRequestState),
+    );
   }
 
   @Post("promotions/:id/state")
-  promotionState(@CurrentUser() a: RequestActor, @Param("id") promotionId: string, @Body() body: unknown) {
-    return updatePromotionRequestState(requireResellerId(a), id(promotionId), parse(promotionStateSchema, body).state);
+  promotionState(
+    @CurrentUser() a: RequestActor,
+    @Param("id") promotionId: string,
+    @Body() body: unknown,
+  ) {
+    return updatePromotionRequestState(
+      requireResellerId(a),
+      id(promotionId),
+      parse(promotionStateSchema, body).state,
+    );
   }
 
   @Post("device-claims")
   claim(@CurrentUser() a: RequestActor, @Body() body: unknown) {
-    return submitDeviceClaim(requireResellerId(a), a.id, parse(deviceClaimInputSchema, body));
+    return submitDeviceClaim(
+      requireResellerId(a),
+      a.id,
+      parse(deviceClaimInputSchema, body),
+    );
   }
 
   // ── Packages ──
@@ -242,12 +426,20 @@ export class ResellerController {
     const resellerId = requireResellerId(a);
     // Paused rows are opt-in: the voucher and portal pickers share this route and
     // must never offer a tariff that is hidden from guests.
-    return listPackages(resellerId, await optionalSiteId(resellerId, siteId), includePaused === "true");
+    return listPackages(
+      resellerId,
+      await optionalSiteId(resellerId, siteId),
+      includePaused === "true",
+    );
   }
 
   @Post("packages")
   createPackage(@CurrentUser() a: RequestActor, @Body() body: unknown) {
-    return createPackage(requireResellerId(a), a.id, parse(wifiPackageInputSchema, body));
+    return createPackage(
+      requireResellerId(a),
+      a.id,
+      parse(wifiPackageInputSchema, body),
+    );
   }
 
   /** Which caps each site can enforce, so the form never offers an unsellable package. */
@@ -257,8 +449,17 @@ export class ResellerController {
   }
 
   @Put("packages/:id")
-  updatePackage(@CurrentUser() a: RequestActor, @Param("id") packageId: string, @Body() body: unknown) {
-    return updatePackage(requireResellerId(a), a.id, id(packageId), parse(wifiPackageInputSchema, body));
+  updatePackage(
+    @CurrentUser() a: RequestActor,
+    @Param("id") packageId: string,
+    @Body() body: unknown,
+  ) {
+    return updatePackage(
+      requireResellerId(a),
+      a.id,
+      id(packageId),
+      parse(wifiPackageInputSchema, body),
+    );
   }
 
   /**
@@ -268,13 +469,20 @@ export class ResellerController {
    * tariff's price history, while archiving is the end of the road.
    */
   @Patch("packages/:id/status")
-  packageStatus(@CurrentUser() a: RequestActor, @Param("id") packageId: string, @Body() body: unknown) {
+  packageStatus(
+    @CurrentUser() a: RequestActor,
+    @Param("id") packageId: string,
+    @Body() body: unknown,
+  ) {
     const { status } = parse(packageStatusInputSchema, body);
     return setPackageStatus(requireResellerId(a), a.id, id(packageId), status);
   }
 
   @Delete("packages/:id")
-  archivePackage(@CurrentUser() a: RequestActor, @Param("id") packageId: string) {
+  archivePackage(
+    @CurrentUser() a: RequestActor,
+    @Param("id") packageId: string,
+  ) {
     return archivePackage(requireResellerId(a), a.id, id(packageId));
   }
 
@@ -285,21 +493,42 @@ export class ResellerController {
 
   // ── Vouchers ──
   @Get("voucher-groups")
-  async voucherGroups(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+  async voucherGroups(
+    @CurrentUser() a: RequestActor,
+    @Query("siteId") siteId?: string,
+  ) {
     const resellerId = requireResellerId(a);
-    return listVoucherGroups(resellerId, await optionalSiteId(resellerId, siteId));
+    return listVoucherGroups(
+      resellerId,
+      await optionalSiteId(resellerId, siteId),
+    );
   }
 
   @Post("voucher-groups")
-  async createVoucherGroup(@CurrentUser() a: RequestActor, @Body() body: unknown) {
+  async createVoucherGroup(
+    @CurrentUser() a: RequestActor,
+    @Body() body: unknown,
+  ) {
     const resellerId = requireResellerId(a);
     await enforceRateLimit("voucher-generate", resellerId, 20, 3600);
-    return createVoucherGroup(resellerId, a.id, parse(voucherGroupInputSchema, body));
+    return createVoucherGroup(
+      resellerId,
+      a.id,
+      parse(voucherGroupInputSchema, body),
+    );
   }
 
   @Put("voucher-groups/:id")
-  renameGroup(@CurrentUser() a: RequestActor, @Param("id") groupId: string, @Body() body: unknown) {
-    return renameVoucherGroup(requireResellerId(a), id(groupId), parse(renameSchema, body).name);
+  renameGroup(
+    @CurrentUser() a: RequestActor,
+    @Param("id") groupId: string,
+    @Body() body: unknown,
+  ) {
+    return renameVoucherGroup(
+      requireResellerId(a),
+      id(groupId),
+      parse(renameSchema, body).name,
+    );
   }
 
   @Get("voucher-groups/:id/vouchers")
@@ -308,8 +537,16 @@ export class ResellerController {
   }
 
   @Get("voucher-groups/:id/export.csv")
-  async exportCsv(@CurrentUser() a: RequestActor, @Param("id") groupId: string, @Res() res: HttpReply) {
-    const { filename, csv } = await exportVoucherGroupCsv(requireResellerId(a), a.id, id(groupId));
+  async exportCsv(
+    @CurrentUser() a: RequestActor,
+    @Param("id") groupId: string,
+    @Res() res: HttpReply,
+  ) {
+    const { filename, csv } = await exportVoucherGroupCsv(
+      requireResellerId(a),
+      a.id,
+      id(groupId),
+    );
     res
       .header("Content-Type", "text/csv; charset=utf-8")
       .header("Content-Disposition", `attachment; filename="${filename}"`)
@@ -329,7 +566,11 @@ export class ResellerController {
 
   // ── Access grants / sessions ──
   @Get("grants")
-  async grants(@CurrentUser() a: RequestActor, @Query("state") state?: string, @Query("siteId") siteId?: string) {
+  async grants(
+    @CurrentUser() a: RequestActor,
+    @Query("state") state?: string,
+    @Query("siteId") siteId?: string,
+  ) {
     const resellerId = requireResellerId(a);
     return listGrants(resellerId, {
       state: enumQuery(state, GrantState),
@@ -343,36 +584,72 @@ export class ResellerController {
   }
 
   @Post("grants/:id/revoke")
-  async revoke(@CurrentUser() a: RequestActor, @Param("id") grantId: string, @Body() body: unknown) {
-    const result = await revokeGrant(requireResellerId(a), a.id, id(grantId), parse(reasonSchema, body).reason);
+  async revoke(
+    @CurrentUser() a: RequestActor,
+    @Param("id") grantId: string,
+    @Body() body: unknown,
+  ) {
+    const result = await revokeGrant(
+      requireResellerId(a),
+      a.id,
+      id(grantId),
+      parse(reasonSchema, body).reason,
+    );
     kickOutbox();
     return result;
   }
 
   @Post("grant-devices/:id/retry")
-  async retryDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string) {
-    const result = await retryGrantDevice(requireResellerId(a), a.id, id(deviceId));
+  async retryDevice(
+    @CurrentUser() a: RequestActor,
+    @Param("id") deviceId: string,
+  ) {
+    const result = await retryGrantDevice(
+      requireResellerId(a),
+      a.id,
+      id(deviceId),
+    );
     kickOutbox();
     return result;
   }
 
   @Post("grant-devices/:id/unblock")
-  async unblockDevice(@CurrentUser() a: RequestActor, @Param("id") deviceId: string) {
-    const result = await unblockGrantDevice(requireResellerId(a), a.id, id(deviceId));
+  async unblockDevice(
+    @CurrentUser() a: RequestActor,
+    @Param("id") deviceId: string,
+  ) {
+    const result = await unblockGrantDevice(
+      requireResellerId(a),
+      a.id,
+      id(deviceId),
+    );
     return result;
   }
 
   // ── Sales ──
   @Get("orders")
-  async orders(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+  async orders(
+    @CurrentUser() a: RequestActor,
+    @Query("siteId") siteId?: string,
+  ) {
     const resellerId = requireResellerId(a);
-    return resellerOrders(resellerId, 100, await optionalSiteId(resellerId, siteId));
+    return resellerOrders(
+      resellerId,
+      100,
+      await optionalSiteId(resellerId, siteId),
+    );
   }
 
   @Get("customers")
-  async customers(@CurrentUser() a: RequestActor, @Query("siteId") siteId?: string) {
+  async customers(
+    @CurrentUser() a: RequestActor,
+    @Query("siteId") siteId?: string,
+  ) {
     const resellerId = requireResellerId(a);
-    return resellerCustomers(resellerId, await optionalSiteId(resellerId, siteId));
+    return resellerCustomers(
+      resellerId,
+      await optionalSiteId(resellerId, siteId),
+    );
   }
 
   // ── Guest data usage (GB) ──
@@ -403,7 +680,10 @@ export class ResellerController {
   @Get("wallet")
   async wallet(@CurrentUser() a: RequestActor) {
     const resellerId = requireResellerId(a);
-    const [summary, history] = await Promise.all([walletSummary("RESELLER", resellerId), accountHistory("RESELLER", resellerId, 50)]);
+    const [summary, history] = await Promise.all([
+      walletSummary("RESELLER", resellerId),
+      accountHistory("RESELLER", resellerId, 50),
+    ]);
     return { ...summary, history };
   }
 
@@ -415,35 +695,59 @@ export class ResellerController {
   @Post("payout-destinations")
   async addDestination(@CurrentUser() a: RequestActor, @Body() body: unknown) {
     await enforceRateLimit("payout-dest", a.id, 5, 3600);
-    return createDestination(beneficiary(a), parse(payoutDestinationInputSchema, body));
+    return createDestination(
+      beneficiary(a),
+      parse(payoutDestinationInputSchema, body),
+    );
   }
 
   @Post("payout-destinations/:id/verify")
-  async verifyDestination(@CurrentUser() a: RequestActor, @Param("id") destId: string, @Body() body: unknown) {
+  async verifyDestination(
+    @CurrentUser() a: RequestActor,
+    @Param("id") destId: string,
+    @Body() body: unknown,
+  ) {
     await enforceRateLimit("payout-dest-verify", a.id, 10, 900);
-    return verifyDestination(beneficiary(a), id(destId), parse(codeSchema, body).code);
+    return verifyDestination(
+      beneficiary(a),
+      id(destId),
+      parse(codeSchema, body).code,
+    );
   }
 
   @Delete("payout-destinations/:id")
-  archiveDestination(@CurrentUser() a: RequestActor, @Param("id") destId: string) {
+  archiveDestination(
+    @CurrentUser() a: RequestActor,
+    @Param("id") destId: string,
+  ) {
     return archiveDestination(beneficiary(a), id(destId));
   }
 
   @Post("withdrawals/quote")
   quote(@CurrentUser() a: RequestActor, @Body() body: unknown) {
     const input = parse(withdrawalQuoteSchema, body);
-    return quoteWithdrawal(beneficiary(a), input.destinationId, input.amountTzs);
+    return quoteWithdrawal(
+      beneficiary(a),
+      input.destinationId,
+      input.amountTzs,
+    );
   }
 
   @Post("withdrawals")
   async withdraw(@CurrentUser() a: RequestActor, @Body() body: unknown) {
     await enforceRateLimit("withdraw", a.id, 10, 3600);
-    return requestWithdrawal(beneficiary(a), parse(withdrawalRequestSchema, body));
+    return requestWithdrawal(
+      beneficiary(a),
+      parse(withdrawalRequestSchema, body),
+    );
   }
 
   @Get("withdrawals")
   withdrawals(@CurrentUser() a: RequestActor) {
-    return listWithdrawals({ ownerType: "RESELLER", ownerId: requireResellerId(a) });
+    return listWithdrawals({
+      ownerType: "RESELLER",
+      ownerId: requireResellerId(a),
+    });
   }
 
   // ── Support ──
@@ -458,7 +762,15 @@ export class ResellerController {
   }
 
   @Post("support/:id/messages")
-  reply(@CurrentUser() a: RequestActor, @Param("id") ticketId: string, @Body() body: unknown) {
-    return replyToTicket(a, id(ticketId), parse(supportMessageInputSchema, body).body);
+  reply(
+    @CurrentUser() a: RequestActor,
+    @Param("id") ticketId: string,
+    @Body() body: unknown,
+  ) {
+    return replyToTicket(
+      a,
+      id(ticketId),
+      parse(supportMessageInputSchema, body).body,
+    );
   }
 }

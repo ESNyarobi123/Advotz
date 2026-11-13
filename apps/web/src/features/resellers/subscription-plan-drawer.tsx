@@ -2,20 +2,20 @@
 
 import type { ReactNode } from "react";
 import { formatTzs } from "@advo/api-client";
+import type { MessageKey } from "@advo/i18n";
 import {
   PACKAGE_CARD_STYLES,
   VISIBILITY_KEYS,
-  normalizePlanFeatures,
   planFeaturesWithDefaults,
   placementOf,
   resolveVisibility,
   type AdMode,
   type PackageCardStyle,
-  type PlanFeatures,
   type VisibilityKey,
 } from "@advo/contracts";
 import { Button, Drawer, useOverlayState } from "@heroui/react";
 import { StatusChip } from "@advo/ui";
+import { useI18n } from "@/lib/i18n";
 import {
   Check,
   Infinity as InfinityIcon,
@@ -60,6 +60,7 @@ export type PlanCapacity = {
   sites: number | null;
   devices: number | null;
   wifiPackagesPerSite: number | null;
+  legacyPackages: boolean;
 };
 
 /**
@@ -84,32 +85,29 @@ export function capacityOf(plan: ResellerPlan): PlanCapacity {
       sites: limits.sites,
       devices: limits.devices,
       wifiPackagesPerSite: limits.wifi_packages_per_site,
+      legacyPackages: false,
     };
   }
   return {
     sites: plan.maxSites,
     devices: plan.maxDevices,
     wifiPackagesPerSite: plan.maxPackages,
+    legacyPackages: true,
   };
 }
 
-/** `null` is unlimited — rendering a bare `null` would read as "none allowed". */
-export function formatCapacity(value: number | null): string {
-  return value === null ? "Unlimited" : String(value);
-}
-
-const PLACEMENT_LABEL: Record<VisibilityKey, string> = {
-  "ads.banner": "Sponsored banner",
-  "ads.explore": "Explore carousel",
-  "discovery.promote_business": "Promote your business",
-  "discovery.platform_link": "Advo platform link",
-  "discovery.jobs": "Jobs board",
+const PLACEMENT_LABEL: Record<VisibilityKey, MessageKey> = {
+  "ads.banner": "reseller.subscription.detail.display.banner",
+  "ads.explore": "reseller.subscription.detail.display.explore",
+  "discovery.promote_business": "reseller.subscription.detail.display.promote",
+  "discovery.platform_link": "reseller.subscription.detail.display.platform",
+  "discovery.jobs": "reseller.subscription.detail.display.jobs",
 };
 
-const MODE_LABEL: Record<AdMode, string> = {
-  REQUIRED: "Always on",
-  OPTIONAL: "Your choice",
-  DISABLED: "Not in this plan",
+const MODE_LABEL: Record<AdMode, MessageKey> = {
+  REQUIRED: "reseller.subscription.detail.required",
+  OPTIONAL: "reseller.subscription.detail.optional",
+  DISABLED: "reseller.subscription.detail.disabled",
 };
 
 const STYLE_LABEL: Record<PackageCardStyle, string> = {
@@ -120,64 +118,28 @@ const STYLE_LABEL: Record<PackageCardStyle, string> = {
   bold: "Bold",
 };
 
-/** A short, honest one-liner for what the two campaign placements add up to. */
-export function advertisingSummary(features: PlanFeatures): string {
-  const modes = VISIBILITY_KEYS.slice(0, 2).map(
-    (key) => placementOf(features, key).mode,
-  );
-  if (modes.every((mode) => mode === "DISABLED")) return "No advertising";
-  if (modes.some((mode) => mode === "REQUIRED"))
-    return "Sponsored ads required";
-  return "Advertising can be switched off";
-}
-
-/**
- * The features worth naming on a plan card, in the order a reseller cares about.
- *
- * Every line is read from the same key the portal obeys, so a bullet can never
- * advertise a capability the plan does not actually grant.
- */
-export function planHighlights(features: PlanFeatures): string[] {
-  const out: string[] = [advertisingSummary(features)];
-
-  if (features.branding.colors_edit) out.push("Your own brand colours & logo");
-  if (features.branding.platform_badge_removable)
-    out.push("Remove the Advo badge");
-  if (features.payments.voucher) out.push("Voucher redemption");
-  if (features.packages.order_edit) out.push("Reorder WiFi packages");
-  out.push(
-    `${features.package_cards.allowed_styles.length} package card styles`,
-  );
-  if (features.limits.sites === null && features.limits.devices === null)
-    out.push("Unlimited sites & devices");
-
-  return out;
-}
-
-/**
- * The full plan, opened from a card.
- *
- * The card can only carry a summary; capacity, every placement's policy and the
- * branding switches are what a reseller actually chooses between, so they get a
- * panel rather than being hidden behind a buy button.
- */
 export function PlanDetailDrawer({
   plan,
   open,
   onClose,
   onChoose,
   onTrial,
+  trialAvailable,
   trialUsed,
   trialPending,
+  actionLabel,
 }: {
   plan: ResellerPlan | null;
   open: boolean;
   onClose: () => void;
   onChoose: (plan: ResellerPlan) => void;
   onTrial: (plan: ResellerPlan) => void;
+  trialAvailable: boolean;
   trialUsed: boolean;
   trialPending: boolean;
+  actionLabel?: string;
 }) {
+  const { t } = useI18n();
   const overlay = useOverlayState({
     isOpen: open,
     onOpenChange: (next) => (!next ? onClose() : undefined),
@@ -185,30 +147,30 @@ export function PlanDetailDrawer({
 
   if (!plan) return null;
 
-  const features = normalizePlanFeatures(
-    planFeaturesWithDefaults(plan.features),
-  );
+  const features = planFeaturesWithDefaults(plan.features);
   const capacity = capacityOf(plan);
   const canTrial =
-    plan.trialEligible && (plan.trialDays ?? 0) > 0 && !trialUsed;
+    plan.trialEligible && (plan.trialDays ?? 0) > 0 && trialAvailable;
 
   return (
     <Drawer.Root state={overlay}>
       <Drawer.Backdrop>
         <Drawer.Content placement="right">
-          <Drawer.Dialog className="bg-white">
+          <Drawer.Dialog className="bg-advo-card">
             <Drawer.Header>
               <Drawer.Heading className="text-base font-black text-advo-text">
                 {plan.name}
               </Drawer.Heading>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-advo-muted">
-                <span className="font-mono font-bold">{plan.code}</span>
-                <span>·</span>
-                <span>{plan.periodDays} days</span>
+                <span>
+                  {t("reseller.subscription.checkout.period", {
+                    days: plan.periodDays,
+                  })}
+                </span>
                 {plan.isDemo ? (
                   <>
                     <span>·</span>
-                    <span className="font-bold text-amber-600">DEMO PRICE</span>
+                    <span className="font-bold text-amber-200">Demo</span>
                   </>
                 ) : null}
               </p>
@@ -216,21 +178,23 @@ export function PlanDetailDrawer({
 
             <Drawer.Body className="space-y-5">
               {/* Price */}
-              <div className="rounded-2xl border border-[var(--advo-border)] bg-gradient-to-br from-white to-[var(--advo-blue-soft)] px-4 py-3.5">
+              <div className="rounded-2xl border border-[var(--advo-border)] bg-linear-to-br from-advo-surface-soft to-advo-page px-4 py-3.5">
                 <p className="text-[10px] font-bold tracking-wider text-advo-muted uppercase">
-                  Price
+                  {t("reseller.subscription.checkout.summaryAmount")}
                 </p>
                 <p className="mt-0.5 flex items-baseline gap-1">
                   {plan.priceFrom ? (
                     <span className="text-[10px] font-bold tracking-wide text-advo-muted uppercase">
-                      from
+                      {t("reseller.subscription.catalog.from")}
                     </span>
                   ) : null}
                   <span className="text-2xl font-black tracking-tight text-advo-text tabular-nums">
                     {formatTzs(plan.priceTzs)}
                   </span>
                   <span className="text-xs text-slate-500">
-                    / {plan.periodDays} days
+                    {t("reseller.subscription.plans.perDays", {
+                      days: plan.periodDays,
+                    })}
                   </span>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -242,16 +206,16 @@ export function PlanDetailDrawer({
                     }
                   >
                     {plan.commercialPromise === "ad_free"
-                      ? "Ad Free promise"
-                      : "Standard"}
+                      ? t("reseller.subscription.detail.adFree")
+                      : t("reseller.subscription.detail.standard")}
                   </StatusChip>
                   {plan.trialEligible && plan.trialDays ? (
                     <StatusChip tone="success">
-                      {plan.trialDays}-day free trial
+                      {t("reseller.subscription.plans.trialBadge", {
+                        days: plan.trialDays,
+                      })}
                     </StatusChip>
-                  ) : (
-                    <StatusChip tone="default">No trial</StatusChip>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -260,22 +224,35 @@ export function PlanDetailDrawer({
               ) : null}
 
               {/* Capacity */}
-              <Section icon={<InfinityIcon />} title="Capacity">
+              <Section
+                icon={<InfinityIcon />}
+                title={t("reseller.subscription.detail.capacity")}
+              >
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <CapacityTile label="Sites" value={capacity.sites} />
                   <CapacityTile
-                    label="Access points"
+                    label={t("reseller.subscription.plans.sites")}
+                    value={capacity.sites}
+                  />
+                  <CapacityTile
+                    label={t("reseller.subscription.plans.devices")}
                     value={capacity.devices}
                   />
                   <CapacityTile
-                    label="Packages / site"
+                    label={t(
+                      capacity.legacyPackages
+                        ? "reseller.subscription.overview.packagesTotal"
+                        : "reseller.subscription.overview.packagesPerSite",
+                    )}
                     value={capacity.wifiPackagesPerSite}
                   />
                 </div>
               </Section>
 
               {/* Advertising & discovery */}
-              <Section icon={<Sparkles />} title="Advertising & discovery">
+              <Section
+                icon={<Sparkles />}
+                title={t("reseller.subscription.detail.discovery")}
+              >
                 <ul className="space-y-1.5">
                   {VISIBILITY_KEYS.map((key) => {
                     const policy = placementOf(features, key);
@@ -286,7 +263,7 @@ export function PlanDetailDrawer({
                     );
                     return (
                       <li
-                        className="flex items-center justify-between gap-3 rounded-xl border border-[var(--advo-border)] bg-white/60 px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-[var(--advo-border)] bg-advo-page px-3 py-2"
                         key={key}
                       >
                         <span className="flex min-w-0 items-center gap-1.5">
@@ -296,17 +273,21 @@ export function PlanDetailDrawer({
                             <Sparkles className="size-3 shrink-0 text-advo-muted" />
                           )}
                           <span className="truncate text-xs font-semibold text-advo-text">
-                            {PLACEMENT_LABEL[key]}
+                            {t(PLACEMENT_LABEL[key])}
                           </span>
                         </span>
                         <span className="flex shrink-0 items-center gap-1.5">
                           <StatusChip
                             tone={decision.visible ? "success" : "default"}
                           >
-                            {decision.visible ? "Visible" : "Hidden"}
+                            {t(
+                              decision.visible
+                                ? "reseller.subscription.detail.visible"
+                                : "reseller.subscription.detail.hidden",
+                            )}
                           </StatusChip>
                           <span className="text-[10px] font-semibold text-advo-muted">
-                            {MODE_LABEL[policy.mode]}
+                            {t(MODE_LABEL[policy.mode])}
                           </span>
                         </span>
                       </li>
@@ -316,22 +297,25 @@ export function PlanDetailDrawer({
               </Section>
 
               {/* Branding & appearance */}
-              <Section icon={<Check />} title="Branding & appearance">
+              <Section
+                icon={<Check />}
+                title={t("reseller.subscription.detail.branding")}
+              >
                 <ul className="space-y-1.5">
                   <FlagRow
-                    label="Upload your own logo"
+                    label={t("reseller.subscription.detail.logo")}
                     on={features.branding.logo_upload}
                   />
                   <FlagRow
-                    label="Edit portal colours"
+                    label={t("reseller.subscription.detail.colors")}
                     on={features.branding.colors_edit}
                   />
                   <FlagRow
-                    label="Remove the Advo badge"
+                    label={t("reseller.subscription.detail.badge")}
                     on={features.branding.platform_badge_removable}
                   />
                   <FlagRow
-                    label="Reorder WiFi packages"
+                    label={t("reseller.subscription.detail.order")}
                     on={features.packages.order_edit}
                   />
                 </ul>
@@ -346,9 +330,15 @@ export function PlanDetailDrawer({
                         key={style}
                         tone={allowed ? "success" : "default"}
                       >
-                        {allowed
-                          ? `${STYLE_LABEL[style]}${isDefault ? " (default)" : ""}`
-                          : `${STYLE_LABEL[style]}: no`}
+                        {!allowed
+                          ? t("reseller.subscription.detail.styleUnavailable", {
+                              style: STYLE_LABEL[style],
+                            })
+                          : isDefault
+                            ? t("reseller.subscription.detail.styleDefault", {
+                                style: STYLE_LABEL[style],
+                              })
+                            : STYLE_LABEL[style]}
                       </StatusChip>
                     );
                   })}
@@ -356,37 +346,22 @@ export function PlanDetailDrawer({
               </Section>
 
               {/* Payments */}
-              <Section icon={<Check />} title="Payments">
+              <Section icon={<Check />} title={t("nav.payments")}>
                 <FlagRow
-                  label="Voucher redemption"
+                  label={t("reseller.subscription.detail.voucher")}
                   on={features.payments.voucher}
                 />
               </Section>
-
-              {/* Summary */}
-              <Section icon={<Sparkles />} title="In short">
-                <ul className="space-y-1">
-                  {planHighlights(features).map((line) => (
-                    <li
-                      className="flex items-start gap-2 text-xs text-slate-700"
-                      key={line}
-                    >
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
             </Drawer.Body>
 
-            <Drawer.Footer className="flex flex-col gap-2 border-t border-slate-100">
+            <Drawer.Footer className="flex flex-col gap-2 border-t border-advo-border">
               <Button
                 className="w-full"
                 onPress={() => onChoose(plan)}
                 type="button"
                 variant="primary"
               >
-                Pay with Mobile Money
+                {actionLabel ?? t("reseller.subscription.plans.select")}
               </Button>
               {canTrial ? (
                 <Button
@@ -397,17 +372,19 @@ export function PlanDetailDrawer({
                   variant="outline"
                 >
                   <Sparkles className="size-3.5" />
-                  Start {plan.trialDays}-day free trial
+                  {t("reseller.subscription.plans.startTrial", {
+                    days: plan.trialDays ?? 0,
+                  })}
                 </Button>
               ) : null}
               {plan.trialEligible && trialUsed ? (
                 <p className="text-center text-[10px] text-slate-400">
-                  Trial already used on this business.
+                  {t("reseller.subscription.trial.used")}
                 </p>
               ) : null}
             </Drawer.Footer>
 
-            <Drawer.CloseTrigger aria-label="Close" />
+            <Drawer.CloseTrigger aria-label={t("common.close")} />
           </Drawer.Dialog>
         </Drawer.Content>
       </Drawer.Backdrop>
@@ -442,10 +419,11 @@ function CapacityTile({
   label: string;
   value: number | null;
 }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-xl border border-[var(--advo-border)] bg-advo-surface-soft/60 px-2 py-2">
       <p className="truncate text-sm font-black text-advo-text tabular-nums">
-        {formatCapacity(value)}
+        {value ?? t("reseller.subscription.unlimited")}
       </p>
       <p className="mt-0.5 text-[10px] font-semibold text-advo-muted">
         {label}

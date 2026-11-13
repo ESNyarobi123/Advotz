@@ -1,4 +1,9 @@
-import { prisma, type PlatformPlan, type Prisma } from "@advo/db";
+import {
+  prisma,
+  type InvoiceStatus,
+  type PlatformPlan,
+  type Prisma,
+} from "@advo/db";
 import {
   planFeaturesWithDefaults,
   tierRank,
@@ -15,13 +20,19 @@ import {
   notFound,
 } from "../../common/errors.js";
 import { audit, emitOutbox, OutboxEventType } from "../../common/events.js";
-import { invalidatePortalCacheForPlanChange } from "./portal-cache.js";
 import {
+  confirmOpenPayment,
   ensurePaymentAttempt,
   type Payer,
 } from "../payments/payments.service.js";
 
 type Tx = Prisma.TransactionClient;
+const DAY_MS = 86_400_000;
+const sellablePlan = {
+  active: true,
+  lifecycle: "PUBLISHED",
+  visibility: "PUBLIC",
+} as const;
 
 /**
  * The caps a subscription is currently bound by.
@@ -584,7 +595,7 @@ export async function listPlans() {
 /** Only published, sellable versions reach the reseller catalog. */
 export async function listActivePlans() {
   const plans = await prisma.platformPlan.findMany({
-    where: { active: true, lifecycle: "PUBLISHED" },
+    where: sellablePlan,
   });
   // A catalog is a matrix, not a price list: tiers in the order they are sold,
   // and inside a tier the cheaper Partner option before Independent. Untagged
@@ -610,59 +621,182 @@ export async function ensureSubscription(
   });
 }
 
-export async function getSubscriptionView(resellerId: string) {
-  const sub = await ensureSubscription(prisma, resellerId);
-  const [plan, invoices] = await Promise.all([
-    sub.planId
-      ? prisma.platformPlan.findUnique({ where: { id: sub.planId } })
-      : null,
-    prisma.subscriptionInvoice.findMany({
-      where: { resellerId },
-      orderBy: { createdAt: "desc" },
-      take: 24,
-      include: {
-        order: {
-          include: { attempts: { orderBy: { createdAt: "desc" }, take: 1 } },
-        },
+const invoiceSelect = {
+  id: true,
+  amountTzs: true,
+  status: true,
+  planSnapshot: true,
+  periodStart: true,
+  periodEnd: true,
+  paidAt: true,
+  createdAt: true,
+  order: {
+    select: {
+      paymentState: true,
+      attempts: {
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: { id: true, state: true, lastError: true, lastCheckedAt: true },
       },
-    }),
-  ]);
+    },
+  },
+} satisfies Prisma.SubscriptionInvoiceSelect;
+
+const invoiceOrder = [
+  { createdAt: "desc" },
+  { id: "desc" },
+] satisfies Prisma.SubscriptionInvoiceOrderByWithRelationInput[];
+
+function invoiceView({
+  order,
+  planSnapshot,
+  ...invoice
+}: Prisma.SubscriptionInvoiceGetPayload<{ select: typeof invoiceSelect }>) {
+  const latest = order?.attempts[0];
   return {
-    state: effectiveState(sub),
-    storedState: sub.state,
-    plan,
-    entitlements: sub.entitlements,
-    currentPeriodStart: sub.currentPeriodStart,
-    currentPeriodEnd: sub.currentPeriodEnd,
-    trialUsed: Boolean(sub.trialUsedAt),
-    invoices: invoices.map((i) => ({
-      id: i.id,
-      amountTzs: i.amountTzs,
-      status: i.status,
-      plan: i.planSnapshot,
-      periodStart: i.periodStart,
-      periodEnd: i.periodEnd,
-      paidAt: i.paidAt,
-      createdAt: i.createdAt,
-      payment: i.order?.attempts[0]
-        ? {
-            state: i.order.attempts[0].state,
-            lastError: i.order.attempts[0].lastError,
-          }
-        : null,
-    })),
+    ...invoice,
+    plan: planSnapshot,
+    payment: latest
+      ? { state: latest.state, lastError: latest.lastError }
+      : null,
+    paymentState: order?.paymentState ?? null,
   };
+}
+
+export async function getSubscriptionView(
+  resellerId: string,
+  includeInvoices = true,
+) {
+  const [sub, invoices] = await Promise.all([
+    prisma.subscription.findUnique({
+      where: { resellerId },
+      include: { plan: true },
+    }),
+    includeInvoices
+      ? prisma.subscriptionInvoice.findMany({
+          where: { resellerId },
+          orderBy: invoiceOrder,
+          take: 24,
+          select: invoiceSelect,
+        })
+      : [],
+  ]);
+  const now = new Date();
+  return {
+    state: sub ? effectiveState(sub, now) : "NONE",
+    storedState: sub?.state ?? "NONE",
+    plan: sub?.plan ?? null,
+    entitlements: sub?.entitlements ?? null,
+    currentPeriodStart: sub?.currentPeriodStart ?? null,
+    currentPeriodEnd: sub?.currentPeriodEnd ?? null,
+    trialUsed: Boolean(sub?.trialUsedAt),
+    asOf: now,
+    invoices: invoices.map(invoiceView),
+  };
+}
+
+const INVOICE_PAGE_SIZE = 8;
+const uuidPattern = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i;
+const invoiceReferencePattern = /^[\da-f]{8}-[\da-f]{4}$/i;
+
+export async function listSubscriptionInvoices(
+  resellerId: string,
+  query: { page: number; status?: InvoiceStatus; q?: string },
+) {
+  const { page, status, q } = query;
+  const where: Prisma.SubscriptionInvoiceWhereInput = {
+    resellerId,
+    status,
+    OR: q
+      ? [
+          {
+            planSnapshot: {
+              path: ["name"],
+              string_contains: q.replace(/[\\%_]/g, "\\$&"),
+              mode: "insensitive",
+            },
+          },
+          ...(uuidPattern.test(q) ? [{ id: q }] : []),
+          ...(invoiceReferencePattern.test(q)
+            ? [
+                {
+                  id: {
+                    gte: `${q}-0000-0000-000000000000`,
+                    lte: `${q}-ffff-ffff-ffffffffffff`,
+                  },
+                },
+              ]
+            : []),
+        ]
+      : undefined,
+  };
+  // Keep the totals and page on the same snapshot as payments settle.
+  const [total, paid, rows] = await prisma.$transaction(
+    [
+      prisma.subscriptionInvoice.count({ where }),
+      prisma.subscriptionInvoice.aggregate({
+        where: { resellerId, status: "PAID" },
+        _sum: { amountTzs: true },
+      }),
+      prisma.subscriptionInvoice.findMany({
+        where,
+        orderBy: invoiceOrder,
+        skip: (page - 1) * INVOICE_PAGE_SIZE,
+        take: INVOICE_PAGE_SIZE,
+        select: invoiceSelect,
+      }),
+    ],
+    { isolationLevel: "RepeatableRead" },
+  );
+  return {
+    invoices: rows.map(invoiceView),
+    total,
+    page,
+    pageSize: INVOICE_PAGE_SIZE,
+    totalPaidTzs: paid._sum.amountTzs ?? 0n,
+  };
+}
+
+export async function getSubscriptionInvoice(
+  resellerId: string,
+  invoiceId: string,
+) {
+  const where = { id: invoiceId, resellerId };
+  const invoice = await prisma.subscriptionInvoice.findUnique({
+    where,
+    select: invoiceSelect,
+  });
+  if (!invoice) notFound("Subscription invoice not found");
+  const attempt = invoice.order?.attempts[0];
+  if (
+    invoice.status === "OPEN" &&
+    invoice.order?.paymentState === "UNPAID" &&
+    attempt
+  ) {
+    const outcome = await confirmOpenPayment(attempt);
+    if (outcome !== undefined) {
+      return invoiceView(
+        await prisma.subscriptionInvoice.findUniqueOrThrow({
+          where,
+          select: invoiceSelect,
+        }),
+      );
+    }
+  }
+  return invoiceView(invoice);
 }
 
 export const SUBSCRIPTION_GRACE_PERIOD_DAYS = 3;
 
-function effectiveState(sub: { state: string; currentPeriodEnd: Date | null }) {
+function effectiveState(
+  sub: { state: string; currentPeriodEnd: Date | null },
+  now = new Date(),
+) {
   if (sub.state === "ACTIVE" && sub.currentPeriodEnd) {
-    const now = new Date();
-    if (sub.currentPeriodEnd < now) {
+    if (sub.currentPeriodEnd <= now) {
       const graceEnd = new Date(
         sub.currentPeriodEnd.getTime() +
-          SUBSCRIPTION_GRACE_PERIOD_DAYS * 86400_000,
+          SUBSCRIPTION_GRACE_PERIOD_DAYS * DAY_MS,
       );
       return now < graceEnd ? "PAST_DUE" : "EXPIRED";
     }
@@ -670,10 +804,17 @@ function effectiveState(sub: { state: string; currentPeriodEnd: Date | null }) {
   if (
     sub.state === "TRIALING" &&
     sub.currentPeriodEnd &&
-    sub.currentPeriodEnd < new Date()
+    sub.currentPeriodEnd <= now
   ) {
     return "EXPIRED";
   }
+  if (
+    sub.state === "PAST_DUE" &&
+    sub.currentPeriodEnd &&
+    sub.currentPeriodEnd.getTime() + SUBSCRIPTION_GRACE_PERIOD_DAYS * DAY_MS <=
+      now.getTime()
+  )
+    return "EXPIRED";
   return sub.state;
 }
 
@@ -697,10 +838,10 @@ export async function startTrial(
     const sub = await ensureSubscription(tx, resellerId);
     if (sub.trialUsedAt)
       conflict("The trial has already been used for this business");
-    if (sub.state === "ACTIVE")
+    if (effectiveState(sub) === "ACTIVE")
       conflict("A paid subscription is already active");
     const plan = await tx.platformPlan.findFirst({
-      where: { id: planId, active: true },
+      where: { id: planId, ...sellablePlan },
     });
     if (!plan) notFound("Plan not found");
     if (!plan.trialEligible || !plan.trialDays)
@@ -714,7 +855,7 @@ export async function startTrial(
         planId: plan.id,
         entitlements: entitlementsOf(plan),
         currentPeriodStart: now,
-        currentPeriodEnd: new Date(now.getTime() + plan.trialDays * 86400_000),
+        currentPeriodEnd: new Date(now.getTime() + plan.trialDays * DAY_MS),
         trialUsedAt: now,
       },
     });
@@ -737,49 +878,59 @@ export async function checkoutSubscription(
   resellerId: string,
   input: { planId: string; idempotencyKey: string } & Payer,
 ) {
-  const existingOrder = await prisma.order.findUnique({
-    where: {
-      resellerId_requestIdempotencyKey: {
-        resellerId,
-        requestIdempotencyKey: input.idempotencyKey,
-      },
-    },
-  });
-  const order =
-    existingOrder ??
-    (await prisma.$transaction(async (tx) => {
-      const reseller = await tx.reseller.findUniqueOrThrow({
-        where: { id: resellerId },
-      });
-      if (reseller.status !== "ACTIVE")
-        forbidden("Account must be active to purchase a plan");
-      const plan = await tx.platformPlan.findFirst({
-        where: { id: input.planId, active: true },
-      });
-      if (!plan) notFound("Plan not found");
-      const sub = await ensureSubscription(tx, resellerId);
-      const snapshot = planSnapshot(plan);
-      const invoice = await tx.subscriptionInvoice.create({
-        data: {
+  const order = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Reseller" WHERE id = ${resellerId}::uuid FOR UPDATE`;
+    const existingOrder = await tx.order.findUnique({
+      where: {
+        resellerId_requestIdempotencyKey: {
           resellerId,
-          subscriptionId: sub.id,
-          planId: plan.id,
-          planSnapshot: snapshot,
-          amountTzs: plan.priceTzs,
-          periodDays: plan.periodDays,
-        },
-      });
-      return tx.order.create({
-        data: {
-          purpose: "PLATFORM_SUBSCRIPTION",
-          resellerId,
-          invoiceId: invoice.id,
-          amountTzs: plan.priceTzs,
-          priceSnapshot: snapshot,
           requestIdempotencyKey: input.idempotencyKey,
         },
-      });
-    }));
+      },
+      include: { invoice: { select: { planId: true } } },
+    });
+    if (existingOrder) {
+      if (
+        existingOrder.purpose !== "PLATFORM_SUBSCRIPTION" ||
+        existingOrder.invoice?.planId !== input.planId
+      ) {
+        conflict("This checkout reference is already in use");
+      }
+      return existingOrder;
+    }
+
+    const reseller = await tx.reseller.findUniqueOrThrow({
+      where: { id: resellerId },
+    });
+    if (reseller.status !== "ACTIVE")
+      forbidden("Account must be active to purchase a plan");
+    const plan = await tx.platformPlan.findFirst({
+      where: { id: input.planId, ...sellablePlan },
+    });
+    if (!plan) notFound("Plan not found");
+    const sub = await ensureSubscription(tx, resellerId);
+    const snapshot = planSnapshot(plan);
+    const invoice = await tx.subscriptionInvoice.create({
+      data: {
+        resellerId,
+        subscriptionId: sub.id,
+        planId: plan.id,
+        planSnapshot: snapshot,
+        amountTzs: plan.priceTzs,
+        periodDays: plan.periodDays,
+      },
+    });
+    return tx.order.create({
+      data: {
+        purpose: "PLATFORM_SUBSCRIPTION",
+        resellerId,
+        invoiceId: invoice.id,
+        amountTzs: plan.priceTzs,
+        priceSnapshot: snapshot,
+        requestIdempotencyKey: input.idempotencyKey,
+      },
+    });
+  });
   const attempt = await ensurePaymentAttempt(order.id, input);
   return {
     orderId: order.id,
@@ -795,8 +946,10 @@ export async function activateSubscriptionForOrder(
 ) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
-    if (!order.invoiceId || order.paymentState === "UNPAID") return "not_paid";
-    await tx.$queryRaw`SELECT id FROM "SubscriptionInvoice" WHERE id = ${order.invoiceId}::uuid FOR UPDATE`;
+    if (!order.invoiceId || !["PAID", "OVERPAID"].includes(order.paymentState))
+      return "not_paid";
+    // Serialize paid invoices for this reseller so parallel confirmations extend the same period in turn.
+    await tx.$queryRaw`SELECT id FROM "Reseller" WHERE id = ${order.resellerId}::uuid FOR UPDATE`;
     const invoice = await tx.subscriptionInvoice.findUniqueOrThrow({
       where: { id: order.invoiceId },
     });
@@ -809,14 +962,14 @@ export async function activateSubscriptionForOrder(
       where: { id: invoice.subscriptionId },
     });
     const now = new Date();
-    // Renewal policy: extend from the later of now and the current paid period end.
-    const start =
+    const paidThrough =
       sub.state === "ACTIVE" &&
       sub.currentPeriodEnd &&
       sub.currentPeriodEnd > now
         ? sub.currentPeriodEnd
-        : now;
-    const end = new Date(start.getTime() + invoice.periodDays * 86400_000);
+        : null;
+    const start = paidThrough ?? now;
+    const end = new Date(start.getTime() + invoice.periodDays * DAY_MS);
     const plan = await tx.platformPlan.findUniqueOrThrow({
       where: { id: invoice.planId },
     });
@@ -838,7 +991,9 @@ export async function activateSubscriptionForOrder(
         planId: plan.id,
         entitlements: entitlementsOf(plan),
         currentPeriodStart:
-          sub.state === "ACTIVE" ? sub.currentPeriodStart : start,
+          paidThrough && sub.planId === plan.id
+            ? (sub.currentPeriodStart ?? now)
+            : now,
         currentPeriodEnd: end,
       },
     });

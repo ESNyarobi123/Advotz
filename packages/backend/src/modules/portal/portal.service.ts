@@ -12,17 +12,49 @@ import {
 } from "@advo/contracts";
 import { prisma, type PortalContext } from "@advo/db";
 import { normalizeMac } from "@advo/omada";
-import { derivePublicToken, generateOpaqueToken, hashToken, normalizeVoucherCode, voucherLookupHash } from "../../common/crypto.js";
-import { badRequest, conflict, forbidden, notFound, unprocessable } from "../../common/errors.js";
+import {
+  derivePublicToken,
+  generateOpaqueToken,
+  hashToken,
+  normalizeVoucherCode,
+  voucherLookupHash,
+} from "../../common/crypto.js";
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unprocessable,
+} from "../../common/errors.js";
 import { enforceRateLimit } from "../../common/rate-limit.js";
-import { enforcementGaps, siteCapabilities } from "../catalog/packages.service.js";
+import {
+  enforcementGaps,
+  siteCapabilities,
+} from "../catalog/packages.service.js";
 import { listGuestListings } from "../platform/listings.service.js";
-import { ensurePaymentAttempt, reconcilePaymentAttempt } from "../payments/payments.service.js";
+import {
+  confirmOpenPayment,
+  ensurePaymentAttempt,
+} from "../payments/payments.service.js";
 import { saleFeeBasisPoints } from "../settings/settings.service.js";
 import { assertCanSell } from "../subscriptions/subscriptions.service.js";
-import { eligibleCampaignsForSite, resolveSiteConfig } from "../subscriptions/entitlements.service.js";
-import { currentCampaignGeneration, portalCacheKey, readPortalCache, writePortalCache } from "../subscriptions/portal-cache.js";
-import { activateGrantNow, CONNECT_HOLD_MS, holdAuthorization, joinGrant, packageSnapshot } from "../access/grants.service.js";
+import {
+  eligibleCampaignsForSite,
+  resolveSiteConfig,
+} from "../subscriptions/entitlements.service.js";
+import {
+  currentCampaignGeneration,
+  portalCacheKey,
+  readPortalCache,
+  writePortalCache,
+} from "../subscriptions/portal-cache.js";
+import {
+  activateGrantNow,
+  CONNECT_HOLD_MS,
+  holdAuthorization,
+  joinGrant,
+  packageSnapshot,
+} from "../access/grants.service.js";
 
 const CONTEXT_TTL_MS = 30 * 60_000;
 
@@ -40,7 +72,10 @@ const PORTAL_CACHE_TTL_MS = 60_000;
  * slug. The AP belongs to exactly one site, so the MAC is the reliable key; the
  * SSID is a fallback for a site whose device was never recorded.
  */
-export async function resolvePortalSlug(input: { apMac?: string | null; ssid?: string | null }) {
+export async function resolvePortalSlug(input: {
+  apMac?: string | null;
+  ssid?: string | null;
+}) {
   const mac = input.apMac?.trim() ? normalizeMac(input.apMac) : null;
   if (mac) {
     const device = await prisma.device.findFirst({
@@ -64,9 +99,13 @@ export async function resolvePortalSlug(input: { apMac?: string | null; ssid?: s
 async function activeSiteBySlug(slug: string) {
   const site = await prisma.site.findFirst({
     where: { slug, archivedAt: null },
-    include: { reseller: { select: { id: true, businessName: true, status: true } }, mapping: true },
+    include: {
+      reseller: { select: { id: true, businessName: true, status: true } },
+      mapping: true,
+    },
   });
-  if (!site || site.reseller.status !== "ACTIVE") notFound("WiFi location not found");
+  if (!site || site.reseller.status !== "ACTIVE")
+    notFound("WiFi location not found");
   return site;
 }
 
@@ -98,7 +137,9 @@ export async function portalBootstrap(slug: string) {
   };
 }
 
-type PortalBootstrapPayload = Awaited<ReturnType<typeof buildPortalBootstrapPayload>>["payload"];
+type PortalBootstrapPayload = Awaited<
+  ReturnType<typeof buildPortalBootstrapPayload>
+>["payload"];
 
 /**
  * Everything in the bootstrap response that is a pure function of the site's
@@ -117,7 +158,13 @@ async function buildPortalBootstrapPayload(
     include: { package: { include: { currentRevision: true } } },
   });
   const packages = assignments
-    .map((a) => a.package.currentRevision && { packageId: a.packageId, rev: a.package.currentRevision })
+    .map(
+      (a) =>
+        a.package.currentRevision && {
+          packageId: a.packageId,
+          rev: a.package.currentRevision,
+        },
+    )
     .filter((x): x is NonNullable<typeof x> => Boolean(x))
     .filter((x) => enforcementGaps(x.rev, caps).length === 0)
     .map(({ packageId, rev }) => ({
@@ -141,28 +188,51 @@ async function buildPortalBootstrapPayload(
   const bannerVisible = config?.visibility["ads.banner"]?.visible ?? false;
   // One feed serves Jobs & Opportunities and the Local Events / Holidays rows;
   // the guest filter drops drafts, scheduled rows and anything already ended.
-  const listings = jobsVisible || exploreVisible ? await listGuestListings(60).catch(() => []) : [];
+  const listings =
+    jobsVisible || exploreVisible
+      ? await listGuestListings(60).catch(() => [])
+      : [];
   // An ads lookup failure must never break checkout: an empty placement is the
   // honest fallback and the guest keeps buying.
   const banner = bannerVisible
-    ? await eligibleCampaignsForSite(site.id, "ads.banner").catch(() => ({ campaigns: [], visible: false, nextBoundaryAt: null, configRevision: "none" }))
-    : { campaigns: [], visible: false, nextBoundaryAt: null, configRevision: "none" };
+    ? await eligibleCampaignsForSite(site.id, "ads.banner").catch(() => ({
+        campaigns: [],
+        visible: false,
+        nextBoundaryAt: null,
+        configRevision: "none",
+      }))
+    : {
+        campaigns: [],
+        visible: false,
+        nextBoundaryAt: null,
+        configRevision: "none",
+      };
 
   const baseTheme = portalThemeWithDefaults(site.portalTheme);
   const branding = resolution?.preference.branding;
   const colorsEdit = Boolean(resolution?.config.branding.colorsEditAllowed);
   const theme = portalThemeWithDefaults({
     ...baseTheme,
-    ...(colorsEdit && branding?.primary_color ? { primary: branding.primary_color } : {}),
-    ...(colorsEdit && branding?.accent_color ? { accent: branding.accent_color } : {}),
+    ...(colorsEdit && branding?.primary_color
+      ? { primary: branding.primary_color }
+      : {}),
+    ...(colorsEdit && branding?.accent_color
+      ? { accent: branding.accent_color }
+      : {}),
     // A chosen background colour replaces the default paper; unset leaves the
     // template's own colour rather than painting a colour nobody asked for.
-    ...(colorsEdit && branding?.background_color ? { background: branding.background_color } : {}),
+    ...(colorsEdit && branding?.background_color
+      ? { background: branding.background_color }
+      : {}),
     ...(branding?.theme_preset ? { preset: branding.theme_preset } : {}),
   });
   // A plan that does not include custom card styles falls back to the plan default.
   const styledPackages = resolution
-    ? applyPackageOrderAndStyle(packages, resolution.config.packageCards.style, resolution.preference.packageOrder)
+    ? applyPackageOrderAndStyle(
+        packages,
+        resolution.config.packageCards.style,
+        resolution.preference.packageOrder,
+      )
     : packages;
 
   return {
@@ -179,7 +249,9 @@ async function buildPortalBootstrapPayload(
         /** Plan-resolved background image, or `null` when none applies. */
         backgroundUrl: resolution?.config.branding.backgroundUrl ?? null,
         // A site that has never been designed still shows a stocked portal.
-        content: site.portalContent ? portalContentWithDefaults(site.portalContent) : PORTAL_CONTENT_STARTER,
+        content: site.portalContent
+          ? portalContentWithDefaults(site.portalContent)
+          : PORTAL_CONTENT_STARTER,
         defaultLocale: resolution?.preference.branding.default_locale ?? "en",
       },
       /** Effective, policy-resolved portal configuration. Guest apps render from this. */
@@ -206,8 +278,12 @@ async function buildPortalBootstrapPayload(
         endsAt: l.endsAt?.toISOString() ?? null,
       })),
       campaigns: banner.campaigns,
-      promotionsAvailable: config?.visibility["discovery.promote_business"]?.visible ?? false,
-      promotionPackages: config?.visibility["discovery.promote_business"]?.visible ? PROMOTION_PACKAGES : [],
+      promotionsAvailable:
+        config?.visibility["discovery.promote_business"]?.visible ?? false,
+      promotionPackages: config?.visibility["discovery.promote_business"]
+        ?.visible
+        ? PROMOTION_PACKAGES
+        : [],
     },
     // Never outlive a scheduled campaign boundary: the entry must be rebuilt when
     // a campaign starts or ends, not up to a minute later.
@@ -305,10 +381,17 @@ export async function portalExplore(slug: string) {
 
   const exploreVisible = config?.visibility["ads.explore"]?.visible ?? false;
   const jobsVisible = config?.visibility["discovery.jobs"]?.visible ?? false;
-  const promoteVisible = config?.visibility["discovery.promote_business"]?.visible ?? false;
-  const content = site.portalContent ? portalContentWithDefaults(site.portalContent) : PORTAL_CONTENT_STARTER;
-  const listings = exploreVisible || jobsVisible ? await listGuestListings(60).catch(() => []) : [];
-  const ofKind = (kind: string) => listings.filter((l) => l.kind === kind).map(exploreListing);
+  const promoteVisible =
+    config?.visibility["discovery.promote_business"]?.visible ?? false;
+  const content = site.portalContent
+    ? portalContentWithDefaults(site.portalContent)
+    : PORTAL_CONTENT_STARTER;
+  const listings =
+    exploreVisible || jobsVisible
+      ? await listGuestListings(60).catch(() => [])
+      : [];
+  const ofKind = (kind: string) =>
+    listings.filter((l) => l.kind === kind).map(exploreListing);
 
   const payload: PortalExplorePayload = {
     businesses: exploreVisible ? content.businesses : [],
@@ -317,14 +400,24 @@ export async function portalExplore(slug: string) {
     events: exploreVisible ? ofKind("LOCAL_EVENT") : [],
     holidays: exploreVisible ? ofKind("HOLIDAY") : [],
     promotionPackages: promoteVisible ? PROMOTION_PACKAGES : [],
-    visibility: { explore: exploreVisible, jobs: jobsVisible, promote: promoteVisible },
+    visibility: {
+      explore: exploreVisible,
+      jobs: jobsVisible,
+      promote: promoteVisible,
+    },
   };
   writePortalCache(cacheKey, revision, PORTAL_CACHE_TTL_MS, payload);
   return payload;
 }
 
 type PortalExplorePayload = {
-  businesses: Array<{ id: string; name: string; category: string; glyph: string; color: string }>;
+  businesses: Array<{
+    id: string;
+    name: string;
+    category: string;
+    glyph: string;
+    color: string;
+  }>;
   jobs: ExploreListing[];
   opportunities: ExploreListing[];
   events: ExploreListing[];
@@ -341,7 +434,11 @@ function applyPackageOrderAndStyle<T extends { packageId: string }>(
 ): Array<T & { cardStyle: PackageCardStyle }> {
   const index = new Map(order.map((id, i) => [id, i]));
   return [...packages]
-    .sort((a, b) => (index.get(a.packageId) ?? Number.MAX_SAFE_INTEGER) - (index.get(b.packageId) ?? Number.MAX_SAFE_INTEGER))
+    .sort(
+      (a, b) =>
+        (index.get(a.packageId) ?? Number.MAX_SAFE_INTEGER) -
+        (index.get(b.packageId) ?? Number.MAX_SAFE_INTEGER),
+    )
     .map((pkg) => ({ ...pkg, cardStyle: style }));
 }
 
@@ -368,20 +465,40 @@ export async function createPortalContext(
   await enforceRateLimit("portal-context", ip, 60, 60);
   const site = await activeSiteBySlug(slug);
   const clientMac = normalizeMac(input.clientMac);
-  if (!clientMac) badRequest("Invalid client MAC address", "PORTAL_CONTEXT_INVALID");
+  if (!clientMac)
+    badRequest("Invalid client MAC address", "PORTAL_CONTEXT_INVALID");
   const apMac = input.apMac ? normalizeMac(input.apMac) : null;
   const gatewayMac = input.gatewayMac ? normalizeMac(input.gatewayMac) : null;
-  if (input.apMac && !apMac) badRequest("Invalid AP MAC address", "PORTAL_CONTEXT_INVALID");
-  if (input.gatewayMac && !gatewayMac) badRequest("Invalid gateway MAC address", "PORTAL_CONTEXT_INVALID");
-  if (!(apMac && input.ssidName && input.radioId !== undefined) && !(gatewayMac && input.vid)) {
-    badRequest("Redirect is missing AP/SSID/radio or gateway/VLAN parameters", "PORTAL_CONTEXT_INVALID");
+  if (input.apMac && !apMac)
+    badRequest("Invalid AP MAC address", "PORTAL_CONTEXT_INVALID");
+  if (input.gatewayMac && !gatewayMac)
+    badRequest("Invalid gateway MAC address", "PORTAL_CONTEXT_INVALID");
+  if (
+    !(apMac && input.ssidName && input.radioId !== undefined) &&
+    !(gatewayMac && input.vid)
+  ) {
+    badRequest(
+      "Redirect is missing AP/SSID/radio or gateway/VLAN parameters",
+      "PORTAL_CONTEXT_INVALID",
+    );
   }
-  if (input.site && site.mapping?.remoteSiteId && input.site !== site.mapping.remoteSiteId) {
-    badRequest("Redirect does not belong to this WiFi location", "PORTAL_CONTEXT_INVALID");
+  if (
+    input.site &&
+    site.mapping?.remoteSiteId &&
+    input.site !== site.mapping.remoteSiteId
+  ) {
+    badRequest(
+      "Redirect does not belong to this WiFi location",
+      "PORTAL_CONTEXT_INVALID",
+    );
   }
   if (apMac) {
     const device = await prisma.device.findUnique({ where: { mac: apMac } });
-    if (device && device.siteId !== site.id) badRequest("Access point is not registered to this location", "PORTAL_CONTEXT_INVALID");
+    if (device && device.siteId !== site.id)
+      badRequest(
+        "Access point is not registered to this location",
+        "PORTAL_CONTEXT_INVALID",
+      );
   }
   const token = generateOpaqueToken();
   await prisma.portalContext.create({
@@ -408,22 +525,37 @@ function safeRedirect(url?: string) {
   if (!url) return null;
   try {
     const u = new URL(url);
-    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+    return u.protocol === "http:" || u.protocol === "https:"
+      ? u.toString()
+      : null;
   } catch {
     return null;
   }
 }
 
 async function loadContext(token: string): Promise<PortalContext> {
-  const ctx = await prisma.portalContext.findUnique({ where: { tokenHash: hashToken(token) } });
+  const ctx = await prisma.portalContext.findUnique({
+    where: { tokenHash: hashToken(token) },
+  });
   if (!ctx || ctx.expiresAt < new Date()) {
-    unprocessable("Your WiFi session expired. Reconnect to the WiFi to continue.", "PORTAL_CONTEXT_EXPIRED");
+    unprocessable(
+      "Your WiFi session expired. Reconnect to the WiFi to continue.",
+      "PORTAL_CONTEXT_EXPIRED",
+    );
   }
   return ctx;
 }
 
 export async function createPortalOrder(
-  input: { contextToken: string; packageId: string; phone: string; firstName?: string; lastName?: string; email?: string; idempotencyKey: string },
+  input: {
+    contextToken: string;
+    packageId: string;
+    phone: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    idempotencyKey: string;
+  },
   ip: string,
 ) {
   await enforceRateLimit("portal-order-ip", ip, 20, 600);
@@ -431,34 +563,58 @@ export async function createPortalOrder(
   const ctx = await loadContext(input.contextToken);
 
   const replay = await prisma.order.findUnique({
-    where: { resellerId_requestIdempotencyKey: { resellerId: ctx.resellerId, requestIdempotencyKey: input.idempotencyKey } },
+    where: {
+      resellerId_requestIdempotencyKey: {
+        resellerId: ctx.resellerId,
+        requestIdempotencyKey: input.idempotencyKey,
+      },
+    },
   });
   if (replay) {
-    if (replay.portalContextId !== ctx.id) conflict("Idempotency key already used for a different request");
-    const attempt = await ensurePaymentAttempt(replay.id, input).catch(() => null);
+    if (replay.portalContextId !== ctx.id)
+      conflict("Idempotency key already used for a different request");
+    const attempt = await ensurePaymentAttempt(replay.id, input).catch(
+      () => null,
+    );
     return orderResponse(replay.id, attempt?.state ?? null);
   }
 
-  if (!(await assertCanSell(ctx.resellerId))) forbidden("This WiFi location is not accepting payments right now");
+  if (!(await assertCanSell(ctx.resellerId)))
+    forbidden("This WiFi location is not accepting payments right now");
   const assignment = await prisma.packageSiteAssignment.findUnique({
-    where: { packageId_siteId: { packageId: input.packageId, siteId: ctx.siteId } },
+    where: {
+      packageId_siteId: { packageId: input.packageId, siteId: ctx.siteId },
+    },
     include: { package: { include: { currentRevision: true } } },
   });
-  const rev = assignment?.package.status === "ACTIVE" ? assignment.package.currentRevision : null;
+  const rev =
+    assignment?.package.status === "ACTIVE"
+      ? assignment.package.currentRevision
+      : null;
   if (!rev) notFound("Package not available at this location");
   const gaps = enforcementGaps(rev, await siteCapabilities(ctx.siteId));
-  if (gaps.length > 0) unprocessable(`Package cannot be enforced: ${gaps.join("; ")}`, ErrorCode.CAPABILITY_UNSUPPORTED);
+  if (gaps.length > 0)
+    unprocessable(
+      `Package cannot be enforced: ${gaps.join("; ")}`,
+      ErrorCode.CAPABILITY_UNSUPPORTED,
+    );
   const saleFeeBps = await saleFeeBasisPoints();
 
   const orderId = randomUUID();
   const publicToken = derivePublicToken("order", orderId);
   await prisma.$transaction(async (tx) => {
     const customer = await tx.customer.upsert({
-      where: { resellerId_phone: { resellerId: ctx.resellerId, phone: input.phone } },
+      where: {
+        resellerId_phone: { resellerId: ctx.resellerId, phone: input.phone },
+      },
       // Only what the guest actually supplied. An omitted field stores null on
       // create and is left untouched on update, so a later visit that omits the
       // name cannot erase a name the payment provider told us.
-      create: { resellerId: ctx.resellerId, phone: input.phone, ...suppliedPayerDetails(input) },
+      create: {
+        resellerId: ctx.resellerId,
+        phone: input.phone,
+        ...suppliedPayerDetails(input),
+      },
       update: suppliedPayerDetails(input),
     });
     await tx.order.create({
@@ -470,7 +626,10 @@ export async function createPortalOrder(
         customerId: customer.id,
         packageRevisionId: rev.id,
         amountTzs: rev.priceTzs,
-        priceSnapshot: { ...packageSnapshot(rev), saleFeeBasisPoints: saleFeeBps },
+        priceSnapshot: {
+          ...packageSnapshot(rev),
+          saleFeeBasisPoints: saleFeeBps,
+        },
         publicTokenHash: hashToken(publicToken),
         portalContextId: ctx.id,
         clientMac: ctx.clientMac,
@@ -488,7 +647,11 @@ export async function createPortalOrder(
  * Spread into Prisma input, where an absent key is meaningfully different from
  * `undefined` set explicitly: absent leaves the stored column alone.
  */
-function suppliedPayerDetails(input: { firstName?: string; lastName?: string; email?: string }) {
+function suppliedPayerDetails(input: {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}) {
   return {
     ...(input.firstName ? { firstName: input.firstName } : {}),
     ...(input.lastName ? { lastName: input.lastName } : {}),
@@ -496,42 +659,28 @@ function suppliedPayerDetails(input: { firstName?: string; lastName?: string; em
   };
 }
 
-function orderResponse(orderId: string, paymentState: string | null, lastError?: string | null) {  return { orderToken: derivePublicToken("order", orderId), payment: { state: paymentState, lastError: lastError ?? null } };
-}
-
-/**
- * Snippe's checkout guide polls payment status every 2–3 seconds. The waiting
- * page already does that against us; this is how often that poll may ask Snippe
- * `GET /v1/payments/{reference}` for an order that is still unpaid.
- */
-const PAYMENT_LOOKUP_INTERVAL_MS = 2_500;
-
-/**
- * Confirms an open attempt with the provider. A webhook is not required: Snippe
- * documents the lookup as the way to verify `completed` before granting access.
- * Concurrent polls share one lookup.
- */
-async function confirmOpenPayment(attempt: { id: string; state: string; lastCheckedAt: Date | null }) {
-  if (!["PENDING", "UNKNOWN", "DISPATCHING"].includes(attempt.state)) return;
-  const staleBefore = new Date(Date.now() - PAYMENT_LOOKUP_INTERVAL_MS);
-  if (attempt.lastCheckedAt && attempt.lastCheckedAt >= staleBefore) return;
-  const claimed = await prisma.paymentAttempt.updateMany({
-    where: {
-      id: attempt.id,
-      state: { in: ["PENDING", "UNKNOWN", "DISPATCHING"] },
-      OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: staleBefore } }],
-    },
-    data: { lastCheckedAt: new Date() },
-  });
-  if (claimed.count !== 1) return;
-  await reconcilePaymentAttempt(attempt.id);
+function orderResponse(
+  orderId: string,
+  paymentState: string | null,
+  lastError?: string | null,
+) {
+  return {
+    orderToken: derivePublicToken("order", orderId),
+    payment: { state: paymentState, lastError: lastError ?? null },
+  };
 }
 
 /** Customer-facing status via the unguessable order token (no internal IDs exposed). */
 export async function portalOrderStatus(orderToken: string) {
   const include = {
     attempts: { orderBy: { createdAt: "desc" as const }, take: 1 },
-    grant: { include: { devices: { select: { clientMac: true, authState: true, lastError: true } } } },
+    grant: {
+      include: {
+        devices: {
+          select: { clientMac: true, authState: true, lastError: true },
+        },
+      },
+    },
     site: { select: { slug: true, landingUrl: true } },
   };
   let order = await prisma.order.findUnique({
@@ -547,13 +696,18 @@ export async function portalOrderStatus(orderToken: string) {
       include,
     });
   }
-  const snapshot = order.priceSnapshot as { name?: string; durationSeconds?: number };
+  const snapshot = order.priceSnapshot as {
+    name?: string;
+    durationSeconds?: number;
+  };
   const attempt = order.attempts[0];
   return {
     package: { name: snapshot.name, durationSeconds: snapshot.durationSeconds },
     amountTzs: order.amountTzs,
     paymentState: order.paymentState,
-    paymentAttempt: attempt ? { state: attempt.state, lastError: attempt.lastError } : null,
+    paymentAttempt: attempt
+      ? { state: attempt.state, lastError: attempt.lastError }
+      : null,
     fulfillmentState: order.fulfillmentState,
     access: order.grant
       ? {
@@ -564,9 +718,14 @@ export async function portalOrderStatus(orderToken: string) {
           /** Countdown to the automatic connect; null once the session is live. */
           connectBy:
             order.grant.state === "PENDING_ACTIVATION"
-              ? new Date(order.grant.createdAt.getTime() + CONNECT_HOLD_MS).toISOString()
+              ? new Date(
+                  order.grant.createdAt.getTime() + CONNECT_HOLD_MS,
+                ).toISOString()
               : null,
-          devices: order.grant.devices.map((d) => ({ mac: maskMac(d.clientMac), state: d.authState })),
+          devices: order.grant.devices.map((d) => ({
+            mac: maskMac(d.clientMac),
+            state: d.authState,
+          })),
         }
       : null,
     landingUrl: order.site?.landingUrl ?? null,
@@ -578,52 +737,93 @@ function maskMac(mac: string) {
 }
 
 /** Retry payment for an unpaid order (e.g. customer declined, wants to try again). */
-export async function retryPortalPayment(orderToken: string, payer: { phone: string; firstName?: string; lastName?: string; email?: string }) {
-  const order = await prisma.order.findUnique({ where: { publicTokenHash: hashToken(orderToken) } });
+export async function retryPortalPayment(
+  orderToken: string,
+  payer: {
+    phone: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  },
+) {
+  const order = await prisma.order.findUnique({
+    where: { publicTokenHash: hashToken(orderToken) },
+  });
   if (!order) notFound("Order not found");
-  if (order.paymentState !== "UNPAID") conflict("This order is already paid or closed");
+  if (order.paymentState !== "UNPAID")
+    conflict("This order is already paid or closed");
   await enforceRateLimit("portal-retry", order.id, 5, 600);
   const attempt = await ensurePaymentAttempt(order.id, payer);
   return { payment: { state: attempt.state, lastError: attempt.lastError } };
 }
 
 /** Voucher redemption: one voucher → one grant; the unique voucherId makes races lose cleanly. */
-export async function redeemVoucher(input: { contextToken: string; code: string }, ip: string) {
+export async function redeemVoucher(
+  input: { contextToken: string; code: string },
+  ip: string,
+) {
   await enforceRateLimit("voucher-redeem-ip", ip, 10, 600);
   const ctx = await loadContext(input.contextToken);
   await enforceRateLimit("voucher-redeem-mac", ctx.clientMac, 10, 600);
   // New batches are 6 digits; older alphanumeric batches were 12 symbols.
   const codeLen = normalizeVoucherCode(input.code).length;
-  if (codeLen !== 6 && codeLen !== 12) badRequest("Voucher code is invalid", "VOUCHER_INVALID");
+  if (codeLen !== 6 && codeLen !== 12)
+    badRequest("Voucher code is invalid", "VOUCHER_INVALID");
 
   const voucher = await prisma.voucher.findUnique({
     where: { codeLookup: voucherLookupHash(input.code) },
     include: { group: { include: { packageRevision: true } }, grant: true },
   });
   // Same message for unknown and cross-tenant codes.
-  if (!voucher || voucher.resellerId !== ctx.resellerId) badRequest("Voucher code is invalid", "VOUCHER_INVALID");
+  if (!voucher || voucher.resellerId !== ctx.resellerId)
+    badRequest("Voucher code is invalid", "VOUCHER_INVALID");
   if (voucher.grant) {
-    if (voucher.grant.siteId !== ctx.siteId) badRequest("Voucher code is invalid", "VOUCHER_INVALID");
+    if (voucher.grant.siteId !== ctx.siteId)
+      badRequest("Voucher code is invalid", "VOUCHER_INVALID");
     const device = await joinGrant(voucher.grant.id, ctx);
-    return { recoveryToken: derivePublicToken("voucher-grant", voucher.grant.id), grantDeviceState: device.authState };
+    return {
+      recoveryToken: derivePublicToken("voucher-grant", voucher.grant.id),
+      grantDeviceState: device.authState,
+    };
   }
-  if (voucher.state !== "UNUSED" || voucher.group.state !== "ACTIVE") badRequest("Voucher is no longer valid", "VOUCHER_INVALID");
+  if (voucher.state !== "UNUSED" || voucher.group.state !== "ACTIVE")
+    badRequest("Voucher is no longer valid", "VOUCHER_INVALID");
   // Policy gate: an already-redeemed voucher keeps working (see the branch above),
   // but a plan that disables the voucher feature cannot start new redemptions.
   const sitePolicy = await resolveSiteConfig(ctx.siteId);
   if (sitePolicy && !sitePolicy.config.voucherEnabled) {
-    forbidden("Voucher login is not available at this WiFi location", FEATURE_LOCKED_BY_PLAN);
+    forbidden(
+      "Voucher login is not available at this WiFi location",
+      FEATURE_LOCKED_BY_PLAN,
+    );
   }
-  if (!(await assertCanSell(ctx.resellerId))) forbidden("This WiFi location is not accepting vouchers right now");
+  if (!(await assertCanSell(ctx.resellerId)))
+    forbidden("This WiFi location is not accepting vouchers right now");
   const rev = voucher.group.packageRevision;
-  const assigned = await prisma.packageSiteAssignment.findUnique({ where: { packageId_siteId: { packageId: rev.packageId, siteId: ctx.siteId } } });
-  if (!assigned) badRequest("This voucher is not valid at this WiFi location", "VOUCHER_INVALID");
+  const assigned = await prisma.packageSiteAssignment.findUnique({
+    where: {
+      packageId_siteId: { packageId: rev.packageId, siteId: ctx.siteId },
+    },
+  });
+  if (!assigned)
+    badRequest(
+      "This voucher is not valid at this WiFi location",
+      "VOUCHER_INVALID",
+    );
   const gaps = enforcementGaps(rev, await siteCapabilities(ctx.siteId));
-  if (gaps.length > 0) unprocessable(`Voucher package cannot be enforced here: ${gaps.join("; ")}`, ErrorCode.CAPABILITY_UNSUPPORTED);
+  if (gaps.length > 0)
+    unprocessable(
+      `Voucher package cannot be enforced here: ${gaps.join("; ")}`,
+      ErrorCode.CAPABILITY_UNSUPPORTED,
+    );
 
   const result = await prisma.$transaction(async (tx) => {
-    const claimed = await tx.voucher.updateMany({ where: { id: voucher.id, state: "UNUSED" }, data: { state: "REDEEMED", redeemedAt: new Date() } });
-    if (claimed.count === 0) badRequest("Voucher is no longer valid", "VOUCHER_INVALID");
+    const claimed = await tx.voucher.updateMany({
+      where: { id: voucher.id, state: "UNUSED" },
+      data: { state: "REDEEMED", redeemedAt: new Date() },
+    });
+    if (claimed.count === 0)
+      badRequest("Voucher is no longer valid", "VOUCHER_INVALID");
     const grantId = randomUUID();
     const recoveryToken = derivePublicToken("voucher-grant", grantId);
     await tx.accessGrant.create({
@@ -636,11 +836,15 @@ export async function redeemVoucher(input: { contextToken: string; code: string 
         packageSnapshot: packageSnapshot(rev),
         durationSeconds: rev.durationSeconds,
         maxDevices: rev.maxDevices,
-        activationDeadline: new Date(Date.now() + rev.activationWindowSeconds * 1000),
+        activationDeadline: new Date(
+          Date.now() + rev.activationWindowSeconds * 1000,
+        ),
         recoveryTokenHash: hashToken(recoveryToken),
       },
     });
-    const device = await tx.accessGrantDevice.create({ data: { grantId, clientMac: ctx.clientMac, portalContextId: ctx.id } });
+    const device = await tx.accessGrantDevice.create({
+      data: { grantId, clientMac: ctx.clientMac, portalContextId: ctx.id },
+    });
     await holdAuthorization(tx, device.id);
     return { recoveryToken, grantDeviceState: device.authState };
   });
@@ -669,7 +873,10 @@ export async function grantStatus(recoveryToken: string) {
         ? new Date(grant.createdAt.getTime() + CONNECT_HOLD_MS).toISOString()
         : null,
     package: grant.packageSnapshot,
-    devices: grant.devices.map((d) => ({ mac: maskMac(d.clientMac), state: d.authState })),
+    devices: grant.devices.map((d) => ({
+      mac: maskMac(d.clientMac),
+      state: d.authState,
+    })),
   };
 }
 
@@ -679,18 +886,26 @@ export async function grantStatus(recoveryToken: string) {
  * the worker, so the caller polls `grantStatus` for ACTIVE.
  */
 export async function activateGrant(recoveryToken: string) {
-  const grant = await prisma.accessGrant.findUnique({ where: { recoveryTokenHash: hashToken(recoveryToken) } });
+  const grant = await prisma.accessGrant.findUnique({
+    where: { recoveryTokenHash: hashToken(recoveryToken) },
+  });
   if (!grant) notFound("Access not found");
   await enforceRateLimit("grant-activate", grant.id, 60, 60);
   const result = await activateGrantNow(grant.id);
   return { ...result, status: await grantStatus(recoveryToken) };
 }
 
-export async function joinWithRecoveryToken(input: { contextToken: string; recoveryToken: string }, ip: string) {
+export async function joinWithRecoveryToken(
+  input: { contextToken: string; recoveryToken: string },
+  ip: string,
+) {
   await enforceRateLimit("grant-join", ip, 20, 600);
   const ctx = await loadContext(input.contextToken);
-  const grant = await prisma.accessGrant.findUnique({ where: { recoveryTokenHash: hashToken(input.recoveryToken) } });
-  if (!grant || grant.resellerId !== ctx.resellerId) notFound("Access not found");
+  const grant = await prisma.accessGrant.findUnique({
+    where: { recoveryTokenHash: hashToken(input.recoveryToken) },
+  });
+  if (!grant || grant.resellerId !== ctx.resellerId)
+    notFound("Access not found");
   const device = await joinGrant(grant.id, ctx);
   return { grantDeviceState: device.authState };
 }
@@ -700,15 +915,26 @@ export async function joinWithRecoveryToken(input: { contextToken: string; recov
  * posts here; the request surfaces in the reseller's Captive Portal designer.
  * No payment is taken and no banner is published automatically.
  */
-export async function submitPromotion(slug: string, input: PromotionRequestInput, ip: string) {
+export async function submitPromotion(
+  slug: string,
+  input: PromotionRequestInput,
+  ip: string,
+) {
   await enforceRateLimit("portal-promotion-ip", ip, 10, 600);
   const site = await activeSiteBySlug(slug);
   const policy = await resolveSiteConfig(site.id);
-  if (policy && !policy.config.visibility["discovery.promote_business"].visible) {
-    forbidden("Promotions are not available at this WiFi location", ErrorCode.PLACEMENT_HIDDEN);
+  if (
+    policy &&
+    !policy.config.visibility["discovery.promote_business"].visible
+  ) {
+    forbidden(
+      "Promotions are not available at this WiFi location",
+      ErrorCode.PLACEMENT_HIDDEN,
+    );
   }
   const pkg = PROMOTION_PACKAGES.find((p) => p.code === input.packageCode);
-  if (!pkg) badRequest("Unknown promotion package", "PROMOTION_PACKAGE_INVALID");
+  if (!pkg)
+    badRequest("Unknown promotion package", "PROMOTION_PACKAGE_INVALID");
   await prisma.promotionRequest.create({
     data: {
       siteId: site.id,
@@ -763,9 +989,31 @@ export async function portalAds(slug: string, placement: string) {
   if (!parsed.success) badRequest("Unknown ad placement", "PLACEMENT_INVALID");
   const site = await activeSiteBySlug(slug);
   const result = await eligibleCampaignsForSite(site.id, parsed.data);
-  const key = portalCacheKey("ads", site.id, parsed.data, currentCampaignGeneration());
-  const cached = readPortalCache<typeof result.campaigns>(key, result.configRevision);
-  if (cached) return { placement: parsed.data, campaigns: cached, configRevision: result.configRevision };
-  writePortalCache(key, result.configRevision, cacheTtlUntil(result.nextBoundaryAt), result.campaigns);
-  return { placement: parsed.data, campaigns: result.campaigns, configRevision: result.configRevision };
+  const key = portalCacheKey(
+    "ads",
+    site.id,
+    parsed.data,
+    currentCampaignGeneration(),
+  );
+  const cached = readPortalCache<typeof result.campaigns>(
+    key,
+    result.configRevision,
+  );
+  if (cached)
+    return {
+      placement: parsed.data,
+      campaigns: cached,
+      configRevision: result.configRevision,
+    };
+  writePortalCache(
+    key,
+    result.configRevision,
+    cacheTtlUntil(result.nextBoundaryAt),
+    result.campaigns,
+  );
+  return {
+    placement: parsed.data,
+    campaigns: result.campaigns,
+    configRevision: result.configRevision,
+  };
 }

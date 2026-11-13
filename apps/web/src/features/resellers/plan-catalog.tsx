@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { formatTzs } from "@advo/api-client";
 import {
   PLAN_TIERS,
@@ -11,9 +11,11 @@ import {
 } from "@advo/contracts";
 import { Card } from "@heroui/react";
 import {
+  ArrowUpRight,
   Check,
   Info,
   Minus,
+  Package,
   Smartphone,
   Sparkles,
   UserRound,
@@ -40,7 +42,7 @@ export type CatalogOptionType = "PARTNER" | "INDEPENDENT";
 export type CatalogTier = {
   key: string;
   capacity: PlanCapacity;
-  options: Partial<Record<CatalogOptionType, Plan>>;
+  options: Plan[];
 };
 
 /** Known tiers keep the order they are sold in; unknown keys come after them. */
@@ -69,11 +71,15 @@ export function buildCatalog(plans: Plan[]): Catalog {
     const tier = byTier.get(plan.tierKey) ?? {
       key: plan.tierKey,
       capacity: capacityOf(plan),
-      options: {},
+      options: [],
     };
     // First option of a tier defines the capacity shown; the publish validator has
     // already guaranteed both options carry the same numbers.
-    tier.options[plan.planType] = plan;
+    if (tier.options.some((option) => option.planType === plan.planType)) {
+      other.push(plan);
+      continue;
+    }
+    tier.options.push(plan);
     byTier.set(plan.tierKey, tier);
   }
 
@@ -83,19 +89,18 @@ export function buildCatalog(plans: Plan[]): Catalog {
       return rank !== 0 ? rank : a.key.localeCompare(b.key);
     })
     .map((tier) => {
-      const option = tier.options.PARTNER ?? tier.options.INDEPENDENT;
+      const option =
+        tier.options.find((plan) => plan.planType === "PARTNER") ??
+        tier.options[0];
       return { ...tier, capacity: option ? capacityOf(option) : tier.capacity };
     });
 
   return { tiers, other };
 }
 
-/** `null` is unlimited — a bare `null` would read as "none allowed". */
-function capacityValue(t: I18n["t"], value: number | null): string {
-  return value === null ? t("reseller.subscription.unlimited") : String(value);
-}
-
 function capacityLine(t: I18n["t"], capacity: PlanCapacity): string {
+  const label = (value: number | null) =>
+    value ?? t("reseller.subscription.unlimited");
   if (
     capacity.sites === null &&
     capacity.devices === null &&
@@ -103,171 +108,140 @@ function capacityLine(t: I18n["t"], capacity: PlanCapacity): string {
   ) {
     return t("reseller.subscription.catalog.capacityUnlimited");
   }
-  return t("reseller.subscription.catalog.capacity", {
-    sites: capacityValue(t, capacity.sites),
-    devices: capacityValue(t, capacity.devices),
-    packages: capacityValue(t, capacity.wifiPackagesPerSite),
-  });
+  return t(
+    capacity.legacyPackages
+      ? "reseller.subscription.catalog.capacityLegacy"
+      : "reseller.subscription.catalog.capacity",
+    {
+      sites: label(capacity.sites),
+      devices: label(capacity.devices),
+      packages: label(capacity.wifiPackagesPerSite),
+    },
+  );
 }
 
-function cheapest(plans: Array<Plan | undefined>): Plan | undefined {
-  return plans
-    .filter((plan): plan is Plan => Boolean(plan))
-    .sort((a, b) => (BigInt(a.priceTzs) < BigInt(b.priceTzs) ? -1 : 1))[0];
-}
-
-/**
- * The two-axis chooser: pick a package, then pick how the guest portal looks.
- *
- * The order is deliberate — capacity is the decision a reseller can reason about
- * (how many sites and access points), while the Partner/Independent choice is a
- * content decision that only matters once the package is settled. Presenting all
- * eight at once is what the old flat grid did, and it hid the fact that both
- * options of a tier are the same package.
- */
 export function PlanCatalog({
-  plans,
-  currentPlanId,
-  trialUsed,
+  catalog,
+  currentPlan,
+  trialAvailable,
   trialPending,
+  actionFor,
   onChoose,
   onDetail,
   onTrial,
 }: {
-  plans: Plan[];
-  currentPlanId: string | null;
-  trialUsed: boolean;
+  catalog: Catalog;
+  currentPlan: Plan | null;
+  trialAvailable: boolean;
   trialPending: boolean;
+  actionFor: (plan: Plan) => string;
   onChoose: (plan: Plan) => void;
   onDetail: (plan: Plan) => void;
   onTrial: (plan: Plan) => void;
 }) {
   const { t } = useI18n();
-  const catalog = useMemo(() => buildCatalog(plans), [plans]);
   const [picked, setPicked] = useState<string | null>(null);
-
-  // The subscription's own tier opens first, so renewing does not start the
-  // reseller on a tier they are not on.
-  const currentTierKey =
-    plans.find((plan) => plan.id === currentPlanId)?.tierKey ?? null;
-  const activeTierKey =
-    picked ?? currentTierKey ?? catalog.tiers[0]?.key ?? null;
   const activeTier =
-    catalog.tiers.find((tier) => tier.key === activeTierKey) ??
-    catalog.tiers[0] ??
-    null;
+    catalog.tiers.find(
+      (tier) => tier.key === (picked ?? currentPlan?.tierKey),
+    ) ?? catalog.tiers[0];
+  const actions = {
+    actionFor,
+    trialAvailable,
+    trialPending,
+    onChoose,
+    onDetail,
+    onTrial,
+  };
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-sm font-black tracking-tight text-advo-text">
-          {t("reseller.subscription.catalog.title")}
-        </h2>
-        <p className="text-xs text-advo-muted">
-          {t("reseller.subscription.catalog.subtitle")}
-        </p>
-      </div>
-
-      {/* ── Axis 1: the package ── */}
-      <div>
-        <p className="mb-2 text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">
-          {t("reseller.subscription.catalog.stepPackage")}
-        </p>
-        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-          {catalog.tiers.map((tier) => {
-            const active = tier.key === activeTier?.key;
-            const from = cheapest([
-              tier.options.PARTNER,
-              tier.options.INDEPENDENT,
-            ]);
-            return (
-              <button
-                key={tier.key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setPicked(tier.key)}
-                className={`group relative overflow-hidden rounded-2xl border px-3.5 py-3 text-left transition ${
-                  active
-                    ? "border-advo-blue bg-advo-blue/[0.04] ring-2 ring-advo-blue/20"
-                    : "border-advo-border bg-white hover:-translate-y-0.5 hover:border-advo-blue/40 hover:shadow-advo-card"
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`absolute inset-x-0 top-0 h-0.5 ${active ? "bg-advo-blue" : "bg-slate-200 group-hover:bg-advo-gold/60"}`}
-                />
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-black tracking-tight text-advo-text">
+    <div className="space-y-4">
+      {activeTier ? (
+        <div className="overflow-hidden rounded-[20px] border border-advo-border bg-advo-card">
+          <div
+            role="group"
+            aria-label={t("reseller.subscription.catalog.title")}
+            className="grid grid-cols-2 gap-2 border-b border-advo-border p-3 sm:gap-3 sm:p-4 xl:grid-cols-4"
+          >
+            {catalog.tiers.map((tier) => {
+              const active = tier.key === activeTier.key;
+              const cheapest = tier.options.reduce((low, plan) =>
+                BigInt(plan.priceTzs) < BigInt(low.priceTzs) ? plan : low,
+              );
+              return (
+                <button
+                  key={tier.key}
+                  type="button"
+                  aria-pressed={active}
+                  aria-controls="subscription-plan-options"
+                  onClick={() => setPicked(tier.key)}
+                  className="flex min-w-0 flex-col rounded-xl border border-advo-border bg-advo-page p-3 text-left transition hover:border-[#f8ba56]/50 focus-visible:outline-2 focus-visible:outline-[#f8ba56] aria-pressed:border-[#f8ba56]/70 aria-pressed:bg-[#f8ba56]/10 sm:p-3.5"
+                >
+                  <span className="flex w-full items-start justify-between gap-2 text-sm font-bold text-advo-text">
                     {tierLabel(t, tier.key)}
+                    {active ? (
+                      <Check className="size-4 shrink-0 text-[#f8ba56]" />
+                    ) : null}
                   </span>
-                  {active ? (
-                    <Check className="size-3.5 shrink-0 text-advo-blue" />
-                  ) : null}
-                </span>
-                <span className="mt-1 block text-[10px] leading-snug font-semibold text-advo-muted">
-                  {capacityLine(t, tier.capacity)}
-                </span>
-                {from ? (
-                  <span className="mt-2 block truncate text-[11px] font-bold text-advo-text tabular-nums">
-                    {from.priceFrom
+                  <span className="mt-1.5 text-xs leading-relaxed text-advo-muted">
+                    {capacityLine(t, tier.capacity)}
+                  </span>
+                  <span className="mt-auto pt-2 text-xs font-semibold text-advo-text tabular-nums">
+                    {tier.options.length > 1 || cheapest.priceFrom
                       ? `${t("reseller.subscription.catalog.from")} `
                       : ""}
-                    {formatTzs(from.priceTzs)}
-                    <span className="font-medium text-slate-400">
-                      {" "}
-                      {t("reseller.subscription.catalog.perMonth")}
+                    {formatTzs(cheapest.priceTzs)}
+                    <span className="ml-1 text-advo-muted">
+                      {t("reseller.subscription.plans.perDays", {
+                        days: cheapest.periodDays,
+                      })}
                     </span>
                   </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Axis 2: the commercial option ── */}
-      {activeTier ? (
-        <div className="rounded-3xl border border-advo-border bg-gradient-to-b from-advo-page/60 to-white p-3.5 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[10px] font-bold tracking-[0.14em] text-slate-400 uppercase">
-              {t("reseller.subscription.catalog.stepOption")}
-            </p>
-            <p className="text-[11px] font-semibold text-advo-muted">
-              {capacityLine(t, activeTier.capacity)}
-            </p>
+                </button>
+              );
+            })}
           </div>
-
-          <div
-            className={`grid gap-3.5 ${Object.keys(activeTier.options).length > 1 ? "md:grid-cols-2" : ""}`}
-          >
-            {(Object.keys(activeTier.options) as CatalogOptionType[]).map(
-              (type) => {
-                const plan = activeTier.options[type];
-                if (!plan) return null;
-                return (
-                  <CatalogOptionCard
-                    key={plan.id}
-                    plan={plan}
-                    type={type}
-                    current={plan.id === currentPlanId}
-                    trialUsed={trialUsed}
-                    trialPending={trialPending}
-                    onChoose={onChoose}
-                    onDetail={onDetail}
-                    onTrial={onTrial}
-                  />
-                );
-              },
-            )}
+          <div id="subscription-plan-options" className="p-3.5 sm:p-5">
+            <h3 className="mb-3 text-sm font-semibold text-advo-text">
+              {t("reseller.subscription.catalog.optionsFor", {
+                tier: tierLabel(t, activeTier.key),
+              })}
+            </h3>
+            <div
+              className={`grid gap-3.5 ${activeTier.options.length > 1 ? "md:grid-cols-2" : ""}`}
+            >
+              {activeTier.options.map((plan) => (
+                <CatalogOptionCard
+                  key={plan.id}
+                  plan={plan}
+                  current={plan.id === currentPlan?.id}
+                  {...actions}
+                />
+              ))}
+            </div>
           </div>
-
-          <p className="mt-3.5 flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-[11px] leading-snug font-semibold text-slate-600">
-            <Info className="mt-0.5 size-3.5 shrink-0 text-advo-blue" />
-            {t("reseller.subscription.catalog.sameTools")}
-          </p>
         </div>
       ) : null}
-    </section>
+      {catalog.other.length ? (
+        <div>
+          {activeTier ? (
+            <h3 className="mb-3 text-sm font-semibold text-advo-text">
+              {t("reseller.subscription.catalog.other")}
+            </h3>
+          ) : null}
+          <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+            {catalog.other.map((plan) => (
+              <CatalogOptionCard
+                key={plan.id}
+                plan={plan}
+                current={plan.id === currentPlan?.id}
+                {...actions}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -297,18 +271,18 @@ const OPTION_COPY: Record<
  */
 function CatalogOptionCard({
   plan,
-  type,
   current,
-  trialUsed,
+  actionFor,
+  trialAvailable,
   trialPending,
   onChoose,
   onDetail,
   onTrial,
 }: {
   plan: Plan;
-  type: CatalogOptionType;
   current: boolean;
-  trialUsed: boolean;
+  actionFor: (plan: Plan) => string;
+  trialAvailable: boolean;
   trialPending: boolean;
   onChoose: (plan: Plan) => void;
   onDetail: (plan: Plan) => void;
@@ -316,59 +290,61 @@ function CatalogOptionCard({
 }) {
   const { t } = useI18n();
   const features = planFeaturesWithDefaults(plan.features);
-  const adsOn = placementOf(features, "ads.banner").mode !== "DISABLED";
-  const exploreOn = placementOf(features, "ads.explore").mode !== "DISABLED";
-  const copy = OPTION_COPY[type];
-  const Icon = type === "PARTNER" ? Users : UserRound;
+  const banner = placementOf(features, "ads.banner");
+  const explore = placementOf(features, "ads.explore");
+  const adsOn = banner.mode !== "DISABLED";
+  const exploreOn = explore.mode !== "DISABLED";
+  const type = plan.planType;
+  const copy = isOptionType(type) ? OPTION_COPY[type] : null;
+  const Icon =
+    type === "PARTNER" ? Users : type === "INDEPENDENT" ? UserRound : Package;
   const canTrial =
-    plan.trialEligible && (plan.trialDays ?? 0) > 0 && !trialUsed;
+    plan.trialEligible && (plan.trialDays ?? 0) > 0 && trialAvailable;
   // A plan whose placements disagree with its tag is flagged, not silently
   // re-labelled: the tag is what the reseller is agreeing to.
-  const mismatched = plan.planType !== planTypeOf(features);
+  const mismatched = copy && plan.planType !== planTypeOf(features);
 
   return (
     <Card
-      className={`flex flex-col p-4 transition sm:p-5 ${
+      className={`flex flex-col rounded-[16px] border bg-advo-page p-4 sm:p-5 ${
         current
-          ? "border-advo-blue ring-2 ring-advo-blue/15"
+          ? "border-[#f8ba56]/50"
           : "border-advo-border hover:shadow-advo-card"
       }`}
     >
       <div className="flex items-start gap-3">
         <span
-          className={`grid size-10 shrink-0 place-items-center rounded-2xl ${
-            type === "PARTNER"
-              ? "bg-amber-50 text-advo-gold"
-              : "bg-slate-100 text-slate-600"
-          }`}
+          className={`grid size-10 shrink-0 place-items-center rounded-xl ${type === "PARTNER" ? "bg-[#f8ba56]/10 text-[#f8ba56]" : "bg-sky-300/10 text-sky-200"}`}
         >
           <Icon className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <h3 className="truncate text-sm font-black tracking-tight text-advo-text">
-              {t(copy.title)}
+            <h3 className="text-base font-bold tracking-tight text-advo-text">
+              {copy ? t(copy.title) : plan.name}
             </h3>
             {current ? (
-              <span className="rounded-full bg-advo-blue/10 px-1.5 py-0.5 text-[9px] font-bold text-advo-blue">
-                {t("reseller.subscription.state.ACTIVE")}
+              <span className="rounded-full bg-[#f8ba56]/10 px-2 py-0.5 text-xs font-semibold text-[#f8ba56]">
+                {t("reseller.subscription.kpi.plan")}
               </span>
             ) : null}
             {plan.isDemo ? (
-              <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-advo-gold">
+              <span className="rounded-full bg-amber-300/10 px-2 py-0.5 text-[10px] font-bold text-amber-200">
                 DEMO
               </span>
             ) : null}
           </div>
-          <p className="text-[11px] font-semibold text-advo-muted">
-            {t(copy.subtitle)}
+          <p className="mt-0.5 text-xs font-medium text-advo-muted">
+            {copy ? t(copy.subtitle) : capacityLine(t, capacityOf(plan))}
           </p>
         </div>
       </div>
 
-      <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
-        {t(copy.body)}
-      </p>
+      {copy || plan.description ? (
+        <p className="mt-3 text-sm leading-relaxed text-advo-muted">
+          {copy ? t(copy.body) : plan.description}
+        </p>
+      ) : null}
 
       <div className="mt-3 flex flex-wrap items-baseline gap-x-1.5">
         {plan.priceFrom ? (
@@ -380,51 +356,64 @@ function CatalogOptionCard({
           {formatTzs(plan.priceTzs)}
         </span>
         <span className="text-[11px] font-semibold text-slate-400">
-          {t("reseller.subscription.catalog.perMonth")}
+          {t("reseller.subscription.plans.perDays", { days: plan.periodDays })}
         </span>
       </div>
 
-      <ul className="mt-3 space-y-1.5 border-t border-advo-border/60 pt-3 text-[11px]">
+      <ul className="mt-3 flex-1 space-y-2 border-t border-advo-border pt-3 text-xs">
         <Bullet
           on={adsOn}
           label={t(
-            adsOn
-              ? "reseller.subscription.catalog.bullet.adsOn"
-              : "reseller.subscription.catalog.bullet.adsOff",
+            banner.mode === "OPTIONAL"
+              ? "reseller.subscription.catalog.bullet.adsOptional"
+              : adsOn
+                ? "reseller.subscription.catalog.bullet.adsOn"
+                : "reseller.subscription.catalog.bullet.adsOff",
           )}
         />
         <Bullet
           on={exploreOn}
           label={t(
-            exploreOn
-              ? "reseller.subscription.catalog.bullet.exploreOn"
-              : "reseller.subscription.catalog.bullet.exploreOff",
+            explore.mode === "OPTIONAL"
+              ? "reseller.subscription.catalog.bullet.exploreOptional"
+              : exploreOn
+                ? "reseller.subscription.catalog.bullet.exploreOn"
+                : "reseller.subscription.catalog.bullet.exploreOff",
           )}
         />
-        <Bullet on label={t("reseller.subscription.catalog.bullet.branding")} />
+        {copy ? (
+          <Bullet
+            on={features.branding.colors_edit && features.branding.logo_upload}
+            label={t("reseller.subscription.catalog.bullet.branding")}
+          />
+        ) : null}
       </ul>
 
       {mismatched ? (
-        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">
+        <p className="mt-2 rounded-lg bg-amber-300/10 px-2 py-1.5 text-xs font-semibold text-amber-200">
           {t("reseller.subscription.catalog.mismatch")}
         </p>
       ) : null}
 
-      <div className="mt-3.5 space-y-1.5 border-t border-advo-border/60 pt-3">
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-advo-border pt-3.5">
         <button
           type="button"
           onClick={() => onChoose(plan)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-advo-blue py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-advo-blue/90"
+          className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#f8ba56] px-3 py-2 text-sm font-bold text-[#251805] hover:bg-[#ffd088]"
         >
-          <Smartphone className="size-3.5" />
-          {t("reseller.subscription.plans.select")}
+          {current ? (
+            <Smartphone className="size-4 shrink-0" />
+          ) : (
+            <ArrowUpRight className="size-4 shrink-0" />
+          )}
+          {actionFor(plan)}
         </button>
         <button
           type="button"
           onClick={() => onDetail(plan)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-[11px] font-semibold text-slate-700 hover:bg-advo-page"
+          className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-advo-border px-3 py-2 text-sm font-semibold text-advo-text hover:bg-advo-surface-soft"
         >
-          <Info className="size-3.5" />
+          <Info className="size-4 shrink-0" />
           {t("reseller.subscription.plans.viewFeatures")}
         </button>
         {canTrial ? (
@@ -432,7 +421,7 @@ function CatalogOptionCard({
             type="button"
             disabled={trialPending}
             onClick={() => onTrial(plan)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-white py-2 text-[11px] font-semibold text-slate-700 hover:bg-advo-page"
+            className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-advo-border py-2 text-sm font-semibold text-advo-text hover:bg-advo-surface-soft disabled:opacity-60"
           >
             <Sparkles className="size-3.5 text-advo-gold" />
             {t("reseller.subscription.plans.startTrial", {

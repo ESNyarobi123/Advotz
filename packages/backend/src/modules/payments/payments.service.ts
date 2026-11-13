@@ -1,8 +1,16 @@
 import { ErrorCode } from "@advo/contracts";
 import { prisma, type Order, type PaymentAttempt, type Prisma } from "@advo/db";
-import { PaymentProviderError, type MobilePaymentRequest, type ProviderPaymentStatus } from "@advo/payments";
+import {
+  PaymentProviderError,
+  type MobilePaymentRequest,
+  type ProviderPaymentStatus,
+} from "@advo/payments";
 import { countByState } from "../../common/aggregate.js";
-import { compactIdempotencyKey, sha256Hex, stableStringify } from "../../common/crypto.js";
+import {
+  compactIdempotencyKey,
+  sha256Hex,
+  stableStringify,
+} from "../../common/crypto.js";
 import { audit, emitOutbox, OutboxEventType } from "../../common/events.js";
 import { getPaymentProvider, webhookUrl } from "../../common/providers.js";
 import {
@@ -15,7 +23,12 @@ import { saleFeeBasisPoints } from "../settings/settings.service.js";
 
 type Tx = Prisma.TransactionClient;
 
-const OPEN_ATTEMPT_STATES = ["CREATED", "DISPATCHING", "PENDING", "UNKNOWN"] as const;
+const OPEN_ATTEMPT_STATES = [
+  "CREATED",
+  "DISPATCHING",
+  "PENDING",
+  "UNKNOWN",
+] as const;
 /** Snippe keeps Idempotency-Key results for 24h; re-dispatch with the same key only inside that window. */
 const PROVIDER_KEY_WINDOW_MS = 23 * 60 * 60 * 1000;
 
@@ -28,7 +41,12 @@ const PROVIDER_KEY_WINDOW_MS = 23 * 60 * 60 * 1000;
  * clients that do know them; see `providerCustomerDetails` for what Snippe is
  * sent when they are absent.
  */
-export type Payer = { phone: string; firstName?: string; lastName?: string; email?: string };
+export type Payer = {
+  phone: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+};
 
 /** Digits only, so a placeholder address stays unique per payer. */
 function phoneDigits(phone: string) {
@@ -66,7 +84,10 @@ function providerCustomerDetails(payer: Payer) {
  * Returns the order's open attempt if one exists (repeated submits/clicks), otherwise creates
  * a new attempt whose exact normalized request and compact key are persisted before dispatch.
  */
-export async function ensurePaymentAttempt(orderId: string, payer: Payer): Promise<PaymentAttempt> {
+export async function ensurePaymentAttempt(
+  orderId: string,
+  payer: Payer,
+): Promise<PaymentAttempt> {
   const provider = getPaymentProvider();
   const attempt = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId}::uuid FOR UPDATE`;
@@ -76,10 +97,23 @@ export async function ensurePaymentAttempt(orderId: string, payer: Payer): Promi
       orderBy: { createdAt: "desc" },
     });
     if (open) return open;
-    const completed = await tx.paymentAttempt.findFirst({ where: { orderId, state: "COMPLETED" } });
+    const completed = await tx.paymentAttempt.findFirst({
+      where: { orderId, state: "COMPLETED" },
+    });
     if (completed) return completed;
+    if (order.purpose === "PLATFORM_SUBSCRIPTION") {
+      const review = await tx.paymentAttempt.findFirst({
+        where: { orderId, state: "NEEDS_REVIEW" },
+        orderBy: { createdAt: "desc" },
+      });
+      if (review) return review;
+    }
     if (order.paymentState !== "UNPAID") {
-      throw new PaymentProviderError(`Order is ${order.paymentState}; no new payment attempt allowed`, "conflict", false);
+      throw new PaymentProviderError(
+        `Order is ${order.paymentState}; no new payment attempt allowed`,
+        "conflict",
+        false,
+      );
     }
 
     const request: MobilePaymentRequest = {
@@ -115,12 +149,20 @@ function safeAmount(amount: bigint): number {
 }
 
 /** Sends the saved request once. Ambiguous failures become UNKNOWN and are reconciled. */
-export async function dispatchPaymentAttempt(attemptId: string): Promise<PaymentAttempt> {
+export async function dispatchPaymentAttempt(
+  attemptId: string,
+): Promise<PaymentAttempt> {
   const claimed = await prisma.paymentAttempt.updateMany({
-    where: { id: attemptId, state: { in: ["CREATED", "UNKNOWN"] }, providerReference: null },
+    where: {
+      id: attemptId,
+      state: { in: ["CREATED", "UNKNOWN"] },
+      providerReference: null,
+    },
     data: { state: "DISPATCHING" },
   });
-  const attempt = await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
+  const attempt = await prisma.paymentAttempt.findUniqueOrThrow({
+    where: { id: attemptId },
+  });
   if (claimed.count === 0) return attempt;
 
   const provider = getPaymentProvider();
@@ -142,14 +184,26 @@ export async function dispatchPaymentAttempt(attemptId: string): Promise<Payment
       await reconcilePaymentAttempt(attemptId);
     }
   } catch (err) {
-    const e = err instanceof PaymentProviderError ? err : new PaymentProviderError(String(err), "unknown", true);
+    const e =
+      err instanceof PaymentProviderError
+        ? err
+        : new PaymentProviderError(String(err), "unknown", true);
     await prisma.$transaction(async (tx) => {
       await tx.paymentAttempt.update({
         where: { id: attemptId },
-        data: { state: e.ambiguous ? "UNKNOWN" : "FAILED", lastError: `${e.kind}: ${e.message}`.slice(0, 500) },
+        data: {
+          state: e.ambiguous ? "UNKNOWN" : "FAILED",
+          lastError: `${e.kind}: ${e.message}`.slice(0, 500),
+        },
       });
       if (e.ambiguous) {
-        await emitOutbox(tx, OutboxEventType.PAYMENT_RECONCILE, "PaymentAttempt", attemptId, { attemptId });
+        await emitOutbox(
+          tx,
+          OutboxEventType.PAYMENT_RECONCILE,
+          "PaymentAttempt",
+          attemptId,
+          { attemptId },
+        );
       }
     });
   }
@@ -162,21 +216,33 @@ export async function dispatchPaymentAttempt(attemptId: string): Promise<Payment
  * after that window it needs review rather than a blind new charge.
  */
 export async function reconcilePaymentAttempt(attemptId: string) {
-  const attempt = await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
-  if (!["PENDING", "UNKNOWN", "DISPATCHING"].includes(attempt.state)) return attempt.state;
+  const attempt = await prisma.paymentAttempt.findUniqueOrThrow({
+    where: { id: attemptId },
+  });
+  if (!["PENDING", "UNKNOWN", "DISPATCHING"].includes(attempt.state))
+    return attempt.state;
 
   if (!attempt.providerReference) {
     if (Date.now() - attempt.createdAt.getTime() < PROVIDER_KEY_WINDOW_MS) {
-      if (attempt.state === "DISPATCHING" && Date.now() - attempt.updatedAt.getTime() < 60_000) {
+      if (
+        attempt.state === "DISPATCHING" &&
+        Date.now() - attempt.updatedAt.getTime() < 60_000
+      ) {
         return attempt.state;
       }
-      await prisma.paymentAttempt.update({ where: { id: attemptId }, data: { state: "UNKNOWN" } });
+      await prisma.paymentAttempt.update({
+        where: { id: attemptId },
+        data: { state: "UNKNOWN" },
+      });
       const after = await dispatchPaymentAttempt(attemptId);
       return after.state;
     }
     await prisma.paymentAttempt.update({
       where: { id: attemptId },
-      data: { state: "NEEDS_REVIEW", lastError: "Outcome unknown beyond provider idempotency window" },
+      data: {
+        state: "NEEDS_REVIEW",
+        lastError: "Outcome unknown beyond provider idempotency window",
+      },
     });
     return "NEEDS_REVIEW";
   }
@@ -184,7 +250,10 @@ export async function reconcilePaymentAttempt(attemptId: string) {
   const provider = getPaymentProvider();
   try {
     const found = await provider.getPayment(attempt.providerReference);
-    await prisma.paymentAttempt.update({ where: { id: attemptId }, data: { lastCheckedAt: new Date() } });
+    await prisma.paymentAttempt.update({
+      where: { id: attemptId },
+      data: { lastCheckedAt: new Date() },
+    });
     const outcome = await applyPaymentOutcome({
       providerAccountId: attempt.providerAccountId,
       reference: found.reference,
@@ -199,10 +268,37 @@ export async function reconcilePaymentAttempt(attemptId: string) {
   } catch (err) {
     await prisma.paymentAttempt.update({
       where: { id: attemptId },
-      data: { lastCheckedAt: new Date(), lastError: err instanceof Error ? err.message.slice(0, 500) : String(err) },
+      data: {
+        lastCheckedAt: new Date(),
+        lastError:
+          err instanceof Error ? err.message.slice(0, 500) : String(err),
+      },
     });
     return "lookup_failed";
   }
+}
+
+const PAYMENT_LOOKUP_INTERVAL_MS = 2_500;
+
+/** Throttles provider confirmation for each attempt, including concurrent polls. */
+export async function confirmOpenPayment(attempt: {
+  id: string;
+  state: string;
+  lastCheckedAt: Date | null;
+}) {
+  if (!["PENDING", "UNKNOWN", "DISPATCHING"].includes(attempt.state)) return;
+  const staleBefore = new Date(Date.now() - PAYMENT_LOOKUP_INTERVAL_MS);
+  if (attempt.lastCheckedAt && attempt.lastCheckedAt >= staleBefore) return;
+  const claimed = await prisma.paymentAttempt.updateMany({
+    where: {
+      id: attempt.id,
+      state: { in: ["PENDING", "UNKNOWN", "DISPATCHING"] },
+      OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: staleBefore } }],
+    },
+    data: { lastCheckedAt: new Date() },
+  });
+  if (claimed.count !== 1) return;
+  return reconcilePaymentAttempt(attempt.id);
 }
 
 export type PaymentOutcome =
@@ -244,7 +340,9 @@ export async function applyPaymentOutcome(input: {
     });
     if (!found) return { kind: "unmatched" } as const;
     await tx.$queryRaw`SELECT id FROM "PaymentAttempt" WHERE id = ${found.id}::uuid FOR UPDATE`;
-    const attempt = await tx.paymentAttempt.findUniqueOrThrow({ where: { id: found.id } });
+    const attempt = await tx.paymentAttempt.findUniqueOrThrow({
+      where: { id: found.id },
+    });
 
     if (input.status === "pending") {
       return { kind: "pending" } as const;
@@ -252,15 +350,31 @@ export async function applyPaymentOutcome(input: {
 
     if (input.status !== "completed") {
       if (attempt.state === "COMPLETED") {
-        return { kind: "ignored", reason: `late ${input.status} after completion` } as const;
+        return {
+          kind: "ignored",
+          reason: `late ${input.status} after completion`,
+        } as const;
       }
-      const terminal = input.status === "voided" ? "VOIDED" : input.status === "expired" ? "EXPIRED" : "FAILED";
-      await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { state: terminal } });
-      return { kind: "ignored", reason: `attempt ${terminal.toLowerCase()}` } as const;
+      const terminal =
+        input.status === "voided"
+          ? "VOIDED"
+          : input.status === "expired"
+            ? "EXPIRED"
+            : "FAILED";
+      await tx.paymentAttempt.update({
+        where: { id: attempt.id },
+        data: { state: terminal },
+      });
+      return {
+        kind: "ignored",
+        reason: `attempt ${terminal.toLowerCase()}`,
+      } as const;
     }
 
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${attempt.orderId}::uuid FOR UPDATE`;
-    const order = await tx.order.findUniqueOrThrow({ where: { id: attempt.orderId } });
+    const order = await tx.order.findUniqueOrThrow({
+      where: { id: attempt.orderId },
+    });
 
     if (input.currency !== "TZS" || input.amountTzs !== order.amountTzs) {
       await tx.paymentAttempt.update({
@@ -271,11 +385,15 @@ export async function applyPaymentOutcome(input: {
           lastError: `${ErrorCode.PAYMENT_AMOUNT_MISMATCH}: expected ${order.amountTzs} TZS, got ${input.amountTzs} ${input.currency}`,
         },
       });
-      await tx.order.update({ where: { id: order.id }, data: { paymentState: "NEEDS_REVIEW" } });
+      await tx.order.update({
+        where: { id: order.id },
+        data: { paymentState: "NEEDS_REVIEW" },
+      });
       return { kind: "mismatch", reason: "amount_or_currency" } as const;
     }
 
-    if (attempt.state === "COMPLETED") return { kind: "duplicate", orderId: order.id } as const;
+    if (attempt.state === "COMPLETED")
+      return { kind: "duplicate", orderId: order.id } as const;
 
     await fillCustomerName(tx, order.customerId, input.customerName);
 
@@ -292,9 +410,19 @@ export async function applyPaymentOutcome(input: {
     if (order.paymentState === "UNPAID" || order.paymentState === "CANCELLED") {
       await tx.order.update({
         where: { id: order.id },
-        data: { paymentState: "PAID", paidAt: new Date(), fulfillmentState: "PENDING" },
+        data: {
+          paymentState: "PAID",
+          paidAt: new Date(),
+          fulfillmentState: "PENDING",
+        },
       });
-      await postReceiptJournal(tx, order, attempt.id, input.amountTzs, input.feeTzs ?? null);
+      await postReceiptJournal(
+        tx,
+        order,
+        attempt.id,
+        input.amountTzs,
+        input.feeTzs ?? null,
+      );
       await emitOutbox(tx, OutboxEventType.ORDER_PAID, "Order", order.id, {
         orderId: order.id,
         paymentAttemptId: attempt.id,
@@ -303,14 +431,23 @@ export async function applyPaymentOutcome(input: {
     }
 
     // A second successful attempt for an already-paid order: keep the receipt, never grant twice.
-    await tx.order.update({ where: { id: order.id }, data: { paymentState: "OVERPAID" } });
+    await tx.order.update({
+      where: { id: order.id },
+      data: { paymentState: "OVERPAID" },
+    });
     await postJournal(tx, {
       sourceKey: `overpayment:${attempt.id}`,
       sourceType: "overpayment",
       description: `Duplicate receipt for order ${order.id}`,
       lines: [
-        { account: platformAccount("PROVIDER_CLEARING"), debit: input.amountTzs },
-        { account: platformAccount("OVERPAYMENT_LIABILITY"), credit: input.amountTzs },
+        {
+          account: platformAccount("PROVIDER_CLEARING"),
+          debit: input.amountTzs,
+        },
+        {
+          account: platformAccount("OVERPAYMENT_LIABILITY"),
+          credit: input.amountTzs,
+        },
       ],
     });
     return { kind: "overpaid", orderId: order.id } as const;
@@ -325,7 +462,11 @@ export async function applyPaymentOutcome(input: {
  * the product reads, and never overwrite a name already stored — a name the guest
  * or an API client supplied outranks a derived one.
  */
-async function fillCustomerName(tx: Tx, customerId: string | null, name: string | null | undefined) {
+async function fillCustomerName(
+  tx: Tx,
+  customerId: string | null,
+  name: string | null | undefined,
+) {
   const trimmed = name?.trim();
   if (!customerId || !trimmed) return;
   const customer = await tx.customer.findUnique({
@@ -340,11 +481,20 @@ async function fillCustomerName(tx: Tx, customerId: string | null, name: string 
   });
 }
 
-async function postReceiptJournal(tx: Tx, order: Order, attemptId: string, gross: bigint, fee: bigint | null) {
+async function postReceiptJournal(
+  tx: Tx,
+  order: Order,
+  attemptId: string,
+  gross: bigint,
+  fee: bigint | null,
+) {
   if (order.purpose === "PLATFORM_SUBSCRIPTION") {
     const lines: PostingLine[] = [
       { account: platformAccount("PROVIDER_CLEARING"), debit: gross },
-      { account: platformAccount("PLATFORM_SUBSCRIPTION_REVENUE"), credit: gross },
+      {
+        account: platformAccount("PLATFORM_SUBSCRIPTION_REVENUE"),
+        credit: gross,
+      },
     ];
     if (fee && fee > 0n) {
       lines.push(
@@ -362,21 +512,41 @@ async function postReceiptJournal(tx: Tx, order: Order, attemptId: string, gross
   }
 
   const snapshot = order.priceSnapshot as { saleFeeBasisPoints?: number };
-  const bps = BigInt(snapshot.saleFeeBasisPoints ?? (await saleFeeBasisPoints()));
+  const bps = BigInt(
+    snapshot.saleFeeBasisPoints ?? (await saleFeeBasisPoints()),
+  );
   let platformFee = (gross * bps) / 10000n;
-  const lines: PostingLine[] = [{ account: platformAccount("PROVIDER_CLEARING"), debit: gross }];
+  const lines: PostingLine[] = [
+    { account: platformAccount("PROVIDER_CLEARING"), debit: gross },
+  ];
   if (fee !== null) {
-    if (platformFee > gross - fee) platformFee = gross - fee > 0n ? gross - fee : 0n;
+    if (platformFee > gross - fee)
+      platformFee = gross - fee > 0n ? gross - fee : 0n;
     lines.push(
       { account: platformAccount("PROVIDER_CLEARING"), credit: fee },
-      { account: resellerAccount(order.resellerId, "RESELLER_PAYABLE"), credit: gross - fee - platformFee },
-      { account: platformAccount("PLATFORM_SALE_FEE_REVENUE"), credit: platformFee },
+      {
+        account: resellerAccount(order.resellerId, "RESELLER_PAYABLE"),
+        credit: gross - fee - platformFee,
+      },
+      {
+        account: platformAccount("PLATFORM_SALE_FEE_REVENUE"),
+        credit: platformFee,
+      },
     );
   } else {
     // Provider fee unknown: keep reseller funds unavailable until settlement is reconciled.
     lines.push(
-      { account: resellerAccount(order.resellerId, "RESELLER_PENDING_SETTLEMENT"), credit: gross - platformFee },
-      { account: platformAccount("PLATFORM_SALE_FEE_REVENUE"), credit: platformFee },
+      {
+        account: resellerAccount(
+          order.resellerId,
+          "RESELLER_PENDING_SETTLEMENT",
+        ),
+        credit: gross - platformFee,
+      },
+      {
+        account: platformAccount("PLATFORM_SALE_FEE_REVENUE"),
+        credit: platformFee,
+      },
     );
   }
   await postJournal(tx, {
@@ -388,21 +558,46 @@ async function postReceiptJournal(tx: Tx, order: Order, attemptId: string, gross
 }
 
 /** Admin reconciliation: record the actual provider fee for a sale whose settlement was unknown. */
-export async function settlePendingSale(attemptId: string, feeTzs: bigint, actorUserId: string, reason: string) {
+export async function settlePendingSale(
+  attemptId: string,
+  feeTzs: bigint,
+  actorUserId: string,
+  reason: string,
+) {
   return prisma.$transaction(async (tx) => {
-    const attempt = await tx.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { order: true } });
-    if (attempt.state !== "COMPLETED" || attempt.order.purpose !== "WIFI_PACKAGE") {
+    const attempt = await tx.paymentAttempt.findUniqueOrThrow({
+      where: { id: attemptId },
+      include: { order: true },
+    });
+    if (
+      attempt.state !== "COMPLETED" ||
+      attempt.order.purpose !== "WIFI_PACKAGE"
+    ) {
       throw new Error("Only completed WiFi sale receipts can be settled");
     }
-    const receipt = await tx.journal.findUnique({ where: { sourceKey: `payment:${attemptId}` }, include: { lines: { include: { account: true } } } });
-    const pendingLine = receipt?.lines.find((l) => l.account.type === "RESELLER_PENDING_SETTLEMENT");
+    const receipt = await tx.journal.findUnique({
+      where: { sourceKey: `payment:${attemptId}` },
+      include: { lines: { include: { account: true } } },
+    });
+    const pendingLine = receipt?.lines.find(
+      (l) => l.account.type === "RESELLER_PENDING_SETTLEMENT",
+    );
     if (!pendingLine) throw new Error("Receipt has no pending settlement");
-    if (await tx.journal.findUnique({ where: { sourceKey: `settlement:${attemptId}` }, select: { id: true } })) {
+    if (
+      await tx.journal.findUnique({
+        where: { sourceKey: `settlement:${attemptId}` },
+        select: { id: true },
+      })
+    ) {
       throw new Error("This sale has already been settled");
     }
     const pending = pendingLine.creditTzs;
-    if (feeTzs < 0n || feeTzs > pending) throw new Error("Fee exceeds pending settlement");
-    await tx.paymentAttempt.update({ where: { id: attemptId }, data: { feeTzs } });
+    if (feeTzs < 0n || feeTzs > pending)
+      throw new Error("Fee exceeds pending settlement");
+    await tx.paymentAttempt.update({
+      where: { id: attemptId },
+      data: { feeTzs },
+    });
     await audit(tx, {
       actorUserId,
       action: "payment.settled",
@@ -418,8 +613,20 @@ export async function settlePendingSale(attemptId: string, feeTzs: bigint, actor
       description: `Settlement reconciled for order ${attempt.orderId}`,
       actorUserId,
       lines: [
-        { account: resellerAccount(attempt.order.resellerId, "RESELLER_PENDING_SETTLEMENT"), debit: pending },
-        { account: resellerAccount(attempt.order.resellerId, "RESELLER_PAYABLE"), credit: pending - feeTzs },
+        {
+          account: resellerAccount(
+            attempt.order.resellerId,
+            "RESELLER_PENDING_SETTLEMENT",
+          ),
+          debit: pending,
+        },
+        {
+          account: resellerAccount(
+            attempt.order.resellerId,
+            "RESELLER_PAYABLE",
+          ),
+          credit: pending - feeTzs,
+        },
         { account: platformAccount("PROVIDER_CLEARING"), credit: feeTzs },
       ],
     });
@@ -436,30 +643,51 @@ export async function settlePendingSale(attemptId: string, feeTzs: bigint, actor
  * reseller's money is still held in `RESELLER_PENDING_SETTLEMENT`.
  */
 export async function paymentsSummary() {
-  const [attemptsByState, collected, orderStates, webhooksByState, providers, unsettled, settledCount, latestAttempt, latestWebhook] =
-    await Promise.all([
-      prisma.paymentAttempt.groupBy({ by: ["state"], _count: true }),
-      prisma.paymentAttempt.aggregate({
-        where: { state: "COMPLETED" },
-        _sum: { amountReceivedTzs: true, feeTzs: true },
-        _count: true,
-      }),
-      prisma.order.groupBy({ by: ["paymentState"], _count: true }),
-      prisma.webhookInboxEvent.groupBy({ by: ["state"], _count: true }),
-      prisma.paymentAttempt.groupBy({
-        by: ["provider"],
-        _count: true,
-        _sum: { amountReceivedTzs: true },
-      }),
-      prisma.paymentAttempt.aggregate({
-        where: { state: "COMPLETED", feeTzs: null, order: { purpose: "WIFI_PACKAGE" } },
-        _sum: { amountReceivedTzs: true },
-        _count: true,
-      }),
-      prisma.paymentAttempt.count({ where: { state: "COMPLETED", feeTzs: { not: null } } }),
-      prisma.paymentAttempt.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
-      prisma.webhookInboxEvent.findFirst({ orderBy: { receivedAt: "desc" }, select: { receivedAt: true } }),
-    ]);
+  const [
+    attemptsByState,
+    collected,
+    orderStates,
+    webhooksByState,
+    providers,
+    unsettled,
+    settledCount,
+    latestAttempt,
+    latestWebhook,
+  ] = await Promise.all([
+    prisma.paymentAttempt.groupBy({ by: ["state"], _count: true }),
+    prisma.paymentAttempt.aggregate({
+      where: { state: "COMPLETED" },
+      _sum: { amountReceivedTzs: true, feeTzs: true },
+      _count: true,
+    }),
+    prisma.order.groupBy({ by: ["paymentState"], _count: true }),
+    prisma.webhookInboxEvent.groupBy({ by: ["state"], _count: true }),
+    prisma.paymentAttempt.groupBy({
+      by: ["provider"],
+      _count: true,
+      _sum: { amountReceivedTzs: true },
+    }),
+    prisma.paymentAttempt.aggregate({
+      where: {
+        state: "COMPLETED",
+        feeTzs: null,
+        order: { purpose: "WIFI_PACKAGE" },
+      },
+      _sum: { amountReceivedTzs: true },
+      _count: true,
+    }),
+    prisma.paymentAttempt.count({
+      where: { state: "COMPLETED", feeTzs: { not: null } },
+    }),
+    prisma.paymentAttempt.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+    prisma.webhookInboxEvent.findFirst({
+      orderBy: { receivedAt: "desc" },
+      select: { receivedAt: true },
+    }),
+  ]);
 
   const attempts = countByState(attemptsByState, "state");
   const orders = countByState(orderStates, "paymentState");
@@ -474,14 +702,18 @@ export async function paymentsSummary() {
       total,
       byState: attempts,
       completed,
-      open: (attempts.CREATED ?? 0) + (attempts.DISPATCHING ?? 0) + (attempts.PENDING ?? 0),
+      open:
+        (attempts.CREATED ?? 0) +
+        (attempts.DISPATCHING ?? 0) +
+        (attempts.PENDING ?? 0),
       unknown: attempts.UNKNOWN ?? 0,
       failed: attempts.FAILED ?? 0,
       expired: attempts.EXPIRED ?? 0,
       voided: attempts.VOIDED ?? 0,
       needsReview: attempts.NEEDS_REVIEW ?? 0,
       /** Share of finished attempts that ended in money received, as a whole percent. */
-      successRatePct: completed > 0 ? Math.round((completed / Math.max(1, total)) * 100) : 0,
+      successRatePct:
+        completed > 0 ? Math.round((completed / Math.max(1, total)) * 100) : 0,
     },
     collected: {
       count: collected._count,
@@ -523,8 +755,9 @@ export async function paymentsSummary() {
       (webhooks.QUARANTINED ?? 0) +
       (webhooks.FAILED ?? 0) +
       unsettled._count,
-    lastActivityAt: [latestAttempt?.createdAt, latestWebhook?.receivedAt]
-      .filter((value): value is Date => Boolean(value))
-      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null,
+    lastActivityAt:
+      [latestAttempt?.createdAt, latestWebhook?.receivedAt]
+        .filter((value): value is Date => Boolean(value))
+        .sort((a, b) => b.getTime() - a.getTime())[0] ?? null,
   };
 }

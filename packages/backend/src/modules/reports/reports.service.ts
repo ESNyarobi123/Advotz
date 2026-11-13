@@ -1,7 +1,11 @@
 import { prisma } from "@advo/db";
 import { walletSummary } from "../ledger/ledger.service.js";
 import { outboxStats } from "../outbox/outbox.dispatcher.js";
-import { getSubscriptionView, entitlementsOf, type Entitlements } from "../subscriptions/subscriptions.service.js";
+import {
+  getSubscriptionView,
+  entitlementsOf,
+  type Entitlements,
+} from "../subscriptions/subscriptions.service.js";
 
 /** Start of "today" in Africa/Dar_es_Salaam (UTC+3, no DST). */
 function startOfDarDay(now = new Date()) {
@@ -11,7 +15,11 @@ function startOfDarDay(now = new Date()) {
   return new Date(local.getTime() - offsetMs);
 }
 
-async function paidSales(where: { resellerId?: string; since?: Date; siteId?: string }) {
+async function paidSales(where: {
+  resellerId?: string;
+  since?: Date;
+  siteId?: string;
+}) {
   const agg = await prisma.order.aggregate({
     where: {
       purpose: "WIFI_PACKAGE",
@@ -66,18 +74,26 @@ async function paidSalesBySite(resellerId: string, siteId?: string) {
     _count: true,
   });
   const ranked = rows
-    .map((row) => ({ key: row.siteId, count: row._count, amountTzs: row._sum.amountTzs ?? 0n }))
+    .map((row) => ({
+      key: row.siteId,
+      count: row._count,
+      amountTzs: row._sum.amountTzs ?? 0n,
+    }))
     .sort(byAmountDesc)
     .slice(0, BREAKDOWN_LIMIT);
 
   const sites = await prisma.site.findMany({
-    where: { id: { in: ranked.map((r) => r.key).filter((id): id is string => id !== null) } },
+    where: {
+      id: {
+        in: ranked.map((r) => r.key).filter((id): id is string => id !== null),
+      },
+    },
     select: { id: true, name: true },
   });
   const nameById = new Map(sites.map((site) => [site.id, site.name]));
 
   return ranked.map((row) => ({
-    site: row.key ? nameById.get(row.key) ?? "Bila eneo" : "Bila eneo",
+    site: row.key ? (nameById.get(row.key) ?? "Bila eneo") : "Bila eneo",
     count: row.count,
     amountTzs: row.amountTzs,
   }));
@@ -96,18 +112,28 @@ async function paidSalesByPackage(resellerId: string, siteId?: string) {
     _count: true,
   });
   const ranked = rows
-    .map((row) => ({ key: row.packageRevisionId, count: row._count, amountTzs: row._sum.amountTzs ?? 0n }))
+    .map((row) => ({
+      key: row.packageRevisionId,
+      count: row._count,
+      amountTzs: row._sum.amountTzs ?? 0n,
+    }))
     .sort(byAmountDesc)
     .slice(0, BREAKDOWN_LIMIT);
 
   const revisions = await prisma.packageRevision.findMany({
-    where: { id: { in: ranked.map((r) => r.key).filter((id): id is string => id !== null) } },
+    where: {
+      id: {
+        in: ranked.map((r) => r.key).filter((id): id is string => id !== null),
+      },
+    },
     select: { id: true, name: true },
   });
-  const nameById = new Map(revisions.map((revision) => [revision.id, revision.name]));
+  const nameById = new Map(
+    revisions.map((revision) => [revision.id, revision.name]),
+  );
 
   return ranked.map((row) => ({
-    package: row.key ? nameById.get(row.key) ?? "Kifurushi" : "Kifurushi",
+    package: row.key ? (nameById.get(row.key) ?? "Kifurushi") : "Kifurushi",
     count: row.count,
     amountTzs: row.amountTzs,
   }));
@@ -117,7 +143,11 @@ async function paidSalesByPackage(resellerId: string, siteId?: string) {
 async function orderPaymentMix(resellerId: string, siteId?: string) {
   const rows = await prisma.order.groupBy({
     by: ["paymentState"],
-    where: { purpose: "WIFI_PACKAGE", resellerId, ...(siteId ? { siteId } : {}) },
+    where: {
+      purpose: "WIFI_PACKAGE",
+      resellerId,
+      ...(siteId ? { siteId } : {}),
+    },
     _sum: { amountTzs: true },
     _count: true,
   });
@@ -136,7 +166,11 @@ async function orderPaymentMix(resellerId: string, siteId?: string) {
  * Every day in the window is emitted, including days with no sales, so the
  * chart has a continuous axis instead of collapsing the gaps.
  */
-async function paidSalesDaily(resellerId: string, days: number, siteId?: string) {
+async function paidSalesDaily(
+  resellerId: string,
+  days: number,
+  siteId?: string,
+) {
   const today = startOfDarDay();
   const from = new Date(today.getTime() - (days - 1) * 86_400_000);
   const rows = await prisma.order.findMany({
@@ -163,7 +197,11 @@ async function paidSalesDaily(resellerId: string, days: number, siteId?: string)
   return Array.from({ length: days }, (_, i) => {
     const day = darDayKey(new Date(from.getTime() + i * 86_400_000));
     const bucket = buckets.get(day);
-    return { day, count: bucket?.count ?? 0, amountTzs: bucket?.amountTzs ?? 0n };
+    return {
+      day,
+      count: bucket?.count ?? 0,
+      amountTzs: bucket?.amountTzs ?? 0n,
+    };
   });
 }
 
@@ -188,9 +226,14 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
   ] = await Promise.all([
     prisma.reseller.findUniqueOrThrow({
       where: { id: resellerId },
-      select: { businessName: true, status: true, onboardingStep: true, slug: true },
+      select: {
+        businessName: true,
+        status: true,
+        onboardingStep: true,
+        slug: true,
+      },
     }),
-    getSubscriptionView(resellerId),
+    getSubscriptionView(resellerId, false),
     walletSummary("RESELLER", resellerId),
     paidSales({ resellerId, since: today, siteId }),
     paidSales({ resellerId, siteId }),
@@ -210,7 +253,10 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
       where: {
         resellerId,
         ...siteFilter,
-        OR: [{ fulfillmentState: "NEEDS_REVIEW" }, { paymentState: "NEEDS_REVIEW" }],
+        OR: [
+          { fulfillmentState: "NEEDS_REVIEW" },
+          { paymentState: "NEEDS_REVIEW" },
+        ],
       },
     }),
     paidSalesBySite(resellerId, siteId),
@@ -221,12 +267,21 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
   ]);
   const [activeGrants, devices, pendingClaims] = await Promise.all([
     prisma.accessGrant.count({
-      where: { resellerId, state: "ACTIVE", expiresAt: { gt: new Date() }, ...siteFilter },
+      where: {
+        resellerId,
+        state: "ACTIVE",
+        expiresAt: { gt: new Date() },
+        ...siteFilter,
+      },
     }),
     prisma.device.count({ where: { resellerId, ...siteFilter } }),
-    prisma.deviceClaim.count({ where: { resellerId, state: "SUBMITTED", ...siteFilter } }),
+    prisma.deviceClaim.count({
+      where: { resellerId, state: "SUBMITTED", ...siteFilter },
+    }),
   ]);
-  const scopedSite = siteId ? sites.find((s) => s.id === siteId) ?? null : null;
+  const scopedSite = siteId
+    ? (sites.find((s) => s.id === siteId) ?? null)
+    : null;
   return {
     reseller,
     subscription: {
@@ -247,18 +302,37 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
     pendingClaims,
     packageCount: packages,
     ordersNeedingReview: attention,
-    scope: { siteId: scopedSite?.id ?? null, siteName: scopedSite?.name ?? null },
-    totals: { sites: sites.length, devices: totalDevices, packages: totalPackages },
+    scope: {
+      siteId: scopedSite?.id ?? null,
+      siteName: scopedSite?.name ?? null,
+    },
+    totals: {
+      sites: sites.length,
+      devices: totalDevices,
+      packages: totalPackages,
+    },
   };
 }
 
-export async function resellerOrders(resellerId: string, take = 100, siteId?: string) {
+export async function resellerOrders(
+  resellerId: string,
+  take = 100,
+  siteId?: string,
+) {
   return prisma.order.findMany({
-    where: { resellerId, purpose: "WIFI_PACKAGE", ...(siteId ? { siteId } : {}) },
+    where: {
+      resellerId,
+      purpose: "WIFI_PACKAGE",
+      ...(siteId ? { siteId } : {}),
+    },
     include: {
       customer: { select: { phone: true, firstName: true, lastName: true } },
       site: { select: { name: true } },
-      attempts: { select: { state: true, lastError: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      attempts: {
+        select: { state: true, lastError: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
       grant: { select: { id: true, state: true, expiresAt: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -301,24 +375,52 @@ export async function resellerCustomers(resellerId: string, siteId?: string) {
     name: [c.firstName, c.lastName].filter(Boolean).join(" "),
     purchases: c.orders.length,
     totalTzs: c.orders.reduce((a, o) => a + o.amountTzs, 0n),
-    lastPurchaseAt: c.orders.map((o) => o.paidAt).filter(Boolean).sort().at(-1) ?? null,
+    lastPurchaseAt:
+      c.orders
+        .map((o) => o.paidAt)
+        .filter(Boolean)
+        .sort()
+        .at(-1) ?? null,
   }));
 }
 
 export async function agentOverview(agentId: string) {
   const [agent, leads, attributions, wallet, accruals] = await Promise.all([
-    prisma.agent.findUniqueOrThrow({ where: { id: agentId }, include: { user: { select: { name: true, email: true } } } }),
+    prisma.agent.findUniqueOrThrow({
+      where: { id: agentId },
+      include: { user: { select: { name: true, email: true } } },
+    }),
     prisma.lead.groupBy({ by: ["status"], where: { agentId }, _count: true }),
     prisma.referralAttribution.findMany({
       where: { agentId },
-      include: { reseller: { select: { id: true, businessName: true, status: true, createdAt: true, subscription: { select: { state: true } } } } },
+      include: {
+        reseller: {
+          select: {
+            id: true,
+            businessName: true,
+            status: true,
+            createdAt: true,
+            subscription: { select: { state: true } },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     }),
     walletSummary("AGENT", agentId),
-    prisma.commissionAccrual.groupBy({ by: ["state"], where: { agentId }, _sum: { amountTzs: true }, _count: true }),
+    prisma.commissionAccrual.groupBy({
+      by: ["state"],
+      where: { agentId },
+      _sum: { amountTzs: true },
+      _count: true,
+    }),
   ]);
   return {
-    agent: { name: agent.user.name, email: agent.user.email, referralCode: agent.referralCode, status: agent.status },
+    agent: {
+      name: agent.user.name,
+      email: agent.user.email,
+      referralCode: agent.referralCode,
+      status: agent.status,
+    },
     leads: Object.fromEntries(leads.map((l) => [l.status, l._count])),
     referredResellers: attributions.map((a) => ({
       businessName: a.reseller.businessName,
@@ -328,7 +430,11 @@ export async function agentOverview(agentId: string) {
       since: a.effectiveAt,
     })),
     wallet,
-    commissions: accruals.map((a) => ({ state: a.state, count: a._count, amountTzs: a._sum.amountTzs ?? 0n })),
+    commissions: accruals.map((a) => ({
+      state: a.state,
+      count: a._count,
+      amountTzs: a._sum.amountTzs ?? 0n,
+    })),
   };
 }
 
@@ -351,28 +457,60 @@ export async function agentCommissions(agentId: string) {
 
 export async function adminOverview() {
   const today = startOfDarDay();
-  const [resellers, agents, activeSubs, trialing, salesToday, subsRevenue, pendingClaims, pendingWithdrawals, needsReview, controllers, outbox, quarantined] =
-    await Promise.all([
-      prisma.reseller.groupBy({ by: ["status"], _count: true }),
-      prisma.agent.count({ where: { status: "ACTIVE" } }),
-      prisma.subscription.count({ where: { state: "ACTIVE" } }),
-      prisma.subscription.count({ where: { state: "TRIALING" } }),
-      paidSales({ since: today }),
-      prisma.subscriptionInvoice.aggregate({ where: { status: "PAID", paidAt: { gte: today } }, _sum: { amountTzs: true }, _count: true }),
-      prisma.deviceClaim.count({ where: { state: "SUBMITTED" } }),
-      prisma.withdrawal.count({ where: { state: "REQUESTED" } }),
-      prisma.paymentAttempt.count({ where: { state: "NEEDS_REVIEW" } }),
-      prisma.controller.findMany({ select: { id: true, name: true, mode: true, healthStatus: true, lastHealthAt: true } }),
-      outboxStats(),
-      prisma.webhookInboxEvent.count({ where: { state: "QUARANTINED" } }),
-    ]);
+  const [
+    resellers,
+    agents,
+    activeSubs,
+    trialing,
+    salesToday,
+    subsRevenue,
+    pendingClaims,
+    pendingWithdrawals,
+    needsReview,
+    controllers,
+    outbox,
+    quarantined,
+  ] = await Promise.all([
+    prisma.reseller.groupBy({ by: ["status"], _count: true }),
+    prisma.agent.count({ where: { status: "ACTIVE" } }),
+    prisma.subscription.count({ where: { state: "ACTIVE" } }),
+    prisma.subscription.count({ where: { state: "TRIALING" } }),
+    paidSales({ since: today }),
+    prisma.subscriptionInvoice.aggregate({
+      where: { status: "PAID", paidAt: { gte: today } },
+      _sum: { amountTzs: true },
+      _count: true,
+    }),
+    prisma.deviceClaim.count({ where: { state: "SUBMITTED" } }),
+    prisma.withdrawal.count({ where: { state: "REQUESTED" } }),
+    prisma.paymentAttempt.count({ where: { state: "NEEDS_REVIEW" } }),
+    prisma.controller.findMany({
+      select: {
+        id: true,
+        name: true,
+        mode: true,
+        healthStatus: true,
+        lastHealthAt: true,
+      },
+    }),
+    outboxStats(),
+    prisma.webhookInboxEvent.count({ where: { state: "QUARANTINED" } }),
+  ]);
   return {
     resellers: Object.fromEntries(resellers.map((r) => [r.status, r._count])),
     activeAgents: agents,
     subscriptions: { active: activeSubs, trialing },
     wifiSalesToday: salesToday,
-    subscriptionRevenueToday: { count: subsRevenue._count, amountTzs: subsRevenue._sum.amountTzs ?? 0n },
-    queues: { pendingDeviceClaims: pendingClaims, pendingWithdrawals, paymentsNeedingReview: needsReview, quarantinedWebhooks: quarantined },
+    subscriptionRevenueToday: {
+      count: subsRevenue._count,
+      amountTzs: subsRevenue._sum.amountTzs ?? 0n,
+    },
+    queues: {
+      pendingDeviceClaims: pendingClaims,
+      pendingWithdrawals,
+      paymentsNeedingReview: needsReview,
+      quarantinedWebhooks: quarantined,
+    },
     controllers,
     outbox,
   };
@@ -384,7 +522,9 @@ export async function adminResellers() {
     // audit trail stay in the database, and the detail page still resolves by id.
     where: { status: { not: "CLOSED" } },
     include: {
-      owner: { select: { email: true, phone: true, name: true, emailVerifiedAt: true } },
+      owner: {
+        select: { email: true, phone: true, name: true, emailVerifiedAt: true },
+      },
       subscription: { select: { state: true, currentPeriodEnd: true } },
       attribution: { include: { agent: { select: { referralCode: true } } } },
       _count: { select: { sites: true, devices: true } },
@@ -418,23 +558,56 @@ export async function adminResellerDetail(resellerId: string) {
           createdAt: true,
         },
       },
-      attribution: { include: { agent: { include: { user: { select: { name: true, email: true } } } } } },
+      attribution: {
+        include: {
+          agent: { include: { user: { select: { name: true, email: true } } } },
+        },
+      },
       subscription: { include: { plan: true } },
       sites: {
         orderBy: { createdAt: "desc" },
-        include: { mapping: { include: { controller: { select: { name: true, mode: true, healthStatus: true } } } }, _count: { select: { devices: true } } },
+        include: {
+          mapping: {
+            include: {
+              controller: {
+                select: { name: true, mode: true, healthStatus: true },
+              },
+            },
+          },
+          _count: { select: { devices: true } },
+        },
       },
       devices: {
         orderBy: { createdAt: "desc" },
         take: 200,
-        include: { site: { select: { name: true } }, controller: { select: { name: true } } },
+        include: {
+          site: { select: { name: true } },
+          controller: { select: { name: true } },
+        },
       },
-      _count: { select: { sites: true, devices: true, customers: true, orders: true, packages: true, voucherGroups: true } },
+      _count: {
+        select: {
+          sites: true,
+          devices: true,
+          customers: true,
+          orders: true,
+          packages: true,
+          voucherGroups: true,
+        },
+      },
     },
   });
   if (!reseller) return null;
 
-  const [orders, invoices, withdrawals, activity, wallet, lifetime, todaySales] = await Promise.all([
+  const [
+    orders,
+    invoices,
+    withdrawals,
+    activity,
+    wallet,
+    lifetime,
+    todaySales,
+  ] = await Promise.all([
     prisma.order.findMany({
       where: { resellerId },
       orderBy: { createdAt: "desc" },
@@ -442,11 +615,23 @@ export async function adminResellerDetail(resellerId: string) {
       include: {
         site: { select: { name: true } },
         customer: { select: { phone: true, firstName: true, lastName: true } },
-        attempts: { orderBy: { createdAt: "desc" }, take: 1, select: { provider: true, state: true, providerReference: true } },
+        attempts: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { provider: true, state: true, providerReference: true },
+        },
       },
     }),
-    prisma.subscriptionInvoice.findMany({ where: { resellerId }, orderBy: { createdAt: "desc" }, take: 60 }),
-    prisma.withdrawal.findMany({ where: { ownerType: "RESELLER", ownerId: resellerId }, orderBy: { createdAt: "desc" }, take: 40 }),
+    prisma.subscriptionInvoice.findMany({
+      where: { resellerId },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+    }),
+    prisma.withdrawal.findMany({
+      where: { ownerType: "RESELLER", ownerId: resellerId },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    }),
     prisma.auditEvent.findMany({
       where: { resellerId },
       orderBy: { createdAt: "desc" },
@@ -455,7 +640,11 @@ export async function adminResellerDetail(resellerId: string) {
     }),
     walletSummary("RESELLER", resellerId),
     prisma.order.aggregate({
-      where: { resellerId, purpose: "WIFI_PACKAGE", paymentState: { in: ["PAID", "OVERPAID"] } },
+      where: {
+        resellerId,
+        purpose: "WIFI_PACKAGE",
+        paymentState: { in: ["PAID", "OVERPAID"] },
+      },
       _sum: { amountTzs: true },
       _count: true,
     }),
@@ -476,7 +665,8 @@ export async function adminResellerDetail(resellerId: string) {
    * plan columns client-side would report a false override on every catalog plan. */
   const overridden = (() => {
     const plan = reseller.subscription?.plan;
-    const stored = reseller.subscription?.entitlements as Partial<Entitlements> | null;
+    const stored = reseller.subscription
+      ?.entitlements as Partial<Entitlements> | null;
     if (!plan || !stored) return false;
     const expected = entitlementsOf(plan);
     return (
@@ -515,7 +705,9 @@ export async function adminAgents() {
   const [agents, commission, activeReferrals] = await Promise.all([
     prisma.agent.findMany({
       include: {
-        user: { select: { name: true, email: true, phone: true, status: true } },
+        user: {
+          select: { name: true, email: true, phone: true, status: true },
+        },
         _count: { select: { attributions: true, leads: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -533,8 +725,12 @@ export async function adminAgents() {
     }),
   ]);
 
-  const commissionByAgent = new Map(commission.map((row) => [row.agentId, row]));
-  const activeByAgent = new Map(activeReferrals.map((row) => [row.agentId, row._count]));
+  const commissionByAgent = new Map(
+    commission.map((row) => [row.agentId, row]),
+  );
+  const activeByAgent = new Map(
+    activeReferrals.map((row) => [row.agentId, row._count]),
+  );
 
   return agents.map((agent) => {
     const rollup = commissionByAgent.get(agent.id);
@@ -574,12 +770,29 @@ export async function adminAgentDetail(agentId: string) {
           createdAt: true,
         },
       },
-      _count: { select: { attributions: true, leads: true, invitations: true, policies: true } },
+      _count: {
+        select: {
+          attributions: true,
+          leads: true,
+          invitations: true,
+          policies: true,
+        },
+      },
     },
   });
   if (!agent) return null;
 
-  const [wallet, referrals, leads, accruals, policies, withdrawals, earning, activity, leadStatuses] = await Promise.all([
+  const [
+    wallet,
+    referrals,
+    leads,
+    accruals,
+    policies,
+    withdrawals,
+    earning,
+    activity,
+    leadStatuses,
+  ] = await Promise.all([
     walletSummary("AGENT", agentId),
     prisma.referralAttribution.findMany({
       where: { agentId },
@@ -603,7 +816,9 @@ export async function adminAgentDetail(agentId: string) {
       where: { agentId },
       orderBy: { createdAt: "desc" },
       take: 100,
-      include: { invitation: { select: { expiresAt: true, acceptedAt: true } } },
+      include: {
+        invitation: { select: { expiresAt: true, acceptedAt: true } },
+      },
     }),
     prisma.commissionAccrual.findMany({
       where: { agentId },
@@ -616,10 +831,23 @@ export async function adminAgentDetail(agentId: string) {
       orderBy: [{ effectiveFrom: "desc" }],
       take: 20,
     }),
-    prisma.withdrawal.findMany({ where: { ownerType: "AGENT", ownerId: agentId }, orderBy: { createdAt: "desc" }, take: 40 }),
-    prisma.commissionAccrual.aggregate({ where: { agentId }, _sum: { amountTzs: true, paidTzs: true }, _count: true }),
+    prisma.withdrawal.findMany({
+      where: { ownerType: "AGENT", ownerId: agentId },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+    }),
+    prisma.commissionAccrual.aggregate({
+      where: { agentId },
+      _sum: { amountTzs: true, paidTzs: true },
+      _count: true,
+    }),
     prisma.auditEvent.findMany({
-      where: { OR: [{ targetType: "Agent", targetId: agentId }, { action: { startsWith: "agent." }, targetId: agentId }] },
+      where: {
+        OR: [
+          { targetType: "Agent", targetId: agentId },
+          { action: { startsWith: "agent." }, targetId: agentId },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       take: 60,
       include: { actor: { select: { email: true, role: true } } },
@@ -627,9 +855,12 @@ export async function adminAgentDetail(agentId: string) {
     prisma.lead.groupBy({ by: ["status"], where: { agentId }, _count: true }),
   ]);
 
-  const activeReferrals = referrals.filter((r) => r.reseller.status === "ACTIVE").length;
+  const activeReferrals = referrals.filter(
+    (r) => r.reseller.status === "ACTIVE",
+  ).length;
   const paidAccruals = accruals.filter((a) => a.state === "PAID").length;
-  const leadsConverted = leadStatuses.find((l) => l.status === "ACCEPTED")?._count ?? 0;
+  const leadsConverted =
+    leadStatuses.find((l) => l.status === "ACCEPTED")?._count ?? 0;
   const leadsTotal = leadStatuses.reduce((sum, l) => sum + l._count, 0);
 
   return {
@@ -655,9 +886,16 @@ export async function adminAgentDetail(agentId: string) {
   };
 }
 
-export async function auditLog(filter: { resellerId?: string; action?: string; take?: number }) {
+export async function auditLog(filter: {
+  resellerId?: string;
+  action?: string;
+  take?: number;
+}) {
   return prisma.auditEvent.findMany({
-    where: { resellerId: filter.resellerId, action: filter.action ? { startsWith: filter.action } : undefined },
+    where: {
+      resellerId: filter.resellerId,
+      action: filter.action ? { startsWith: filter.action } : undefined,
+    },
     include: { actor: { select: { email: true, role: true } } },
     orderBy: { createdAt: "desc" },
     take: Math.min(filter.take ?? 100, 500),
