@@ -401,10 +401,12 @@ function DeleteResellerButton({
 }) {
   const { t } = useI18n();
   const overlay = useOverlayState();
-  const [result, setResult] = useState<"erased" | "closed" | null>(null);
+  const [result, setResult] = useState<{ mode: "erased" | "anonymized"; devices: number } | null>(null);
   const remove = useAction(async () => {
-    const response = await api.del<{ deleted: "erased" | "closed" }>(`/admin/resellers/${row.id}`);
-    setResult(response.deleted);
+    const response = await api.del<{ deleted: "erased" | "anonymized"; devicesReleased?: number }>(
+      `/admin/resellers/${row.id}`,
+    );
+    setResult({ mode: response.deleted, devices: response.devicesReleased ?? 0 });
     await onDeleted();
   });
 
@@ -446,10 +448,15 @@ function DeleteResellerButton({
                 {result ? (
                   <>
                     <Notice tone="success">
-                      {result === "erased"
+                      {result.mode === "erased"
                         ? t("admin.resellers.delete.erased", { name: row.businessName })
-                        : t("admin.resellers.delete.closed", { name: row.businessName })}
+                        : t("admin.resellers.delete.anonymized", { name: row.businessName })}
                     </Notice>
+                    {result.devices > 0 ? (
+                      <p className="rounded-xl bg-advo-page px-3 py-2.5 text-xs leading-relaxed text-advo-muted">
+                        {t("admin.resellers.delete.devicesFreed", { count: result.devices })}
+                      </p>
+                    ) : null}
                     <div className="flex justify-end border-t border-[var(--advo-border)] pt-4">
                       <Button onPress={close} type="button" variant="primary">
                         {t("admin.resellers.delete.done")}
@@ -461,6 +468,9 @@ function DeleteResellerButton({
                     <p className="text-sm text-advo-text">{t("admin.resellers.delete.body")}</p>
                     <p className="rounded-xl bg-advo-page px-3 py-2.5 text-xs leading-relaxed text-advo-muted">
                       {t("admin.resellers.delete.note", { name: row.owner.name })}
+                    </p>
+                    <p className="rounded-xl bg-advo-page px-3 py-2.5 text-xs leading-relaxed text-advo-muted">
+                      {t("admin.resellers.delete.irreversible")}
                     </p>
                     {remove.error ? <Notice tone="danger">{remove.error}</Notice> : null}
                     <div className="flex justify-end gap-2 border-t border-[var(--advo-border)] pt-4">

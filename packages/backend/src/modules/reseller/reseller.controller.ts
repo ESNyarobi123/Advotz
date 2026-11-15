@@ -631,12 +631,22 @@ export class ResellerController {
   async orders(
     @CurrentUser() a: RequestActor,
     @Query("siteId") siteId?: string,
+    @Query("take") take?: string,
+    @Query("status") status?: string,
   ) {
     const resellerId = requireResellerId(a);
+    const options = parse(
+      z.object({
+        take: z.coerce.number().int().min(1).max(100).default(100),
+        status: z.enum(["paid", "attention"]).optional(),
+      }),
+      { take, status },
+    );
     return resellerOrders(
       resellerId,
-      100,
+      options.take,
       await optionalSiteId(resellerId, siteId),
+      options.status,
     );
   }
 

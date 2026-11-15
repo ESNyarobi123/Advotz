@@ -1,4 +1,4 @@
-import { prisma } from "@advo/db";
+import { prisma, type Prisma } from "@advo/db";
 import { walletSummary } from "../ledger/ledger.service.js";
 import { outboxStats } from "../outbox/outbox.dispatcher.js";
 import {
@@ -47,6 +47,10 @@ const TREND_DAYS = 14;
 /** How many rows the overview's ranked breakdowns return. */
 const BREAKDOWN_LIMIT = 6;
 
+const ordersNeedingReview = {
+  OR: [{ fulfillmentState: "NEEDS_REVIEW" }, { paymentState: "NEEDS_REVIEW" }],
+} satisfies Prisma.OrderWhereInput;
+
 /** Largest amount first. */
 function byAmountDesc<T extends { amountTzs: bigint }>(a: T, b: T) {
   return b.amountTzs === a.amountTzs ? 0 : b.amountTzs > a.amountTzs ? 1 : -1;
@@ -93,6 +97,7 @@ async function paidSalesBySite(resellerId: string, siteId?: string) {
   const nameById = new Map(sites.map((site) => [site.id, site.name]));
 
   return ranked.map((row) => ({
+    id: row.key,
     site: row.key ? (nameById.get(row.key) ?? "Bila eneo") : "Bila eneo",
     count: row.count,
     amountTzs: row.amountTzs,
@@ -133,6 +138,7 @@ async function paidSalesByPackage(resellerId: string, siteId?: string) {
   );
 
   return ranked.map((row) => ({
+    id: row.key,
     package: row.key ? (nameById.get(row.key) ?? "Kifurushi") : "Kifurushi",
     count: row.count,
     amountTzs: row.amountTzs,
@@ -223,6 +229,7 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
     paymentMix,
     totalDevices,
     totalPackages,
+    lastInvoice,
   ] = await Promise.all([
     prisma.reseller.findUniqueOrThrow({
       where: { id: resellerId },
@@ -252,11 +259,9 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
     prisma.order.count({
       where: {
         resellerId,
+        purpose: "WIFI_PACKAGE",
         ...siteFilter,
-        OR: [
-          { fulfillmentState: "NEEDS_REVIEW" },
-          { paymentState: "NEEDS_REVIEW" },
-        ],
+        ...ordersNeedingReview,
       },
     }),
     paidSalesBySite(resellerId, siteId),
@@ -264,30 +269,90 @@ export async function resellerOverview(resellerId: string, siteId?: string) {
     orderPaymentMix(resellerId, siteId),
     prisma.device.count({ where: { resellerId } }),
     prisma.wifiPackage.count({ where: { resellerId, status: "ACTIVE" } }),
-  ]);
-  const [activeGrants, devices, pendingClaims] = await Promise.all([
-    prisma.accessGrant.count({
-      where: {
-        resellerId,
-        state: "ACTIVE",
-        expiresAt: { gt: new Date() },
-        ...siteFilter,
+    prisma.subscriptionInvoice.findFirst({
+      where: { resellerId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        amountTzs: true,
+        status: true,
+        paidAt: true,
+        periodEnd: true,
       },
     }),
-    prisma.device.count({ where: { resellerId, ...siteFilter } }),
-    prisma.deviceClaim.count({
-      where: { resellerId, state: "SUBMITTED", ...siteFilter },
-    }),
   ]);
+  const [activeGrants, devices, pendingClaims, busiestSitePackages] =
+    await Promise.all([
+      prisma.accessGrant.count({
+        where: {
+          resellerId,
+          state: "ACTIVE",
+          expiresAt: { gt: new Date() },
+          ...siteFilter,
+        },
+      }),
+      prisma.device.count({ where: { resellerId, ...siteFilter } }),
+      prisma.deviceClaim.count({
+        where: { resellerId, state: "SUBMITTED", ...siteFilter },
+      }),
+      // A plan caps packages *per site*, so the number to compare against is the
+      // busiest site's assignment count — not the reseller-wide total, which
+      // would report a breach the plan does not forbid. Filtering by the known
+      // site ids keeps this on the `siteId` index instead of scanning by owner.
+      prisma.packageSiteAssignment
+        .groupBy({
+          by: ["siteId"],
+          where: {
+            siteId: { in: sites.map((site) => site.id) },
+            package: { status: "ACTIVE" },
+          },
+          _count: { _all: true },
+        })
+        .then((rows) =>
+          rows.reduce((max, row) => Math.max(max, row._count._all), 0),
+        ),
+    ]);
   const scopedSite = siteId
     ? (sites.find((s) => s.id === siteId) ?? null)
+    : null;
+  const plan = subscription.plan;
+  const entitlements = subscription.entitlements as Entitlements | null;
+  const periodEnd = subscription.currentPeriodEnd;
+  // Ceil so a period ending in six hours reads "1 day left", not "0 days left".
+  const daysRemaining = periodEnd
+    ? Math.ceil((periodEnd.getTime() - Date.now()) / 86_400_000)
     : null;
   return {
     reseller,
     subscription: {
       state: subscription.state,
-      plan: subscription.plan?.name ?? null,
-      currentPeriodEnd: subscription.currentPeriodEnd,
+      plan: plan?.name ?? null,
+      planCode: plan?.code ?? null,
+      tierKey: plan?.tierKey ?? null,
+      planType: plan?.planType ?? null,
+      priceTzs: plan?.priceTzs ?? null,
+      priceFrom: plan?.priceFrom ?? false,
+      periodDays: plan?.periodDays ?? null,
+      currentPeriodStart: subscription.currentPeriodStart,
+      currentPeriodEnd: periodEnd,
+      daysRemaining,
+      trialUsed: subscription.trialUsed,
+      // `null` limit means unlimited — the UI renders an explicit "Unlimited".
+      limits: entitlements
+        ? {
+            sites: entitlements.maxSites,
+            devices: entitlements.maxDevices,
+            packagesPerSite: entitlements.maxPackagesPerSite,
+            packagesTotal: entitlements.maxPackages,
+          }
+        : null,
+      usage: {
+        sites: sites.length,
+        devices: totalDevices,
+        packagesPerSite: busiestSitePackages,
+        packagesTotal: totalPackages,
+      },
+      lastInvoice,
     },
     wallet,
     salesToday,
@@ -318,24 +383,29 @@ export async function resellerOrders(
   resellerId: string,
   take = 100,
   siteId?: string,
+  status?: "paid" | "attention",
 ) {
   return prisma.order.findMany({
     where: {
       resellerId,
       purpose: "WIFI_PACKAGE",
-      ...(siteId ? { siteId } : {}),
+      siteId,
+      ...(status === "paid"
+        ? { paymentState: { in: ["PAID", "OVERPAID"] } }
+        : {}),
+      ...(status === "attention" ? ordersNeedingReview : {}),
     },
     include: {
       customer: { select: { phone: true, firstName: true, lastName: true } },
       site: { select: { name: true } },
       attempts: {
         select: { state: true, lastError: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 1,
       },
       grant: { select: { id: true, state: true, expiresAt: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: Math.min(take, 500),
   });
 }

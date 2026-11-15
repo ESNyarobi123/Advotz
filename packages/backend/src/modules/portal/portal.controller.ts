@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";import {
+import { Body, Controller, Get, Header, Param, Post, Query, Req } from "@nestjs/common";import {
   grantRecoverySchema,
   portalContextInputSchema,
   portalOrderInputSchema,
@@ -17,6 +17,7 @@ import {
   joinWithRecoveryToken,
   portalAds,
   portalBootstrap,
+  portalCaptiveApi,
   portalConfig,
   portalExplore,
   portalOrderStatus,
@@ -46,6 +47,30 @@ export class PortalController {
   @Get("resolve")
   resolve(@Query("ap") ap?: string, @Query("ssid") ssid?: string) {
     return resolvePortalSlug({ apMac: ap ?? null, ssid: ssid ?? null });
+  }
+
+  /**
+   * RFC 8908 Captive Portal API. A gateway that advertises DHCP option 114
+   * points the phone here before the guest has paid, and again afterwards to
+   * learn whether the device is still captive.
+   *
+   * The type is `application/captive+json`, not `application/json`, so clients
+   * that implement the RFC can tell the answer apart from an ordinary API.
+   */
+  @Get("captive/:slug")
+  @Header("Content-Type", "application/captive+json")
+  @Header("Cache-Control", "no-store")
+  captive(
+    @Param("slug") slug: string,
+    @Query("mac") mac: string | undefined,
+    @Query("ip") ip: string | undefined,
+    @Req() req: HttpRequest,
+  ) {
+    return portalCaptiveApi(
+      parse(slugSchema, slug),
+      { clientMac: mac ?? null, clientIp: ip ?? null },
+      ip ?? clientIp(req),
+    );
   }
 
   @Get("sites/:slug")

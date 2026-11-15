@@ -269,13 +269,18 @@ export const adminScreensEn = {
   "admin.resellers.delete.body":
     "The owner loses access immediately and the account disappears from this list. This cannot be undone from the dashboard.",
   "admin.resellers.delete.note":
-    "{name}'s history is kept for the ledger. An account with no payments or sites is erased completely; one that has invoices is closed and hidden instead.",
+    "{name}'s details are removed from the database: sites, devices, customers, orders and contact details. The email, phone number and device MACs become free to register again.",
+  "admin.resellers.delete.irreversible":
+    "This is permanent. Only invoices and ledger entries survive, because accounting rows are append-only; those are anonymised so they no longer identify anyone.",
   "admin.resellers.delete.confirm": "Delete reseller",
   "admin.resellers.delete.cancel": "Keep account",
   "admin.resellers.delete.done": "Done",
-  "admin.resellers.delete.erased": "{name} was deleted.",
-  "admin.resellers.delete.closed":
-    "{name} was closed and removed from the list; its invoices stay in the ledger.",
+  "admin.resellers.delete.erased":
+    "{name} was deleted. The email can be used to register again.",
+  "admin.resellers.delete.anonymized":
+    "{name} was deleted and anonymised. Its invoices and ledger entries stay for accounting; the email, phone and devices are free again.",
+  "admin.resellers.delete.devicesFreed":
+    "{count} device(s) released. The same hardware can be registered again by a new account.",
   "admin.resellers.reason.suspend": "Reason for suspending {name}",
   "admin.resellers.reason.reactivate": "Reason for reactivating {name}",
   "admin.resellers.reason.attribution":
@@ -340,6 +345,19 @@ export const adminScreensEn = {
   "admin.resellers.detail.source": "Registered via",
   "admin.resellers.detail.joined": "Joined",
   "admin.resellers.detail.onboarding": "Onboarding step",
+  "admin.resellers.detail.onboardingHint":
+    "Setup progress, not the account role",
+  "admin.resellers.detail.role": "Account role",
+  "admin.resellers.profile.role.admin": "Administrator",
+  "admin.resellers.profile.role.reseller": "Reseller (Service seller)",
+  "admin.resellers.profile.role.agent": "Agent (Sales agent)",
+  "admin.resellers.profile.roleUnknown": "Unknown role",
+  "admin.resellers.onboarding.profile": "Profile details",
+  "admin.resellers.onboarding.plan": "Plan selection",
+  "admin.resellers.onboarding.site": "Site setup",
+  "admin.resellers.onboarding.device": "Waiting for a device",
+  "admin.resellers.onboarding.complete": "Setup complete",
+  "admin.resellers.onboarding.unknown": "Unknown step",
   "admin.resellers.detail.kpi.guestRevenue": "Guest revenue",
   "admin.resellers.detail.kpi.guestRevenueHint": "{count} paid guest orders",
   "admin.resellers.detail.kpi.today": "Collected today",
@@ -2765,6 +2783,195 @@ export const adminScreensEn = {
     "Performance is reported from a site's paid orders. Edit the hotspot and link the site it operates to see revenue here.",
   "admin.hotspotPerformance.error.export":
     "The export could not be downloaded. Try again.",
+
+  // ── Mail ─────────────────────────────────────────────────────────────────
+  "admin.mail.eyebrow": "Email & notifications",
+  "admin.mail.title": "Mail",
+  "admin.mail.description":
+    "Choose the transport that sends Advo TZ email, compose security or information notices, and inspect every delivery attempt.",
+  "admin.mail.kpi.total": "Messages",
+  "admin.mail.kpi.totalHint": "Every recorded delivery attempt",
+  "admin.mail.kpi.sent": "Delivered",
+  "admin.mail.kpi.sentHint": "Accepted by the provider",
+  "admin.mail.kpi.failed": "Failed",
+  "admin.mail.kpi.failedHint": "Transport errors worth reviewing",
+  "admin.mail.kpi.last24h": "Last 24 hours",
+  "admin.mail.kpi.last24hHint": "OTP, security and admin mail",
+  "admin.mail.tabs.settings": "Transport",
+  "admin.mail.tabs.compose": "Compose",
+  "admin.mail.tabs.activity": "Activity",
+  "admin.mail.settings.title": "Email transport",
+  "admin.mail.settings.description":
+    "This transport sends registration OTPs, password reset codes and every message composed on this screen.",
+  "admin.mail.settings.provider.label": "Provider",
+  "admin.mail.settings.provider.hint":
+    "Fake records messages without sending them. Use a real provider before going live.",
+  "admin.mail.settings.provider.fake": "Fake (development)",
+  "admin.mail.settings.provider.resend": "Resend (HTTPS API)",
+  "admin.mail.settings.provider.smtp": "SMTP (Nodemailer)",
+  "admin.mail.settings.provider.fakeHint":
+    "Messages are logged as simulated and never leave the server.",
+  "admin.mail.settings.provider.resendHint":
+    "Recommended for production: no outbound port 25/587 needed.",
+  "admin.mail.settings.provider.smtpHint":
+    "Works with Gmail, Zoho, Mailgun and any standard SMTP relay.",
+  "admin.mail.settings.fromName": "Sender name",
+  "admin.mail.settings.fromEmail": "Sender email",
+  "admin.mail.settings.fromEmailHint":
+    "Domain must be verified with your provider.",
+  "admin.mail.settings.replyTo": "Reply-to address",
+  "admin.mail.settings.replyToHint": "Optional. Where replies should land.",
+  "admin.mail.settings.resendKey": "Resend API key",
+  "admin.mail.settings.resendKeyHint":
+    "Leave blank to keep the stored key. Keys are encrypted before they are saved.",
+  "admin.mail.settings.resendKeyConfigured": "A key is already stored",
+  "admin.mail.settings.smtpHost": "SMTP host",
+  "admin.mail.settings.smtpPort": "SMTP port",
+  "admin.mail.settings.smtpSecure": "Use TLS (port 465)",
+  "admin.mail.settings.smtpSecureHint":
+    "Enable for implicit TLS on 465. Leave off for STARTTLS on 587.",
+  "admin.mail.settings.smtpUser": "SMTP username",
+  "admin.mail.settings.smtpPassword": "SMTP password",
+  "admin.mail.settings.passwordConfigured": "A password is already stored",
+  "admin.mail.settings.smtpPasswordHint":
+    "Leave blank to keep the stored password. It is encrypted at rest.",
+  "admin.mail.settings.senders.title": "Sender address by purpose",
+  "admin.mail.settings.senders.description":
+    "Optional dedicated mailboxes. OTP codes and security notices then leave from their own address instead of the main one.",
+  "admin.mail.settings.senders.otp": "Verification & reset codes",
+  "admin.mail.settings.senders.security": "Security notices",
+  "admin.mail.settings.senders.passwordPlaceholder":
+    "Mailbox password (blank = main password)",
+  "admin.mail.settings.senders.hint":
+    "Many hosts require the login to match the From address, so each mailbox is signed in with its own email.",
+  "admin.mail.settings.save": "Save transport",
+  "admin.mail.settings.saving": "Saving…",
+  "admin.mail.settings.saved": "Transport settings saved.",
+  "admin.mail.settings.readiness.ready": "Transport ready",
+  "admin.mail.settings.readiness.notReady": "Transport incomplete",
+  "admin.mail.settings.readiness.simulated": "Simulated",
+  "admin.mail.settings.readiness.missing": "Missing: {items}",
+  "admin.mail.settings.updatedBy": "Last changed by {name} · {when}",
+  "admin.mail.settings.neverSaved": "Defaults, never saved from this screen",
+  "admin.mail.settings.recommended": "Recommended",
+  "admin.mail.settings.optional": "Optional",
+  "admin.mail.settings.group.provider": "Delivery provider",
+  "admin.mail.settings.group.providerHint":
+    "Where every email leaves from. You can switch providers at any time.",
+  "admin.mail.settings.group.identity": "Sender identity",
+  "admin.mail.settings.group.identityHint":
+    "The name and address a recipient sees in their inbox.",
+  "admin.mail.settings.group.credentials": "Provider credentials",
+  "admin.mail.settings.group.credentialsHint":
+    "Secrets are encrypted before they are stored and are never shown again.",
+  "admin.mail.settings.group.mailboxes": "Dedicated mailboxes",
+  "admin.mail.health.readyTitle": "Email is ready to send",
+  "admin.mail.health.readyBody":
+    "Registration codes, password resets and every message composed on this screen leave from this transport the moment they are sent.",
+  "admin.mail.health.simulatedTitle": "Simulated mode — nothing is emailed",
+  "admin.mail.health.simulatedBody":
+    "Messages are recorded so you can inspect the delivery log, but no code reaches a phone or inbox. Switch to Resend or SMTP before members start signing up.",
+  "admin.mail.health.blockedTitle": "Email cannot send yet",
+  "admin.mail.health.blockedBody":
+    "Registration and password reset stay blocked until the transport is complete. Finish the items below, save, then send yourself a test.",
+  "admin.mail.health.fix": "Fix the next item",
+  "admin.mail.health.test": "Send a test",
+  "admin.mail.requirement.provider.real":
+    "A real provider instead of the simulator",
+  "admin.mail.requirement.provider.resendKey": "Resend API key",
+  "admin.mail.requirement.smtp.host": "SMTP host",
+  "admin.mail.requirement.smtp.port": "SMTP port",
+  "admin.mail.requirement.smtp.username": "SMTP username",
+  "admin.mail.requirement.smtp.password": "SMTP password",
+  "admin.mail.requirement.senders.otpPassword": "Password for the OTP mailbox",
+  "admin.mail.requirement.senders.securityPassword":
+    "Password for the security mailbox",
+  "admin.mail.checklist.title": "Setup checklist",
+  "admin.mail.checklist.description":
+    "What a working transport needs, at a glance.",
+  "admin.mail.checklist.provider": "Delivery provider",
+  "admin.mail.checklist.fromAddress": "Sender address",
+  "admin.mail.checklist.credentials": "Provider credentials",
+  "admin.mail.checklist.mailboxes": "Dedicated mailboxes",
+  "admin.mail.checklist.done": "Done",
+  "admin.mail.checklist.todo": "To do",
+  "admin.mail.checklist.optional": "Optional",
+  "admin.mail.checklist.notNeeded": "Not needed in simulated mode",
+  "admin.mail.checklist.stored": "Stored",
+  "admin.mail.checklist.notStored": "Not stored yet",
+  "admin.mail.settings.fakeWarning":
+    "Simulated transport: OTP codes are not emailed. Open the Activity tab to read the delivery log while testing.",
+  "admin.mail.settings.notReadyWarning":
+    "This transport cannot send yet. Registration and password reset will fail until it is complete.",
+  "admin.mail.test.title": "Send a test message",
+  "admin.mail.test.description":
+    "Save the transport first, then send yourself a message to confirm delivery.",
+  "admin.mail.test.to": "Test recipient",
+  "admin.mail.test.hint": "Use an inbox you can open right now.",
+  "admin.mail.test.send": "Send test",
+  "admin.mail.test.sending": "Sending…",
+  "admin.mail.test.success": "Test message delivered to {to}.",
+  "admin.mail.test.simulated":
+    "Test recorded as simulated for {to} (fake transport).",
+  "admin.mail.compose.title": "Compose a notice",
+  "admin.mail.compose.description":
+    "Send a security warning, information notice or announcement to resellers and agents.",
+  "admin.mail.compose.kind": "Message type",
+  "admin.mail.compose.kind.security": "Security notice",
+  "admin.mail.compose.kind.info": "Information",
+  "admin.mail.compose.kind.announcement": "Announcement",
+  "admin.mail.compose.recipients": "Recipients",
+  "admin.mail.compose.recipientsHint":
+    "Pick individual accounts or add every active reseller or agent. At most 50 per send.",
+  "admin.mail.compose.selectResellers": "All resellers",
+  "admin.mail.compose.selectAgents": "All agents",
+  "admin.mail.compose.clearSelection": "Clear",
+  "admin.mail.compose.selected": "{count} selected",
+  "admin.mail.compose.limit":
+    "You can send to at most 50 recipients at a time.",
+  "admin.mail.compose.searchRecipients": "Search name or email",
+  "admin.mail.compose.noRecipients":
+    "No active resellers or agents match that search.",
+  "admin.mail.compose.subject": "Subject",
+  "admin.mail.compose.subjectPlaceholder":
+    "e.g. New security requirement for your account",
+  "admin.mail.compose.body": "Message",
+  "admin.mail.compose.bodyPlaceholder":
+    "Write the message exactly as recipients should read it. Plain text only.",
+  "admin.mail.compose.bodyHint": "At least 2 characters, up to 4,000.",
+  "admin.mail.compose.send": "Send message",
+  "admin.mail.compose.sending": "Sending…",
+  "admin.mail.compose.success": "Delivered to {sent} recipient(s).",
+  "admin.mail.compose.simulated":
+    "{count} message(s) recorded as simulated (fake transport).",
+  "admin.mail.compose.partial":
+    "{failed} delivery failure(s). Review the Activity tab.",
+  "admin.mail.compose.error": "Pick at least one recipient before sending.",
+  "admin.mail.activity.title": "Delivery activity",
+  "admin.mail.activity.description":
+    "Every OTP, security notice and test message, with the transport result.",
+  "admin.mail.activity.searchPlaceholder":
+    "Search recipient, subject or template",
+  "admin.mail.activity.refresh": "Refresh",
+  "admin.mail.activity.empty": "No messages yet",
+  "admin.mail.activity.emptyHint":
+    "Codes and notices appear here the moment they are sent.",
+  "admin.mail.activity.col.recipient": "Recipient",
+  "admin.mail.activity.col.subject": "Subject",
+  "admin.mail.activity.col.status": "Status",
+  "admin.mail.activity.filter.all": "All statuses",
+  "admin.mail.activity.col.provider": "Transport",
+  "admin.mail.activity.col.time": "Time",
+  "admin.mail.activity.status.sent": "Delivered",
+  "admin.mail.activity.status.failed": "Failed",
+  "admin.mail.activity.status.simulated": "Simulated",
+  "admin.mail.activity.status.queued": "Queued",
+  "admin.mail.activity.noSubject": "(no subject)",
+  "admin.mail.activity.showError": "Show error",
+  "admin.mail.error.load": "Mail settings could not be loaded.",
+  "admin.mail.error.save": "Transport settings could not be saved.",
+  "admin.mail.error.test": "The test message could not be sent.",
+  "admin.mail.error.send": "The message could not be sent.",
 };
 
 export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
@@ -3027,13 +3234,18 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.delete.body":
     "Mmiliki atakataliwa kuingia mara moja na akaunti itatoweka kwenye orodha hii. Hatua hii haiwezi kurudishwa kwenye dashibodi.",
   "admin.resellers.delete.note":
-    "Kumbukumbu za {name} zinahifadhiwa kwa ajili ya hesabu. Akaunti isiyo na malipo wala maeneo hufutwa kabisa; iliyo na ankara hufungwa na kufichwa badala yake.",
+    "Taarifa za {name} zinaondolewa kabisa kwenye hifadhidata: maeneo, vifaa, wateja, oda na mawasiliano. Barua pepe, namba ya simu na MAC za vifaa vinakuwa huru kusajiliwa tena.",
+  "admin.resellers.delete.irreversible":
+    "Hii ni ya kudumu. Ni ankara na kumbukumbu za hesabu tu zinazobaki, kwa sababu safu za hesabu hazifutiki; hizo hufichwa majina ili zisimtambulishe mtu.",
   "admin.resellers.delete.confirm": "Futa muuzaji",
   "admin.resellers.delete.cancel": "Acha akaunti",
   "admin.resellers.delete.done": "Sawa",
-  "admin.resellers.delete.erased": "{name} amefutwa.",
-  "admin.resellers.delete.closed":
-    "{name} amefungwa na kuondolewa kwenye orodha; ankara zake zinabaki kwenye hesabu.",
+  "admin.resellers.delete.erased":
+    "{name} amefutwa. Barua pepe inaweza kutumika kusajili akaunti mpya.",
+  "admin.resellers.delete.anonymized":
+    "{name} amefutwa na kufichwa jina. Ankara na kumbukumbu za hesabu zinabaki; barua pepe, simu na vifaa viko huru tena.",
+  "admin.resellers.delete.devicesFreed":
+    "Kifaa/kifaa {count} kimeachiliwa. Kifaa hicho hicho kinaweza kusajiliwa tena na akaunti mpya.",
   "admin.resellers.reason.suspend": "Sababu ya kumsimamisha {name}",
   "admin.resellers.reason.reactivate": "Sababu ya kumrejesha {name}",
   "admin.resellers.reason.attribution":
@@ -3098,6 +3310,19 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.resellers.detail.source": "Alijiunga kupitia",
   "admin.resellers.detail.joined": "Alijiunga",
   "admin.resellers.detail.onboarding": "Hatua ya usajili",
+  "admin.resellers.detail.onboardingHint":
+    "Maendeleo ya usanidi, si aina ya akaunti",
+  "admin.resellers.detail.role": "Aina ya akaunti",
+  "admin.resellers.profile.role.admin": "Msimamizi",
+  "admin.resellers.profile.role.reseller": "Muuzaji wa huduma (Reseller)",
+  "admin.resellers.profile.role.agent": "Wakala wa mauzo (Agent)",
+  "admin.resellers.profile.roleUnknown": "Aina isiyojulikana",
+  "admin.resellers.onboarding.profile": "Taarifa za wasifu",
+  "admin.resellers.onboarding.plan": "Kuchagua mpango",
+  "admin.resellers.onboarding.site": "Kusanidi eneo",
+  "admin.resellers.onboarding.device": "Inasubiri kifaa",
+  "admin.resellers.onboarding.complete": "Usanidi umekamilika",
+  "admin.resellers.onboarding.unknown": "Hatua isiyojulikana",
   "admin.resellers.detail.kpi.guestRevenue": "Mapato ya wageni",
   "admin.resellers.detail.kpi.guestRevenueHint": "Oda {count} zilizolipwa",
   "admin.resellers.detail.kpi.today": "Zilizokusanywa leo",
@@ -5554,6 +5779,199 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
     "Utendaji unatolewa kutoka oda zilizolipwa za site. Hariri hotspot na uhusishe site inayohudumiwa ili kuona mapato hapa.",
   "admin.hotspotPerformance.error.export":
     "Imeshindwa kupakua faili. Jaribu tena.",
+
+  // ── Mail ─────────────────────────────────────────────────────────────────
+  "admin.mail.eyebrow": "Barua pepe na arifa",
+  "admin.mail.title": "Barua Pepe",
+  "admin.mail.description":
+    "Chagua njia inayotumwa barua pepe za Advo TZ, andika arifa za usalama au taarifa, na angalia kila jaribio la kutuma.",
+  "admin.mail.kpi.total": "Jumbe",
+  "admin.mail.kpi.totalHint": "Kila jaribio la kutuma lililorekodiwa",
+  "admin.mail.kpi.sent": "Zilizofika",
+  "admin.mail.kpi.sentHint": "Zilizokubaliwa na mtoa huduma",
+  "admin.mail.kpi.failed": "Zilizoshindikana",
+  "admin.mail.kpi.failedHint":
+    "Hitilafu za usafirishaji zinazohitaji kuangaliwa",
+  "admin.mail.kpi.last24h": "Saa 24 zilizopita",
+  "admin.mail.kpi.last24hHint": "OTP, usalama na barua za msimamizi",
+  "admin.mail.tabs.settings": "Usafirishaji",
+  "admin.mail.tabs.compose": "Andika",
+  "admin.mail.tabs.activity": "Shughuli",
+  "admin.mail.settings.title": "Usafirishaji wa barua pepe",
+  "admin.mail.settings.description":
+    "Usafirishaji huu hutuma OTP za usajili, kodi za kurejesha nenosiri na kila ujumbe unaoandikwa hapa.",
+  "admin.mail.settings.provider.label": "Mtoa huduma",
+  "admin.mail.settings.provider.hint":
+    "Fake hurekodi ujumbe bila kutuma. Tumia mtoa huduma halisi kabla ya kuanza uzalishaji.",
+  "admin.mail.settings.provider.fake": "Fake (maendeleo)",
+  "admin.mail.settings.provider.resend": "Resend (API ya HTTPS)",
+  "admin.mail.settings.provider.smtp": "SMTP (Nodemailer)",
+  "admin.mail.settings.provider.fakeHint":
+    "Ujumbe hurekodiwa kama simulated na hautoki kwenye seva.",
+  "admin.mail.settings.provider.resendHint":
+    "Inashauriwa kwa uzalishaji: haihitaji bandari ya 25/587 kutoka nje.",
+  "admin.mail.settings.provider.smtpHint":
+    "Inafanya kazi na Gmail, Zoho, Mailgun na relay yoyote ya kawaida ya SMTP.",
+  "admin.mail.settings.fromName": "Jina la mtumaji",
+  "admin.mail.settings.fromEmail": "Barua pepe ya mtumaji",
+  "admin.mail.settings.fromEmailHint":
+    "Kikoa lazima kithibitishwe na mtoa huduma wako.",
+  "admin.mail.settings.replyTo": "Barua pepe ya majibu",
+  "admin.mail.settings.replyToHint": "Hiari. Majibu yatumwe wapi.",
+  "admin.mail.settings.resendKey": "Ufunguo wa API wa Resend",
+  "admin.mail.settings.resendKeyHint":
+    "Acha tupu ili kuendelea na ufunguo uliohifadhiwa. Funguo husimbwa kwa fiche kabla ya kuhifadhiwa.",
+  "admin.mail.settings.resendKeyConfigured": "Ufunguo tayari umehifadhiwa",
+  "admin.mail.settings.smtpHost": "Seva ya SMTP",
+  "admin.mail.settings.smtpPort": "Bandari ya SMTP",
+  "admin.mail.settings.smtpSecure": "Tumia TLS (bandari 465)",
+  "admin.mail.settings.smtpSecureHint":
+    "Washa kwa TLS ya moja kwa moja kwenye 465. Acha imezimwa kwa STARTTLS kwenye 587.",
+  "admin.mail.settings.smtpUser": "Jina la mtumiaji wa SMTP",
+  "admin.mail.settings.smtpPassword": "Nenosiri la SMTP",
+  "admin.mail.settings.passwordConfigured": "Nenosiri tayari limehifadhiwa",
+  "admin.mail.settings.smtpPasswordHint":
+    "Acha tupu ili kuendelea na nenosiri lililohifadhiwa. Limesimbwa kwa fiche.",
+  "admin.mail.settings.senders.title": "Anwani ya mtumaji kwa kila kusudi",
+  "admin.mail.settings.senders.description":
+    "Sanduku za barua za hiari. OTP na taarifa za usalama zitatumwa kutoka anwani zao badala ya anwani kuu.",
+  "admin.mail.settings.senders.otp": "Misimbo ya uthibitisho na kurejesha",
+  "admin.mail.settings.senders.security": "Taarifa za usalama",
+  "admin.mail.settings.senders.passwordPlaceholder":
+    "Nenosiri la sanduku (tupu = nenosiri kuu)",
+  "admin.mail.settings.senders.hint":
+    "Seva nyingi zinahitaji jina la kuingia lifanane na anwani ya mtumaji, hivyo kila sanduku huingia kwa barua pepe yake.",
+  "admin.mail.settings.save": "Hifadhi usafirishaji",
+  "admin.mail.settings.saving": "Inahifadhi…",
+  "admin.mail.settings.saved": "Mipangilio ya usafirishaji imehifadhiwa.",
+  "admin.mail.settings.readiness.ready": "Usafirishaji uko tayari",
+  "admin.mail.settings.readiness.notReady": "Usafirishaji haujakamilika",
+  "admin.mail.settings.readiness.simulated": "Majaribio",
+  "admin.mail.settings.readiness.missing": "Vinakosekana: {items}",
+  "admin.mail.settings.updatedBy": "Ilibadilishwa mwisho na {name} · {when}",
+  "admin.mail.settings.neverSaved":
+    "Mipangilio ya kawaida, haijahifadhiwa kutoka ukurasa huu",
+  "admin.mail.settings.recommended": "Inashauriwa",
+  "admin.mail.settings.optional": "Hiari",
+  "admin.mail.settings.group.provider": "Mtoa huduma wa kutuma",
+  "admin.mail.settings.group.providerHint":
+    "Barua pepe zote zinatoka hapa. Unaweza kubadilisha mtoa huduma wakati wowote.",
+  "admin.mail.settings.group.identity": "Utambulisho wa mtumaji",
+  "admin.mail.settings.group.identityHint":
+    "Jina na anwani ambavyo mpokeaji huona kwenye sanduku lake la barua.",
+  "admin.mail.settings.group.credentials": "Vitambulisho vya mtoa huduma",
+  "admin.mail.settings.group.credentialsHint":
+    "Siri husimbwa kabla ya kuhifadhiwa na hazionyeshwi tena.",
+  "admin.mail.settings.group.mailboxes": "Sanduku maalum za barua",
+  "admin.mail.health.readyTitle": "Barua pepe ziko tayari kutoka",
+  "admin.mail.health.readyBody":
+    "Misimbo ya usajili, kurejesha nenosiri na kila ujumbe unaoandikwa hapa hutoka kupitia usafirishaji huu mara moja unapotumwa.",
+  "admin.mail.health.simulatedTitle":
+    "Hali ya majaribio — hakuna barua pepe inayotumwa",
+  "admin.mail.health.simulatedBody":
+    "Ujumbe hurekodiwa ili uweze kuona kumbukumbu ya uwasilishaji, lakini hakuna msimbo unaofika kwenye simu au sanduku la barua. Badilisha kwenda Resend au SMTP kabla wanachama hawajaanza kujisajili.",
+  "admin.mail.health.blockedTitle": "Barua pepe bado haziwezi kutoka",
+  "admin.mail.health.blockedBody":
+    "Usajili na kurejesha nenosiri vinabaki vimezuiwa hadi usafirishaji ukamilike. Kamilisha vitu vilivyo hapa chini, hifadhi, kisha jitumie ujumbe wa majaribio.",
+  "admin.mail.health.fix": "Rekebisha kinachofuata",
+  "admin.mail.health.test": "Tuma jaribio",
+  "admin.mail.requirement.provider.real":
+    "Mtoa huduma halisi badala ya simulator",
+  "admin.mail.requirement.provider.resendKey": "Ufunguo wa API wa Resend",
+  "admin.mail.requirement.smtp.host": "Seva ya SMTP",
+  "admin.mail.requirement.smtp.port": "Bandari ya SMTP",
+  "admin.mail.requirement.smtp.username": "Jina la mtumiaji wa SMTP",
+  "admin.mail.requirement.smtp.password": "Nenosiri la SMTP",
+  "admin.mail.requirement.senders.otpPassword": "Nenosiri la sanduku la OTP",
+  "admin.mail.requirement.senders.securityPassword":
+    "Nenosiri la sanduku la usalama",
+  "admin.mail.checklist.title": "Orodha ya ukamilishaji",
+  "admin.mail.checklist.description":
+    "Kinachohitajika kwa usafirishaji unaofanya kazi, kwa muhtasari.",
+  "admin.mail.checklist.provider": "Mtoa huduma wa kutuma",
+  "admin.mail.checklist.fromAddress": "Anwani ya mtumaji",
+  "admin.mail.checklist.credentials": "Vitambulisho vya mtoa huduma",
+  "admin.mail.checklist.mailboxes": "Sanduku maalum za barua",
+  "admin.mail.checklist.done": "Imekamilika",
+  "admin.mail.checklist.todo": "Inahitajika",
+  "admin.mail.checklist.optional": "Hiari",
+  "admin.mail.checklist.notNeeded": "Haihitajiki katika hali ya majaribio",
+  "admin.mail.checklist.stored": "Imehifadhiwa",
+  "admin.mail.checklist.notStored": "Bado haijahifadhiwa",
+  "admin.mail.settings.fakeWarning":
+    "Usafirishaji wa majaribio: OTP hazitumwi kwa barua pepe. Fungua kichupo cha Shughuli kusoma kumbukumbu wakati wa majaribio.",
+  "admin.mail.settings.notReadyWarning":
+    "Usafirishaji huu bado hauwezi kutuma. Usajili na kurejesha nenosiri vitashindikana hadi ukamilike.",
+  "admin.mail.test.title": "Tuma ujumbe wa majaribio",
+  "admin.mail.test.description":
+    "Hifadhi usafirishaji kwanza, kisha jitumie ujumbe kuthibitisha uwasilishaji.",
+  "admin.mail.test.to": "Mpokeaji wa majaribio",
+  "admin.mail.test.hint":
+    "Tumia sanduku la barua unaloweza kufungua sasa hivi.",
+  "admin.mail.test.send": "Tuma jaribio",
+  "admin.mail.test.sending": "Inatuma…",
+  "admin.mail.test.success": "Ujumbe wa majaribio umefika kwa {to}.",
+  "admin.mail.test.simulated":
+    "Jaribio limerekodiwa kama simulated kwa {to} (usafirishaji wa fake).",
+  "admin.mail.compose.title": "Andika arifa",
+  "admin.mail.compose.description":
+    "Tuma onyo la usalama, taarifa au tangazo kwa wauzaji na mawakala.",
+  "admin.mail.compose.kind": "Aina ya ujumbe",
+  "admin.mail.compose.kind.security": "Arifa ya usalama",
+  "admin.mail.compose.kind.info": "Taarifa",
+  "admin.mail.compose.kind.announcement": "Tangazo",
+  "admin.mail.compose.recipients": "Wapokeaji",
+  "admin.mail.compose.recipientsHint":
+    "Chagua akaunti binafsi au ongeza wauzaji au mawakala wote hai. Kiwango cha juu ni 50 kwa kutuma.",
+  "admin.mail.compose.selectResellers": "Wauzaji wote",
+  "admin.mail.compose.selectAgents": "Mawakala wote",
+  "admin.mail.compose.clearSelection": "Ondoa",
+  "admin.mail.compose.selected": "{count} wamechaguliwa",
+  "admin.mail.compose.limit":
+    "Unaweza kutuma kwa wapokeaji wasiozidi 50 kwa mara moja.",
+  "admin.mail.compose.searchRecipients": "Tafuta jina au barua pepe",
+  "admin.mail.compose.noRecipients":
+    "Hakuna mtoa huduma au wakala hai anayelingana na utafutaji huo.",
+  "admin.mail.compose.subject": "Kichwa",
+  "admin.mail.compose.subjectPlaceholder":
+    "mf. Mahitaji mapya ya usalama kwa akaunti yako",
+  "admin.mail.compose.body": "Ujumbe",
+  "admin.mail.compose.bodyPlaceholder":
+    "Andika ujumbe kama wapokeaji watakavyousoma. Maandishi biasa pekee.",
+  "admin.mail.compose.bodyHint": "Angalau herufi 2, hadi 4,000.",
+  "admin.mail.compose.send": "Tuma ujumbe",
+  "admin.mail.compose.sending": "Inatuma…",
+  "admin.mail.compose.success": "Umefika kwa wapokeaji {sent}.",
+  "admin.mail.compose.simulated":
+    "Ujumbe {count} umerekodiwa kama simulated (usafirishaji wa fake).",
+  "admin.mail.compose.partial":
+    "Kushindwa kwa uwasilishaji {failed}. Angalia kichupo cha Shughuli.",
+  "admin.mail.compose.error": "Chagua angalau mpokeaji mmoja kabla ya kutuma.",
+  "admin.mail.activity.title": "Shughuli za uwasilishaji",
+  "admin.mail.activity.description":
+    "Kila OTP, arifa ya usalama na ujumbe wa majaribio, pamoja na matokeo ya usafirishaji.",
+  "admin.mail.activity.searchPlaceholder":
+    "Tafuta mpokeaji, kichwa au template",
+  "admin.mail.activity.refresh": "Onyesha upya",
+  "admin.mail.activity.empty": "Hakuna ujumbe bado",
+  "admin.mail.activity.emptyHint":
+    "Kodi na arifa zinaonekana hapa mara tu zinapotumwa.",
+  "admin.mail.activity.col.recipient": "Mpokeaji",
+  "admin.mail.activity.col.subject": "Kichwa",
+  "admin.mail.activity.col.status": "Hali",
+  "admin.mail.activity.filter.all": "Hali zote",
+  "admin.mail.activity.col.provider": "Usafirishaji",
+  "admin.mail.activity.col.time": "Muda",
+  "admin.mail.activity.status.sent": "Imefika",
+  "admin.mail.activity.status.failed": "Imeshindikana",
+  "admin.mail.activity.status.simulated": "Simulated",
+  "admin.mail.activity.status.queued": "Inasubiri",
+  "admin.mail.activity.noSubject": "(hakuna kichwa)",
+  "admin.mail.activity.showError": "Onyesha hitilafu",
+  "admin.mail.error.load": "Mipangilio ya barua pepe haikuweza kupakiwa.",
+  "admin.mail.error.save": "Mipangilio ya usafirishaji haikuweza kuhifadhiwa.",
+  "admin.mail.error.test": "Ujumbe wa majaribio haukuweza kutumwa.",
+  "admin.mail.error.send": "Ujumbe haukuweza kutumwa.",
 };
 
 export const adminScreensCatalog = { en: adminScreensEn, sw: adminScreensSw };

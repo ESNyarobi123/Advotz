@@ -483,6 +483,8 @@ export const marketingEn = {
   "marketing.footer.bottom.login": "Log In To Your Account",
   "marketing.footer.bottom.hotspots": "Our Hotspots",
   "marketing.footer.bottom.services": "Our Explore",
+  "marketing.footer.bottom.privacy": "Privacy",
+  "marketing.footer.bottom.terms": "Terms",
 
   // ── Our Hotspots page ────────────────────────────────────────────────────
   "marketing.hotspots.badge": "Find Advo WiFi",
@@ -1040,6 +1042,8 @@ export const marketingSw: Record<MarketingKey, string> = {
   "marketing.footer.bottom.login": "Ingia kwenye Akaunti",
   "marketing.footer.bottom.hotspots": "Hotspots Zetu",
   "marketing.footer.bottom.services": "Explore Yetu",
+  "marketing.footer.bottom.privacy": "Faragha",
+  "marketing.footer.bottom.terms": "Masharti",
 
   // ── Our Hotspots page ────────────────────────────────────────────────────
   "marketing.hotspots.badge": "Tafuta Advo WiFi",

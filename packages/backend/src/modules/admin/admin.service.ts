@@ -9,6 +9,7 @@ import { conflict, notFound, badRequest } from "../../common/errors.js";
 import { audit } from "../../common/events.js";
 import { generateOpaqueToken, hashToken, slugifyBusinessName } from "../../common/crypto.js";
 import { entitlementsOf } from "../subscriptions/subscriptions.service.js";
+import { planPurge, purgeResellerData } from "./reseller-purge.js";
 
 /** How long an Admin can act as a reseller before the session dies on its own. */
 export const IMPERSONATION_TTL_SECONDS = Number(process.env.IMPERSONATION_TTL_SECONDS ?? 900);
@@ -28,78 +29,73 @@ export async function setResellerStatus(adminUserId: string, resellerId: string,
 }
 
 /**
- * Removes a reseller from the platform.
+ * Removes a reseller from the platform for good.
  *
- * Two different things are called "delete" here, and the difference is money.
- * An account with no trading history — no sites, packages, customers, orders,
- * invoices, vouchers, grants or devices — is erased outright, which is what an
- * operator means when they delete a test business. An account that has taken
- * payments cannot be erased without orphaning the ledger, so it is closed
- * instead: the row, its invoices and its audit trail stay, the owner loses
- * access, and the Admin list stops showing it.
+ * The account is always erased as far as the operator can see: sites, devices,
+ * customers, orders, vouchers, grants, sessions, tickets and contact traces are
+ * deleted, so the email, phone number and device MACs become available again
+ * and the same person can register from scratch with the same hardware.
+ *
+ * The only thing that can survive is the money record. Invoices, commission
+ * accruals and ledger entries are append-only (a database trigger refuses
+ * UPDATE and DELETE), so an account that has taken payments is anonymized
+ * instead: those rows stay, every personal detail is scrubbed, and the unique
+ * columns are released. The Admin list hides both outcomes because the row is
+ * `CLOSED` at the end — or gone entirely.
  */
 export async function deleteReseller(adminUserId: string, resellerId: string, reason?: string | null) {
   const reseller = await prisma.reseller.findUnique({
     where: { id: resellerId },
     include: {
-      subscription: { select: { id: true } },
-      owner: {
-        select: {
-          role: true,
-          agent: { select: { id: true } },
-          _count: { select: { supportTickets: true } },
-        },
-      },
-      _count: {
-        select: {
-          sites: true,
-          packages: true,
-          customers: true,
-          orders: true,
-          invoices: true,
-          deviceClaims: true,
-          devices: true,
-          voucherGroups: true,
-          grants: true,
-          accruals: true,
-          promotions: true,
-          planMigrations: true,
-        },
-      },
+      owner: { select: { email: true, role: true, agent: { select: { id: true } } } },
     },
   });
   if (!reseller) notFound("Reseller not found");
+  if (reseller.owner.agent) {
+    badRequest("This owner is also an agent. Close the agent account before deleting the reseller.");
+  }
 
-  const history =
-    reseller.subscription !== null ||
-    reseller.owner.role !== "RESELLER" ||
-    reseller.owner.agent !== null ||
-    Object.values(reseller._count).some((count) => count > 0) ||
-    reseller.owner._count.supportTickets > 0;
+  const plan = await planPurge(resellerId);
 
   return prisma.$transaction(async (tx) => {
+    // Revoke first: the erase may delete the session rows themselves.
     await tx.authSession.updateMany({
       where: { userId: reseller.ownerUserId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
-    await tx.reseller.update({ where: { id: resellerId }, data: { status: "CLOSED" } });
-    await tx.user.update({ where: { id: reseller.ownerUserId }, data: { status: "CLOSED" } });
+
+    const result = await purgeResellerData(tx, {
+      resellerId,
+      ownerUserId: reseller.ownerUserId,
+      ownerEmail: reseller.owner.email,
+      keepFinancials: plan.keepFinancials,
+    });
+
+    // Written last: it is the only audit row that should outlive the account.
     await audit(tx, {
       actorUserId: adminUserId,
       action: "reseller.deleted",
       targetType: "Reseller",
       targetId: resellerId,
-      resellerId,
+      resellerId: null,
       reason: reason ?? null,
-      metadata: { erased: !history, businessName: reseller.businessName },
+      metadata: {
+        erased: result.mode === "erased",
+        keptFinancialHistory: result.keptFinancialHistory,
+        retained: plan.reason,
+        businessName: reseller.businessName,
+        devicesReleased: result.devicesReleased,
+        sitesRemoved: result.sitesRemoved,
+      },
     });
 
-    if (history) return { deleted: "closed" as const, id: resellerId };
-
-    // Nothing references this reseller, so the rows themselves can go.
-    await tx.reseller.delete({ where: { id: resellerId } });
-    await tx.user.delete({ where: { id: reseller.ownerUserId } });
-    return { deleted: "erased" as const, id: resellerId };
+    return {
+      deleted: result.mode,
+      id: resellerId,
+      freedEmail: result.freedEmail,
+      devicesReleased: result.devicesReleased,
+      keptFinancialHistory: result.keptFinancialHistory,
+    };
   });
 }
 

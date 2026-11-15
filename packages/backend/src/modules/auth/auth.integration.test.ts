@@ -5,6 +5,7 @@ import { prisma } from "@advo/db";
 import { agentFactory, resellerFactory } from "@advo/test-kit";
 import { resetTestDatabase } from "../../test/db.js";
 import { totpCode } from "../../common/crypto.js";
+import { mailSettingsOverview, sendTestMail } from "../notifications/mail.service.js";
 
 describe("auth registration flows", () => {
   const auth = new AuthService();
@@ -134,15 +135,16 @@ describe("auth registration flows", () => {
     await prisma.user.update({ where: { email: input.email }, data: { status: "ACTIVE", emailVerifiedAt: new Date() } });
     const session = await auth.login({ email: input.email, password: input.password }, {}, 3600);
 
-    const { devResetToken } = (await auth.forgotPassword(input.email)) as { devResetToken: string };
+    const started = (await auth.startPasswordReset(input.email)) as { devOtp: string };
+    const { resetToken } = await auth.verifyPasswordResetOtp(input.email, started.devOtp);
     const results = await Promise.allSettled(
-      ["NewPassword-One-1", "NewPassword-Two-2"].map((password) => auth.resetPassword({ token: devResetToken, password })),
+      ["NewPassword-One-1", "NewPassword-Two-2"].map((password) => auth.resetPassword({ token: resetToken, password })),
     );
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
 
     const old = await prisma.authSession.findUniqueOrThrow({ where: { id: session.sessionId } });
     expect(old.revokedAt).not.toBeNull();
-    await expect(auth.resetPassword({ token: devResetToken, password: "NewPassword-Three-3" })).rejects.toMatchObject({ status: 400 });
+    await expect(auth.resetPassword({ token: resetToken, password: "NewPassword-Three-3" })).rejects.toMatchObject({ status: 400 });
   });
 
   it("accepts each authenticator code once", async () => {
@@ -291,5 +293,69 @@ describe("auth registration flows", () => {
       expect(c).not.toHaveProperty("guestPhone");
       expect(c).not.toHaveProperty("clientMac");
     }
+  });
+
+  it("requires a verified email ticket before creating a reseller account", async () => {
+    const email = "otp-reseller@advo.test";
+    const input = resellerFactory({ email, phone: "+255767777777" });
+
+    await expect(
+      auth.registerReseller(input, { requireEmailVerification: true }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const issued = (await auth.requestRegistrationOtp({ email, role: "RESELLER" })) as {
+      devOtp: string;
+    };
+    expect(issued.devOtp).toMatch(/^\d{6}$/);
+
+    const wrong = issued.devOtp === "000000" ? "111111" : "000000";
+    await expect(
+      auth.verifyRegistrationOtp({ email, role: "RESELLER", code: wrong }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const verified = await auth.verifyRegistrationOtp({
+      email,
+      role: "RESELLER",
+      code: issued.devOtp,
+    });
+
+    // A ticket is bound to its role, so a reseller ticket cannot open an agent.
+    await expect(
+      auth.registerAgent({
+        ...agentFactory({ email: "otp-role-mismatch@advo.test", referralCode: "OTPMISMATCH" }),
+        acceptTerms: true as const,
+        verificationToken: verified.verificationToken,
+      }, { requireEmailVerification: true }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const result = await auth.registerReseller({
+      ...input,
+      verificationToken: verified.verificationToken,
+    }, { requireEmailVerification: true });
+    expect(result.resellerId).toBeTruthy();
+
+    const stored = await prisma.user.findUniqueOrThrow({ where: { email } });
+    expect(stored.emailVerifiedAt).not.toBeNull();
+  });
+
+  it("does not reveal whether a password-reset email exists", async () => {
+    const unknown = await auth.startPasswordReset("nobody-here@advo.test");
+    expect(unknown.accepted).toBe(true);
+    expect(unknown.otpRequired).toBe(true);
+    expect("devOtp" in unknown).toBe(false);
+  });
+
+  it("records a simulated mail delivery the Admin mail screen can read", async () => {
+    const overview = await mailSettingsOverview();
+    expect(overview.settings.provider).toBe("fake");
+
+    const result = await sendTestMail(adminId, "mail-activity@advo.test");
+    expect(result.simulated).toBe(true);
+
+    const stored = await prisma.notification.findUniqueOrThrow({ where: { id: result.notificationId } });
+    expect(stored.state).toBe("simulated");
+    expect(stored.provider).toBe("fake");
+    expect(stored.sentAt).not.toBeNull();
+    expect(stored.bodyPreview).not.toContain("123456");
   });
 });

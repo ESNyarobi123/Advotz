@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Card } from "@heroui/react";
+import { Card, Modal, useOverlayState } from "@heroui/react";
 import { StatusChip, statusTone } from "@advo/ui";
 import { ActionButton } from "@/features/common/actions";
 import { ResourceView } from "@/features/common/components";
@@ -103,6 +103,15 @@ export function ResellerSitesScreen() {
     setShowCreateForm(false);
   }, sites.reload);
 
+  /**
+   * Closing the dialog also drops the last error, so a failed attempt is not
+   * still on screen the next time the reseller opens the form.
+   */
+  function closeCreateForm() {
+    setShowCreateForm(false);
+    createSite.setError(null);
+  }
+
   function copyToClipboard(text: string, id: string) {
     void navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -146,7 +155,7 @@ export function ResellerSitesScreen() {
         <div className="flex shrink-0 items-center gap-2">
           <button
             className="inline-flex items-center gap-2 rounded-xl bg-advo-blue px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-advo-blue-hover active:scale-[0.98]"
-            onClick={() => setShowCreateForm((open) => !open)}
+            onClick={() => setShowCreateForm(true)}
             style={{ boxShadow: "0 2px 10px rgba(27, 94, 164, 0.28)" }}
             type="button"
           >
@@ -193,64 +202,20 @@ export function ResellerSitesScreen() {
         />
       </div>
 
-      {showCreateForm ? (
-        <Card className="border-advo-blue/30 p-5 shadow-md">
-          <FormHeading
-            icon={Plus}
-            onClose={() => setShowCreateForm(false)}
-            t={t}
-            title={t("reseller.sites.create.title")}
-          />
-
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void createSite.run(event.currentTarget);
-            }}
-          >
-            {createSite.error ? <InlineAlert>{createSite.error}</InlineAlert> : null}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <TextField
-                defaultValue={businessName}
-                hint={t("reseller.sites.businessDefaultHint")}
-                id="create-site-name"
-                key={businessName || "site-name"}
-                label={t("reseller.sites.field.name")}
-                name="name"
-                placeholder={t("reseller.sites.field.namePlaceholder")}
-                required
-              />
-              <TextField
-                id="create-site-location"
-                label={t("reseller.sites.field.location")}
-                name="location"
-                placeholder={t("reseller.sites.field.locationPlaceholder")}
-              />
-              <TextField
-                id="create-site-portal-title"
-                label={t("reseller.sites.field.portalTitle")}
-                name="portalTitle"
-                placeholder={t("reseller.sites.field.portalTitlePlaceholder")}
-              />
-              <TextField
-                id="create-site-portal-message"
-                label={t("reseller.sites.field.portalMessage")}
-                name="portalMessage"
-                placeholder={t("reseller.sites.field.portalMessagePlaceholder")}
-              />
-            </div>
-
-            <FormActions
-              onCancel={() => setShowCreateForm(false)}
-              pending={createSite.pending}
-              pendingLabel={t("reseller.sites.create.pending")}
-              submitLabel={t("reseller.sites.create.submit")}
-              t={t}
-            />
-          </form>
-        </Card>
-      ) : null}
+      {/*
+        The create form is a dialog, not a card above the grid: it is the only
+        thing the reseller is doing while it is open, and dismissing it hands
+        them back the list exactly where they left it.
+      */}
+      <CreateSiteModal
+        businessName={businessName}
+        error={createSite.error}
+        onClose={closeCreateForm}
+        onSubmit={(form) => void createSite.run(form)}
+        open={showCreateForm}
+        pending={createSite.pending}
+        t={t}
+      />
 
       {/* ── Sites Grid ── */}
       <section className="space-y-3.5">
@@ -663,6 +628,159 @@ function SiteCard({
 }
 
 /**
+ * The "Register a new site" dialog.
+ *
+ * The guest portal, the package list and the Controller mapping all hang off a
+ * site, so this is the most consequential form a reseller fills in. It is a
+ * dialog because it is one focused task: the page behind it is dimmed, the
+ * fields get the whole width, and dismissing it returns the list untouched.
+ */
+function CreateSiteModal({
+  open,
+  businessName,
+  error,
+  pending,
+  onClose,
+  onSubmit,
+  t,
+}: {
+  open: boolean;
+  /** Default site name: the business the reseller registered with. */
+  businessName: string;
+  error: string | null;
+  pending: boolean;
+  onClose: () => void;
+  onSubmit: (form: HTMLFormElement) => void;
+  t: I18n["t"];
+}) {
+  // The X, the backdrop and Escape all arrive here, so the parent owns exactly
+  // one "closed" path.
+  const overlay = useOverlayState({
+    isOpen: open,
+    onOpenChange: (next) => (!next ? onClose() : undefined),
+  });
+
+  return (
+    <Modal.Root state={overlay}>
+      <Modal.Backdrop variant="blur">
+        <Modal.Container placement="center" size="lg">
+          <Modal.Dialog className="w-full max-w-none overflow-hidden rounded-3xl border border-advo-border bg-white p-0 shadow-2xl sm:max-w-[92vw] md:w-[640px]">
+            <Modal.Header className="relative border-b border-advo-border bg-gradient-to-br from-white via-white to-[var(--advo-blue-soft)] px-6 py-5">
+              <div className="flex items-start gap-3 pr-8">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-advo-blue to-advo-blue-hover text-white shadow-sm ring-4 ring-advo-blue/10">
+                  <Plus className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <Modal.Heading className="text-base font-black tracking-tight text-advo-text">
+                    {t("reseller.sites.create.title")}
+                  </Modal.Heading>
+                  <p className="mt-0.5 text-[11px] font-medium leading-snug text-advo-muted">
+                    {t("reseller.sites.create.subtitle")}
+                  </p>
+                </div>
+              </div>
+              <Modal.CloseTrigger
+                aria-label={t("reseller.sites.close")}
+                className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-lg text-advo-muted transition hover:bg-white hover:text-advo-text"
+              >
+                <X className="h-4 w-4" />
+              </Modal.CloseTrigger>
+            </Modal.Header>
+
+            <Modal.Body className="px-6 py-5">
+              {/* Keyed on `open` so each visit starts from the defaults: edits
+                  that were cancelled are discarded instead of greeting the
+                  reseller the next time they press the button. */}
+              <form
+                className="space-y-4"
+                id="create-site-form"
+                key={open ? "open" : "closed"}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onSubmit(event.currentTarget);
+                }}
+              >
+                {error ? <InlineAlert>{error}</InlineAlert> : null}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <ModalField
+                    defaultValue={businessName}
+                    hint={t("reseller.sites.businessDefaultHint")}
+                    id="create-site-name"
+                    key={businessName || "site-name"}
+                    label={t("reseller.sites.field.name")}
+                    name="name"
+                    placeholder={t("reseller.sites.field.namePlaceholder")}
+                    required
+                  />
+                  <ModalField
+                    id="create-site-location"
+                    label={t("reseller.sites.field.location")}
+                    name="location"
+                    placeholder={t("reseller.sites.field.locationPlaceholder")}
+                  />
+                </div>
+
+                <ModalField
+                  hint={t("reseller.sites.field.portalTitleHint")}
+                  id="create-site-portal-title"
+                  label={t("reseller.sites.field.portalTitle")}
+                  name="portalTitle"
+                  placeholder={t("reseller.sites.field.portalTitlePlaceholder")}
+                />
+                <ModalField
+                  id="create-site-portal-message"
+                  label={t("reseller.sites.field.portalMessage")}
+                  name="portalMessage"
+                  placeholder={t("reseller.sites.field.portalMessagePlaceholder")}
+                  rows={3}
+                  textarea
+                />
+
+                <p className="flex items-start gap-2 rounded-xl bg-advo-page px-3 py-2.5 text-[10px] font-medium leading-snug text-advo-muted">
+                  <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-advo-blue" />
+                  <span>{t("reseller.sites.create.nextHint")}</span>
+                </p>
+              </form>
+            </Modal.Body>
+
+            <Modal.Footer className="flex items-center justify-end gap-2 border-t border-advo-border bg-white px-6 py-4">
+              <button
+                className="rounded-xl border border-advo-border px-4 py-2 text-xs font-bold text-advo-muted transition hover:bg-slate-50"
+                disabled={pending}
+                onClick={onClose}
+                type="button"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                className="inline-flex items-center gap-1.5 rounded-xl bg-advo-blue px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-advo-blue-hover active:scale-[0.98] disabled:opacity-60"
+                disabled={pending}
+                form="create-site-form"
+                style={{ boxShadow: "0 2px 10px rgba(27, 94, 164, 0.28)" }}
+                type="submit"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t("reseller.sites.create.pending")}</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{t("reseller.sites.create.submit")}</span>
+                  </>
+                )}
+              </button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal.Root>
+  );
+}
+
+/**
  * Edit Site Modal for editing name, location, portal headline and welcome message.
  */
 function EditSiteModal({
@@ -930,111 +1048,63 @@ function EmptyCard({
   );
 }
 
-function FormHeading({
-  title,
-  icon: Icon,
-  iconClass = "text-advo-blue",
-  onClose,
-  t,
-}: {
-  title: string;
-  icon: LucideIcon;
-  iconClass?: string;
-  onClose: () => void;
-  t: I18n["t"];
-}) {
-  return (
-    <div className="mb-4 flex items-center justify-between border-b border-advo-border pb-3">
-      <h2 className="flex items-center gap-2 text-sm font-black text-advo-text">
-        <Icon className={`h-4 w-4 ${iconClass}`} />
-        {title}
-      </h2>
-      <button
-        className="rounded-lg px-2 py-1 text-xs font-bold text-advo-muted transition hover:bg-slate-100 hover:text-advo-text"
-        onClick={onClose}
-        type="button"
-      >
-        {t("reseller.sites.close")}
-      </button>
-    </div>
-  );
-}
-
-function TextField({
+/**
+ * One labelled field inside the create dialog.
+ *
+ * A single component for input and textarea keeps the label, the hint and the
+ * focus treatment identical across the form; only the control differs.
+ */
+function ModalField({
   id,
   name,
   label,
   placeholder,
   required,
-  mono,
-  uppercase,
   defaultValue,
   hint,
+  textarea,
+  rows = 3,
 }: {
   id: string;
   name: string;
   label: string;
   placeholder?: string;
   required?: boolean;
-  mono?: boolean;
-  uppercase?: boolean;
   defaultValue?: string;
   hint?: string;
+  textarea?: boolean;
+  rows?: number;
 }) {
+  const controlClass =
+    "mt-1 w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2.5 text-xs font-medium text-advo-text transition placeholder:text-advo-muted focus:border-advo-blue focus:bg-white focus:outline-none";
+
   return (
     <div className="space-y-1">
       <label className="text-xs font-bold text-advo-text" htmlFor={id}>
         {label}
       </label>
-      <input
-        className={`w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-2.5 text-xs text-advo-text transition placeholder:text-advo-muted focus:border-advo-blue focus:bg-white focus:outline-none ${
-          mono ? "font-mono font-bold" : "font-medium"
-        } ${uppercase ? "uppercase" : ""}`}
-        defaultValue={defaultValue}
-        id={id}
-        name={name}
-        placeholder={placeholder}
-        required={required}
-        type="text"
-      />
-      {hint ? <p className="text-[10px] text-advo-muted">{hint}</p> : null}
-    </div>
-  );
-}
-
-function FormActions({
-  onCancel,
-  submitLabel,
-  pendingLabel,
-  pending,
-  tone = "blue",
-  t,
-}: {
-  onCancel: () => void;
-  submitLabel: string;
-  pendingLabel: string;
-  pending: boolean;
-  tone?: "blue" | "gold";
-  t: I18n["t"];
-}) {
-  return (
-    <div className="flex justify-end gap-2 pt-1">
-      <button
-        className="rounded-xl border border-advo-border px-4 py-2 text-xs font-bold text-advo-muted transition hover:bg-slate-50"
-        onClick={onCancel}
-        type="button"
-      >
-        {t("common.cancel")}
-      </button>
-      <button
-        className={`rounded-xl px-5 py-2 text-xs font-bold shadow-sm transition disabled:opacity-60 ${
-          tone === "gold" ? "bg-advo-gold text-slate-900 hover:bg-advo-gold-hover" : "bg-advo-blue text-white hover:bg-advo-blue-hover"
-        }`}
-        disabled={pending}
-        type="submit"
-      >
-        {pending ? pendingLabel : submitLabel}
-      </button>
+      {textarea ? (
+        <textarea
+          className={controlClass}
+          defaultValue={defaultValue}
+          id={id}
+          name={name}
+          placeholder={placeholder}
+          required={required}
+          rows={rows}
+        />
+      ) : (
+        <input
+          className={controlClass}
+          defaultValue={defaultValue}
+          id={id}
+          name={name}
+          placeholder={placeholder}
+          required={required}
+          type="text"
+        />
+      )}
+      {hint ? <p className="text-[10px] leading-snug text-advo-muted">{hint}</p> : null}
     </div>
   );
 }

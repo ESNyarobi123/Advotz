@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { PLAN_PRESETS, normalizePlanFeatures, planFeaturesWithDefaults, type PlanFeatures } from "@advo/contracts";
+import {
+  PLAN_PRESETS,
+  normalizePlanFeatures,
+  planFeaturesWithDefaults,
+  type PlanFeatures,
+} from "@advo/contracts";
 import { prisma } from "@advo/db";
 import { resetTestDatabase } from "../test/db.js";
 import { AuthService } from "./auth/auth.service.js";
@@ -20,7 +25,9 @@ const auth = new AuthService();
 let adminId = "";
 let seq = 0;
 
-function presetFeatures(key: "sponsored" | "brand-control" | "ad-free"): PlanFeatures {
+function presetFeatures(
+  key: "sponsored" | "brand-control" | "ad-free",
+): PlanFeatures {
   const preset = PLAN_PRESETS.find((p) => p.key === key);
   if (!preset) throw new Error(`missing preset ${key}`);
   return normalizePlanFeatures(planFeaturesWithDefaults(preset.features));
@@ -53,7 +60,9 @@ async function makePlan(
     priceTzs: options.priceTzs ?? 20_000n,
     periodDays: 30,
     trialEligible: options.trialEligible ?? false,
-    ...(options.trialDays === undefined ? {} : { trialDays: options.trialDays }),
+    ...(options.trialDays === undefined
+      ? {}
+      : { trialDays: options.trialDays }),
     lifecycle: options.lifecycle ?? "PUBLISHED",
     visibility: options.visibility ?? "PUBLIC",
     commercialPromise: options.promise ?? "standard",
@@ -147,8 +156,12 @@ describe("public plan catalog", () => {
     });
 
     const plans = await listPublicPlans();
-    expect(plans.find((p) => p.name === "Ads required")?.advertising).toBe("required");
-    expect(plans.find((p) => p.name === "Ads optional")?.advertising).toBe("optional");
+    expect(plans.find((p) => p.name === "Ads required")?.advertising).toBe(
+      "required",
+    );
+    expect(plans.find((p) => p.name === "Ads optional")?.advertising).toBe(
+      "optional",
+    );
     const adFree = plans.find((p) => p.name === "Ads off");
     expect(adFree?.advertising).toBe("none");
     expect(adFree?.commercialPromise).toBe("ad_free");
@@ -167,7 +180,12 @@ describe("public plan catalog", () => {
       "isDemo",
       "name",
       "periodDays",
+      // The two-axis catalog: which capacity tier this row is and whether it is
+      // the Advo Partner or Independent option. Both are meant for the pricing UI.
+      "planType",
+      "priceFrom",
       "priceTzs",
+      "tierKey",
       "trialDays",
     ]);
   });

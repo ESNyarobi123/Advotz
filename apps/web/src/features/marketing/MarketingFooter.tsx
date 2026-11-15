@@ -115,7 +115,7 @@ export function MarketingFooter() {
           <p>
             &copy; {new Date().getFullYear()} Advo TZ. {t("marketing.footer.rights")}
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <Link href="/pricing" className="transition-colors hover:text-white">
               {t("marketing.footer.bottom.pricing")}
             </Link>
@@ -127,6 +127,12 @@ export function MarketingFooter() {
             </Link>
             <Link href="/contact" className="transition-colors hover:text-white">
               {t("nav.support")}
+            </Link>
+            <Link href="/privacy" className="transition-colors hover:text-white">
+              {t("marketing.footer.bottom.privacy")}
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-white">
+              {t("marketing.footer.bottom.terms")}
             </Link>
             <Link href="/login" className="transition-colors hover:text-white">
               {t("marketing.footer.bottom.login")}

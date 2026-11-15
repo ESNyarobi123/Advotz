@@ -9,47 +9,62 @@ import { useI18n } from "@/lib/i18n";
 import { AdvoLogo } from "@/features/marketing/AdvoLogo";
 import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 import { AuthShowcasePanel } from "@/features/auth/AuthShowcasePanel";
+import { EmailOtpStep } from "@/features/auth/EmailOtpStep";
+import {
+  AuthCard,
+  Field,
+  PasswordInput,
+  PasswordStrength,
+  StepRail,
+  TextInput,
+  TrustRow,
+  linkAccent,
+  useSlugPreview,
+} from "@/features/auth/auth-ui";
 import { LocaleSwitcher } from "@/features/common/LocaleSwitcher";
 import { buttonClasses, cx } from "@/features/marketing/ui";
 import { dashboardHomeFor } from "@/lib/session";
 import {
-  User,
+  ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  Building2,
+  Check,
+  CheckCircle2,
+  Coins,
+  Globe,
+  LayoutDashboard,
   Mail,
   Phone,
-  Lock,
-  Building,
-  MapPin,
-  Radio,
-  Sparkles,
-  ArrowRight,
-  ArrowLeft,
-  CheckCircle2,
   ShieldCheck,
-  Eye,
-  EyeOff,
-  Coffee,
-  Hotel,
-  GraduationCap,
+  Sparkles,
+  User,
   Wifi,
 } from "lucide-react";
 
-const fieldClass =
-  "w-full rounded-field border border-advo-border bg-advo-page px-3.5 py-3 text-sm text-advo-text outline-none transition placeholder:text-advo-muted focus:border-advo-gold/60 focus:bg-white focus:ring-2 focus:ring-advo-gold/25";
+type AccountType = "reseller" | "agent";
+type Step = 1 | 2 | 3;
+type FieldErrors = Partial<Record<"ownerName" | "email" | "phone" | "password" | "businessName" | "referralCode", string>>;
+type AgentErrors = Partial<Record<"name" | "email" | "phone" | "password" | "referralCode", string>>;
 
-const fieldWithIcon = cx(fieldClass, "pl-11");
-
-const labelClass =
-  "mb-1.5 block text-xs font-bold tracking-wide text-advo-text uppercase";
-
-const linkAccent =
-  "font-bold text-[#b15f00] underline underline-offset-2 transition hover:text-advo-orange";
+/** Accepts the ways a Tanzanian number is actually written and returns E.164. */
+function normalizePhone(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("255")) return `+${digits.slice(0, 12)}`;
+  if (digits.startsWith("0")) return `+255${digits.slice(1, 10)}`;
+  if (digits.length === 9) return `+255${digits}`;
+  return raw.trim();
+}
 
 export default function RegisterPage() {
   const { t } = useI18n();
   const router = useRouter();
 
-  const [accountType, setAccountType] = useState<"reseller" | "agent">("reseller");
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [accountType, setAccountType] = useState<AccountType>("reseller");
+  const [step, setStep] = useState<Step>(1);
+
+  const [resellerOtp, setResellerOtp] = useState<{ email: string; token: string } | null>(null);
+  const [agentOtp, setAgentOtp] = useState<{ email: string; token: string } | null>(null);
 
   const [form, setForm] = useState({
     ownerName: "",
@@ -57,9 +72,6 @@ export default function RegisterPage() {
     phone: "+255",
     password: "",
     businessName: "",
-    venueType: "cafe",
-    city: "Dar es Salaam",
-    deviceType: "ap",
     referralCode: "",
     acceptTerms: false,
   });
@@ -73,20 +85,24 @@ export default function RegisterPage() {
     acceptTerms: false,
   });
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [agentErrors, setAgentErrors] = useState<AgentErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  const slug = useSlugPreview(form.businessName);
+  const emailVerified = resellerOtp?.email === form.email.trim().toLowerCase();
+  const agentVerified = agentOtp?.email === agentForm.email.trim().toLowerCase();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref");
     if (ref) setForm((prev) => ({ ...prev, referralCode: ref.slice(0, 32) }));
-    const roleParam = params.get("role");
-    if (roleParam === "agent") setAccountType("agent");
+    if (params.get("role") === "agent") setAccountType("agent");
   }, []);
 
-  // Signed-in users should not open a second account through this form.
+  // A signed-in visitor has no business opening a second account here.
   useEffect(() => {
     let cancelled = false;
     void api
@@ -102,85 +118,78 @@ export default function RegisterPage() {
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
+    setError(null);
   }
 
   function updateAgent<K extends keyof typeof agentForm>(key: K, value: (typeof agentForm)[K]) {
     setAgentForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function validateStep1() {
-    if (!form.ownerName.trim()) {
-      setError(t("auth.register.error.fullName"));
-      return false;
-    }
-    if (!form.email.includes("@")) {
-      setError(t("auth.register.error.email"));
-      return false;
-    }
-    if (form.phone.trim().length < 10) {
-      setError(t("auth.register.error.phone"));
-      return false;
-    }
-    if (form.password.length < 10) {
-      setError(t("auth.register.error.password"));
-      return false;
-    }
+    setAgentErrors((prev) => ({ ...prev, [key]: undefined }));
     setError(null);
-    return true;
   }
 
-  function validateStep2() {
-    if (!form.businessName.trim()) {
-      setError(t("auth.register.error.businessName"));
-      return false;
+  function validateAccount() {
+    const next: FieldErrors = {};
+    if (form.ownerName.trim().length < 2) next.ownerName = t("auth.register.error.fullName");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = t("auth.register.error.email");
+    if (!/^\+255\d{9}$/.test(normalizePhone(form.phone))) next.phone = t("auth.register.error.phone");
+    if (form.password.length < 10) next.password = t("auth.register.error.password");
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function validateBusiness() {
+    const next: FieldErrors = {};
+    if (form.businessName.trim().length < 2) next.businessName = t("auth.register.error.businessName");
+    if (form.referralCode.trim() && form.referralCode.trim().length < 4) {
+      next.referralCode = t("auth.register.error.referral");
     }
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function goNext() {
     setError(null);
-    return true;
+    if (step === 1 && validateAccount()) setStep(2);
+    else if (step === 2 && validateBusiness()) setStep(3);
   }
 
-  function handleNext(e: React.FormEvent) {
-    e.preventDefault();
-    if (step === 1 && validateStep1()) setStep(2);
-    else if (step === 2 && validateStep2()) setStep(3);
-  }
-
-  function handlePrev() {
+  function goBack() {
     setError(null);
-    if (step === 2) setStep(1);
-    if (step === 3) setStep(2);
+    setStep((current) => (current > 1 ? ((current - 1) as Step) : current));
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (step < 3) {
+      goNext();
+      return;
+    }
     if (!form.acceptTerms) {
       setError(t("auth.register.error.terms"));
+      return;
+    }
+    if (!resellerOtp || !emailVerified) {
+      setError(t("auth.otp.required"));
       return;
     }
 
     setPending(true);
     setError(null);
-    setInfo(null);
-
     try {
-      const body = {
-        businessName: form.businessName,
-        ownerName: form.ownerName,
-        email: form.email,
-        phone: form.phone,
-        password: form.password,
-        acceptTerms: true as const,
-        ...(form.referralCode.trim() ? { referralCode: form.referralCode.trim() } : {}),
-      };
-
-      await apiFetch<{
-        verificationRequired: boolean;
-        resellerId: string;
-      }>("/auth/register", {
+      await apiFetch<{ verificationRequired: boolean; resellerId: string }>("/auth/register", {
         method: "POST",
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          businessName: form.businessName.trim(),
+          ownerName: form.ownerName.trim(),
+          email: form.email.trim(),
+          phone: normalizePhone(form.phone),
+          password: form.password,
+          acceptTerms: true as const,
+          verificationToken: resellerOtp.token,
+          ...(form.referralCode.trim() ? { referralCode: form.referralCode.trim() } : {}),
+        }),
       });
-
-      // Account is ACTIVE immediately — send them to sign in with the password they set.
       router.push("/login?registered=1");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("auth.register.error.registrationFailed"));
@@ -189,33 +198,30 @@ export default function RegisterPage() {
     }
   }
 
-  async function onAgentSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!agentForm.name.trim()) {
-      setError(t("auth.register.error.fullName"));
-      return;
+  async function onAgentSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const next: AgentErrors = {};
+    if (agentForm.name.trim().length < 2) next.name = t("auth.register.error.fullName");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(agentForm.email.trim())) next.email = t("auth.register.error.email");
+    if (!/^\+255\d{9}$/.test(normalizePhone(agentForm.phone))) next.phone = t("auth.register.error.phone");
+    if (agentForm.password.length < 10) next.password = t("auth.register.error.password");
+    if (agentForm.referralCode.trim() && !/^[A-Z0-9_-]{4,24}$/.test(agentForm.referralCode.trim())) {
+      next.referralCode = t("auth.register.error.referral");
     }
-    if (!agentForm.email.includes("@")) {
-      setError(t("auth.register.error.email"));
-      return;
-    }
-    if (agentForm.phone.trim().length < 10) {
-      setError(t("auth.register.error.phone"));
-      return;
-    }
-    if (agentForm.password.length < 10) {
-      setError(t("auth.register.error.password"));
-      return;
-    }
+    setAgentErrors(next);
+    if (Object.keys(next).length > 0) return;
     if (!agentForm.acceptTerms) {
       setError(t("auth.register.error.agentTerms"));
+      return;
+    }
+    if (!agentOtp || !agentVerified) {
+      setError(t("auth.otp.required"));
       return;
     }
 
     setPending(true);
     setError(null);
     setInfo(null);
-
     try {
       const res = await apiFetch<{
         verificationRequired: boolean;
@@ -227,11 +233,10 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: agentForm.name.trim(),
           email: agentForm.email.trim(),
-          phone: agentForm.phone.trim(),
+          phone: normalizePhone(agentForm.phone),
           password: agentForm.password,
-          referralCode: agentForm.referralCode.trim()
-            ? agentForm.referralCode.trim().toUpperCase()
-            : undefined,
+          verificationToken: agentOtp.token,
+          referralCode: agentForm.referralCode.trim() ? agentForm.referralCode.trim().toUpperCase() : undefined,
           acceptTerms: true as const,
         }),
       });
@@ -251,17 +256,17 @@ export default function RegisterPage() {
     }
   }
 
-  const stepMeta = [
-    { n: 1 as const, label: t("auth.register.stepAccount") },
-    { n: 2 as const, label: t("auth.register.stepBusiness") },
-    { n: 3 as const, label: t("auth.register.stepDeviceType") },
-  ];
+  const stepCopy = {
+    1: { title: t("auth.register.step1.title"), body: t("auth.register.step1.body") },
+    2: { title: t("auth.register.step2.title"), body: t("auth.register.step2.body") },
+    3: { title: t("auth.register.step3.title"), body: t("auth.register.step3.body") },
+  }[step];
 
   return (
     <div className="flex min-h-screen bg-advo-page text-advo-text selection:bg-[#FBA102] selection:text-advo-charcoal">
       <AuthShowcasePanel type="register" />
 
-      <div className="relative flex w-full flex-col justify-between overflow-y-auto p-6 sm:p-10 lg:w-[52%] xl:w-1/2 lg:p-12 xl:p-16">
+      <div className="relative flex w-full flex-col justify-between overflow-y-auto p-4 sm:p-8 lg:w-[52%] xl:w-1/2 lg:p-12">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.08),transparent_70%)] blur-3xl"
@@ -282,7 +287,7 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        <div className="relative z-10 mb-2 flex items-center justify-between lg:hidden">
+        <div className="relative z-10 mb-3 flex items-center justify-between lg:hidden">
           <AdvoLogo size="sm" variant="light" />
           <div className="flex items-center gap-2">
             <LocaleSwitcher compact showIcon={false} variant="light" />
@@ -296,626 +301,609 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <div className="relative z-10 mx-auto w-full max-w-xl flex-1 py-6">
-          <div className="relative overflow-hidden rounded-card border border-advo-border bg-white p-7 shadow-advo-card sm:p-9">
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-0 top-0 h-1.5 bg-[linear-gradient(90deg,#fba102_0%,#f16304_100%)]"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-16 -top-20 size-44 rounded-full bg-[radial-gradient(circle,rgba(251,161,2,0.12),transparent_70%)] blur-2xl"
-            />
+        <div className="relative z-10 mx-auto w-full max-w-[33rem] flex-1 py-4">
+          <AuthCard>
+            {/* ── What are you opening? ── */}
+            <div role="group" aria-label={t("auth.register.tabReseller")} className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  {
+                    id: "reseller" as const,
+                    icon: Building2,
+                    title: t("auth.register.type.resellerTitle"),
+                    body: t("auth.register.type.resellerBody"),
+                  },
+                  {
+                    id: "agent" as const,
+                    icon: Sparkles,
+                    title: t("auth.register.type.agentTitle"),
+                    body: t("auth.register.type.agentBody"),
+                  },
+                ] as const
+              ).map((item) => {
+                const Icon = item.icon;
+                const selected = accountType === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      setAccountType(item.id);
+                      setError(null);
+                      setErrors({});
+                      setAgentErrors({});
+                    }}
+                    className={cx(
+                      "group relative overflow-hidden rounded-2xl border p-3 text-left transition-all duration-200",
+                      selected
+                        ? "border-advo-gold/60 bg-[linear-gradient(180deg,#fff9ee_0%,#ffffff_100%)] shadow-[0_10px_24px_-18px_rgba(241,99,4,0.8)]"
+                        : "border-advo-border bg-advo-page hover:border-advo-gold/30 hover:bg-white",
+                    )}
+                  >
+                    <span
+                      className={cx(
+                        "flex size-8 items-center justify-center rounded-xl transition",
+                        selected
+                          ? "bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)] text-advo-charcoal"
+                          : "bg-white text-advo-muted ring-1 ring-advo-border group-hover:text-[#b15f00]",
+                      )}
+                    >
+                      <Icon className="size-4" aria-hidden="true" />
+                    </span>
+                    <p
+                      className={cx(
+                        "mt-2 text-[12px] font-black leading-tight",
+                        selected ? "text-[#8a4a00]" : "text-advo-text",
+                      )}
+                    >
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-snug text-advo-muted">{item.body}</p>
+                    {selected ? (
+                      <span className="absolute right-2.5 top-2.5 flex size-4 items-center justify-center rounded-full bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)] text-advo-charcoal">
+                        <Check className="size-2.5" aria-hidden="true" />
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
 
-            <header className="relative mb-6 space-y-2.5">
-              <span className="inline-flex items-center gap-2 rounded-full border border-advo-gold/30 bg-advo-gold-soft px-3 py-1 text-[11px] font-bold tracking-[0.14em] text-[#b15f00] uppercase">
-                <Sparkles className="size-3" aria-hidden="true" />
-                {accountType === "reseller"
-                  ? t("auth.register.badgeReseller")
-                  : t("auth.register.badgeAgent")}
-              </span>
-              <h1 className="text-2xl font-black tracking-tight text-advo-text sm:text-[1.7rem]">
+            <header className="mt-5 space-y-1.5">
+              <h1 className="text-[1.35rem] font-black leading-tight tracking-tight text-advo-text">
                 {accountType === "reseller"
                   ? t("auth.register.titleReseller")
                   : t("auth.register.titleAgent")}
               </h1>
-              <p className="text-sm leading-relaxed text-advo-muted">
+              <p className="text-xs leading-relaxed text-advo-muted">
                 {accountType === "reseller"
                   ? t("auth.register.subtitleReseller")
                   : t("auth.register.subtitleAgent")}
               </p>
             </header>
 
-            {/* Account type tabs */}
-            <div className="relative mb-6 grid grid-cols-2 gap-1 rounded-2xl border border-advo-border bg-advo-page p-1">
-              <button
-                type="button"
-                id="tab-reseller"
-                onClick={() => {
-                  setAccountType("reseller");
-                  setError(null);
-                }}
-                className={cx(
-                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all",
-                  accountType === "reseller"
-                    ? "border border-advo-gold/30 bg-white text-[#b15f00] shadow-sm"
-                    : "text-advo-muted hover:text-advo-text",
-                )}
-              >
-                <Building className="size-4" aria-hidden="true" />
-                {t("auth.register.tabReseller")}
-              </button>
-              <button
-                type="button"
-                id="tab-agent"
-                onClick={() => {
-                  setAccountType("agent");
-                  setError(null);
-                }}
-                className={cx(
-                  "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all",
-                  accountType === "agent"
-                    ? "border border-advo-gold/30 bg-white text-[#b15f00] shadow-sm"
-                    : "text-advo-muted hover:text-advo-text",
-                )}
-              >
-                <Sparkles className="size-4" aria-hidden="true" />
-                {t("auth.register.tabAgent")}
-              </button>
-            </div>
-
-            {accountType === "agent" ? (
-              <form onSubmit={onAgentSubmit} className="relative space-y-4">
-                <SocialLoginButtons />
-
-                <div>
-                  <label htmlFor="agent-name" className={labelClass}>
-                    {t("auth.register.fullNameLabel")}
-                  </label>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                      <User className="size-4" aria-hidden="true" />
-                    </div>
-                    <input
-                      id="agent-name"
-                      type="text"
-                      required
-                      placeholder={t("auth.register.fullNamePlaceholder")}
-                      value={agentForm.name}
-                      onChange={(e) => updateAgent("name", e.target.value)}
-                      className={fieldWithIcon}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="agent-email" className={labelClass}>
-                    {t("email")}
-                  </label>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                      <Mail className="size-4" aria-hidden="true" />
-                    </div>
-                    <input
-                      id="agent-email"
-                      type="email"
-                      required
-                      placeholder={t("auth.register.agentEmailPlaceholder")}
-                      value={agentForm.email}
-                      onChange={(e) => updateAgent("email", e.target.value)}
-                      className={fieldWithIcon}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="agent-phone" className={labelClass}>
-                    {t("phone")}
-                  </label>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                      <Phone className="size-4" aria-hidden="true" />
-                    </div>
-                    <input
-                      id="agent-phone"
-                      type="tel"
-                      required
-                      placeholder="+255712345678"
-                      value={agentForm.phone}
-                      onChange={(e) => updateAgent("phone", e.target.value)}
-                      className={cx(fieldWithIcon, "font-mono")}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <label htmlFor="agent-code" className={cx(labelClass, "mb-0")}>
-                      {t("auth.register.referralLabel")}
-                    </label>
-                    <span className="text-[10px] text-advo-muted">{t("auth.common.optional")}</span>
-                  </div>
-                  <input
-                    id="agent-code"
-                    type="text"
-                    placeholder={t("auth.register.referralPlaceholder")}
-                    value={agentForm.referralCode}
-                    onChange={(e) => updateAgent("referralCode", e.target.value.toUpperCase())}
-                    className={cx(fieldClass, "uppercase")}
-                  />
-                  <p className="mt-1.5 text-[11px] text-advo-muted">{t("auth.register.referralHint")}</p>
-                </div>
-
-                <div>
-                  <label htmlFor="agent-password" className={labelClass}>
-                    {t("auth.password.minLength")}
-                  </label>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                      <Lock className="size-4" aria-hidden="true" />
-                    </div>
-                    <input
-                      id="agent-password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      placeholder="••••••••••••"
-                      value={agentForm.password}
-                      onChange={(e) => updateAgent("password", e.target.value)}
-                      className={cx(fieldWithIcon, "pr-11")}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-advo-muted transition hover:text-advo-text"
-                      aria-label={showPassword ? t("auth.password.hide") : t("auth.password.show")}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="size-4" aria-hidden="true" />
-                      ) : (
-                        <Eye className="size-4" aria-hidden="true" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <label className="flex cursor-pointer items-start gap-2.5 pt-1">
-                  <input
-                    type="checkbox"
-                    id="agent-terms"
-                    checked={agentForm.acceptTerms}
-                    onChange={(e) => updateAgent("acceptTerms", e.target.checked)}
-                    className="mt-0.5 size-4 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
-                  />
-                  <span className="text-[11px] leading-relaxed text-advo-muted">
-                    {t("auth.register.agentTermsLead")}{" "}
-                    <Link href="/terms" className={linkAccent}>
-                      {t("auth.register.agentTermsLink")}
-                    </Link>{" "}
-                    {t("auth.register.termsAnd")}{" "}
-                    <Link href="/privacy" className={linkAccent}>
-                      {t("auth.register.termsPrivacy")}
-                    </Link>{" "}
-                    {t("auth.register.agentTermsTrail")}
-                  </span>
-                </label>
-
-                {error && <Notice tone="danger">{error}</Notice>}
-                {info && <Notice tone="success">{info}</Notice>}
-
-                <button
-                  type="submit"
-                  id="agent-submit-btn"
-                  disabled={pending || !agentForm.acceptTerms}
-                  className={buttonClasses({
-                    variant: "gold",
-                    size: "lg",
-                    className: "mt-2 w-full",
-                  })}
-                >
-                  <span>
-                    {pending
-                      ? t("auth.register.agentSubmitPending")
-                      : t("auth.register.agentSubmit")}
-                  </span>
-                  <Sparkles className="size-4 shrink-0" aria-hidden="true" />
-                </button>
-              </form>
-            ) : (
+            {accountType === "reseller" ? (
               <>
-                {/* Step progress */}
-                <div className="relative mb-7 rounded-2xl border border-advo-border bg-advo-page p-4">
-                  <div className="absolute top-[2.15rem] right-10 left-10 h-0.5 bg-advo-border" />
-                  <div
-                    className="absolute top-[2.15rem] left-10 h-0.5 bg-[linear-gradient(90deg,#fba102,#f16304)] transition-all duration-300"
-                    style={{
-                      width:
-                        step === 1 ? "0%" : step === 2 ? "calc(50% - 2.5rem)" : "calc(100% - 5rem)",
+                <div className="mt-5 border-t border-advo-border pt-4">
+                  <StepRail
+                    current={step}
+                    hint={t("auth.register.timeHint")}
+                    steps={[
+                      { label: t("auth.register.stepAccount") },
+                      { label: t("auth.register.stepBusiness") },
+                      { label: t("auth.register.stepVerify") },
+                    ]}
+                    onSelect={(target) => {
+                      setError(null);
+                      setStep(target as Step);
                     }}
                   />
-                  <ol className="relative z-10 flex items-start justify-between">
-                    {stepMeta.map((s) => {
-                      const done = step > s.n;
-                      const active = step === s.n;
-                      return (
-                        <li key={s.n} className="flex flex-col items-center">
-                          <span
-                            className={cx(
-                              "flex size-8 items-center justify-center rounded-full text-xs font-bold transition-all",
-                              done || active
-                                ? "bg-[linear-gradient(135deg,#fba102_0%,#f16304_100%)] text-advo-charcoal shadow-md ring-4 ring-advo-gold-soft"
-                                : "bg-white text-advo-muted ring-1 ring-advo-border",
-                            )}
-                          >
-                            {done ? (
-                              <CheckCircle2 className="size-4" aria-hidden="true" />
-                            ) : (
-                              s.n
-                            )}
-                          </span>
-                          <span
-                            className={cx(
-                              "mt-1.5 text-[10px] font-bold",
-                              active ? "text-[#b15f00]" : "text-advo-muted",
-                            )}
-                          >
-                            {s.label}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ol>
                 </div>
 
-                <form
-                  onSubmit={step === 3 ? onSubmit : handleNext}
-                  className="relative space-y-4"
-                >
-                  {step === 1 && (
-                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
-                      <div>
-                        <p className="mb-2.5 text-center text-[11px] font-bold tracking-wider text-advo-muted uppercase">
-                          {t("auth.register.socialPrompt")}
-                        </p>
-                        <SocialLoginButtons />
-                      </div>
+                <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+                  <div key={step} className="advo-auth-step space-y-4">
+                    <div>
+                      <h2 className="text-[13px] font-black text-advo-text">{stepCopy.title}</h2>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-advo-muted">{stepCopy.body}</p>
+                    </div>
 
-                      <div>
-                        <label htmlFor="ownerName" className={labelClass}>
-                          {t("auth.register.fullNameLabel")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <User className="size-4" aria-hidden="true" />
-                          </div>
-                          <input
+                    {step === 1 && (
+                      <>
+                        <div className="rounded-2xl bg-advo-page p-3">
+                          <p className="mb-2.5 text-center text-[10px] font-bold tracking-[0.1em] text-advo-muted uppercase">
+                            {t("auth.register.socialPrompt")}
+                          </p>
+                          <SocialLoginButtons intent="register" />
+                        </div>
+
+                        <Field
+                          error={errors.ownerName}
+                          icon={<User className="size-4" aria-hidden="true" />}
+                          id="ownerName"
+                          label={t("auth.register.fullNameLabel")}
+                        >
+                          <TextInput
+                            autoComplete="name"
                             id="ownerName"
-                            type="text"
+                            invalid={Boolean(errors.ownerName)}
+                            onChange={(value) => update("ownerName", value)}
                             placeholder={t("auth.register.ownerNamePlaceholder")}
                             value={form.ownerName}
-                            onChange={(e) => update("ownerName", e.target.value)}
-                            required
-                            className={fieldWithIcon}
+                            withIcon
                           />
-                        </div>
-                      </div>
+                        </Field>
 
-                      <div>
-                        <label htmlFor="email" className={labelClass}>
-                          {t("email")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <Mail className="size-4" aria-hidden="true" />
-                          </div>
-                          <input
+                        <Field
+                          error={errors.email}
+                          hint={t("auth.register.emailHint")}
+                          icon={<Mail className="size-4" aria-hidden="true" />}
+                          id="email"
+                          label={t("email")}
+                        >
+                          <TextInput
+                            autoComplete="email"
                             id="email"
-                            type="email"
+                            invalid={Boolean(errors.email)}
+                            onChange={(value) => update("email", value)}
                             placeholder={t("auth.field.emailPlaceholder")}
+                            type="email"
                             value={form.email}
-                            onChange={(e) => update("email", e.target.value)}
-                            required
-                            className={fieldWithIcon}
+                            withIcon
                           />
-                        </div>
-                      </div>
+                        </Field>
 
-                      <div>
-                        <label htmlFor="phone" className={labelClass}>
-                          {t("phone")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <Phone className="size-4" aria-hidden="true" />
-                          </div>
-                          <input
+                        <Field
+                          error={errors.phone}
+                          hint={t("auth.register.phoneHint")}
+                          icon={<Phone className="size-4" aria-hidden="true" />}
+                          id="phone"
+                          label={t("phone")}
+                        >
+                          <TextInput
+                            autoComplete="tel"
+                            className="font-mono"
                             id="phone"
-                            type="tel"
-                            placeholder="+2557XXXXXXXX"
+                            inputMode="tel"
+                            invalid={Boolean(errors.phone)}
+                            onBlur={() => update("phone", normalizePhone(form.phone))}
+                            onChange={(value) => update("phone", value)}
+                            placeholder="+255712345678"
                             value={form.phone}
-                            onChange={(e) => update("phone", e.target.value)}
-                            required
-                            className={cx(fieldWithIcon, "font-mono")}
+                            withIcon
                           />
-                        </div>
-                      </div>
+                        </Field>
 
-                      <div>
-                        <label htmlFor="password" className={labelClass}>
-                          {t("auth.password.minLength")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <Lock className="size-4" aria-hidden="true" />
-                          </div>
-                          <input
+                        <Field
+                          error={errors.password}
+                          icon={null}
+                          id="password"
+                          label={t("auth.password.minLength")}
+                        >
+                          <PasswordInput
                             id="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="••••••••••••"
+                            invalid={Boolean(errors.password)}
+                            onChange={(value) => update("password", value)}
                             value={form.password}
-                            onChange={(e) => update("password", e.target.value)}
-                            minLength={10}
-                            required
-                            className={cx(fieldWithIcon, "pr-11")}
                           />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-advo-muted transition hover:text-advo-text"
-                            tabIndex={-1}
-                            aria-label={
-                              showPassword ? t("auth.password.hide") : t("auth.password.show")
-                            }
-                          >
-                            {showPassword ? (
-                              <EyeOff className="size-4" aria-hidden="true" />
-                            ) : (
-                              <Eye className="size-4" aria-hidden="true" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                        </Field>
 
-                  {step === 2 && (
-                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
-                      <div>
-                        <label htmlFor="businessName" className={labelClass}>
-                          {t("auth.register.businessNameLabel")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <Building className="size-4" aria-hidden="true" />
-                          </div>
-                          <input
+                        <PasswordStrength value={form.password} />
+                      </>
+                    )}
+
+                    {step === 2 && (
+                      <>
+                        <Field
+                          error={errors.businessName}
+                          icon={<Building2 className="size-4" aria-hidden="true" />}
+                          id="businessName"
+                          label={t("auth.register.businessNameLabel")}
+                        >
+                          <TextInput
+                            autoComplete="organization"
                             id="businessName"
-                            type="text"
+                            invalid={Boolean(errors.businessName)}
+                            onChange={(value) => update("businessName", value)}
                             placeholder={t("auth.register.businessNamePlaceholder")}
                             value={form.businessName}
-                            onChange={(e) => update("businessName", e.target.value)}
-                            required
-                            className={fieldWithIcon}
+                            withIcon
                           />
-                        </div>
-                        <p className="mt-1.5 text-[11px] text-advo-muted">
-                          {t("auth.register.businessNameHint")}
-                        </p>
-                      </div>
+                        </Field>
 
-                      <div>
-                        <label htmlFor="venueType" className={labelClass}>
-                          {t("auth.register.venueTypeLabel")}
-                        </label>
-                        <div className="mb-2 grid grid-cols-2 gap-2">
-                          {[
-                            { id: "cafe", label: t("auth.register.venue.cafe"), icon: Coffee },
-                            { id: "hotel", label: t("auth.register.venue.hotel"), icon: Hotel },
-                            {
-                              id: "hostel",
-                              label: t("auth.register.venue.hostel"),
-                              icon: GraduationCap,
-                            },
-                            { id: "wisp", label: t("auth.register.venue.wisp"), icon: Wifi },
-                          ].map((item) => {
-                            const Icon = item.icon;
-                            const isSelected = form.venueType === item.id;
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => update("venueType", item.id)}
-                                className={cx(
-                                  "flex items-center gap-2.5 rounded-xl border p-3 text-left text-xs transition-all",
-                                  isSelected
-                                    ? "border-advo-gold/50 bg-advo-gold-soft font-bold text-[#b15f00] shadow-xs"
-                                    : "border-advo-border bg-advo-page text-advo-muted hover:bg-white",
-                                )}
-                              >
-                                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                                {item.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <select
-                          id="venueType"
-                          value={form.venueType}
-                          onChange={(e) => update("venueType", e.target.value)}
-                          className={fieldClass}
-                        >
-                          <option value="cafe">{t("auth.register.venueOption.cafe")}</option>
-                          <option value="hotel">{t("auth.register.venueOption.hotel")}</option>
-                          <option value="hostel">{t("auth.register.venueOption.hostel")}</option>
-                          <option value="wisp">{t("auth.register.venueOption.wisp")}</option>
-                          <option value="salon">{t("auth.register.venueOption.salon")}</option>
-                          <option value="other">{t("auth.register.venueOption.other")}</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label htmlFor="city" className={labelClass}>
-                          {t("auth.register.cityLabel")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <MapPin className="size-4" aria-hidden="true" />
+                        {slug ? (
+                          <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-3">
+                            <Globe className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold tracking-wide text-emerald-900 uppercase">
+                                {t("auth.register.slugPreview")}
+                              </p>
+                              <p className="mt-0.5 truncate font-mono text-xs font-bold text-emerald-900">
+                                {slug}.advowifi.com
+                              </p>
+                              <p className="mt-0.5 text-[10px] leading-snug text-emerald-800">
+                                {t("auth.register.slugNote")}
+                              </p>
+                            </div>
                           </div>
-                          <select
-                            id="city"
-                            value={form.city}
-                            onChange={(e) => update("city", e.target.value)}
-                            className={fieldWithIcon}
-                          >
-                            <option value="Dar es Salaam">{t("auth.register.city.dar")}</option>
-                            <option value="Arusha">{t("auth.register.city.arusha")}</option>
-                            <option value="Zanzibar">{t("auth.register.city.zanzibar")}</option>
-                            <option value="Mwanza">{t("auth.register.city.mwanza")}</option>
-                            <option value="Dodoma">{t("auth.register.city.dodoma")}</option>
-                            <option value="Mbeya">{t("auth.register.city.mbeya")}</option>
-                            <option value="Morogoro">{t("auth.register.city.morogoro")}</option>
-                            <option value="Tanga">{t("auth.register.city.tanga")}</option>
-                            <option value="Kilimanjaro">
-                              {t("auth.register.city.kilimanjaro")}
-                            </option>
-                            <option value="Other">{t("auth.register.city.other")}</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                        ) : (
+                          <p className="rounded-xl bg-advo-page px-3 py-2.5 text-[11px] leading-relaxed text-advo-muted">
+                            {t("auth.register.businessNameHint")}
+                          </p>
+                        )}
 
-                  {step === 3 && (
-                    <div className="animate-in fade-in slide-in-from-right-4 space-y-4 duration-200">
-                      <div>
-                        <label htmlFor="deviceType" className={labelClass}>
-                          {t("auth.register.deviceTypeLabel")}
-                        </label>
-                        <div className="relative">
-                          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-advo-muted">
-                            <Radio className="size-4" aria-hidden="true" />
-                          </div>
-                          <select
-                            id="deviceType"
-                            value={form.deviceType}
-                            onChange={(e) => update("deviceType", e.target.value)}
-                            className={fieldWithIcon}
-                          >
-                            <option value="ap">{t("auth.register.deviceType.ap")}</option>
-                            <option value="gateway">{t("auth.register.deviceType.gateway")}</option>
-                            <option value="switch">{t("auth.register.deviceType.switch")}</option>
-                            <option value="repeater">
-                              {t("auth.register.deviceType.repeater")}
-                            </option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="referralCode" className={labelClass}>
-                          {t("referralCodeOptional")}
-                        </label>
-                        <input
+                        <Field
+                          action={
+                            <span className="text-[10px] font-semibold text-advo-muted">
+                              {t("auth.common.optional")}
+                            </span>
+                          }
+                          error={errors.referralCode}
+                          hint={
+                            form.referralCode.trim().length >= 4 ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                                <BadgeCheck className="size-3" aria-hidden="true" />
+                                {t("auth.register.referralValid")}
+                              </span>
+                            ) : (
+                              t("auth.register.referralBonusHint")
+                            )
+                          }
+                          icon={null}
                           id="referralCode"
-                          type="text"
-                          placeholder={t("auth.register.referralCodePlaceholder")}
-                          value={form.referralCode}
-                          onChange={(e) => update("referralCode", e.target.value)}
-                          className={cx(fieldClass, "font-mono uppercase")}
-                        />
-                        <p className="mt-1.5 text-[11px] text-advo-muted">
-                          {t("auth.register.referralBonusHint")}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-advo-border bg-advo-page p-4">
-                        <label className="flex cursor-pointer items-start gap-3 text-xs text-advo-text">
+                          label={t("referralCodeOptional")}
+                        >
                           <input
-                            type="checkbox"
-                            checked={form.acceptTerms}
-                            onChange={(e) => update("acceptTerms", e.target.checked)}
-                            required
-                            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
+                            autoComplete="off"
+                            className={cx(
+                              "w-full rounded-field border bg-advo-page px-3.5 py-3 font-mono text-sm font-bold uppercase tracking-wider text-advo-text outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-advo-muted focus:bg-white focus:ring-2",
+                              errors.referralCode
+                                ? "border-[#d94a4a] focus:border-[#d94a4a] focus:ring-[#d94a4a]/15"
+                                : "border-advo-border focus:border-advo-gold/60 focus:ring-advo-gold/25",
+                            )}
+                            id="referralCode"
+                            onChange={(event) => update("referralCode", event.target.value.toUpperCase())}
+                            placeholder={t("auth.register.referralCodePlaceholder")}
+                            value={form.referralCode}
                           />
-                          <span className="leading-relaxed">
+                        </Field>
+
+                        <div className="rounded-2xl border border-advo-border bg-advo-page p-3.5">
+                          <p className="text-[10px] font-bold tracking-[0.1em] text-advo-muted uppercase">
+                            {t("auth.register.nextSteps.title")}
+                          </p>
+                          <ol className="mt-2 grid grid-cols-3 gap-2">
+                            {[
+                              { icon: CheckCircle2, label: t("auth.register.nextSteps.plan") },
+                              { icon: Globe, label: t("auth.register.nextSteps.site") },
+                              { icon: Wifi, label: t("auth.register.nextSteps.device") },
+                            ].map((item, index) => {
+                              const Icon = item.icon;
+                              return (
+                                <li key={item.label} className="flex flex-col items-center gap-1 text-center">
+                                  <span className="flex size-7 items-center justify-center rounded-full bg-white text-[#b15f00] ring-1 ring-advo-border">
+                                    <Icon className="size-3.5" aria-hidden="true" />
+                                  </span>
+                                  <span className="text-[9px] font-bold leading-tight text-advo-muted">
+                                    {index + 1}. {item.label}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        </div>
+                      </>
+                    )}
+
+                    {step === 3 && (
+                      <>
+                        <div className="rounded-2xl border border-advo-border bg-advo-page p-3.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-bold tracking-[0.1em] text-advo-muted uppercase">
+                              {t("auth.register.summary.title")}
+                            </p>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-advo-muted">
+                              <ShieldCheck className="size-3 text-emerald-600" aria-hidden="true" />
+                              {t("auth.register.stepVerify")}
+                            </span>
+                          </div>
+                          <dl className="mt-2 space-y-1.5">
+                            {[
+                              {
+                                label: t("auth.register.fullNameLabel"),
+                                value: form.ownerName,
+                                step: 1 as Step,
+                              },
+                              { label: t("email"), value: form.email, step: 1 as Step },
+                              {
+                                label: t("auth.register.businessNameLabel"),
+                                value: form.businessName,
+                                step: 2 as Step,
+                              },
+                            ].map((row) => (
+                              <div key={row.label} className="flex items-baseline justify-between gap-3">
+                                <dt className="shrink-0 text-[10px] font-semibold text-advo-muted">
+                                  {row.label}
+                                </dt>
+                                <dd className="flex min-w-0 items-baseline gap-2">
+                                  <span className="truncate text-[11px] font-bold text-advo-text">{row.value}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setStep(row.step)}
+                                    className="shrink-0 text-[10px] font-bold text-[#b15f00] underline underline-offset-2"
+                                  >
+                                    {t("auth.register.summary.edit")}
+                                  </button>
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+
+                        <EmailOtpStep
+                          body={t("auth.otp.resellerBody")}
+                          email={form.email}
+                          key={`reseller-${form.email}`}
+                          onVerified={(token, verifiedEmail) => setResellerOtp({ token, email: verifiedEmail })}
+                          role="RESELLER"
+                          verified={emailVerified}
+                        />
+
+                        <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-advo-page p-3">
+                          <input
+                            checked={form.acceptTerms}
+                            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
+                            id="terms"
+                            onChange={(event) => update("acceptTerms", event.target.checked)}
+                            type="checkbox"
+                          />
+                          <span className="text-[11px] leading-relaxed text-advo-muted">
                             {t("auth.register.termsLead")}{" "}
-                            <Link href="/terms" className={linkAccent}>
+                            <Link className={linkAccent} href="/terms">
                               {t("auth.register.termsService")}
                             </Link>{" "}
                             {t("auth.register.termsAnd")}{" "}
-                            <Link href="/privacy" className={linkAccent}>
+                            <Link className={linkAccent} href="/privacy">
                               {t("auth.register.termsPrivacy")}
                             </Link>{" "}
                             {t("auth.register.termsTrail")}
                           </span>
                         </label>
-                      </div>
+                      </>
+                    )}
+                  </div>
 
-                      <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50 p-3.5">
-                        <ShieldCheck className="size-5 shrink-0 text-emerald-600" aria-hidden="true" />
-                        <p className="text-[11px] leading-snug text-emerald-900">
-                          <strong>{t("auth.register.guaranteeTitle")}</strong>{" "}
-                          {t("auth.register.guaranteeBody")}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  {error ? <Notice tone="danger">{error}</Notice> : null}
+                  {info ? <Notice tone="success">{info}</Notice> : null}
 
-                  {error && <Notice tone="danger">{error}</Notice>}
-                  {info && <Notice tone="success">{info}</Notice>}
-
-                  <div className="flex items-center gap-3 border-t border-advo-border pt-4">
-                    {step > 1 && (
+                  <div className="flex items-center gap-2.5 border-t border-advo-border pt-4">
+                    {step > 1 ? (
                       <button
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-advo-page px-3.5 py-3 text-xs font-bold text-advo-text transition hover:bg-white active:scale-95"
+                        onClick={goBack}
                         type="button"
-                        onClick={handlePrev}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-advo-border bg-advo-page px-4 py-3 text-xs font-bold text-advo-text transition hover:bg-white active:scale-95"
                       >
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         {t("back")}
                       </button>
-                    )}
+                    ) : null}
 
                     {step < 3 ? (
                       <button
+                        className={buttonClasses({ variant: "gold", size: "lg", className: "flex-1" })}
                         type="submit"
-                        className={buttonClasses({
-                          variant: "gold",
-                          size: "lg",
-                          className: "flex-1",
-                        })}
                       >
                         <span>{t("auth.register.next")}</span>
                         <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
                       </button>
                     ) : (
                       <button
+                        className={buttonClasses({ variant: "gold", size: "lg", className: "flex-1" })}
+                        disabled={pending || !form.acceptTerms || !emailVerified}
                         type="submit"
-                        disabled={pending || !form.acceptTerms}
-                        className={buttonClasses({
-                          variant: "gold",
-                          size: "lg",
-                          className: "flex-1",
-                        })}
                       >
-                        <span>
-                          {pending
-                            ? t("auth.register.submitPending")
-                            : t("auth.register.submit")}
-                        </span>
+                        <span>{pending ? t("auth.register.submitPending") : t("auth.register.submit")}</span>
                         <Sparkles className="size-4 shrink-0" aria-hidden="true" />
                       </button>
                     )}
                   </div>
                 </form>
               </>
+            ) : (
+              /* ── Agent ── */
+              <div className="mt-5 border-t border-advo-border pt-4">
+                <ul className="grid grid-cols-3 gap-2">
+                  {[
+                    { icon: Coins, title: t("auth.register.agent.benefit.commission.title") },
+                    { icon: LayoutDashboard, title: t("auth.register.agent.benefit.dashboard.title") },
+                    { icon: BadgeCheck, title: t("auth.register.agent.benefit.code.title") },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li
+                        key={item.title}
+                        className="rounded-xl border border-advo-border bg-advo-page px-2 py-2.5 text-center"
+                      >
+                        <Icon className="mx-auto size-4 text-[#b15f00]" aria-hidden="true" />
+                        <p className="mt-1 text-[9px] font-bold leading-tight text-advo-text">{item.title}</p>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <form className="advo-auth-step mt-4 space-y-4" onSubmit={onAgentSubmit}>
+                  <Field
+                    error={agentErrors.name}
+                    icon={<User className="size-4" aria-hidden="true" />}
+                    id="agent-name"
+                    label={t("auth.register.fullNameLabel")}
+                  >
+                    <TextInput
+                      autoComplete="name"
+                      id="agent-name"
+                      invalid={Boolean(agentErrors.name)}
+                      onChange={(value) => updateAgent("name", value)}
+                      placeholder={t("auth.register.fullNamePlaceholder")}
+                      value={agentForm.name}
+                      withIcon
+                    />
+                  </Field>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      error={agentErrors.email}
+                      icon={<Mail className="size-4" aria-hidden="true" />}
+                      id="agent-email"
+                      label={t("email")}
+                    >
+                      <TextInput
+                        autoComplete="email"
+                        id="agent-email"
+                        invalid={Boolean(agentErrors.email)}
+                        onChange={(value) => updateAgent("email", value)}
+                        placeholder={t("auth.register.agentEmailPlaceholder")}
+                        type="email"
+                        value={agentForm.email}
+                        withIcon
+                      />
+                    </Field>
+
+                    <Field
+                      error={agentErrors.phone}
+                      icon={<Phone className="size-4" aria-hidden="true" />}
+                      id="agent-phone"
+                      label={t("phone")}
+                    >
+                      <TextInput
+                        autoComplete="tel"
+                        className="font-mono"
+                        id="agent-phone"
+                        inputMode="tel"
+                        invalid={Boolean(agentErrors.phone)}
+                        onBlur={() => updateAgent("phone", normalizePhone(agentForm.phone))}
+                        onChange={(value) => updateAgent("phone", value)}
+                        placeholder="+255712345678"
+                        value={agentForm.phone}
+                        withIcon
+                      />
+                    </Field>
+                  </div>
+
+                  <Field
+                    action={
+                      <span className="text-[10px] font-semibold text-advo-muted">
+                        {t("auth.common.optional")}
+                      </span>
+                    }
+                    error={agentErrors.referralCode}
+                    hint={
+                      agentForm.referralCode.trim().length >= 4 ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                          <BadgeCheck className="size-3" aria-hidden="true" />
+                          {t("auth.register.referralValid")}
+                        </span>
+                      ) : (
+                        t("auth.register.referralHint")
+                      )
+                    }
+                    icon={null}
+                    id="agent-code"
+                    label={t("auth.register.referralLabel")}
+                  >
+                    <input
+                      autoComplete="off"
+                      className={cx(
+                        "w-full rounded-field border bg-advo-page px-3.5 py-3 font-mono text-sm font-bold uppercase tracking-wider text-advo-text outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-advo-muted focus:bg-white focus:ring-2",
+                        agentErrors.referralCode
+                          ? "border-[#d94a4a] focus:border-[#d94a4a] focus:ring-[#d94a4a]/15"
+                          : "border-advo-border focus:border-advo-gold/60 focus:ring-advo-gold/25",
+                      )}
+                      id="agent-code"
+                      onChange={(event) => updateAgent("referralCode", event.target.value.toUpperCase())}
+                      placeholder={t("auth.register.referralPlaceholder")}
+                      value={agentForm.referralCode}
+                    />
+                  </Field>
+
+                  <div>
+                    <Field
+                      error={agentErrors.password}
+                      icon={null}
+                      id="agent-password"
+                      label={t("auth.password.minLength")}
+                    >
+                      <PasswordInput
+                        id="agent-password"
+                        invalid={Boolean(agentErrors.password)}
+                        onChange={(value) => updateAgent("password", value)}
+                        value={agentForm.password}
+                      />
+                    </Field>
+                    <PasswordStrength value={agentForm.password} />
+                  </div>
+
+                  <EmailOtpStep
+                    body={t("auth.otp.agentBody")}
+                    email={agentForm.email}
+                    key={`agent-${agentForm.email}`}
+                    onVerified={(token, verifiedEmail) => setAgentOtp({ token, email: verifiedEmail })}
+                    role="AGENT"
+                    verified={agentVerified}
+                  />
+
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-advo-page p-3">
+                    <input
+                      checked={agentForm.acceptTerms}
+                      className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-advo-border accent-advo-gold focus:ring-advo-gold"
+                      id="agent-terms"
+                      onChange={(event) => updateAgent("acceptTerms", event.target.checked)}
+                      type="checkbox"
+                    />
+                    <span className="text-[11px] leading-relaxed text-advo-muted">
+                      {t("auth.register.agentTermsLead")}{" "}
+                      <Link className={linkAccent} href="/terms">
+                        {t("auth.register.agentTermsLink")}
+                      </Link>{" "}
+                      {t("auth.register.termsAnd")}{" "}
+                      <Link className={linkAccent} href="/privacy">
+                        {t("auth.register.termsPrivacy")}
+                      </Link>{" "}
+                      {t("auth.register.agentTermsTrail")}
+                    </span>
+                  </label>
+
+                  {error ? <Notice tone="danger">{error}</Notice> : null}
+                  {info ? <Notice tone="success">{info}</Notice> : null}
+
+                  <button
+                    className={buttonClasses({ variant: "gold", size: "lg", className: "w-full" })}
+                    disabled={pending || !agentForm.acceptTerms || !agentVerified}
+                    id="agent-submit-btn"
+                    type="submit"
+                  >
+                    <span>{pending ? t("auth.register.agentSubmitPending") : t("auth.register.agentSubmit")}</span>
+                    <Sparkles className="size-4 shrink-0" aria-hidden="true" />
+                  </button>
+                </form>
+              </div>
             )}
 
-            <div className="relative mt-8 border-t border-advo-border pt-6 text-center text-sm text-advo-muted">
+            <div className="mt-6 border-t border-advo-border pt-5 text-center text-[13px] text-advo-muted">
               <span>{t("auth.register.haveAccount")} </span>
-              <Link href="/login" className={linkAccent}>
+              <Link className={linkAccent} href="/login">
                 {t("auth.register.loginLink")}
               </Link>
             </div>
+          </AuthCard>
+
+          <div className="mt-5">
+            <TrustRow
+              items={[
+                t("auth.register.trust.free"),
+                t("auth.register.trust.minutes"),
+                t("auth.register.trust.secure"),
+              ]}
+            />
           </div>
         </div>
 

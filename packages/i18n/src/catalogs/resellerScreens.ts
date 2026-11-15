@@ -99,6 +99,10 @@ export const resellerScreensEn = {
   "reseller.sites.kpi.claimsHint": "Awaiting review",
   "reseller.sites.close": "Close",
   "reseller.sites.create.title": "Register a new WiFi site",
+  "reseller.sites.create.subtitle":
+    "Each site has its own guest portal, packages and access points.",
+  "reseller.sites.create.nextHint":
+    "Once created, we provision the site on your Controller automatically. Then claim the access point that serves it and you are ready to sell.",
   "reseller.sites.create.submit": "Finish and create site",
   "reseller.sites.create.pending": "Creating site…",
   "reseller.sites.field.name": "Site name *",
@@ -785,6 +789,10 @@ export const resellerScreensSw: Record<ResellerScreenKey, string> = {
   "reseller.sites.kpi.claimsHint": "Yanasubiri ukaguzi",
   "reseller.sites.close": "Funga",
   "reseller.sites.create.title": "Sajili eneo jipya la WiFi",
+  "reseller.sites.create.subtitle":
+    "Kila eneo lina portal yake ya wageni, vifurushi vyake na vifaa vyake vya mtandao.",
+  "reseller.sites.create.nextHint":
+    "Eneo likishaundwa, tunalisajili kwenye Controller yako kiotomatiki. Kisha chukua (claim) access point inayohudumia eneo hilo na uwe tayari kuuza.",
   "reseller.sites.create.submit": "Kamilisha na unda eneo",
   "reseller.sites.create.pending": "Inaunda eneo…",
   "reseller.sites.field.name": "Jina la eneo (Site Name) *",

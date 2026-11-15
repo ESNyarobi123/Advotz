@@ -561,6 +561,12 @@ export async function submitDeviceClaim(
           data: { resellerId, siteId: site.id, mac, ...claimData },
         });
     await tx.site.updateMany({ where: { id: site.id, state: "AWAITING_DEVICE" }, data: { state: "READY" } });
+    // The device was the last onboarding step. Without this the step stays at
+    // DEVICE forever and the Admin screen looks like it is a role.
+    await tx.reseller.updateMany({
+      where: { id: resellerId, onboardingStep: { not: "COMPLETE" } },
+      data: { onboardingStep: "COMPLETE" },
+    });
     await audit(tx, { actorUserId, action: "device.adopted", targetType: "Device", targetId: device.id, resellerId });
     return { claim: redactClaim(claim), device };
   });
@@ -750,6 +756,10 @@ export async function reviewDeviceClaim(adminUserId: string, claimId: string, de
       data: { state: "APPROVED", reviewReason: reason, reviewedBy: adminUserId, reviewedAt: new Date(), deviceId: device.id },
     });
     await tx.site.updateMany({ where: { id: claim.siteId, state: "AWAITING_DEVICE" }, data: { state: "READY" } });
+    await tx.reseller.updateMany({
+      where: { id: claim.resellerId, onboardingStep: { not: "COMPLETE" } },
+      data: { onboardingStep: "COMPLETE" },
+    });
     await audit(tx, { actorUserId: adminUserId, action: "device_claim.approved", targetType: "DeviceClaim", targetId: claimId, resellerId: claim.resellerId, reason });
     return { claim: redactClaim(c), device };
   });

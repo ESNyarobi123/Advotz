@@ -95,9 +95,13 @@ export default function StatusPage() {
     return () => clearInterval(id);
   }, [held]);
 
-  /** The session opened: leave the captive page the guest asked to leave. */
+  /**
+   * The session opened: the hold button has done its job. Keep the page here —
+   * navigating away is what used to close the connected screen — and let the
+   * "Browse internet" link open the destination in its own tab.
+   */
   useEffect(() => {
-    if (starting && access?.state === "ACTIVE") window.location.assign(BROWSE_URL);
+    if (starting && access?.state === "ACTIVE") setStarting(false);
   }, [starting, access?.state]);
 
   // A failed or ended activation has nothing left to wait for.

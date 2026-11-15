@@ -159,10 +159,12 @@ export function TrendChart({
   data,
   height = 240,
   amountLabel,
+  color = CHART_COLORS.blue,
 }: {
   data: TrendPoint[];
   height?: number;
   amountLabel?: string;
+  color?: string;
 }) {
   const { t, locale } = useI18n();
   const gradientId = `advo-trend-${useId().replace(/:/g, "")}`;
@@ -188,23 +190,23 @@ export function TrendChart({
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={CHART_COLORS.blue} stopOpacity={0.28} />
-            <stop offset="100%" stopColor={CHART_COLORS.blue} stopOpacity={0.02} />
+            <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke={CHART_COLORS.border} strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid stroke="var(--advo-border)" strokeDasharray="3 3" vertical={false} />
         <XAxis
           axisLine={false}
           dataKey="day"
           interval="preserveStartEnd"
           minTickGap={16}
-          tick={{ fill: CHART_COLORS.muted, fontSize: 10 }}
+          tick={{ fill: "var(--advo-muted)", fontSize: 11 }}
           tickFormatter={formatTick}
           tickLine={false}
         />
         <YAxis
           axisLine={false}
-          tick={{ fill: CHART_COLORS.muted, fontSize: 10 }}
+          tick={{ fill: "var(--advo-muted)", fontSize: 11 }}
           tickFormatter={(v: number) => formatCompactTzs(v)}
           tickLine={false}
           width={44}
@@ -219,13 +221,13 @@ export function TrendChart({
               }
             />
           )}
-          cursor={{ stroke: CHART_COLORS.blue, strokeDasharray: "3 3", strokeOpacity: 0.4 }}
+          cursor={{ stroke: color, strokeDasharray: "3 3", strokeOpacity: 0.4 }}
         />
         <Area
           dataKey="amount"
           fill={`url(#${gradientId})`}
           name={amountLabel ?? t("charts.trend.seriesAmount")}
-          stroke={CHART_COLORS.blue}
+          stroke={color}
           strokeWidth={2}
           type="monotone"
         />

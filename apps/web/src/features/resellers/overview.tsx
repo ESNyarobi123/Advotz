@@ -1,847 +1,1377 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { formatDateTime, formatTzs } from "@advo/api-client";
-import { Button, Card, EmptyState, SearchField, ToggleButton, ToggleButtonGroup } from "@heroui/react";
-import { buttonVariants } from "@heroui/styles";
-import { AdvoKpi, DeltaBadge, Notice, StatusChip, statusTone } from "@advo/ui";
+import { useState, type ReactNode } from "react";
+import { BUSINESS_TIMEZONE, formatDateTime, formatTzs } from "@advo/api-client";
+import { LOCALE_META, type MessageKey } from "@advo/i18n";
+import {
+  AdvoKpi,
+  DeltaBadge,
+  SoftIcon,
+  StatusChip,
+  statusTone,
+} from "@advo/ui";
+import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  CalendarDays,
+  CircleAlert,
+  Clock,
+  CreditCard,
+  ExternalLink,
+  LayoutDashboard,
+  MapPin,
+  Plus,
+  RefreshCw,
+  Router,
+  ShieldCheck,
+  Ticket,
+  TriangleAlert,
+  Wallet,
+  Wifi,
+} from "lucide-react";
 import {
   CHART_COLORS,
   ChartCard,
   MixDonut,
   TrendChart,
-  type MixSlice,
-  type TrendPoint,
 } from "@/features/common/charts";
-import { PageHero, ResourceView, SectionHeader } from "@/features/common/components";
-import { accountStatusLabel, paymentStateLabel, subscriptionStateLabel } from "@/features/common/labels";
-import { SiteScopeSwitcher, useSiteScope } from "@/features/resellers/site-scope";
-import { ResellerUsageCard } from "@/features/resellers/usage-card";
-import { useI18n, type I18n } from "@/lib/i18n";
-import { useResource } from "@/lib/hooks";
 import {
-  ArrowUpRight,
-  Clock,
-  Download,
-  ExternalLink,
-  LayoutDashboard,
-  MapPin,
-  Package,
-  Phone,
-  Printer,
-  Radio,
-  RefreshCw,
-  Sparkles,
-  Ticket,
-  TrendingUp,
-  Wallet,
-  Wifi,
-} from "lucide-react";
+  PageHero,
+  ResourceView,
+  SectionHeader,
+} from "@/features/common/components";
+import {
+  paymentStateLabel,
+  subscriptionStateLabel,
+} from "@/features/common/labels";
+import {
+  SiteScopeSwitcher,
+  useSiteScope,
+  type ScopedSite,
+} from "@/features/resellers/site-scope";
+import { ResellerUsageCard } from "@/features/resellers/usage-card";
+import { useSessionUser } from "@/features/shell/DashboardShell";
+import { useResource } from "@/lib/hooks";
+import { useI18n, type I18n } from "@/lib/i18n";
+import { RecentTransactions } from "./overview-transactions";
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Types — the shape `/reseller/overview` returns
+ * ───────────────────────────────────────────────────────────────────────── */
+
+type Sales = { count: number; amountTzs: string };
+
+type Subscription = {
+  state: string;
+  plan: string | null;
+  planCode: string | null;
+  tierKey: string | null;
+  planType: "PARTNER" | "INDEPENDENT" | null;
+  priceTzs: string | null;
+  priceFrom: boolean;
+  periodDays: number | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  /** Negative once the period has ended, `null` when there is no plan. */
+  daysRemaining: number | null;
+  trialUsed: boolean;
+  /** Absent until the API serves capacity limits (older backend builds). */
+  limits?: {
+    sites: number | null;
+    devices: number | null;
+    packagesPerSite: number | null;
+    packagesTotal: number | null;
+  } | null;
+  usage?: {
+    sites: number;
+    devices: number;
+    packagesPerSite: number;
+    packagesTotal: number;
+  };
+  lastInvoice?: {
+    id: string;
+    amountTzs: string;
+    status: string;
+    paidAt: string | null;
+    periodEnd: string | null;
+  } | null;
+};
 
 type ResellerOverview = {
-  reseller: { businessName: string; status: string; onboardingStep: string; slug: string };
-  subscription: { state: string; plan: string | null; currentPeriodEnd: string | null };
-  wallet: { availableTzs: string; pendingTzs: string; reservedTzs: string };
-  salesToday: { count: number; amountTzs: string };
-  salesAllTime: { count: number; amountTzs: string };
-  /** Paid sales per Dar day, oldest first. Powers the trend chart and the KPI deltas. */
-  salesDaily: Array<{ day: string; count: number; amountTzs: string }>;
-  /** Paid sales per site over all orders, biggest first. */
-  salesBySite: Array<{ site: string; count: number; amountTzs: string }>;
-  /** Paid sales per package over all orders, biggest first. */
-  salesByPackage: Array<{ package: string; count: number; amountTzs: string }>;
-  /** Order counts per payment state over all orders. */
-  paymentMix: Array<{ state: string; count: number; amountTzs: string }>;
+  reseller: { businessName: string; status: string };
+  subscription: Subscription;
+  wallet: { availableTzs: string; pendingTzs: string };
+  salesToday: Sales;
+  salesAllTime: Sales;
+  salesDaily: Array<Sales & { day: string }>;
+  salesBySite: Array<Sales & { id: string | null; site: string }>;
+  salesByPackage: Array<Sales & { id: string | null; package: string }>;
+  paymentMix: Array<Sales & { state: string }>;
   activeGrants: number;
-  sites: Array<{ id: string; name: string; state: string; slug: string }>;
+  sites: ScopedSite[];
   deviceCount: number;
   pendingClaims: number;
   packageCount: number;
   ordersNeedingReview: number;
   scope: { siteId: string | null; siteName: string | null };
-  /** Always reseller-wide — used by the setup checklist so scoping never regresses it. */
   totals: { sites: number; devices: number; packages: number };
 };
 
-type OrderItem = {
-  id: string;
-  orderNumber?: string;
-  amountTzs: string;
-  currency: string;
-  paymentState: string;
-  fulfillmentState: string;
-  paymentMethod?: string;
-  createdAt: string;
-  priceSnapshot?: { name?: string; durationSeconds?: number } | null;
-  customer?: { phone: string; firstName?: string; lastName?: string } | null;
-  site?: { name: string } | null;
-  grant?: { id: string; state: string; expiresAt: string } | null;
-};
+/* ─────────────────────────────────────────────────────────────────────────
+ * Shared styles
+ * ───────────────────────────────────────────────────────────────────────── */
 
-type DisplayOrder = {
-  key: string;
-  id: string;
-  phone: string;
-  name: string | null;
-  plan: string | null;
-  site: string;
-  amountTzs: string;
-  status: string;
-  time: string;
-};
+const card =
+  "min-w-0 rounded-card border border-advo-border bg-advo-card shadow-advo-card";
+const goldAction =
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#f8ba56] px-3.5 text-sm font-bold text-[#261804] transition hover:bg-[#ffd18b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f8ba56] disabled:opacity-50";
+const quietAction =
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-advo-border bg-advo-card px-3.5 text-sm font-semibold text-advo-text transition hover:bg-advo-surface-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f8ba56]";
+const linkAction =
+  "inline-flex items-center gap-1.5 text-sm font-semibold text-advo-blue hover:underline";
+const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
 
-const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
-const SETTLED_PAYMENT_STATES = new Set(["PAID", "OVERPAID"]);
-const DANGER_PAYMENT_STATES = new Set(["CANCELLED", "REFUNDED"]);
+/* ─────────────────────────────────────────────────────────────────────────
+ * Derivation helpers
+ * ───────────────────────────────────────────────────────────────────────── */
 
-/** Colour per payment state, used by the mix donut and the state legend. */
-const PAYMENT_STATE_COLORS: Record<string, string> = {
-  PAID: CHART_COLORS.blue,
-  OVERPAID: CHART_COLORS.blueSoft,
-  NEEDS_REVIEW: CHART_COLORS.warning,
-  REFUND_PENDING: CHART_COLORS.orange,
-  UNPAID: CHART_COLORS.neutral,
-  CANCELLED: CHART_COLORS.danger,
-  REFUNDED: CHART_COLORS.danger,
-};
-
-/**
- * Percentage change between two values, or `null` when there is no usable
- * baseline. A jump from zero is shown as "no baseline" rather than as an
- * infinite percentage.
- */
-function percentChange(current: number, previous: number): number | null {
-  if (!Number.isFinite(previous) || previous <= 0) return null;
-  return ((current - previous) / previous) * 100;
+function percentChange(current: number, previous: number) {
+  return previous > 0 ? ((current - previous) / previous) * 100 : null;
 }
 
-/** A ranked set of bars: `label`, `count`, formatted `amount`. */
-function RankedBars({
-  rows,
-  emptyText,
-  barClassName = "bg-advo-blue",
-}: {
-  rows: Array<{ key: string; label: string; count: number; amount: string }>;
-  emptyText: string;
-  barClassName?: string;
-}) {
-  const max = rows.reduce((highest, row) => Math.max(highest, row.count), 0);
-  if (rows.length === 0) {
-    return <p className="py-8 text-center text-xs text-advo-muted">{emptyText}</p>;
-  }
-  return (
-    <ul className="space-y-3.5">
-      {rows.map((row) => (
-        <li className="space-y-1.5" key={row.key}>
-          <div className="flex items-center justify-between gap-3 text-[11px]">
-            <span className="truncate font-bold text-advo-text">{row.label}</span>
-            <span className="shrink-0 tabular-nums text-advo-muted">
-              <span className="font-bold text-advo-text">{row.amount}</span> · {row.count}
-            </span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-advo-track">
-            <div
-              className={`h-full rounded-full ${barClassName}`}
-              style={{ width: `${max > 0 ? Math.max((row.count / max) * 100, 3) : 0}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+function periodSum(rows: Sales[]) {
+  return rows.reduce((total, row) => total + BigInt(row.amountTzs), 0n);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function darHour(now = new Date()) {
+  return Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: BUSINESS_TIMEZONE,
+      hour: "2-digit",
+      hour12: false,
+    }).format(now),
   );
 }
+
+/** "1 day left" and "3 days left" are different strings, not a plural rule. */
+function remainingDaysLabel(t: I18n["t"], days: number) {
+  if (days <= 0) return t("reseller.subscription.endsToday");
+  return days === 1
+    ? t("reseller.subscription.remainingDay")
+    : t("reseller.subscription.remainingDays", { count: days });
+}
+
+/** Days are the unit a reseller thinks in, so a limit reads "3 / 5". */
+function meteredValue(used: number, limit: number | null, t: I18n["t"]) {
+  if (limit === null)
+    return `${used} / ${t("reseller.overview.plan.unlimited")}`;
+  return `${used} / ${limit}`;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Screen
+ * ───────────────────────────────────────────────────────────────────────── */
 
 export function ResellerOverviewScreen() {
-  const { scoped } = useSiteScope();
-  const overview = useResource<ResellerOverview>(scoped("/reseller/overview"));
-  const orders = useResource<OrderItem[]>(scoped("/reseller/orders"));
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  function handleRefresh() {
-    setIsRefreshing(true);
-    Promise.all([overview.reload(), orders.reload()]).finally(() => {
-      setTimeout(() => setIsRefreshing(false), 600);
-    });
-  }
-
+  const { siteId, scoped } = useSiteScope();
   return (
-    <ResourceView resource={overview}>
-      {(o) => (
-        <OverviewBody
-          isRefreshing={isRefreshing}
-          o={o}
-          onRefresh={handleRefresh}
-          orders={orders}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          setStatusFilter={setStatusFilter}
-          statusFilter={statusFilter}
-        />
-      )}
-    </ResourceView>
+    <ScopedOverview key={siteId ?? "all"} path={scoped("/reseller/overview")} />
   );
 }
 
-function OverviewBody({
-  o,
-  orders,
-  searchQuery,
-  setSearchQuery,
-  statusFilter,
-  setStatusFilter,
-  isRefreshing,
-  onRefresh,
-}: {
-  o: ResellerOverview;
-  orders: ReturnType<typeof useResource<OrderItem[]>>;
-  searchQuery: string;
-  setSearchQuery: (v: string) => void;
-  statusFilter: string;
-  setStatusFilter: (v: string) => void;
-  isRefreshing: boolean;
-  onRefresh: () => void;
-}) {
+function ScopedOverview({ path }: { path: string }) {
   const { t } = useI18n();
-  const { siteId, site } = useSiteScope();
-  const scopedSite = Boolean(siteId && o.scope.siteId);
-  // Checklist always reflects the whole account so filtering a site never
-  // makes a completed setup look unfinished.
-  const steps = [
-    { done: ["ACTIVE", "TRIALING"].includes(o.subscription.state), label: t("reseller.overview.step.plan"), href: "/reseller/subscription" },
-    { done: o.totals.sites > 0, label: t("reseller.overview.step.site"), href: "/reseller/sites" },
-    { done: o.totals.devices > 0, label: t("reseller.overview.step.device"), href: "/reseller/devices" },
-    { done: o.totals.packages > 0, label: t("reseller.overview.step.package"), href: "/reseller/packages" },
-  ];
-  const pendingStepsCount = steps.filter((s) => !s.done).length;
-
-  /* ── Derived series ──────────────────────────────────────────────────── */
-  const trend: TrendPoint[] = useMemo(
-    () => o.salesDaily.map((d) => ({ day: d.day, amount: Number(d.amountTzs), count: d.count })),
-    [o.salesDaily],
-  );
-  const today = trend.at(-1);
-  const yesterday = trend.at(-2);
-  // The prior 7 days, used for the "this week vs last week" KPI deltas.
-  const last7 = trend.slice(-7).reduce((sum, d) => sum + d.amount, 0);
-  const prior7 = trend.slice(-14, -7).reduce((sum, d) => sum + d.amount, 0);
-  const weekDelta = percentChange(last7, prior7);
-  const revenueDelta = today && yesterday ? percentChange(today.amount, yesterday.amount) : null;
-  const salesDelta = today && yesterday ? percentChange(today.count, yesterday.count) : null;
-  const windowTotal = trend.reduce((sum, d) => sum + d.amount, 0);
-
-  const siteSales = o.salesBySite;
-  const packageSales = o.salesByPackage;
-  const paymentGroups = o.paymentMix;
-
-  const mixSlices: MixSlice[] = paymentGroups.map((g) => ({
-    label: paymentStateLabel(t, g.state),
-    value: g.count,
-    color: PAYMENT_STATE_COLORS[g.state] ?? CHART_COLORS.neutral,
-  }));
-
-  const displayOrders = useMemo(
-    () =>
-      (orders.data ?? []).slice(0, 12).map((ord) => ({
-        key: ord.id,
-        id: ord.id.slice(0, 8).toUpperCase(),
-        phone: ord.customer?.phone ?? t("reseller.walkIn"),
-        name: [ord.customer?.firstName, ord.customer?.lastName].filter(Boolean).join(" ") || null,
-        plan: ord.priceSnapshot?.name ?? null,
-        site: ord.site?.name ?? "—",
-        amountTzs: ord.amountTzs,
-        status: ord.paymentState,
-        time: formatDateTime(ord.createdAt),
-      })),
-    [orders.data, t],
-  );
-
-  const filteredOrders = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return displayOrders.filter((t) => {
-      const matchesQuery =
-        query.length === 0 ||
-        t.phone.toLowerCase().includes(query) ||
-        (t.name ?? "").toLowerCase().includes(query) ||
-        t.id.toLowerCase().includes(query) ||
-        (t.plan ?? "").toLowerCase().includes(query) ||
-        t.site.toLowerCase().includes(query);
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "paid" && (t.status === "PAID" || t.status === "OVERPAID")) ||
-        (statusFilter === "attention" && !["PAID", "OVERPAID"].includes(t.status));
-      return matchesQuery && matchesStatus;
-    });
-  }, [displayOrders, searchQuery, statusFilter]);
-
-  const sparkRevenue = trend.map((d) => d.amount);
-  const sparkSales = trend.map((d) => d.count);
-
-  const paidInWindow = trend.reduce((sum, d) => sum + d.count, 0);
-  const avgSale = paidInWindow > 0 ? windowTotal / paidInWindow : 0;
-  const bestDay = trend.reduce<(typeof trend)[number] | null>(
-    (best, d) => (!best || d.amount > best.amount ? d : best),
-    null,
-  );
-  const topPackage = packageSales[0] ?? null;
-  const topSite = siteSales[0] ?? null;
+  const overview = useResource<ResellerOverview>(path);
+  const [refresh, setRefresh] = useState(0);
+  const data = overview.data;
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5">
-      {/* ── Header ── */}
-      <PageHero
-        actions={
-          <>
-            <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/reseller/sites">
-              <Wifi className="size-3.5" />
-              {t("nav.sites")}
-            </Link>
-            <Link className={buttonVariants({ size: "sm", variant: "primary" })} href="/reseller/vouchers">
-              <Ticket className="size-3.5" />
-              {t("nav.vouchers")}
-            </Link>
-            <Button isIconOnly aria-label={t("common.refresh")} onPress={onRefresh} size="sm" variant="outline">
-              <RefreshCw className={isRefreshing ? "size-3.5 animate-spin text-advo-blue" : "size-3.5"} />
-            </Button>
-            <Button isIconOnly aria-label={t("common.print")} onPress={() => window.print()} size="sm" variant="outline">
-              <Printer className="size-3.5" />
-            </Button>
-          </>
-        }
-        eyebrow={t("nav.overview")}
-        icon={<LayoutDashboard />}
-        iconTone="accent"
-        meta={
-          <>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold tracking-wide text-emerald-700 uppercase">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              {o.reseller.status === "ACTIVE" ? t("reseller.overview.activePortal") : accountStatusLabel(t, o.reseller.status)}
-            </span>
-            <StatusChip>{subscriptionStateLabel(t, o.subscription.state)}</StatusChip>
-          </>
-        }
-        title={o.reseller.businessName}
+    <div className="mx-auto max-w-[1400px] space-y-5 pb-10 text-advo-text sm:space-y-6">
+      <OverviewHero
+        data={data ?? null}
+        loading={overview.loading}
+        onRefresh={() => {
+          setRefresh((version) => version + 1);
+          void overview.reload();
+        }}
       />
 
-      {/* ── Site scope + analysis ── */}
-      <Card className="space-y-4 p-4 shadow-advo-card ring-1 ring-advo-border/70 sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <SiteScopeSwitcher variant="hero" />
-          <span className="text-[11px] font-semibold text-advo-muted">
-            {t("reseller.analysis.window", { days: trend.length })}
-            {scopedSite && site ? ` · ${site.name}` : ""}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-advo-border bg-advo-card px-3 py-2.5 shadow-advo-card print:hidden">
+        <SiteScopeSwitcher variant="hero" />
+        <nav
+          aria-label={t("reseller.overview.sections")}
+          className="flex min-w-0 flex-wrap gap-1"
+        >
+          {[
+            ["#sales", t("reseller.overview.sales")],
+            ["#transactions", t("nav.payments")],
+            ["#network", t("reseller.overview.network")],
+          ].map(([href, label]) => (
+            <a
+              className="rounded-lg px-2.5 py-1.5 text-sm font-semibold text-advo-muted transition hover:bg-advo-surface-soft hover:text-advo-text"
+              href={href}
+              key={href}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      <ResourceView resource={overview}>
+        {(o) => <OverviewBody data={o} refresh={refresh} />}
+      </ResourceView>
+    </div>
+  );
+}
+
+function OverviewHero({
+  data,
+  loading,
+  onRefresh,
+}: {
+  data: ResellerOverview | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const { t, locale } = useI18n();
+  const me = useSessionUser();
+  const dateLocale = LOCALE_META[locale].intlLocale;
+  const now = new Date();
+  const hour = darHour(now);
+  const greeting =
+    hour < 12
+      ? t("reseller.overview.greeting.morning")
+      : hour < 17
+        ? t("reseller.overview.greeting.afternoon")
+        : t("reseller.overview.greeting.evening");
+  const firstName = (me.name ?? "").trim().split(/\s+/)[0];
+  const title = firstName
+    ? `${greeting}, ${firstName}`
+    : (data?.reseller.businessName ?? t("reseller.overview.dashboard"));
+  const today = new Intl.DateTimeFormat(dateLocale, {
+    timeZone: BUSINESS_TIMEZONE,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(now);
+  const subscription = data?.subscription;
+  const scopedSite = data?.scope.siteName;
+
+  return (
+    <PageHero
+      actions={
+        <>
+          <button
+            aria-label={t("common.refresh")}
+            className={quietAction}
+            disabled={loading}
+            onClick={onRefresh}
+            title={t("common.refresh")}
+            type="button"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={`size-4 ${loading ? "motion-safe:animate-spin" : ""}`}
+            />
+            <span className="hidden sm:inline">{t("common.refresh")}</span>
+          </button>
+          <Link className={quietAction} href="/reseller/sites">
+            <Plus aria-hidden="true" className="size-4" />
+            {t("reseller.overview.action.addSite")}
+          </Link>
+          <Link className={goldAction} href="/reseller/vouchers">
+            <Ticket aria-hidden="true" className="size-4" />
+            {t("nav.vouchers")}
+          </Link>
+        </>
+      }
+      description={t("reseller.overview.hero.subtitle")}
+      eyebrow={today}
+      icon={<LayoutDashboard />}
+      iconTone="accent"
+      meta={
+        <>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--advo-border)] bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-advo-muted">
+            <ShieldCheck aria-hidden="true" className="size-3" />
+            {data?.reseller.businessName ?? t("reseller.overview.dashboard")}
           </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <AnalysisChip
-            label={t("reseller.analysis.avgSale")}
-            value={avgSale > 0 ? formatTzs(Math.round(avgSale)) : "—"}
-          />
-          <AnalysisChip
-            label={t("reseller.analysis.bestDay")}
-            value={bestDay && bestDay.amount > 0 ? formatTzs(bestDay.amount) : "—"}
-            hint={bestDay && bestDay.amount > 0 ? bestDay.day : undefined}
-          />
-          <AnalysisChip
-            label={t("reseller.analysis.topPackage")}
-            value={topPackage ? topPackage.package : "—"}
-            hint={topPackage ? formatTzs(topPackage.amountTzs) : undefined}
-          />
-          {!scopedSite ? (
-            <AnalysisChip
-              label={t("reseller.analysis.topSite")}
-              value={topSite ? topSite.site : "—"}
-              hint={topSite ? formatTzs(topSite.amountTzs) : undefined}
-            />
-          ) : (
-            <AnalysisChip
-              label={t("reseller.analysis.window", { days: trend.length })}
-              value={formatTzs(windowTotal)}
-            />
-          )}
-        </div>
-      </Card>
-
-      {/* ── Status alerts ── */}
-      {o.reseller.status !== "ACTIVE" ? (
-        <Notice tone="warning">
-          {t("reseller.overview.accountStatus", { status: accountStatusLabel(t, o.reseller.status) })}{" "}
-          {t("reseller.overview.accountStatusNote")}{" "}
-          <Link className="font-bold underline" href="/verify">
-            {t("reseller.overview.verifyNow")}
-          </Link>
-        </Notice>
-      ) : null}
-      {o.subscription.state === "PAST_DUE" ? (
-        <Notice tone="warning">
-          {t("reseller.overview.pastDue")}{" "}
-          <Link className="font-bold underline" href="/reseller/subscription">
-            {t("reseller.overview.payNow")}
-          </Link>
-        </Notice>
-      ) : null}
-      {o.subscription.state === "EXPIRED" ? (
-        <Notice tone="danger">
-          {t("reseller.overview.expired")}{" "}
-          <Link className="font-bold underline" href="/reseller/subscription">
-            {t("reseller.overview.restart")}
-          </Link>
-        </Notice>
-      ) : null}
-
-      {/* ── Setup checklist ── */}
-      {pendingStepsCount > 0 ? (
-        <Card className="p-5 shadow-advo-card ring-1 ring-advo-border/70">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="flex items-center gap-2 text-sm font-bold text-advo-text">
-                <Sparkles className="size-4 text-advo-gold" />
-                {t("reseller.overview.checklist.title")}
-              </h2>
-              <p className="mt-0.5 text-xs text-advo-muted">{t("reseller.overview.checklist.body")}</p>
-            </div>
-            <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent">
-              {t("reseller.overview.checklist.progress", {
-                done: steps.length - pendingStepsCount,
-                total: steps.length,
-              })}
+          {subscription ? (
+            <StatusChip tone={subscriptionTone(subscription.state)}>
+              {subscriptionStateLabel(t, subscription.state)}
+            </StatusChip>
+          ) : null}
+          {scopedSite ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--advo-border)] bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-advo-muted">
+              <MapPin aria-hidden="true" className="size-3" />
+              {scopedSite}
             </span>
-          </div>
-          <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {steps.map((step, i) => (
-              <li
-                className={`rounded-xl border p-3 transition-colors ${
-                  step.done ? "border-advo-border bg-advo-page" : "border-advo-blue/30 bg-white hover:border-advo-blue"
-                }`}
-                key={step.label}
-              >
-                <div className="flex items-start gap-2.5">
-                  <span
-                    className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                      step.done ? "bg-emerald-500 text-white" : "bg-advo-track text-advo-muted"
-                    }`}
-                  >
-                    {step.done ? "✓" : i + 1}
-                  </span>
-                  <div className="min-w-0">
-                    {step.done ? (
-                      <span className="block truncate text-xs font-medium text-advo-muted line-through">{step.label}</span>
-                    ) : (
-                      <Link className="block truncate text-xs font-bold text-advo-blue hover:underline" href={step.href}>
-                        {step.label}
-                      </Link>
-                    )}
-                    <span className="text-[10px] text-advo-muted">
-                      {step.done ? t("reseller.overview.step.done") : t("reseller.overview.step.configure")}
-                    </span>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </Card>
+          ) : null}
+        </>
+      }
+      title={title}
+    />
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Body
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function OverviewBody({
+  data: o,
+  refresh,
+}: {
+  data: ResellerOverview;
+  refresh: number;
+}) {
+  const { t, locale } = useI18n();
+  const dateLocale = LOCALE_META[locale].intlLocale;
+  const [focusReview, setFocusReview] = useState(0);
+  const scopedSite = Boolean(o.scope.siteId);
+  const sites = scopedSite
+    ? o.sites.filter((site) => site.id === o.scope.siteId)
+    : o.sites;
+  const readySites = sites.filter((site) => site.state === "READY").length;
+  const hasPlan =
+    o.subscription.state === "ACTIVE" || o.subscription.state === "TRIALING";
+  const yesterday = o.salesDaily.at(-2);
+  const revenueChange = percentChange(
+    Number(o.salesToday.amountTzs),
+    Number(yesterday?.amountTzs ?? 0),
+  );
+  const spark = o.salesDaily.map((row) => Number(row.amountTzs));
+  const alerts = buildAlerts(o, t, sites);
+  const checklistVisible =
+    !hasPlan ||
+    o.totals.sites === 0 ||
+    o.totals.devices === 0 ||
+    o.totals.packages === 0;
+
+  return (
+    <div className="space-y-5 sm:space-y-6">
+      {alerts.length > 0 ? (
+        <AttentionCard
+          alerts={alerts}
+          onReviewOrders={() => setFocusReview((count) => count + 1)}
+        />
       ) : null}
 
-      {/* ── KPI tiles ── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {checklistVisible ? <SetupChecklist data={o} hasPlan={hasPlan} /> : null}
+
+      <section
+        aria-label={t("reseller.overview.dashboard")}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <AdvoKpi
-          delta={<DeltaBadge label={` ${t("reseller.vsYesterday")}`} value={revenueDelta} />}
-          hint={t("reseller.overview.kpi.revenueHint", { count: o.salesToday.count })}
-          icon={<TrendingUp />}
+          delta={
+            <DeltaBadge
+              label={` ${t("reseller.vsYesterday")}`}
+              value={revenueChange}
+            />
+          }
+          hint={t("reseller.overview.kpi.revenueHint", {
+            count: o.salesToday.count,
+          })}
+          icon={<Activity />}
           iconTone="accent"
-          label={t("reseller.overview.kpi.revenueToday")}
-          spark={sparkRevenue}
+          label={t("reseller.overview.revenueToday")}
+          spark={spark}
+          sparkColor={CHART_COLORS.gold}
           value={formatTzs(o.salesToday.amountTzs)}
         />
         <AdvoKpi
           action={
             <Link
-              className="inline-flex items-center gap-0.5 rounded-full border border-advo-blue/20 bg-accent-soft px-2 py-0.5 text-[10px] font-bold text-accent transition hover:border-advo-blue/40"
+              aria-label={t("nav.wallet")}
+              className="text-advo-muted transition hover:text-advo-blue"
               href="/reseller/wallet"
             >
-              {t("reseller.withdraw")}
-              <ArrowUpRight className="size-3" />
+              <ArrowUpRight className="size-4" />
             </Link>
           }
-          hint={
-            scopedSite
-              ? t("reseller.scope.walletWide")
-              : t("reseller.overview.kpi.walletHint", { amount: formatTzs(o.wallet.pendingTzs) })
-          }
+          hint={t("reseller.overview.kpi.walletHint", {
+            amount: formatTzs(o.wallet.pendingTzs),
+          })}
           icon={<Wallet />}
           iconTone="gold"
           label={t("reseller.overview.kpi.wallet")}
           value={formatTzs(o.wallet.availableTzs)}
         />
         <AdvoKpi
-          delta={<DeltaBadge label={` ${t("reseller.vsYesterday")}`} value={salesDelta} />}
-          hint={t("reseller.overview.kpi.salesHint", { amount: formatTzs(o.salesAllTime.amountTzs) })}
-          icon={<Ticket />}
-          iconTone="violet"
-          label={t("reseller.overview.kpi.salesToday")}
-          spark={sparkSales}
-          sparkColor={CHART_COLORS.gold}
-          value={o.salesToday.count}
+          hint={t(
+            o.totals.sites === 1
+              ? "reseller.overview.sessionsHintOne"
+              : "reseller.overview.sessionsHint",
+            {
+              sites: o.totals.sites,
+              devices: o.deviceCount,
+            },
+          )}
+          icon={<Wifi />}
+          iconTone="success"
+          label={t("reseller.overview.activeSessions")}
+          value={o.activeGrants.toLocaleString(dateLocale)}
         />
         <AdvoKpi
-          hint={
-            scopedSite && (o.scope.siteName || site?.name)
-              ? t("reseller.overview.kpi.activeUsersHintSite", {
-                  site: o.scope.siteName ?? site?.name ?? "",
-                  devices: o.deviceCount,
-                })
-              : t("reseller.overview.kpi.activeUsersHint", {
-                  sites: o.sites.length,
-                  devices: o.deviceCount,
-                })
-          }
-          icon={<Radio />}
-          iconTone="teal"
-          label={t("reseller.overview.kpi.activeUsers")}
-          value={o.activeGrants}
-        />
-      </div>
-
-      {/* ── Charts ── */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <ChartCard
           action={
-            <span className="rounded-full bg-advo-page px-2.5 py-1 text-[11px] font-bold text-advo-muted">
-              {t("reseller.overview.trend.window", { amount: formatTzs(windowTotal), days: trend.length })}
-            </span>
-          }
-          className="xl:col-span-8"
-          description={t("reseller.overview.trend.description")}
-          legend={
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-advo-border pt-3 text-[11px] text-advo-muted">
-              <span>{t("reseller.overview.trend.last7")}</span>
-              <span className="flex items-center gap-2">
-                <span className="font-bold text-advo-text">{formatTzs(last7)}</span>
-                <DeltaBadge label={` ${t("reseller.vsLastWeek")}`} value={weekDelta} />
-              </span>
-            </div>
-          }
-          title={t("reseller.overview.trend.title")}
-        >
-          <TrendChart data={trend} />
-        </ChartCard>
-
-        <ChartCard
-          className="xl:col-span-4"
-          description={t("reseller.overview.mix.description")}
-          title={t("reseller.overview.mix.title")}
-        >
-          <MixDonut
-            centerLabel={t("reseller.overview.mix.centerLabel")}
-            centerValue={String(paymentGroups.reduce((n, g) => n + g.count, 0))}
-            data={mixSlices}
-          />
-          {o.ordersNeedingReview > 0 ? (
-            <p className="mt-4 flex items-center justify-between border-t border-advo-border pt-3 text-[11px] text-advo-muted">
-              <span>{t("reseller.overview.mix.needsReview")}</span>
-              <Link className="font-bold text-advo-blue hover:underline" href="/reseller/orders">
-                {o.ordersNeedingReview} →
-              </Link>
-            </p>
-          ) : null}
-        </ChartCard>
-      </div>
-
-      {/* ── Rankings ── */}
-      <div className={`grid grid-cols-1 gap-4 ${scopedSite ? "" : "lg:grid-cols-2"}`}>
-        {!scopedSite ? (
-          <ChartCard
-            description={t("reseller.overview.bySite.description")}
-            title={t("reseller.overview.bySite.title")}
-          >
-            <RankedBars
-              emptyText={t("reseller.overview.rankings.empty")}
-              rows={siteSales.map((s) => ({
-                key: s.site,
-                label: s.site,
-                count: s.count,
-                amount: formatTzs(s.amountTzs),
-              }))}
-            />
-          </ChartCard>
-        ) : null}
-
-        <ChartCard
-          description={t("reseller.overview.byPackage.description")}
-          title={t("reseller.overview.byPackage.title")}
-        >
-          <RankedBars
-            barClassName="bg-gradient-to-r from-advo-blue to-advo-gold"
-            emptyText={t("reseller.overview.rankings.empty")}
-            rows={packageSales.map((s) => ({
-              key: s.package,
-              label: s.package,
-              count: s.count,
-              amount: formatTzs(s.amountTzs),
-            }))}
-          />
-        </ChartCard>
-      </div>
-
-      {/* ── Recent transactions ── */}
-      <ResourceView resource={orders}>
-        {() => (
-          <section className="space-y-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-sm font-black tracking-tight text-advo-text">
-                  {t("reseller.overview.recent.title")}
-                  <span className="ml-1.5 font-bold text-advo-muted">({filteredOrders.length})</span>
-                </h2>
-                <p className="text-xs text-advo-muted">{t("reseller.overview.recent.tableLabel")}</p>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <ToggleButtonGroup
-                  isDetached
-                  onSelectionChange={(keys) => {
-                    const next = [...keys][0];
-                    if (typeof next === "string") setStatusFilter(next);
-                  }}
-                  selectedKeys={[statusFilter]}
-                  selectionMode="single"
-                  size="sm"
-                >
-                  <ToggleButton id="all">{t("reseller.filter.all")}</ToggleButton>
-                  <ToggleButton id="paid">{t("reseller.filter.paid")}</ToggleButton>
-                  <ToggleButton id="attention">{t("reseller.filter.attention")}</ToggleButton>
-                </ToggleButtonGroup>
-
-                <SearchField
-                  aria-label={t("reseller.search.label")}
-                  className="w-full sm:w-72"
-                  onChange={setSearchQuery}
-                  value={searchQuery}
-                >
-                  <SearchField.Group>
-                    <SearchField.SearchIcon />
-                    <SearchField.Input placeholder={t("reseller.search.placeholder")} />
-                    <SearchField.ClearButton />
-                  </SearchField.Group>
-                </SearchField>
-              </div>
-            </div>
-
-            {filteredOrders.length === 0 ? (
-              <Card className="border-dashed p-10 text-center shadow-advo-card ring-1 ring-advo-border/70">
-                <p className="text-sm font-semibold text-advo-muted">{t("reseller.overview.recent.empty")}</p>
-              </Card>
-            ) : (
-              <div className="flex flex-col gap-2.5">
-                {filteredOrders.map((ord) => (
-                  <OverviewTransactionRow key={ord.key} order={ord} t={t} />
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-advo-muted">
-              <span>
-                {t("reseller.overview.recent.showing", { count: Math.min(displayOrders.length, 12) })}
-                {filteredOrders.length !== displayOrders.length
-                  ? t("reseller.overview.recent.filtered", { count: filteredOrders.length })
-                  : ""}
-              </span>
-              <Link className="flex items-center gap-1 font-bold text-advo-blue hover:text-advo-blue-hover" href="/reseller/orders">
-                {t("reseller.overview.recent.viewAll")}
-                <ArrowUpRight className="size-3.5" />
-              </Link>
-            </div>
-          </section>
-        )}
-      </ResourceView>
-
-      {/* ── Data usage (GB) ── */}
-      <ResellerUsageCard />
-
-      {/* ── Sites ── */}
-      <Card className="space-y-4 p-5 shadow-advo-card ring-1 ring-advo-border/70">
-        <SectionHeader
-          action={
-            <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/reseller/sites">
-              <Wifi className="size-3.5" />
-              {t("reseller.overview.sites.register")}
-            </Link>
-          }
-          description={t("reseller.overview.sites.description")}
-          icon={<Wifi />}
-          iconTone="accent"
-          title={t("reseller.overview.sites.title")}
-        />
-
-        {o.sites.length === 0 ? (
-          <EmptyState className="flex flex-col items-center justify-center gap-2 rounded-lg bg-advo-page py-10 text-center">
-            <Wifi className="size-5 text-advo-muted" />
-            <span className="text-sm font-semibold text-advo-text">{t("reseller.overview.sites.empty.title")}</span>
-            <span className="max-w-sm text-xs text-advo-muted">{t("reseller.overview.sites.empty.body")}</span>
             <Link
-              className={`${buttonVariants({ size: "sm", variant: "primary" })} mt-1`}
+              aria-label={t("reseller.overview.manageSites")}
+              className="text-advo-muted transition hover:text-advo-blue"
               href="/reseller/sites"
             >
-              {t("reseller.overview.sites.empty.cta")}
+              <ArrowUpRight className="size-4" />
             </Link>
-          </EmptyState>
-        ) : (
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {o.sites.map((site) => (
-              <li
-                className="space-y-3 rounded-xl border border-advo-border bg-advo-page p-4 transition-colors hover:border-advo-blue/40 hover:bg-white"
-                key={site.id}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                      <Wifi className="size-3.5" />
-                    </span>
-                    <span className="truncate text-sm font-bold text-advo-text">{site.name}</span>
-                  </div>
-                  <StatusChip tone={statusTone(site.state)}>{site.state}</StatusChip>
-                </div>
-                <div className="flex items-center justify-between border-t border-advo-border pt-2.5 text-xs">
-                  <span className="text-[11px] text-advo-muted">{t("reseller.overview.sites.portal")}</span>
-                  <a
-                    className="inline-flex items-center gap-1 font-bold text-advo-blue hover:underline"
-                    href={`${PORTAL_URL}/${site.slug}`}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    <span className="truncate">{site.slug}</span>
-                    <ExternalLink className="size-3 shrink-0" />
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+          }
+          hint={t("reseller.overview.sitesReadyHint", {
+            devices: o.totals.devices,
+            packages: o.totals.packages,
+          })}
+          icon={<Router />}
+          iconTone="violet"
+          label={t("reseller.overview.readySites")}
+          value={`${readySites} / ${sites.length}`}
+        />
+      </section>
 
-      <p className="flex items-center justify-end gap-1.5 pb-2 text-[11px] text-advo-muted">
-        <Download className="size-3" />
-        {t("reseller.overview.printHint")}
-      </p>
-    </div>
-  );
-}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <PlanCard className="xl:col-span-5" subscription={o.subscription} />
+        <SalesTrendCard className="xl:col-span-7" data={o} />
+      </div>
 
-function AnalysisChip({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-advo-border/70 bg-advo-page px-3 py-2.5">
-      <p className="text-[10px] font-bold tracking-wide text-advo-muted uppercase">{label}</p>
-      <p className="mt-0.5 truncate text-sm font-black text-advo-text" title={value}>
-        {value}
-      </p>
-      {hint ? <p className="mt-0.5 truncate text-[10px] text-advo-muted">{hint}</p> : null}
-    </div>
-  );
-}
-
-function paymentChipTone(state: string): "success" | "danger" | "warning" {
-  if (SETTLED_PAYMENT_STATES.has(state)) return "success";
-  if (DANGER_PAYMENT_STATES.has(state)) return "danger";
-  return "warning";
-}
-
-function OverviewTransactionRow({ order: ord, t }: { order: DisplayOrder; t: I18n["t"] }) {
-  const paid = SETTLED_PAYMENT_STATES.has(ord.status);
-  const label = ord.name ?? ord.phone;
-  const initial = (label || "?").slice(0, 1).toUpperCase();
-
-  return (
-    <Card className="overflow-hidden p-0 shadow-advo-card ring-1 ring-advo-border/70 transition-shadow hover:shadow-advo-lift">
-      <div className="flex items-center gap-3 p-3.5 sm:gap-4 sm:p-4">
-        <span
-          className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-sm font-black ring-1 ${
-            paid
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-200/70"
-              : DANGER_PAYMENT_STATES.has(ord.status)
-                ? "bg-rose-50 text-rose-700 ring-rose-200/70"
-                : "bg-advo-blue/10 text-advo-blue ring-advo-blue/20"
-          }`}
+      <section
+        id="sales"
+        aria-labelledby="sales-title"
+        className="scroll-mt-20 space-y-4"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight" id="sales-title">
+              {t("reseller.overview.sales")}
+            </h2>
+            <p className="mt-0.5 text-sm text-advo-muted">
+              {t("reseller.overview.salesSubtitle")}
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-advo-border bg-advo-card px-2.5 py-1 text-[11px] font-semibold text-advo-muted">
+            <CalendarDays aria-hidden="true" className="size-3" />
+            {t("reseller.overview.allTime")} ·{" "}
+            {formatTzs(o.salesAllTime.amountTzs)}
+          </span>
+        </div>
+        <div
+          className={`grid grid-cols-1 gap-4 ${scopedSite ? "xl:grid-cols-2" : "lg:grid-cols-2 xl:grid-cols-3"}`}
         >
-          {initial}
+          <MixCard data={o} />
+          <RankingCard
+            rows={o.salesByPackage.map((row) => ({
+              ...row,
+              label: row.package,
+            }))}
+            title={t("reseller.overview.top.packages")}
+            hint={t("reseller.overview.byPackage.description")}
+          />
+          {!scopedSite ? (
+            <RankingCard
+              className="lg:col-span-2 xl:col-span-1"
+              rows={o.salesBySite.map((row) => ({ ...row, label: row.site }))}
+              title={t("reseller.overview.top.sites")}
+              hint={t("reseller.overview.bySite.description")}
+            />
+          ) : null}
+        </div>
+      </section>
+
+      <RecentTransactions
+        attentionCount={o.ordersNeedingReview}
+        focusReview={focusReview}
+        refresh={refresh}
+      />
+
+      <section
+        id="network"
+        aria-labelledby="network-title"
+        className="scroll-mt-20 space-y-4"
+      >
+        <h2 className="text-xl font-bold tracking-tight" id="network-title">
+          {t("reseller.overview.network")}
+        </h2>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <NetworkSites
+            className="xl:col-span-7"
+            devices={o.deviceCount}
+            packages={o.packageCount}
+            pendingClaims={o.pendingClaims}
+            sites={sites}
+          />
+          <div className="xl:col-span-5">
+            <ResellerUsageCard />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Attention
+ * ───────────────────────────────────────────────────────────────────────── */
+
+type Alert = {
+  id: string;
+  title: string;
+  hint: string;
+  href: string;
+  count?: number;
+  tone: "warning" | "danger" | "accent";
+  icon: ReactNode;
+  onOpen?: () => void;
+};
+
+function buildAlerts(
+  o: ResellerOverview,
+  t: I18n["t"],
+  sites: ScopedSite[],
+): Alert[] {
+  const alerts: Alert[] = [];
+  const sub = o.subscription;
+
+  if (sub.state === "EXPIRED" || sub.state === "PAST_DUE") {
+    alerts.push({
+      id: "expired",
+      title: t("reseller.overview.attention.expired"),
+      hint: t("reseller.overview.attention.expiredHint"),
+      href: "/reseller/subscription",
+      tone: "danger",
+      icon: <TriangleAlert />,
+    });
+  } else if (
+    sub.daysRemaining !== null &&
+    sub.daysRemaining <= 7 &&
+    sub.state !== "NONE"
+  ) {
+    const days = Math.max(sub.daysRemaining, 0);
+    alerts.push({
+      id: "expiring",
+      title:
+        days === 1
+          ? t("reseller.overview.attention.expiringOne")
+          : t("reseller.overview.attention.expiring", { days }),
+      hint: t("reseller.overview.attention.expiringHint"),
+      href: "/reseller/subscription",
+      tone: "warning",
+      icon: <Clock />,
+    });
+  }
+
+  if (o.ordersNeedingReview > 0) {
+    alerts.push({
+      id: "orders",
+      title: t("reseller.overview.attention.orders"),
+      hint: t("reseller.overview.attention.ordersHint"),
+      href: "#transactions",
+      count: o.ordersNeedingReview,
+      tone: "warning",
+      icon: <CircleAlert />,
+    });
+  }
+
+  if (o.pendingClaims > 0) {
+    alerts.push({
+      id: "claims",
+      title: t("reseller.overview.attention.claims"),
+      hint: t("reseller.overview.attention.claimsHint"),
+      href: "/reseller/devices",
+      count: o.pendingClaims,
+      tone: "accent",
+      icon: <Router />,
+    });
+  }
+
+  const brokenSites = sites.filter(
+    (site) => site.state === "FAILED" || site.state === "NEEDS_REVIEW",
+  ).length;
+  if (brokenSites > 0) {
+    alerts.push({
+      id: "sites",
+      title: t("reseller.overview.attention.sites", { count: brokenSites }),
+      hint: t("reseller.overview.attention.sitesHint"),
+      href: "/reseller/sites",
+      tone: "danger",
+      icon: <Wifi />,
+    });
+  }
+
+  if (o.reseller.status !== "ACTIVE") {
+    alerts.push({
+      id: "account",
+      title: t("reseller.overview.attention.account"),
+      hint: t("reseller.overview.attention.accountHint"),
+      href:
+        o.reseller.status === "PENDING_VERIFICATION"
+          ? "/verify"
+          : "/reseller/support",
+      tone: "warning",
+      icon: <ShieldCheck />,
+    });
+  }
+
+  return alerts;
+}
+
+function AttentionCard({
+  alerts,
+  onReviewOrders,
+}: {
+  alerts: Alert[];
+  onReviewOrders: () => void;
+}) {
+  const { t } = useI18n();
+  const tones: Record<Alert["tone"], string> = {
+    danger: "bg-advo-danger-soft text-[#b91c1c]",
+    warning: "bg-advo-warning-soft text-[#b45309]",
+    accent: "bg-advo-blue-soft text-advo-blue",
+  };
+
+  return (
+    <section className={`${card} p-4 sm:p-5`} aria-labelledby="attention-title">
+      <SectionHeader
+        action={
+          <span className="rounded-full bg-advo-warning-soft px-2.5 py-1 text-[11px] font-bold text-[#b45309] tabular-nums">
+            {alerts.length}
+          </span>
+        }
+        description={t("reseller.overview.attention.subtitle")}
+        icon={<CircleAlert />}
+        iconTone="warning"
+        title={
+          <span id="attention-title">
+            {t("reseller.overview.attention.title")}
+          </span>
+        }
+      />
+      <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+        {alerts.map((alert) => (
+          <a
+            className="group flex min-w-0 items-start gap-3 rounded-xl border border-advo-border bg-advo-page/60 p-3 transition hover:border-advo-gold/60 hover:bg-advo-card"
+            href={alert.href}
+            key={alert.id}
+            onClick={alert.id === "orders" ? onReviewOrders : undefined}
+          >
+            <span
+              aria-hidden="true"
+              className={`grid size-9 shrink-0 place-items-center rounded-xl [&_svg]:size-4 ${tones[alert.tone]}`}
+            >
+              {alert.icon}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="min-w-0 text-sm font-bold break-words">
+                  {alert.title}
+                </span>
+                {alert.count ? (
+                  <span className="shrink-0 rounded bg-advo-warning-soft px-1.5 py-0.5 text-[10px] font-bold text-[#b45309] tabular-nums">
+                    {alert.count}
+                  </span>
+                ) : null}
+              </span>
+              <span className="mt-0.5 block text-xs leading-snug text-advo-muted">
+                {alert.hint}
+              </span>
+            </span>
+            <ArrowRight
+              aria-hidden="true"
+              className="mt-2 size-4 shrink-0 text-advo-muted transition group-hover:translate-x-0.5 group-hover:text-advo-gold"
+            />
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Plan card
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function subscriptionTone(
+  state: string,
+): "success" | "warning" | "danger" | "default" {
+  if (state === "ACTIVE" || state === "TRIALING") return "success";
+  if (state === "PAST_DUE" || state === "EXPIRED") return "danger";
+  if (state === "SUSPENDED" || state === "CANCELLED") return "warning";
+  return "default";
+}
+
+function PlanCard({
+  subscription: sub,
+  className = "",
+}: {
+  subscription: Subscription;
+  className?: string;
+}) {
+  const { t, locale } = useI18n();
+  const dateLocale = LOCALE_META[locale].intlLocale;
+  const hasPlan = sub.state !== "NONE" && sub.plan !== null;
+  const days = sub.daysRemaining ?? 0;
+  const ended =
+    sub.state === "PAST_DUE" ||
+    sub.state === "EXPIRED" ||
+    (hasPlan && days <= 0);
+  const expiringSoon = hasPlan && !ended && days <= 7;
+  const ringColor = ended ? "#fb7185" : expiringSoon ? "#fbbf24" : "#f8ba56";
+  const typeLabel =
+    sub.planType === "PARTNER"
+      ? t("reseller.overview.plan.partner")
+      : sub.planType === "INDEPENDENT"
+        ? t("reseller.overview.plan.independent")
+        : null;
+
+  const periodLine = (() => {
+    if (!sub.currentPeriodEnd) return t("reseller.subscription.notScheduled");
+    const date = formatDateTime(sub.currentPeriodEnd, dateLocale);
+    if (ended) return t("reseller.overview.plan.endedOn", { date });
+    if (sub.state === "TRIALING")
+      return t("reseller.overview.plan.trialEnds", { date });
+    return t("reseller.overview.plan.renews", { date });
+  })();
+
+  return (
+    <article
+      className={`relative isolate flex h-full flex-col overflow-hidden rounded-card border border-[#24384f] bg-[#111c29] p-5 text-white shadow-advo-card ${className}`}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#2d4a68_0%,transparent_72%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_center,#ffffff14_1px,transparent_1.5px)] bg-size-[22px_22px] [mask-image:linear-gradient(to_left,black,transparent_58%)]"
+      />
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold tracking-[0.14em] text-white/55 uppercase">
+            {t("reseller.overview.plan.title")}
+          </p>
+          <h2 className="mt-1 truncate text-lg font-black tracking-tight sm:text-xl">
+            {hasPlan ? sub.plan : t("reseller.subscription.noPlan")}
+          </h2>
+          <p className="mt-1 text-xs text-white/60">
+            {hasPlan && sub.priceTzs
+              ? `${sub.priceFrom ? `${t("reseller.subscription.catalog.from")} ` : ""}${formatTzs(sub.priceTzs)} ${t("reseller.subscription.catalog.perMonth")}`
+              : t("reseller.subscription.noPlanHint")}
+          </p>
+        </div>
+        <StatusChip tone={subscriptionTone(sub.state)}>
+          {subscriptionStateLabel(t, sub.state)}
+        </StatusChip>
+      </div>
+
+      <div className="mt-4 flex items-center gap-4">
+        {hasPlan ? (
+          <DaysRing
+            color={ringColor}
+            days={Math.max(days, 0)}
+            label={
+              ended
+                ? t("reseller.overview.plan.expiredLabel")
+                : t("reseller.overview.plan.daysLabel")
+            }
+            total={sub.periodDays ?? 30}
+          />
+        ) : (
           <span
             aria-hidden="true"
-            className={`absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-white ${
-              paid
-                ? "bg-emerald-500"
-                : DANGER_PAYMENT_STATES.has(ord.status)
-                  ? "bg-rose-400"
-                  : "bg-amber-400"
-            }`}
-          />
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-black tracking-tight text-advo-text" title={label}>
-              {label}
-            </h3>
-            <StatusChip tone={paymentChipTone(ord.status)}>
-              {paymentStateLabel(t, ord.status)}
-            </StatusChip>
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-advo-muted">
-            {ord.name ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-advo-text/80">
-                <Phone className="h-3 w-3 text-slate-400" />
-                {ord.phone}
-              </span>
-            ) : null}
-            {ord.plan ? (
-              <span className="inline-flex min-w-0 items-center gap-1">
-                <Package className="h-3 w-3 shrink-0 text-slate-400" />
-                <span className="truncate font-semibold">{ord.plan}</span>
-              </span>
-            ) : null}
-            <span className="inline-flex min-w-0 items-center gap-1">
-              <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
-              <span className="truncate font-semibold">{ord.site}</span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-3 w-3 text-slate-400" />
-              {ord.time}
-            </span>
-          </div>
-
-          <dl className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-advo-border/70 bg-advo-page px-2 py-1">
-              <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">
-                {t("reseller.col.reference")}
-              </span>
-              <span className="font-mono text-[10px] font-bold text-advo-text">{ord.id}</span>
-            </span>
-          </dl>
-        </div>
-
-        <div className="flex shrink-0 flex-col items-end justify-center gap-0.5 border-l border-advo-border/60 pl-3 sm:pl-4">
-          <p
-            className={`text-base font-black tracking-tight tabular-nums sm:text-lg ${
-              paid ? "text-emerald-700" : "text-advo-text"
-            }`}
+            className="grid size-[92px] shrink-0 place-items-center rounded-full border border-white/12 bg-white/5 text-[#f8ba56]"
           >
-            {formatTzs(ord.amountTzs)}
+            <CreditCard className="size-8" />
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-bold">
+            {hasPlan
+              ? ended
+                ? t("reseller.overview.attention.expired")
+                : remainingDaysLabel(t, Math.max(days, 0))
+              : t("reseller.overview.plan.choose")}
           </p>
-          <p className="text-[10px] font-semibold text-advo-muted">
-            {paid ? t("reseller.orders.row.settled") : t("reseller.orders.row.checkout")}
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-white/60">
+            <CalendarDays aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{periodLine}</span>
+          </p>
+          {typeLabel ? (
+            <span className="mt-1.5 inline-flex rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/80">
+              {typeLabel}
+            </span>
+          ) : null}
+          {expiringSoon ? (
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#fbbf24]/15 px-2 py-0.5 text-[10px] font-bold text-[#fbbf24]">
+              <Clock aria-hidden="true" className="size-3" />
+              {t("reseller.overview.plan.expiringSoon")}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {hasPlan && sub.limits && sub.usage ? (
+        <div className="mt-5">
+          <p className="mb-2 text-[10px] font-bold tracking-[0.14em] text-white/45 uppercase">
+            {t("reseller.overview.plan.capacity")}
+          </p>
+          <div className="grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
+            <Capacity
+              label={t("reseller.subscription.plans.sites")}
+              limit={sub.limits.sites}
+              used={sub.usage.sites}
+            />
+            <Capacity
+              label={t("reseller.subscription.plans.devices")}
+              limit={sub.limits.devices}
+              used={sub.usage.devices}
+            />
+            {sub.limits.packagesTotal !== null ? (
+              <Capacity
+                label={t("reseller.subscription.plans.packages")}
+                limit={sub.limits.packagesTotal}
+                used={sub.usage.packagesTotal}
+              />
+            ) : (
+              <Capacity
+                label={t("reseller.overview.plan.packagesPerSite")}
+                limit={sub.limits.packagesPerSite}
+                used={sub.usage.packagesPerSite}
+              />
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-auto pt-4">
+        <p className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[11px] text-white/55">
+          <span>{t("reseller.overview.plan.lastPayment")}</span>
+          <span className="font-semibold text-white/85">
+            {sub.lastInvoice
+              ? `${formatTzs(sub.lastInvoice.amountTzs)} · ${formatDateTime(sub.lastInvoice.paidAt ?? sub.lastInvoice.periodEnd, dateLocale)}`
+              : t("reseller.overview.plan.noPayment")}
+          </span>
+        </p>
+        <Link
+          className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#f8ba56] px-4 text-sm font-bold text-[#261804] transition hover:bg-[#ffd18b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f8ba56]"
+          href="/reseller/subscription"
+        >
+          {hasPlan
+            ? ended
+              ? t("reseller.subscription.notice.renew")
+              : t("reseller.overview.plan.manage")
+            : t("reseller.overview.plan.choose")}
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function DaysRing({
+  days,
+  total,
+  color,
+  label,
+}: {
+  days: number;
+  total: number;
+  color: string;
+  label: string;
+}) {
+  const size = 92;
+  const stroke = 7;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const fraction = clamp(total > 0 ? days / total : 0, 0, 1);
+
+  return (
+    <div
+      className="relative grid shrink-0 place-items-center"
+      style={{ height: size, width: size }}
+    >
+      <svg aria-hidden="true" className="-rotate-90" height={size} width={size}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          fill="none"
+          r={radius}
+          stroke="rgba(255,255,255,0.13)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          fill="none"
+          r={radius}
+          stroke={color}
+          strokeDasharray={`${circumference * fraction} ${circumference}`}
+          strokeLinecap="round"
+          strokeWidth={stroke}
+        />
+      </svg>
+      <div className="absolute text-center">
+        <span className="block text-2xl leading-none font-black tabular-nums">
+          {days}
+        </span>
+        <span className="mt-1 block text-[9px] font-bold tracking-wider text-white/55 uppercase">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Capacity({
+  label,
+  used,
+  limit,
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+}) {
+  const { t } = useI18n();
+  const unlimited = limit === null;
+  const over = !unlimited && used > limit;
+  const percent = unlimited
+    ? 100
+    : clamp((used / Math.max(limit, 1)) * 100, 0, 100);
+
+  return (
+    <div className="min-w-0">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="truncate text-[10px] font-medium text-white/55">
+          {label}
+        </span>
+        <span
+          className={`shrink-0 text-[11px] font-bold tabular-nums ${over ? "text-rose-300" : "text-white"}`}
+        >
+          {meteredValue(used, limit, t)}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className={`h-full rounded-full ${over ? "bg-rose-400" : "bg-[#f8ba56]"}`}
+          style={{ opacity: unlimited ? 0.3 : 1, width: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Sales trend
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function SalesTrendCard({
+  data,
+  className = "",
+}: {
+  data: ResellerOverview;
+  className?: string;
+}) {
+  const { t, locale } = useI18n();
+  const [days, setDays] = useState<7 | 14>(14);
+  const rows = data.salesDaily.slice(-days);
+  const total = periodSum(rows);
+  const count = rows.reduce((sum, row) => sum + row.count, 0);
+  const previous = periodSum(data.salesDaily.slice(-14, -7));
+  const delta =
+    days === 7 ? percentChange(Number(total), Number(previous)) : null;
+  const trend = rows.map((row) => ({
+    day: row.day,
+    amount: Number(row.amountTzs),
+    count: row.count,
+  }));
+  const dayFormat = new Intl.DateTimeFormat(LOCALE_META[locale].intlLocale, {
+    day: "numeric",
+    month: "short",
+    timeZone: BUSINESS_TIMEZONE,
+  });
+  const first = rows[0];
+  const last = rows.at(-1);
+  const day = (key: string) =>
+    dayFormat.format(new Date(`${key}T12:00:00+03:00`));
+
+  return (
+    <ChartCard
+      action={
+        <div
+          aria-label={t("reseller.overview.salesPeriod")}
+          className="inline-flex rounded-xl border border-advo-border bg-advo-page p-1"
+          role="group"
+        >
+          {([7, 14] as const).map((period) => (
+            <button
+              aria-pressed={days === period}
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-advo-muted transition hover:text-advo-text aria-pressed:bg-advo-card aria-pressed:text-advo-text aria-pressed:shadow-advo-field"
+              key={period}
+              onClick={() => setDays(period)}
+              type="button"
+            >
+              {t("reseller.overview.shortDays", { count: period })}
+            </button>
+          ))}
+        </div>
+      }
+      className={className}
+      description={t("reseller.overview.paidRevenue")}
+      title={t("reseller.overview.trend.title")}
+    >
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+        <div>
+          <p className="text-2xl font-black tracking-tight tabular-nums sm:text-3xl">
+            {formatTzs(total)}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-advo-muted">
+            <span>{t("reseller.overview.paidTransactions", { count })}</span>
+            {delta !== null ? (
+              <DeltaBadge value={delta} label={t("reseller.vsLastWeek")} />
+            ) : null}
+          </div>
+        </div>
+        {first && last ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-advo-muted">
+            <CalendarDays aria-hidden="true" className="size-3.5" />
+            {day(first.day)} – {day(last.day)}
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-4">
+        <TrendChart color={CHART_COLORS.gold} data={trend} height={200} />
+      </div>
+    </ChartCard>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Mix + rankings
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const paymentColors: Record<string, string> = {
+  PAID: "#10b981",
+  OVERPAID: "#0ea5e9",
+  UNPAID: "#94a3b8",
+  NEEDS_REVIEW: "#f59e0b",
+  REFUND_PENDING: "#8b5cf6",
+  REFUNDED: "#f43f5e",
+  CANCELLED: "#94a3b8",
+};
+
+function MixCard({ data }: { data: ResellerOverview }) {
+  const { t } = useI18n();
+  const total = data.paymentMix.reduce((sum, group) => sum + group.count, 0);
+  const slices = data.paymentMix.map((group) => ({
+    label: paymentStateLabel(t, group.state),
+    value: group.count,
+    color: paymentColors[group.state] ?? "#94a3b8",
+  }));
+
+  return (
+    <ChartCard
+      action={
+        <span className="rounded-full bg-advo-surface-soft px-2.5 py-1 text-[11px] font-bold text-advo-muted tabular-nums">
+          {total.toLocaleString()}
+        </span>
+      }
+      className="h-full"
+      description={t("reseller.overview.mix.description")}
+      title={t("reseller.overview.mix.title")}
+    >
+      <MixDonut
+        centerLabel={t("reseller.overview.mix.centerLabel")}
+        centerValue={String(total)}
+        data={slices}
+        height={172}
+      />
+      <p className="mt-3 flex items-baseline justify-between gap-2 border-t border-advo-border pt-3 text-xs text-advo-muted">
+        {t("reseller.overview.mix.collected")}
+        <strong className="text-sm whitespace-nowrap text-advo-text tabular-nums">
+          {formatTzs(data.salesAllTime.amountTzs)}
+        </strong>
+      </p>
+    </ChartCard>
+  );
+}
+
+function RankingCard({
+  title,
+  hint,
+  rows,
+  className = "",
+}: {
+  title: string;
+  hint: string;
+  rows: Array<Sales & { id: string | null; label: string }>;
+  className?: string;
+}) {
+  const { t } = useI18n();
+  const max = rows[0]?.amountTzs ?? "0";
+
+  return (
+    <section className={`${card} flex h-full flex-col p-4 sm:p-5 ${className}`}>
+      <SectionHeader
+        action={
+          <span className="shrink-0 text-[11px] font-semibold text-advo-muted">
+            {t("reseller.overview.allTime")}
+          </span>
+        }
+        description={hint}
+        icon={<ArrowUpRight />}
+        iconTone="gold"
+        title={title}
+      />
+      {rows.length ? (
+        <ul className="mt-4 space-y-3.5">
+          {rows.map((row, index) => (
+            <li key={row.id ?? `row-${index}`}>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span className="min-w-0 text-sm font-semibold break-words">
+                  {row.label}
+                </span>
+                <span className="text-xs whitespace-nowrap text-advo-muted tabular-nums">
+                  {formatTzs(row.amountTzs)}
+                  <span className="ml-1.5 opacity-70">
+                    ·{" "}
+                    {t("reseller.overview.paidTransactions", {
+                      count: row.count,
+                    })}
+                  </span>
+                </span>
+              </div>
+              <div
+                aria-hidden="true"
+                className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-advo-track"
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#fba102] to-[#f16304]"
+                  style={{
+                    width: `${Number(max) > 0 ? (Number(row.amountTzs) / Number(max)) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 rounded-xl bg-advo-page px-3 py-6 text-center text-sm text-advo-muted">
+          {t("reseller.overview.rankings.empty")}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Setup checklist
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function SetupChecklist({
+  data,
+  hasPlan,
+}: {
+  data: ResellerOverview;
+  hasPlan: boolean;
+}) {
+  const { t } = useI18n();
+  const steps = [
+    {
+      done: hasPlan,
+      label: t("reseller.overview.step.plan"),
+      href: "/reseller/subscription",
+    },
+    {
+      done: data.totals.sites > 0,
+      label: t("reseller.overview.step.site"),
+      href: "/reseller/sites",
+    },
+    {
+      done: data.totals.devices > 0,
+      label: t("reseller.overview.step.device"),
+      href: "/reseller/devices",
+    },
+    {
+      done: data.totals.packages > 0,
+      label: t("reseller.overview.step.package"),
+      href: "/reseller/packages",
+    },
+  ];
+  const done = steps.filter((step) => step.done).length;
+  const next = steps.find((step) => !step.done);
+  if (!next) return null;
+
+  return (
+    <section
+      aria-labelledby="setup-title"
+      className={`${card} flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5`}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <SoftIcon tone="gold">
+          <Ticket />
+        </SoftIcon>
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold" id="setup-title">
+            {t("reseller.overview.checklist.title")}
+          </h2>
+          <p className="mt-0.5 text-xs text-advo-muted">
+            {t("reseller.overview.checklist.progress", {
+              done,
+              total: steps.length,
+            })}
           </p>
         </div>
       </div>
-    </Card>
+      <div className="hidden flex-1 px-4 sm:block">
+        <div className="flex items-center gap-1.5">
+          {steps.map((step) => (
+            <span
+              aria-hidden="true"
+              className={`h-1.5 flex-1 rounded-full ${step.done ? "bg-[#f8ba56]" : "bg-advo-track"}`}
+              key={step.href}
+            />
+          ))}
+        </div>
+      </div>
+      <Link className={goldAction} href={next.href}>
+        {t("reseller.overview.continueSetup")}
+        <ArrowRight aria-hidden="true" className="size-4" />
+      </Link>
+    </section>
   );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Network
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function NetworkSites({
+  sites,
+  devices,
+  packages,
+  pendingClaims,
+  className = "",
+}: {
+  sites: ScopedSite[];
+  devices: number;
+  packages: number;
+  pendingClaims: number;
+  className?: string;
+}) {
+  const { t } = useI18n();
+  const ready = sites.filter((site) => site.state === "READY").length;
+  const sorted = [...sites].sort(
+    (a, b) =>
+      Number(["FAILED", "NEEDS_REVIEW"].includes(b.state)) -
+        Number(["FAILED", "NEEDS_REVIEW"].includes(a.state)) ||
+      a.name.localeCompare(b.name),
+  );
+
+  return (
+    <div className={`${card} p-4 sm:p-5 ${className}`}>
+      <SectionHeader
+        action={
+          <Link className={linkAction} href="/reseller/sites">
+            {t("reseller.overview.manageSites")}
+            <ArrowUpRight aria-hidden="true" className="size-4" />
+          </Link>
+        }
+        description={t("reseller.overview.sites.description")}
+        icon={<Wifi />}
+        iconTone="accent"
+        title={t("reseller.overview.sites.title")}
+      />
+      <dl className="mt-4 grid grid-cols-3 divide-x divide-advo-border rounded-xl border border-advo-border bg-advo-page">
+        {(
+          [
+            [
+              Wifi,
+              "reseller.overview.readySites",
+              `${ready} / ${sites.length}`,
+            ],
+            [Router, "nav.devices", devices],
+            [Ticket, "reseller.overview.activePackages", packages],
+          ] as const
+        ).map(([Icon, label, value]) => (
+          <div className="min-w-0 px-2.5 py-3 sm:px-4" key={label}>
+            <dt className="flex flex-wrap items-center gap-1.5 text-xs text-advo-muted">
+              <Icon
+                aria-hidden="true"
+                className="size-3.5 shrink-0 text-[#b15f00]"
+              />
+              {t(label)}
+            </dt>
+            <dd className="mt-1.5 text-lg font-bold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {pendingClaims ? (
+        <Link className={`mt-3 ${linkAction}`} href="/reseller/devices">
+          <CircleAlert aria-hidden="true" className="size-4" />
+          {t("reseller.overview.pendingClaims", { count: pendingClaims })}
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </Link>
+      ) : null}
+      {sites.length > 0 ? (
+        <ul className="mt-3 divide-y divide-advo-border">
+          {sorted.slice(0, 4).map((site) => (
+            <li
+              className="flex flex-wrap items-center justify-between gap-2 py-3 last:pb-0"
+              key={site.id}
+            >
+              <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                <MapPin
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-advo-muted"
+                />
+                <span className="text-sm font-semibold break-words">
+                  {site.name}
+                </span>
+                <StatusChip tone={statusTone(site.state)}>
+                  {siteStateLabel(t, site.state)}
+                </StatusChip>
+              </div>
+              {site.state === "READY" ? (
+                <a
+                  className={linkAction}
+                  href={`${portalUrl}/${encodeURIComponent(site.slug)}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {t("reseller.overview.sites.portal")}
+                  <ExternalLink aria-hidden="true" className="size-3.5" />
+                </a>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-3 border-t border-advo-border pt-4">
+          <p className="text-sm text-advo-muted">
+            {t("reseller.overview.sites.empty.title")}
+          </p>
+          <Link className={`mt-2 ${linkAction}`} href="/reseller/sites">
+            {t("reseller.overview.sites.empty.cta")}
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function siteStateLabel(t: I18n["t"], state: string) {
+  const key = `site.state.${state}` as MessageKey;
+  const label = t(key);
+  return label === key ? state.replace(/_/g, " ").toLowerCase() : label;
 }

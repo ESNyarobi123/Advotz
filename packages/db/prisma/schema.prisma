@@ -61,6 +61,19 @@ enum VerificationPurpose {
   PASSWORD_RESET
   INVITATION
   PAYOUT_DESTINATION
+  /// Short-lived ticket issued only after an email OTP has been verified.
+  /// `/auth/register` consumes it to create a self-registered account.
+  REGISTRATION_VERIFY
+}
+
+/// What a one-time email code is proving. Kept separate from
+/// `VerificationPurpose` because an OTP is a challenge (code + attempts), not a
+/// bearer token, and mixing the two in one table makes both harder to reason
+/// about.
+enum OtpPurpose {
+  REGISTER_RESELLER
+  REGISTER_AGENT
+  PASSWORD_RESET
 }
 
 enum RegistrationSource {
@@ -130,6 +143,33 @@ model VerificationToken {
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([purpose, subject])
+  @@index([expiresAt])
+}
+
+/// One emailed one-time code, with its own attempt budget.
+///
+/// `codeHash` is an HMAC over purpose + subject + code, not a plain hash: a
+/// six-digit code is tiny, so a bare SHA-256 of it would be brute-forced out of
+/// a leaked database in milliseconds. The plaintext code is never stored and
+/// never written to the notification log.
+model OtpChallenge {
+  id           String     @id @default(uuid()) @db.Uuid
+  purpose      OtpPurpose
+  /// Lower-cased email address the code was sent to.
+  subject      String
+  codeHash     String
+  attempts     Int        @default(0)
+  maxAttempts  Int        @default(5)
+  resendCount  Int        @default(0)
+  lastSentAt   DateTime   @default(now())
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  /// Set when the challenge is tied to an existing account.
+  userId       String?    @db.Uuid
+  metadata     Json?
+  createdAt    DateTime   @default(now())
+
+  @@index([purpose, subject, consumedAt])
   @@index([expiresAt])
 }
 
@@ -1421,9 +1461,18 @@ model Notification {
   dedupKey        String   @unique
   state           String   @default("queued")
   simulated       Boolean  @default(true)
+  /// Transport that handled the message: fake, resend or smtp.
+  provider        String?
+  subject         String?
+  /// Short, code-free preview. OTP plaintext is never stored here.
+  bodyPreview     String?
+  error           String?
+  sentAt          DateTime?
   createdAt       DateTime @default(now())
 
   @@index([recipientUserId, createdAt])
+  @@index([state, createdAt])
+  @@index([template, createdAt])
 }
 
 model SupportTicket {

@@ -27,6 +27,27 @@ import { OperatorDialog, resellerOperatorCopy, useOperatorActions } from "@/feat
 import { PlanEditDialog, ResellerEditDialog, type PlanOption } from "@/features/admin/reseller-edit";
 import { useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
+import type { MessageKey } from "@advo/i18n";
+
+/**
+ * The account role and the onboarding step are different things that both used
+ * to be printed raw, so an operator reading "DEVICE" assumed the account had
+ * become a device. The role is what the account is; the step is how far setup
+ * has got.
+ */
+const ROLE_LABEL: Record<string, MessageKey> = {
+  ADMIN: "admin.resellers.profile.role.admin",
+  RESELLER: "admin.resellers.profile.role.reseller",
+  AGENT: "admin.resellers.profile.role.agent",
+};
+
+const ONBOARDING_LABEL: Record<string, MessageKey> = {
+  PROFILE: "admin.resellers.onboarding.profile",
+  PLAN: "admin.resellers.onboarding.plan",
+  SITE: "admin.resellers.onboarding.site",
+  DEVICE: "admin.resellers.onboarding.device",
+  COMPLETE: "admin.resellers.onboarding.complete",
+};
 
 /* ─────────────────────────── Response shape ─────────────────────────── */
 
@@ -476,8 +497,18 @@ function ProfileTab({ detail }: { detail: ResellerDetail }) {
                 {r.registrationSource.replace(/_/g, " ")}
               </span>
             </Row>
+            <Row label={t("admin.resellers.detail.role")}>
+              <StatusChip>{t(ROLE_LABEL[owner.role] ?? "admin.resellers.profile.roleUnknown")}</StatusChip>
+            </Row>
             <Row label={t("admin.resellers.detail.onboarding")}>
-              <StatusChip>{r.onboardingStep}</StatusChip>
+              <span className="inline-flex flex-col items-end gap-1">
+                <StatusChip tone={r.onboardingStep === "COMPLETE" ? "success" : "warning"}>
+                  {t(ONBOARDING_LABEL[r.onboardingStep] ?? "admin.resellers.onboarding.unknown")}
+                </StatusChip>
+                <span className="text-[10px] font-medium text-advo-muted">
+                  {t("admin.resellers.detail.onboardingHint")}
+                </span>
+              </span>
             </Row>
             <Row label={t("admin.resellers.col.status")}>
               <StatusChip>{r.status}</StatusChip>

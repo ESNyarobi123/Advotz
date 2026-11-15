@@ -1,0 +1,13 @@
+{
+  "captive": $(if logged-in == 'yes')false$(else)true$(endif),
+  "user-portal-url": "$(link-login-only)",
+  "venue-info-url": "https://<PORTAL_HOST>/<SLUG>/status",
+  "x-android-use-custom-tabs": 361335020,
+  $(if session-timeout-secs != 0)
+  "seconds-remaining": $(session-timeout-secs),
+  $(endif)
+  $(if remain-bytes-total)
+  "bytes-remaining": $(remain-bytes-total),
+  $(endif)
+  "can-extend-session": true
+}

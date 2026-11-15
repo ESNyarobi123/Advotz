@@ -33,6 +33,54 @@ export function slugifyBusinessName(name: string): string {
   return `${base || "reseller"}-${suffix}`;
 }
 
+/**
+ * Signed, short-lived payload for a hand-off between two requests.
+ *
+ * OAuth needs to carry a few values across a browser redirect — the CSRF
+ * `state`, and the profile Google proved before the person finished signing up.
+ * Those values must survive a round trip without a database row, and the client
+ * must not be able to mint or edit them, so they travel as `payload.signature`.
+ *
+ * The signature is HMAC-SHA256 keyed off `SECRETS_ENCRYPTION_KEY` under a
+ * purpose string, and the payload carries its own expiry. A stolen token is
+ * therefore worth only its remaining minutes, and a token minted for one purpose
+ * cannot be replayed into another.
+ */
+export function signHandoff(purpose: string, payload: Record<string, unknown>, ttlSeconds: number): string {
+  const body = Buffer.from(JSON.stringify({ ...payload, exp: Date.now() + ttlSeconds * 1000 })).toString(
+    "base64url",
+  );
+  return `${body}.${handoffSignature(purpose, body)}`;
+}
+
+/**
+ * Verifies and decodes a token from `signHandoff`.
+ *
+ * Returns `null` for anything that does not check out — bad shape, bad
+ * signature, or expired — so callers treat all three the same way: ask the
+ * person to start again.
+ */
+export function readHandoff<T extends Record<string, unknown>>(purpose: string, token: string): T | null {
+  if (typeof token !== "string" || token.length < 16 || token.length > 4096) return null;
+  const [body, signature] = token.split(".");
+  if (!body || !signature) return null;
+  const expected = handoffSignature(purpose, body);
+  if (!constantTimeEqualHex(signature, expected)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Record<string, unknown>;
+    if (typeof parsed.exp !== "number" || parsed.exp < Date.now()) return null;
+    const { exp: _exp, ...rest } = parsed;
+    return rest as T;
+  } catch {
+    return null;
+  }
+}
+
+function handoffSignature(purpose: string, body: string): string {
+  const key = deriveKey(encryptionSecret(), `handoff:${purpose}`);
+  return createHmac("sha256", key).update(body).digest("base64url");
+}
+
 /** Compact idempotency key: prefix + 24 chars (Snippe max 30). */
 export function compactIdempotencyKey(prefix = "a"): string {
   const id = randomBytes(18).toString("base64url").slice(0, 24);
@@ -121,6 +169,34 @@ export function normalizeVoucherCode(code: string): string {
  */
 export function generateVoucherCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
+/**
+ * Six-digit email OTP.
+ *
+ * Same shape as a voucher code but a different job: this one is rate-limited,
+ * expires in minutes and is compared against an HMAC (see `otpCodeHash`), so a
+ * database leak cannot be turned into a login.
+ */
+export function generateNumericOtp(): string {
+  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
+/**
+ * Keyed hash of an OTP, bound to the purpose and the address it was sent to.
+ *
+ * A plain hash of six digits is worthless (10^6 candidates); keying it with the
+ * server's encryption secret means an attacker who only has a database dump
+ * cannot precompute the codes.
+ */
+export function otpCodeHash(purpose: string, subject: string, code: string): string {
+  const key = process.env.SECRETS_ENCRYPTION_KEY;
+  if (!key || key.length < 16) {
+    throw new Error("SECRETS_ENCRYPTION_KEY is not configured");
+  }
+  return createHmac("sha256", key)
+    .update(`${purpose}:${subject.trim().toLowerCase()}:${code.replace(/\s/g, "")}`)
+    .digest("hex");
 }
 
 export function constantTimeEqualHex(a: string, b: string): boolean {

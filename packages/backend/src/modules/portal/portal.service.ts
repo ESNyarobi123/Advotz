@@ -109,6 +109,106 @@ async function activeSiteBySlug(slug: string) {
   return site;
 }
 
+/**
+ * Version of the Android `CaptivePortalLogin` Mainline module (January 2026)
+ * that switches the login flow to a browser Custom Tab.
+ *
+ * When a device's module is at least this version, returning the key makes
+ * Android open the portal in the guest's normal browser instead of the old
+ * system WebView. That is what lets the connected page survive authorization:
+ * every byte of the portal is served by us, and the operating system no longer
+ * tears the window down the instant its connectivity probe succeeds.
+ */
+const ANDROID_CUSTOM_TABS_VERSION = 361335020;
+
+/** Public portal origin, or "" when the deployment has not configured it. */
+function portalPublicOrigin(): string {
+  return (process.env.PORTAL_PUBLIC_URL ?? "").replace(/\/$/, "");
+}
+
+/**
+ * RFC 8908 Captive Portal API for one WiFi location.
+ *
+ * A gateway that advertises DHCP option 114 (RFC 8910) points the phone here
+ * before the guest has paid. The answer tells the operating system whether the
+ * device is still captive and which page to open. `clientMac` is preferred when
+ * the router can substitute it into the URL (`$(mac)` on RouterOS); otherwise
+ * the most recent portal context from that client IP identifies the device.
+ *
+ * The response is deliberately tiny and never contains a session token: the
+ * connected page still reads its own token from the browser that paid.
+ */
+export async function portalCaptiveApi(
+  slug: string,
+  input: { clientMac?: string | null; clientIp?: string | null },
+  ip: string,
+) {
+  await enforceRateLimit("portal-captive", ip, 240, 60);
+  const site = await activeSiteBySlug(slug);
+
+  let clientMac = input.clientMac?.trim()
+    ? normalizeMac(input.clientMac)
+    : null;
+  if (!clientMac && input.clientIp?.trim()) {
+    // `clientIp` is the guest's address on the WiFi, which only the router
+    // knows. A browser reaching the API over the internet cannot supply it,
+    // hence the router must append it (or `mac`) to the advertised URL.
+    const seen = await prisma.portalContext.findFirst({
+      where: { siteId: site.id, clientIp: input.clientIp.trim() },
+      orderBy: { createdAt: "desc" },
+      select: { clientMac: true },
+    });
+    clientMac = seen?.clientMac ?? null;
+  }
+
+  const origin = portalPublicOrigin();
+  const portalUrl = `${origin}/${site.slug}`;
+  const statusUrl = `${origin}/${site.slug}/status`;
+  const live = clientMac
+    ? await liveSessionForMac(site.id, clientMac)
+    : null;
+
+  if (live) {
+    return {
+      captive: false,
+      "venue-info-url": statusUrl,
+      "seconds-remaining": live.secondsRemaining,
+      "x-android-use-custom-tabs": ANDROID_CUSTOM_TABS_VERSION,
+    };
+  }
+  return {
+    captive: true,
+    "user-portal-url": portalUrl,
+    "venue-info-url": statusUrl,
+    "x-android-use-custom-tabs": ANDROID_CUSTOM_TABS_VERSION,
+  };
+}
+
+/**
+ * The device's live session, if it has one.
+ *
+ * A grant that is merely `PENDING_ACTIVATION` is not online yet, so the device
+ * is still captive and must be sent back to the portal. Only a device the
+ * Controller reports as `AUTHORIZED` on an unexpired `ACTIVE` grant counts.
+ */
+async function liveSessionForMac(siteId: string, clientMac: string) {
+  const device = await prisma.accessGrantDevice.findFirst({
+    where: { clientMac, grant: { siteId, state: "ACTIVE" } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      authState: true,
+      grant: { select: { expiresAt: true } },
+    },
+  });
+  if (!device || device.authState !== "AUTHORIZED") return null;
+  const expiresAt = device.grant.expiresAt;
+  if (!expiresAt) return null;
+  const secondsRemaining = Math.floor(
+    (expiresAt.getTime() - Date.now()) / 1000,
+  );
+  return secondsRemaining > 0 ? { expiresAt, secondsRemaining } : null;
+}
+
 export async function portalBootstrap(slug: string) {
   const site = await activeSiteBySlug(slug);
   // Selling status is live: a lapse or a suspension must take effect immediately.

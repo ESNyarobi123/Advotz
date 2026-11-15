@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { compactIdempotencyKey, hashToken, isDevFixedOtp, slugifyBusinessName } from "./crypto.js";
+import {
+  compactIdempotencyKey,
+  hashToken,
+  isDevFixedOtp,
+  readHandoff,
+  signHandoff,
+  slugifyBusinessName,
+} from "./crypto.js";
 
 function restoreEnv(key: "NODE_ENV" | "DEV_FIXED_OTP", value: string | undefined): void {
   if (value === undefined) delete process.env[key];
@@ -58,5 +65,40 @@ describe("isDevFixedOtp", () => {
 
     process.env.DEV_FIXED_OTP = "12345";
     expect(isDevFixedOtp("12345")).toBe(false);
+  });
+});
+
+describe("signHandoff / readHandoff", () => {
+  const originalSecret = process.env.SECRETS_ENCRYPTION_KEY;
+
+  afterEach(() => {
+    if (originalSecret === undefined) delete process.env.SECRETS_ENCRYPTION_KEY;
+    else process.env.SECRETS_ENCRYPTION_KEY = originalSecret;
+  });
+
+  it("round-trips a payload without its expiry", () => {
+    process.env.SECRETS_ENCRYPTION_KEY = "test-secret-value-1234567890";
+    const token = signHandoff("purpose-a", { email: "a@b.c", count: 2 }, 60);
+    expect(readHandoff("purpose-a", token)).toEqual({ email: "a@b.c", count: 2 });
+  });
+
+  it("refuses a token minted for another purpose", () => {
+    process.env.SECRETS_ENCRYPTION_KEY = "test-secret-value-1234567890";
+    const token = signHandoff("purpose-a", { email: "a@b.c" }, 60);
+    expect(readHandoff("purpose-b", token)).toBeNull();
+  });
+
+  it("refuses a tampered payload and an expired token", () => {
+    process.env.SECRETS_ENCRYPTION_KEY = "test-secret-value-1234567890";
+    const token = signHandoff("purpose-a", { email: "a@b.c" }, 60);
+    expect(readHandoff("purpose-a", `${token.slice(0, -3)}abc`)).toBeNull();
+    expect(readHandoff("purpose-a", signHandoff("purpose-a", { email: "a@b.c" }, -1))).toBeNull();
+  });
+
+  it("refuses a token signed with a different secret", () => {
+    process.env.SECRETS_ENCRYPTION_KEY = "test-secret-value-1234567890";
+    const token = signHandoff("purpose-a", { email: "a@b.c" }, 60);
+    process.env.SECRETS_ENCRYPTION_KEY = "another-secret-value-0987654321";
+    expect(readHandoff("purpose-a", token)).toBeNull();
   });
 });

@@ -74,6 +74,6 @@ With `pnpm dev` running and the demo seed loaded:
 ## Documentation
 
 - [Architecture](docs/architecture.md) · [Database](docs/database.md) · [Permissions](docs/permissions.md) · [Business rules](docs/business-rules.md)
-- Integrations: [Snippe](docs/integrations/snippe.md) · [Omada contracts](docs/integrations/omada-contracts.md) · [Capabilities](docs/integrations/capabilities.md)
+- Integrations: [Snippe](docs/integrations/snippe.md) · [Omada contracts](docs/integrations/omada-contracts.md) · [Capabilities](docs/integrations/capabilities.md) · [Google sign-in](docs/integrations/google-oauth.md)
 - [Frontend](docs/frontend.md) · [Dependency versions](docs/dependency-versions.md) · [Deployment](docs/deployment.md) · [Runbooks](docs/runbooks.md)
 - [Acceptance results](docs/acceptance-results.md) · [Implementation status](docs/implementation-status.md)

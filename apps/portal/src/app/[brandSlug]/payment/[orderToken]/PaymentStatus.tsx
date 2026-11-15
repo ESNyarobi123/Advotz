@@ -214,10 +214,18 @@ export function PaymentStatus({
     }
   }
 
-  // Only leave once the Controller has actually let the device on.
+  /**
+   * The device is online: the hold button has done its job.
+   *
+   * The page deliberately stays where it is. Sending the tab to the browse
+   * destination here is what used to make the connected screen disappear, and
+   * on phones that open the portal in a browser Custom Tab that tab survives
+   * authorization — as long as we do not navigate it away. "Browse internet"
+   * opens the destination in a new tab instead.
+   */
   useEffect(() => {
-    if (starting && status?.access?.state === "ACTIVE") window.location.assign(browseUrl);
-  }, [starting, status?.access?.state, browseUrl]);
+    if (starting && status?.access?.state === "ACTIVE") setStarting(false);
+  }, [starting, status?.access?.state]);
 
   /**
    * The connected stage. While the session is held it renders *above* the
@@ -348,7 +356,13 @@ export function PaymentStatus({
                   )}
                 </p>
                 {status.landingUrl ? (
-                  <a className={`${systemActionClass} no-underline`} href={status.landingUrl} style={systemActionStyle}>
+                  <a
+                    className={`${systemActionClass} no-underline`}
+                    href={status.landingUrl}
+                    rel="noopener noreferrer"
+                    style={systemActionStyle}
+                    target="_blank"
+                  >
                     {t("continueBrowsing")}
                   </a>
                 ) : null}

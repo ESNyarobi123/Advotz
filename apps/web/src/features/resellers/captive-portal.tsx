@@ -1409,12 +1409,17 @@ function LivePortalPreview({
    * `preview=1` marks the embed as the designer's own view: the portal then
    * paints the draft appearance, opens the real payment dialog but refuses to
    * transact, and shows the connected experience from this site's own content
-   * instead of a session it does not have. Copy and Open stay clean because they
-   * are for a real phone.
+   * instead of a session it does not have.
+   *
+   * Copy and Open are for a real phone, so they never carry the flag. On the
+   * connected screen they point at `/<slug>/preview` rather than `/<slug>/status`:
+   * status belongs to a guest who has an order, and a shared link opened by
+   * somebody with no token would show an empty page. `preview` is the public
+   * "this is what you get after paying" screen, safe to share or print as a QR.
    */
   const base = site ? `${PORTAL_URL}/${site.slug}` : "";
-  const url = screen === "connected" ? `${base}/status` : base;
-  const frameUrl = `${url}${url.includes("?") ? "&" : "?"}preview=1`;
+  const url = screen === "connected" ? `${base}/preview` : base;
+  const frameUrl = screen === "connected" ? `${base}/status?preview=1` : `${base}?preview=1`;
 
   /** Pushes the current draft into the frame; a no-op before it has loaded. */
   const postAppearance = useCallback(() => {

@@ -9,12 +9,13 @@ import { DevSimulationController, WebhookController } from "./modules/payments/w
 import { MediaController } from "./modules/media/media.controller.js";
 import { AdminMediaController } from "./modules/media/admin-media.controller.js";
 import { ResellerMediaController } from "./modules/media/reseller-media.controller.js";
+import { MailController } from "./modules/notifications/mail.controller.js";
 import { PortalController } from "./modules/portal/portal.controller.js";
 import { ResellerController } from "./modules/reseller/reseller.controller.js";
 
 @Module({
   imports: [AuthModule],
-  controllers: [AdminController, ResellerController, ResellerMediaController, AdminMediaController, AgentController, PortalController, MarketingController, MediaController, WebhookController, DevSimulationController],
+  controllers: [AdminController, MailController, ResellerController, ResellerMediaController, AdminMediaController, AgentController, PortalController, MarketingController, MediaController, WebhookController, DevSimulationController],
 })
 export class DomainHttpModule {}
 
@@ -63,3 +64,5 @@ export {
 } from "./demo/seed-plans.js";
 export { MAX_UPLOAD_BYTES as MAX_MEDIA_UPLOAD_BYTES } from "./modules/media/media.service.js";
 export { ensureDefaultPlatformSettings } from "./modules/settings/settings.service.js";
+export { deleteReseller } from "./modules/admin/admin.service.js";
+export { planPurge, purgeResellerData, type PurgeResult } from "./modules/admin/reseller-purge.js";

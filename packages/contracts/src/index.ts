@@ -136,6 +136,12 @@ export const registerResellerSchema = z.object({
   password: z.string().min(10).max(128),
   referralCode: z.string().trim().min(4).max(32).optional(),
   acceptTerms: z.literal(true),
+  /**
+   * Issued by `/auth/register/otp/verify` after the email code was accepted.
+   * Optional at the schema level so an internal caller (demo seed, tests) can
+   * still create an account directly; the HTTP route requires it.
+   */
+  verificationToken: z.string().min(16).max(256).optional(),
 });
 export type RegisterResellerInput = z.infer<typeof registerResellerSchema>;
 
@@ -158,6 +164,47 @@ export const forgotPasswordSchema = z.object({
   email: z.string().trim().email().toLowerCase(),
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+/** Six digits, spaces tolerated so a pasted "123 456" still works. */
+export const otpCodeSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.replace(/\s/g, ""))
+  .pipe(z.string().regex(/^\d{6}$/, "Enter the 6-digit code"));
+
+/** Which self-registration form is asking for a code. */
+export const registrationOtpRoleSchema = z.enum(["RESELLER", "AGENT"]);
+export type RegistrationOtpRole = z.infer<typeof registrationOtpRoleSchema>;
+
+export const requestRegistrationOtpSchema = z.object({
+  email: z.string().trim().email().toLowerCase(),
+  role: registrationOtpRoleSchema,
+});
+export type RequestRegistrationOtpInput = z.infer<
+  typeof requestRegistrationOtpSchema
+>;
+
+export const verifyRegistrationOtpSchema = z.object({
+  email: z.string().trim().email().toLowerCase(),
+  role: registrationOtpRoleSchema,
+  code: otpCodeSchema,
+});
+export type VerifyRegistrationOtpInput = z.infer<
+  typeof verifyRegistrationOtpSchema
+>;
+
+/**
+ * Step 2 of the reset flow: prove the emailed code before a reset token is
+ * issued. Keeping the code exchange separate is what stops a stolen mailbox
+ * from being enough — the caller still has to complete this round trip.
+ */
+export const verifyPasswordResetOtpSchema = z.object({
+  email: z.string().trim().email().toLowerCase(),
+  code: otpCodeSchema,
+});
+export type VerifyPasswordResetOtpInput = z.infer<
+  typeof verifyPasswordResetOtpSchema
+>;
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(16).max(256),
@@ -209,8 +256,45 @@ export const registerAgentSchema = z.object({
     .regex(/^[A-Z0-9_-]+$/i)
     .optional(),
   acceptTerms: z.literal(true),
+  /** Same OTP ticket as the reseller form. */
+  verificationToken: z.string().min(16).max(256).optional(),
 });
 export type RegisterAgentInput = z.infer<typeof registerAgentSchema>;
+
+/**
+ * Finishing a sign-up that started at Google.
+ *
+ * Google has already proved the mailbox, so there is no OTP and no password
+ * here. What is still missing is what only the person knows: their phone number,
+ * which kind of account they are opening, and — for a reseller — the business
+ * name. The `ticket` is the signed hand-off minted by the OAuth callback, and it
+ * is the only thing that ties this payload to a verified Google email.
+ */
+export const completeGoogleSignupSchema = z
+  .object({
+    ticket: z.string().min(16).max(4096),
+    accountType: z.enum([UserRole.RESELLER, UserRole.AGENT]),
+    phone: tzPhoneSchema,
+    businessName: z.string().trim().min(2).max(120).optional(),
+    referralCode: z
+      .string()
+      .trim()
+      .min(4)
+      .max(32)
+      .regex(/^[A-Z0-9_-]+$/i)
+      .optional(),
+    acceptTerms: z.literal(true),
+  })
+  .superRefine((value, ctx) => {
+    if (value.accountType === UserRole.RESELLER && !value.businessName) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["businessName"],
+        message: "Tell us the name customers will see.",
+      });
+    }
+  });
+export type CompleteGoogleSignupInput = z.infer<typeof completeGoogleSignupSchema>;
 
 /**
  * Marks a session as an Admin acting as another user.
@@ -992,6 +1076,79 @@ export const saleFeeSettingSchema = z.object({
 export const withdrawalFeeSettingSchema = z.object({
   fixedTzs: z.number().int().min(0).max(1_000_000),
 });
+
+// ───────────────────────────── Admin mail ────────────────────────────────
+
+/**
+ * The transport an Admin picks. `fake` is a deliberate, labelled dev transport:
+ * it records the message and never claims delivery.
+ */
+export const MAIL_PROVIDERS = ["fake", "resend", "smtp"] as const;
+export type MailProvider = (typeof MAIL_PROVIDERS)[number];
+
+/** A per-purpose From address, optionally with its own SMTP login. */
+export const mailPurposeSenderSchema = z.object({
+  fromEmail: z.string().trim().email(),
+  username: z.string().trim().max(200).optional(),
+  password: z.string().max(300).optional(),
+  clearPassword: z.boolean().optional().default(false),
+  /** Drop this sender and fall back to the main From address. */
+  remove: z.boolean().optional().default(false),
+});
+export type MailPurposeSenderInput = z.infer<typeof mailPurposeSenderSchema>;
+
+export const mailSettingsInputSchema = z.object({  provider: z.enum(MAIL_PROVIDERS),
+  fromName: z.string().trim().min(1).max(80),
+  fromEmail: z.string().trim().email(),
+  replyTo: z
+    .union([z.string().trim().email(), z.literal("")])
+    .optional()
+    .default(""),
+  /** Omit to keep the stored key; send a new value to rotate it. */
+  resendApiKey: z.string().trim().min(8).max(300).optional(),
+  clearResendApiKey: z.boolean().optional().default(false),
+  smtp: z
+    .object({
+      host: z.string().trim().min(1).max(200),
+      port: z.coerce.number().int().min(1).max(65535),
+      secure: z.boolean().default(true),
+      username: z.string().trim().max(200).default(""),
+      password: z.string().max(300).optional(),
+      clearPassword: z.boolean().optional().default(false),
+    })
+    .optional(),
+  /**
+   * Optional dedicated mailbox for OTP codes and security notices. Many hosts
+   * reject a From address that differs from the authenticated account, so a
+   * sender may carry its own login. Omitting `username` means "log in as the
+   * From address"; omitting `password` reuses the main SMTP password.
+   */
+  otpSender: mailPurposeSenderSchema.optional(),
+  securitySender: mailPurposeSenderSchema.optional(),
+});
+export type MailSettingsInput = z.infer<typeof mailSettingsInputSchema>;
+/**
+ * The shape a caller may pass. Zod fills the defaults, so a direct service call
+ * (tests, scripts) does not have to spell them out.
+ */
+export type MailSettingsDraft = z.input<typeof mailSettingsInputSchema>;
+export type MailPurposeSenderDraft = z.input<typeof mailPurposeSenderSchema>;
+
+export const mailTestSchema = z.object({
+  to: z.string().trim().email(),
+});
+
+/** What an Admin may send by hand. OTPs are never composed manually. */
+export const ADMIN_MAIL_KINDS = ["SECURITY", "INFO", "ANNOUNCEMENT"] as const;
+export type AdminMailKind = (typeof ADMIN_MAIL_KINDS)[number];
+
+export const adminMailSendSchema = z.object({
+  recipients: z.array(z.string().trim().email()).min(1).max(50),
+  kind: z.enum(ADMIN_MAIL_KINDS),
+  subject: z.string().trim().min(2).max(140),
+  body: z.string().trim().min(2).max(4000),
+});
+export type AdminMailSendInput = z.infer<typeof adminMailSendSchema>;
 
 export const supportTicketInputSchema = z.object({
   subject: z.string().trim().min(3).max(120),

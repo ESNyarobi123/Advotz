@@ -79,6 +79,15 @@ export const serverEnvSchema = z
      */
     GEMINI_API_KEY: z.string().optional().default(""),
     GEMINI_MODEL: z.string().optional().default("gemini-3.8-flash"),
+    /**
+     * "Continue with Google". Both halves are required for the buttons to work;
+     * with either missing the API answers 503 and the button explains itself.
+     * `GOOGLE_OAUTH_REDIRECT_URL` must match the URI registered in the Google
+     * console exactly, so production pins it to the web origin's proxy path.
+     */
+    GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
+    GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().default(""),
+    GOOGLE_OAUTH_REDIRECT_URL: z.string().optional().default(""),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     SNIPPE_ACCOUNT_ID: z.string().optional().default(""),
     /**
