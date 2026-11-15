@@ -722,6 +722,8 @@ export const adminScreensEn = {
   "admin.campaigns.audience.everyone": "Everyone",
   "admin.campaigns.audience.targeted": "{resellers} resellers · {sites} sites",
   "admin.campaigns.schedule.always": "Always on",
+  "admin.campaigns.schedule.notStarted":
+    "Not live yet — starts {when}. Nothing is served until then.",
   "admin.campaigns.theme.cafe": "Cafe",
   "admin.campaigns.theme.tech": "Tech",
   "admin.campaigns.theme.style": "Style",
@@ -3695,6 +3697,8 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   "admin.campaigns.audience.everyone": "Kila mtu",
   "admin.campaigns.audience.targeted": "Wauzaji {resellers} · tovuti {sites}",
   "admin.campaigns.schedule.always": "Inaendelea kila wakati",
+  "admin.campaigns.schedule.notStarted":
+    "Bado haijaanza — itaanza {when}. Hakuna kinachoonyeshwa hadi wakati huo.",
   "admin.campaigns.theme.cafe": "Mkahawa",
   "admin.campaigns.theme.tech": "Teknolojia",
   "admin.campaigns.theme.style": "Muonekano",

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Card, Label, Modal, useOverlayState } from "@heroui/react";
+import { zonedInputToIso, zonedInputValue } from "@advo/api-client";
 import { Notice } from "@advo/ui";
 import {
   Briefcase,
@@ -142,12 +143,9 @@ function statusOf(row: ListingRow): Status {
   return "LIVE";
 }
 
+/** `<input type="datetime-local">` value for an instant, in the business zone. */
 function toLocalInput(value: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return zonedInputValue(value);
 }
 
 function tagsToText(tags: string[]): string {
@@ -675,8 +673,8 @@ function ListingFormModal({
         .map((tag) => tag.trim())
         .filter(Boolean)
         .slice(0, 12),
-      startsAt: v.startsAt ?? null,
-      endsAt: v.endsAt ?? null,
+      startsAt: zonedInputToIso(v.startsAt),
+      endsAt: zonedInputToIso(v.endsAt),
       sortOrder: toInt(v.sortOrder) ?? 0,
       active: v.active === "on",
       source: (listing?.source ?? "MANUAL") as Source,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Card, Input, Modal, useOverlayState } from "@heroui/react";
-import { formatDateTime } from "@advo/api-client";
+import { formatDateTime, zonedInputToIso, zonedInputValue } from "@advo/api-client";
 import { AdvoKpi, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
   AD_THEMES,
@@ -11,6 +11,7 @@ import {
   type AdTheme,
 } from "@advo/contracts";
 import {
+  Clock,
   Megaphone,
   Pause,
   Pencil,
@@ -398,6 +399,18 @@ function CampaignCard({
           ? `${campaign.startsAt ? formatDateTime(campaign.startsAt) : "—"} → ${campaign.endsAt ? formatDateTime(campaign.endsAt) : "—"}`
           : t("admin.campaigns.schedule.always")}
       </p>
+      {/* An ACTIVE campaign that has not reached its start time is served nowhere,
+          and that reads as a bug unless the card says so. */}
+      {campaign.status === "ACTIVE" &&
+      campaign.startsAt &&
+      new Date(campaign.startsAt).getTime() > Date.now() ? (
+        <p className="flex items-start gap-1.5 text-[11px] font-semibold text-[#b45309]">
+          <Clock className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {t("admin.campaigns.schedule.notStarted", {
+            when: formatDateTime(campaign.startsAt),
+          })}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-[var(--advo-border)] pt-3.5">
         <Button
@@ -504,8 +517,8 @@ function CampaignFormModal({
         resellerIds: splitIds(v.resellerIds),
         siteIds: splitIds(v.siteIds),
       },
-      startsAt: v.startsAt ?? null,
-      endsAt: v.endsAt ?? null,
+      startsAt: zonedInputToIso(v.startsAt),
+      endsAt: zonedInputToIso(v.endsAt),
     };
     if (campaign) {
       await api.put(`/admin/campaigns/${campaign.id}`, payload);
@@ -855,11 +868,7 @@ function splitIds(value: string | undefined): string[] {
   ];
 }
 
-/** `datetime-local` wants `YYYY-MM-DDTHH:mm` in local time, not an ISO Z string. */
+/** `datetime-local` wants `YYYY-MM-DDTHH:mm` as the business wall clock, not an ISO Z string. */
 function toLocalInput(iso: string | null | undefined): string | undefined {
-  if (!iso) return undefined;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return undefined;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return zonedInputValue(iso) || undefined;
 }

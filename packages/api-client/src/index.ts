@@ -88,6 +88,85 @@ export function formatDateTime(value: string | Date | null | undefined, locale =
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: BUSINESS_TIMEZONE }).format(d);
 }
 
+/**
+ * Milliseconds the given zone is ahead of UTC at `date` (positive east of it).
+ *
+ * `Intl` can format a wall clock in any zone but cannot hand back its offset, so
+ * the offset is recovered by formatting the instant in the zone, reading that wall
+ * clock back as if it were UTC, and subtracting. That is exact to the second and
+ * survives a DST zone too, which Tanzania is not.
+ */
+function zoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  // `hour` formats midnight as 24 in some locales; normalise it back to 0.
+  const hour = get("hour") % 24;
+  const wallAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), hour, get("minute"), get("second"));
+  return wallAsUtc - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+/**
+ * An instant as the value a `<input type="datetime-local">` expects, in the
+ * business zone (not the browser's), so an Admin abroad still edits Dar time.
+ */
+export function zonedInputValue(
+  value: string | Date | null | undefined,
+  timeZone = BUSINESS_TIMEZONE,
+): string {
+  if (!value) return "";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = zoneOffsetMs(date, timeZone);
+  const wall = new Date(date.getTime() + offset);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${wall.getUTCFullYear()}-${pad(wall.getUTCMonth() + 1)}-${pad(wall.getUTCDate())}T${pad(wall.getUTCHours())}:${pad(wall.getUTCMinutes())}`;
+}
+
+/**
+ * The inverse: a `datetime-local` wall clock read as business-zone time and
+ * returned as a UTC ISO string.
+ *
+ * This is the value that must go over the wire. Sending the raw
+ * `"2026-11-15T19:45"` lets the *server* decide what it means, and a server
+ * running UTC reads it as 19:45Z — three hours after the Admin meant, so a
+ * published campaign looks like it is scheduled for later and never appears.
+ */
+export function zonedInputToIso(
+  value: string | null | undefined,
+  timeZone = BUSINESS_TIMEZONE,
+): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  // A value that already names an instant (…Z or …+03:00) is unambiguous and must
+  // not be read as a wall clock, or every edit would shift it again.
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed)) {
+    const explicit = new Date(trimmed);
+    return Number.isNaN(explicit.getTime()) ? null : explicit.toISOString();
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(trimmed);
+  if (!match) {
+    const fallback = new Date(trimmed);
+    return Number.isNaN(fallback.getTime()) ? null : fallback.toISOString();
+  }
+  const [, y, mo, d, h, mi] = match.map(Number) as unknown as number[];
+  const guess = Date.UTC(y!, mo! - 1, d!, h!, mi!);
+  // Two passes: the first offset is computed from the wrong instant by exactly
+  // that offset, the second one lands on the right side of a DST boundary.
+  const first = zoneOffsetMs(new Date(guess), timeZone);
+  const instant = guess - first;
+  const second = zoneOffsetMs(new Date(instant), timeZone);
+  return new Date(guess - second).toISOString();
+}
+
 export function formatDuration(seconds: number, locale: "en" | "sw" = "en"): string {
   const units: Array<[number, string, string]> =
     locale === "sw"

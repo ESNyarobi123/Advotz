@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { formatDateTime, formatTzs } from "@advo/api-client";
+import { formatDateTime, formatTzs, zonedInputToIso } from "@advo/api-client";
 import { Button, Card, Input, Modal, useOverlayState } from "@heroui/react";
 import { AdvoKpi, AdvoSelect, Notice, SoftIcon, StatusChip } from "@advo/ui";
 import {
@@ -1186,9 +1186,8 @@ function PolicyFormModal({
         referralEligibilityDays: toInt(values.referralEligibilityDays),
         holdDays: toInt(values.holdDays) ?? 0,
         maxPerInvoiceTzs: cap || undefined,
-        effectiveFrom: values.effectiveFrom
-          ? new Date(values.effectiveFrom).toISOString()
-          : new Date().toISOString(),
+        effectiveFrom:
+          zonedInputToIso(values.effectiveFrom) ?? new Date().toISOString(),
         isDemo: values.isDemo,
       });
       await onSaved(
