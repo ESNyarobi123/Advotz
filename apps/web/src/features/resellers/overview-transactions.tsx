@@ -12,6 +12,7 @@ import {
   paymentStateLabel,
 } from "@/features/common/labels";
 import { useSiteScope } from "@/features/resellers/site-scope";
+import { saleSplit } from "@/features/resellers/sale-split";
 import { useResource } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n";
 
@@ -25,7 +26,7 @@ type Order = {
   fulfillmentState: string;
   createdAt: string;
   paidAt: string | null;
-  priceSnapshot: { name?: string } | null;
+  priceSnapshot: { name?: string; saleFeeBasisPoints?: number } | null;
   customer: {
     phone: string;
     firstName: string | null;
@@ -263,6 +264,19 @@ function RecentResults({
                     className="col-start-2 row-start-1 text-right text-sm font-bold whitespace-nowrap tabular-nums xl:col-start-auto xl:row-start-auto"
                   >
                     {formatTzs(order.amountTzs)}
+                    {order.paymentState === "PAID" ||
+                    order.paymentState === "OVERPAID" ? (
+                      <p className="text-[10px] font-semibold text-emerald-600">
+                        {t("reseller.orders.row.youKeep", {
+                          amount: formatTzs(
+                            saleSplit(
+                              order.amountTzs,
+                              order.priceSnapshot?.saleFeeBasisPoints,
+                            ).net,
+                          ),
+                        })}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               );

@@ -49,6 +49,7 @@ Journal sources (`sourceKey` pattern → `sourceType`):
 |---|---|---|
 | `payment:<attemptId>` | `subscription_receipt` / `wifi_sale_receipt` | Payment confirmed |
 | `settlement:<attemptId>` | `wifi_sale_settlement` | Admin records the provider fee for a sale booked without one |
+| `fee-absorption:<attemptId>` | `provider_fee_absorbed` | One-off repair (`payments:absorb-fees`) for sales booked before the provider fee moved onto the platform's cost line |
 | `overpayment:<attemptId>` | `overpayment` | Paid more than the order amount |
 | `commission:<accrualId>` | `commission_accrual` | Commission accrued (pending) |
 | `commission-release:<accrualId>` | `commission_release` | Hold ended: pending → available |

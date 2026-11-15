@@ -7,6 +7,7 @@ import { StatusChip } from "@advo/ui";
 import { PageHero, ResourceView } from "@/features/common/components";
 import { fulfillmentStateLabel, grantStateLabel, paymentStateLabel } from "@/features/common/labels";
 import { useSiteScope } from "@/features/resellers/site-scope";
+import { saleSplit } from "@/features/resellers/sale-split";
 import { useI18n, type I18n } from "@/lib/i18n";
 import { useResource } from "@/lib/hooks";
 import {
@@ -270,6 +271,9 @@ function OrderDetailRow({
   const when = formatDateTime(o.paidAt ?? o.createdAt);
   const pkg = o.priceSnapshot.name ?? "—";
   const err = o.attempts[0]?.lastError ?? null;
+  // Price, Advo's fee and what actually lands in the wallet — the provider's
+  // own cut is deliberately absent.
+  const split = saleSplit(o.amountTzs, o.priceSnapshot.saleFeeBasisPoints);
 
   return (
     <Card className="overflow-hidden p-0 transition-shadow hover:shadow-advo-lift">
@@ -370,8 +374,19 @@ function OrderDetailRow({
           >
             {formatTzs(o.amountTzs)}
           </p>
-          <p className="text-[10px] font-semibold text-advo-muted">
-            {paid ? t("reseller.orders.row.settled") : t("reseller.orders.row.checkout")}
+          {paid && split.fee > 0 ? (
+            <p className="text-[10px] font-semibold text-advo-muted">
+              {t("reseller.orders.row.advFee", { amount: formatTzs(split.fee) })}
+            </p>
+          ) : null}
+          <p
+            className={`text-[10px] font-semibold ${
+              paid ? "text-emerald-700" : "text-advo-muted"
+            }`}
+          >
+            {paid
+              ? t("reseller.orders.row.youKeep", { amount: formatTzs(split.net) })
+              : t("reseller.orders.row.checkout")}
           </p>
         </div>
       </div>

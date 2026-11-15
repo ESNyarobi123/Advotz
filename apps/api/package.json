@@ -14,7 +14,8 @@
     "smoke": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/smoke-e2e.ts",
     "seed:demo": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/seed-demo.ts",
     "seed:plans": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/seed-plans.ts",
-    "reseller:clear": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/clear-resellers.ts"
+    "reseller:clear": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/clear-resellers.ts",
+    "payments:absorb-fees": "SWC_NODE_PROJECT=../../tsconfig.runtime.json node --import @swc-node/register/esm-register src/absorb-provider-fees.ts"
   },
   "dependencies": {
     "@advo/backend": "workspace:*",

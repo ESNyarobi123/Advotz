@@ -148,8 +148,10 @@ Resellers submit a device claim with the MAC and model, and an Admin approves it
 
 When a `payment.completed` webhook arrives without Snippe settlement figures, the provider fee is unknown. The sale is booked with the Reseller's share in `RESELLER_PENDING_SETTLEMENT`, and that share cannot be withdrawn yet.
 
+> Sales booked before the provider fee moved onto the platform's cost line had the gateway's cut taken out of the Reseller's share. `pnpm --filter @advo/api payments:absorb-fees` previews every receipt that is short and, with `--confirm ABSORB`, posts one corrective `provider_fee_absorbed` journal per receipt. It is idempotent.
+
 1. Get the actual fee from the Snippe statement.
-2. Admin → Payments → **Settle fee**, and enter the fee and the statement reference. This posts one settlement journal: pending → payable, fee → provider clearing. It also writes a `payment.settled` audit event with the reason.
+2. Admin → Payments → **Settle fee**, and enter the fee and the statement reference. This posts one settlement journal: pending → payable (the full pending share, since the fee is a platform cost), fee → `PROVIDER_FEE_EXPENSE`. It also writes a `payment.settled` audit event with the reason.
 3. A sale can be settled only once. A second attempt is refused.
 
 ## Mismatched ledger

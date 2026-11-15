@@ -516,17 +516,26 @@ async function postReceiptJournal(
     snapshot.saleFeeBasisPoints ?? (await saleFeeBasisPoints()),
   );
   let platformFee = (gross * bps) / 10000n;
+  if (platformFee > gross) platformFee = gross;
   const lines: PostingLine[] = [
     { account: platformAccount("PROVIDER_CLEARING"), debit: gross },
   ];
   if (fee !== null) {
-    if (platformFee > gross - fee)
-      platformFee = gross - fee > 0n ? gross - fee : 0n;
+    lines.push({ account: platformAccount("PROVIDER_CLEARING"), credit: fee });
+    // The provider's collection fee is a cost of taking the money, not a
+    // deduction from what the sale earned. Booking it as a platform expense
+    // keeps the Reseller's share at exactly the package price less Advo's own
+    // fee, which is the only cut they are shown.
+    if (fee > 0n) {
+      lines.push({
+        account: platformAccount("PROVIDER_FEE_EXPENSE"),
+        debit: fee,
+      });
+    }
     lines.push(
-      { account: platformAccount("PROVIDER_CLEARING"), credit: fee },
       {
         account: resellerAccount(order.resellerId, "RESELLER_PAYABLE"),
-        credit: gross - fee - platformFee,
+        credit: gross - platformFee,
       },
       {
         account: platformAccount("PLATFORM_SALE_FEE_REVENUE"),
@@ -534,7 +543,8 @@ async function postReceiptJournal(
       },
     );
   } else {
-    // Provider fee unknown: keep reseller funds unavailable until settlement is reconciled.
+    // Provider fee unknown: keep reseller funds unavailable until settlement is
+    // reconciled — but still at the full package price less Advo's fee.
     lines.push(
       {
         account: resellerAccount(
@@ -625,9 +635,19 @@ export async function settlePendingSale(
             attempt.order.resellerId,
             "RESELLER_PAYABLE",
           ),
-          credit: pending - feeTzs,
+          credit: pending,
         },
-        { account: platformAccount("PROVIDER_CLEARING"), credit: feeTzs },
+        // The provider's cut leaves the clearing account as a platform cost; it
+        // is never taken out of the Reseller's share.
+        ...(feeTzs > 0n
+          ? [
+              {
+                account: platformAccount("PROVIDER_FEE_EXPENSE"),
+                debit: feeTzs,
+              },
+              { account: platformAccount("PROVIDER_CLEARING"), credit: feeTzs },
+            ]
+          : []),
       ],
     });
   });

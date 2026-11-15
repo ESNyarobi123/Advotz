@@ -66,3 +66,9 @@ export { MAX_UPLOAD_BYTES as MAX_MEDIA_UPLOAD_BYTES } from "./modules/media/medi
 export { ensureDefaultPlatformSettings } from "./modules/settings/settings.service.js";
 export { deleteReseller } from "./modules/admin/admin.service.js";
 export { planPurge, purgeResellerData, type PurgeResult } from "./modules/admin/reseller-purge.js";
+export {
+  absorbProviderFee,
+  absorbProviderFees,
+  planFeeAbsorption,
+  type FeeAbsorptionRow,
+} from "./modules/payments/fee-absorption.js";

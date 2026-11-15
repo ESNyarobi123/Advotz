@@ -1832,7 +1832,7 @@ export const adminScreensEn = {
   // ── Payments · settle dialog ─────────────────────────────────────────────
   "admin.payments.settle.title": "Record the provider fee",
   "admin.payments.settle.note":
-    "The sale completed before the provider fee was known, so the reseller's money is held pending settlement. Recording the real fee releases it.",
+    "The sale completed before the provider fee was known, so the reseller's money is held pending settlement. Recording the real fee releases the whole held share — the fee is booked as a platform cost, it is never taken out of the reseller's money.",
   "admin.payments.settle.feeLabel": "Provider fee (TZS)",
   "admin.payments.settle.feeHint":
     "Read it from the provider statement. It cannot exceed the held balance.",
@@ -4819,7 +4819,7 @@ export const adminScreensSw: Record<keyof typeof adminScreensEn, string> = {
   // ── Malipo · kidirisha cha kurekodi ada ──────────────────────────────────
   "admin.payments.settle.title": "Rekodi ada ya mtoa huduma",
   "admin.payments.settle.note":
-    "Mauzo yalikamilika kabla ada ya mtoa huduma kujulikana, hivyo fedha za muuza zimehifadhiwa hadi usuluhishaji. Kurekodi ada halisi huziachilia.",
+    "Mauzo yalikamilika kabla ada ya mtoa huduma kujulikana, hivyo fedha za muuza zimehifadhiwa hadi usuluhishaji. Kurekodi ada halisi huziachilia fedha zote zilizohifadhiwa — ada hiyo inaingia kama gharama ya jukwaa, haikatwi kwenye fedha za muuza.",
   "admin.payments.settle.feeLabel": "Ada ya mtoa huduma (TZS)",
   "admin.payments.settle.feeHint":
     "Isome kutoka taarifa ya mtoa huduma. Haiwezi kuzidi salio lililohifadhiwa.",

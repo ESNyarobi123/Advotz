@@ -30,7 +30,7 @@ These are the rules as implemented. Where a value is a business decision (prices
 - **Payment confirmation** comes only from a verified webhook or a provider lookup. The browser's redirect never confirms a payment.
   - Amount or currency mismatch: the event is **quarantined** and access is never granted.
   - Overpayment: the extra amount is booked to `OVERPAYMENT_LIABILITY`.
-- **Ledger on a confirmed sale:** gross → provider clearing. The provider fee comes back out of clearing, the platform fee goes to sale-fee revenue, and the rest goes to `RESELLER_PAYABLE`. If Snippe sent no settlement figures, the Reseller's share goes to `RESELLER_PENDING_SETTLEMENT` until an Admin records the fee (**Settle fee**, which is audited, needs a reason, and can be done once).
+- **Ledger on a confirmed sale:** gross → provider clearing. The provider's collection fee comes back out of clearing as `PROVIDER_FEE_EXPENSE` — the platform carries it, so the Reseller's share is the package price less Advo's fee only, and the gateway's cut is never shown to them. Advo's fee goes to sale-fee revenue. If Snippe sent no settlement figures, the Reseller's share goes to `RESELLER_PENDING_SETTLEMENT` until an Admin records the fee (**Settle fee**, which is audited, needs a reason, and can be done once; the recorded fee is still a platform cost).
 
 ## Access grants
 

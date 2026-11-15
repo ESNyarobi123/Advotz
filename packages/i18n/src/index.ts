@@ -366,6 +366,8 @@ const baseEn = {
   "reseller.orders.search.clear": "Clear search",
   "reseller.orders.row.settled": "Settled",
   "reseller.orders.row.checkout": "Checkout",
+  "reseller.orders.row.youKeep": "You keep {amount}",
+  "reseller.orders.row.advFee": "Advo fee {amount}",
   "reseller.orders.tableLabel": "Guest payments",
   "reseller.orders.empty": "No guest payment matches your filter.",
 
@@ -1431,6 +1433,8 @@ const baseSw: Record<BaseMessageKey, string> = {
   "reseller.orders.search.clear": "Futa utafutaji",
   "reseller.orders.row.settled": "Imelipwa",
   "reseller.orders.row.checkout": "Checkout",
+  "reseller.orders.row.youKeep": "Unabaki na {amount}",
+  "reseller.orders.row.advFee": "Ada ya Advo {amount}",
   "reseller.orders.tableLabel": "Malipo ya wageni",
   "reseller.orders.empty":
     "Hakuna malipo ya mgeni yanayolingana na kichujio chako.",

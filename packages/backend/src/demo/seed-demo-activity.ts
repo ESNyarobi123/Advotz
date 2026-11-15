@@ -750,7 +750,8 @@ export async function seedDemoPayments(resellerId: string): Promise<string[]> {
         lines: [
           { account: platformAccount("PROVIDER_CLEARING"), debit: amount },
           { account: platformAccount("PROVIDER_CLEARING"), credit: fee },
-          { account: resellerAccount(resellerId, "RESELLER_PAYABLE"), credit: amount - fee - platformFee },
+          { account: platformAccount("PROVIDER_FEE_EXPENSE"), debit: fee },
+          { account: resellerAccount(resellerId, "RESELLER_PAYABLE"), credit: amount - platformFee },
           { account: platformAccount("PLATFORM_SALE_FEE_REVENUE"), credit: platformFee },
         ],
       });
@@ -901,7 +902,7 @@ export async function backfillSettledReceipts(resellerId: string): Promise<strin
     // The provider's cut on a mobile-money collection, in basis points.
     const fee = (order.amountTzs * 25n) / 10000n;
     const platformFee = (order.amountTzs * bps) / 10000n;
-    const net = order.amountTzs - fee - platformFee;
+    const net = order.amountTzs - platformFee;
     const settledAt = new Date(order.createdAt.getTime() + 45_000 + Math.floor(random() * 90_000));
 
     attempts.push({
@@ -929,6 +930,7 @@ export async function backfillSettledReceipts(resellerId: string): Promise<strin
       lines: [
         { account: platformAccount("PROVIDER_CLEARING"), debit: order.amountTzs },
         { account: platformAccount("PROVIDER_CLEARING"), credit: fee },
+        { account: platformAccount("PROVIDER_FEE_EXPENSE"), debit: fee },
         { account: resellerAccount(resellerId, "RESELLER_PAYABLE"), credit: net },
         { account: platformAccount("PLATFORM_SALE_FEE_REVENUE"), credit: platformFee },
       ],

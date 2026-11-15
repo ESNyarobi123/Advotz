@@ -704,13 +704,20 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
       3600_000,
     );
 
-    // Ledger: 10,000 gross − 100 provider fee − 1,000 platform fee (10%) = 8,900 reseller payable.
+    // Ledger: 10,000 gross − 1,000 platform fee (10%) = 9,000 reseller payable.
+    // The 100 provider fee is the platform's cost, not a deduction from the sale.
     expect(
       await accountBalance(
         prisma,
         resellerAccount(A.resellerId, "RESELLER_PAYABLE"),
       ),
-    ).toBe(8_900n);
+    ).toBe(9_000n);
+    expect(
+      await accountBalance(
+        prisma,
+        platformAccount("PROVIDER_FEE_EXPENSE"),
+      ),
+    ).toBeGreaterThanOrEqual(100n);
   });
 
   it("holds a paid session so its connected page can be read, then opens it on request", async () => {
@@ -1338,12 +1345,14 @@ describe("Advo TZ domain flows (fake provider + fake controller, simulated)", ()
       "Snippe statement 2026-09",
     );
     expect(await accountBalance(prisma, pendingAccount)).toBe(0n);
+    // The reconciliation fee is a platform cost: the Reseller now receives the
+    // whole pending share, which was already the package price less Advo's fee.
     expect(
       await accountBalance(
         prisma,
         resellerAccount(A.resellerId, "RESELLER_PAYABLE"),
       ),
-    ).toBe(payableBefore + 8_850n);
+    ).toBe(payableBefore + 9_000n);
     const log = await prisma.auditEvent.findMany({
       where: { action: "payment.settled", targetId: attempt.id },
     });
