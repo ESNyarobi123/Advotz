@@ -14,6 +14,7 @@ import {
 } from "../modules/subscriptions/plan-migrations.service.js";
 import {
   setPlanActive,
+  updatePlan,
   upsertPlan,
 } from "../modules/subscriptions/subscriptions.service.js";
 
@@ -277,13 +278,55 @@ export const CATALOG_PLANS: readonly CatalogPlanSeed[] = [
   }),
 ];
 
+export type PlansCatalogResult = {
+  created: string[];
+  updated: string[];
+  skipped: string[];
+};
+
+/** Turns a catalog seed into the admin-facing plan payload. */
+function catalogPlanInput(seed: CatalogPlanSeed, isDemo: boolean) {
+  return {
+    code: seed.code,
+    name: seed.name,
+    description: seed.description,
+    priceTzs: seed.priceTzs,
+    priceFrom: seed.priceFrom,
+    periodDays: seed.periodDays,
+    trialEligible: seed.trialEligible,
+    // The trial length lives on the seed, so omitting it here silently published
+    // a trial-eligible plan with no duration. Copy it, do not re-derive it.
+    ...(seed.trialDays === undefined ? {} : { trialDays: seed.trialDays }),
+    lifecycle: "PUBLISHED" as const,
+    visibility: "PUBLIC" as const,
+    commercialPromise: seed.commercialPromise,
+    features: seed.features,
+    tierKey: seed.tierKey,
+    planType: seed.planType,
+    isDemo,
+  };
+}
+
 /**
  * Creates the eight catalog plans, idempotently.
  *
- * A code that already exists is left untouched, exactly like {@link seedPlans},
- * so re-running never reverts a price an admin has since confirmed.
+ * A code that already exists is left untouched by default, exactly like
+ * {@link seedPlans}, so re-running never reverts a price an admin has since
+ * confirmed.
+ *
+ * `apply` is the opt-in the opposite way: it republishes every catalog plan onto
+ * the seed in the file, which is how a confirmed price sheet is rolled out. It
+ * still goes through {@link updatePlan}, so a plan that already has subscribers
+ * is versioned rather than edited underneath them, and an unreferenced row is
+ * corrected in place.
+ *
+ * `isDemo` defaults to `true` — the prices ship labelled as demo until the
+ * business confirms them. Passing `false` is that confirmation.
  */
-export async function seedPlanCatalog(): Promise<PlansSeedResult> {
+export async function seedPlanCatalog(
+  options: { apply?: boolean; isDemo?: boolean } = {},
+): Promise<PlansCatalogResult> {
+  const isDemo = options.isDemo ?? true;
   const admin = await prisma.user.findFirst({
     where: { role: "ADMIN" },
     orderBy: { createdAt: "asc" },
@@ -293,32 +336,29 @@ export async function seedPlanCatalog(): Promise<PlansSeedResult> {
       "Run `pnpm admin:bootstrap` first — the plans seed never creates an Admin password.",
     );
 
-  const result: PlansSeedResult = { created: [], skipped: [] };
+  const result: PlansCatalogResult = { created: [], updated: [], skipped: [] };
   for (const seed of CATALOG_PLANS) {
     const existing = await prisma.platformPlan.findFirst({
-      where: { code: seed.code },
-      select: { id: true },
+      where: { code: seed.code, active: true },
+      orderBy: { version: "desc" },
+      select: { id: true, version: true },
     });
     if (existing) {
-      result.skipped.push(`plan ${seed.code} (already exists)`);
+      if (!options.apply) {
+        result.skipped.push(`plan ${seed.code} (already exists)`);
+        continue;
+      }
+      const plan = await updatePlan(
+        admin.id,
+        existing.id,
+        catalogPlanInput(seed, isDemo),
+      );
+      result.updated.push(
+        `plan ${seed.code} v${plan.version} (${seed.tierKey} · ${seed.planType}, ${seed.priceTzs} TZS)`,
+      );
       continue;
     }
-    await upsertPlan(admin.id, {
-      code: seed.code,
-      name: seed.name,
-      description: seed.description,
-      priceTzs: seed.priceTzs,
-      priceFrom: seed.priceFrom,
-      periodDays: seed.periodDays,
-      trialEligible: seed.trialEligible,
-      lifecycle: "PUBLISHED",
-      visibility: "PUBLIC",
-      commercialPromise: seed.commercialPromise,
-      features: seed.features,
-      tierKey: seed.tierKey,
-      planType: seed.planType,
-      isDemo: true,
-    });
+    await upsertPlan(admin.id, catalogPlanInput(seed, isDemo));
     result.created.push(
       `plan ${seed.code} (${seed.tierKey} · ${seed.planType}, ${seed.priceTzs} TZS)`,
     );
@@ -338,7 +378,9 @@ export async function seedPlanCatalog(): Promise<PlansSeedResult> {
  * row is a state the plans screen would otherwise have to explain) and the
  * change lands in the audit log like any other archive.
  */
-export async function archiveLegacyCatalogPlans(): Promise<{
+export async function archiveLegacyCatalogPlans(
+  extraCodes: readonly string[] = [],
+): Promise<{
   archived: string[];
   missing: string[];
 }> {
@@ -357,6 +399,9 @@ export async function archiveLegacyCatalogPlans(): Promise<{
     "ad-free",
     "business-pro",
     "enterprise",
+    // Codes that never belonged to either catalog — the hand-made rows an
+    // environment sometimes still sells next to the sheet.
+    ...extraCodes,
   ];
   const archived: string[] = [];
   const missing: string[] = [];

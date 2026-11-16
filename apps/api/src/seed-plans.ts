@@ -16,10 +16,28 @@ import { prisma } from "@advo/db";
  * `pnpm db:seed:plans --catalog` creates the two-axis catalog (4 capacity tiers ×
  * Advo Partner / Independent). `--archive-legacy` additionally retires the
  * pre-matrix plans from sale; existing subscribers keep their entitlements.
+ *
+ * Two opt-ins exist because the catalog seed is normally write-once:
+ *
+ * - `--apply` republishes every catalog plan onto the seed file, which is how a
+ *   confirmed price sheet reaches an environment that already has rows.
+ * - `--confirmed` clears the "Demo price" flag, i.e. the business has agreed the
+ *   numbers. Without it the catalog stays labelled as a proposal.
+ * - `--archive-extra=advw1,advw2` retires plan codes that no seed ever created,
+ *   which is how stray hand-made rows stop competing with the sheet.
  */
 const refresh = process.argv.includes("--refresh");
-const catalog = process.argv.includes("--catalog");
 const archiveLegacy = process.argv.includes("--archive-legacy");
+const apply = process.argv.includes("--apply");
+const confirmed = process.argv.includes("--confirmed");
+// `--apply` only means something for the catalog, so it implies `--catalog`.
+const catalog = process.argv.includes("--catalog") || apply;
+/** Extra plan codes to retire, for rows no seed ever created: `--archive-extra=advw1,advw2`. */
+const extraArg = process.argv.find((arg) => arg.startsWith("--archive-extra="));
+const archiveExtra = (extraArg?.slice("--archive-extra=".length) ?? "")
+  .split(",")
+  .map((code) => code.trim())
+  .filter(Boolean);
 
 async function main() {
   if (refresh) {
@@ -40,11 +58,14 @@ async function main() {
   }
 
   if (catalog) {
-    const r = await seedPlanCatalog();
+    const r = await seedPlanCatalog({ apply, isDemo: !confirmed });
     console.log(
-      "[plans-seed] Two-axis catalog (capacity tier × commercial type) — prices are flagged demo.",
+      confirmed
+        ? "[plans-seed] Two-axis catalog — prices confirmed, no longer flagged demo."
+        : "[plans-seed] Two-axis catalog (capacity tier × commercial type) — prices are flagged demo.",
     );
     for (const c of r.created) console.log(`  created  ${c}`);
+    for (const u of r.updated) console.log(`  updated  ${u}`);
     for (const s of r.skipped) console.log(`  skipped  ${s}`);
   } else {
     const r = await seedPlans();
@@ -55,10 +76,10 @@ async function main() {
     for (const s of r.skipped) console.log(`  skipped  ${s}`);
   }
 
-  if (archiveLegacy) {
-    const r = await archiveLegacyCatalogPlans();
+  if (archiveLegacy || archiveExtra.length > 0) {
+    const r = await archiveLegacyCatalogPlans(archiveExtra);
     console.log(
-      "[plans-seed] Retired the pre-matrix plans from sale (subscribers unaffected).",
+      "[plans-seed] Retired plans from sale (existing subscribers unaffected).",
     );
     for (const a of r.archived) console.log(`  archived ${a}`);
     for (const m of r.missing) console.log(`  already gone ${m}`);
