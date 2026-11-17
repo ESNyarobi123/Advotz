@@ -23,7 +23,12 @@ import { setSetting } from "../settings/settings.service.js";
  */
 const MAIL_SETTINGS_KEY = "mail.settings";
 
-const DEFAULT_FROM_EMAIL = "no-reply@advowifi.com";
+/**
+ * The general mailbox. `info@` is a real, monitored address — unlike the
+ * `no-reply@` placeholder it replaces — so a guest who replies to an invitation
+ * or a security notice reaches a human instead of a dead mailbox.
+ */
+const DEFAULT_FROM_EMAIL = "info@advowifi.com";
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 export type StoredMailSettings = {

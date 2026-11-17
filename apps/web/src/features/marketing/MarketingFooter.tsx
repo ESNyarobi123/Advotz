@@ -94,7 +94,7 @@ export function MarketingFooter() {
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail className="size-4 shrink-0 text-[#FBA102]" aria-hidden="true" />
-                <span>support@advo.tz</span>
+                <span>info@advowifi.com</span>
               </li>
               <li className="pt-1">
                 <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/60 px-3 py-1.5 text-xs text-emerald-400">

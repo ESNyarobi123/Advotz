@@ -70,5 +70,5 @@ test("marketing landing page renders with complete brand aesthetic and working i
 
   await page.goto(`${WEB_URL}/contact`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByText("support@advo.tz")).toBeVisible();
+  await expect(page.getByText("info@advowifi.com")).toBeVisible();
 });

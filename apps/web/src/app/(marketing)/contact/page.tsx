@@ -80,7 +80,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <div className="font-bold text-xs text-[#526174] uppercase">{t("marketing.contact.details.email")}</div>
-                    <div className="font-semibold mt-0.5">support@advo.tz</div>
+                    <div className="font-semibold mt-0.5">info@advowifi.com</div>
                     <div className="text-xs text-[#526174]">{t("marketing.contact.details.emailResponse")}</div>
                   </div>
                 </div>

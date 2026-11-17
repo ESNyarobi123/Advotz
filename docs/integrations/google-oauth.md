@@ -55,13 +55,13 @@ These are the exact values to paste into **Google Auth Platform → Branding**:
 | Field | Value |
 | --- | --- |
 | App name | `Advo WiFi` |
-| User support email | `support@advotz.com` |
+| User support email | `info@advowifi.com` |
 | App logo | `https://advowifi.com/brand/google-oauth-logo-120.png` (120×120 PNG, ~10 KB) |
 | Application home page | `https://advowifi.com` |
 | Application privacy policy link | `https://advowifi.com/privacy` |
 | Application terms of service link | `https://advowifi.com/terms` |
 | Authorized domains | `advowifi.com` |
-| Developer contact email | `support@advotz.com` |
+| Developer contact email | `info@advowifi.com` |
 
 The logo source is committed at `apps/web/public/brand/google-oauth-logo-120.png`
 (and a 512×512 `advo-logo-square-512.png` beside it). Regenerate either with

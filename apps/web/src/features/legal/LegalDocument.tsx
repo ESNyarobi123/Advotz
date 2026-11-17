@@ -142,7 +142,7 @@ export function LegalDocument({
 
 /** Contact details reused across both documents, so they cannot drift apart. */
 export const LEGAL_CONTACT = {
-  support: "support@advotz.com",
-  security: "security@advotz.com",
+  support: "info@advowifi.com",
+  security: "security@advowifi.com",
   location: "Dar es Salaam, Tanzania",
 };

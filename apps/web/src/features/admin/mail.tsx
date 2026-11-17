@@ -707,7 +707,7 @@ function SettingsTab({
                     id="mail-otp-email"
                     label={t("admin.mail.settings.senders.otp")}
                     onChange={setOtpEmail}
-                    placeholder="otp@example.com"
+                    placeholder="otp@advowifi.com"
                     type="email"
                     value={otpEmail}
                   />
@@ -736,7 +736,7 @@ function SettingsTab({
                     id="mail-security-email"
                     label={t("admin.mail.settings.senders.security")}
                     onChange={setSecurityEmail}
-                    placeholder="security@example.com"
+                    placeholder="security@advowifi.com"
                     type="email"
                     value={securityEmail}
                   />
