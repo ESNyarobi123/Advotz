@@ -38,9 +38,19 @@ export type StoredMailSettings = {
     secure: boolean;
     username: string;
     passwordEnc?: string;
+    /** Plaintext password supplied by the environment; never persisted. */
+    password?: string;
   };
   otpSender?: StoredPurposeSender;
   securitySender?: StoredPurposeSender;
+  /**
+   * Plaintext key supplied by the environment; never persisted.
+   *
+   * Kept separate from `resendApiKeyEnc` (the encrypted copy the Admin screen
+   * owns) so an environment secret can never be written back into the database
+   * by a later save.
+   */
+  resendApiKey?: string;
 };
 
 /** A From address that is used only for one kind of message. */
@@ -90,6 +100,65 @@ const DEFAULT_SETTINGS: StoredMailSettings = {
   replyTo: "",
 };
 
+function envFirst(...names: readonly string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+/**
+ * The transport a deployment supplies through its environment.
+ *
+ * This is the fallback for a host whose Admin screen has never been filled in —
+ * which is how production ended up sending nothing: `mail.settings` was absent,
+ * the default `fake` provider also applies in production, and every code was
+ * recorded as "simulated" while no mail left the server. `.env.example` had been
+ * advertising an `EMAIL_PROVIDER_API_KEY` that no code read at all.
+ *
+ * The database row stays authoritative when it exists, so an Admin can always
+ * override this from Admin → Mail. Only *secrets* fall back per field (see
+ * {@link storedSettings}), which keeps a half-filled row from disabling mail
+ * that the environment could still send.
+ *
+ * `MAIL_PROVIDER` decides the provider explicitly. Without it, a Resend key or
+ * an SMTP host is taken as the intent, because setting either means the operator
+ * wanted that transport.
+ */
+function envMailSettings(): StoredMailSettings | null {
+  const resendKey = envFirst("RESEND_API_KEY", "EMAIL_PROVIDER_API_KEY");
+  const smtpHost = envFirst("SMTP_HOST");
+  const explicit = envFirst("MAIL_PROVIDER") as MailProvider | undefined;
+  const provider =
+    explicit ?? (resendKey ? "resend" : smtpHost ? "smtp" : undefined);
+  if (!provider) return null;
+
+  const smtpPassword = envFirst("SMTP_PASSWORD");
+  const smtpUsername = envFirst("SMTP_USERNAME");
+  const port = Number(envFirst("SMTP_PORT") ?? 587) || 587;
+
+  return {
+    provider,
+    fromName: envFirst("MAIL_FROM_NAME") ?? DEFAULT_SETTINGS.fromName,
+    fromEmail: envFirst("MAIL_FROM_EMAIL") ?? DEFAULT_SETTINGS.fromEmail,
+    replyTo: envFirst("MAIL_REPLY_TO") ?? "",
+    ...(resendKey ? { resendApiKey: resendKey } : {}),
+    ...(smtpHost
+      ? {
+          smtp: {
+            host: smtpHost,
+            port,
+            // 465 is implicit TLS; 587 is STARTTLS, where `secure` must be false.
+            secure: (envFirst("SMTP_SECURE") ?? "true") !== "false",
+            username: smtpUsername ?? "",
+            ...(smtpPassword ? { password: smtpPassword } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 async function storedSettings(): Promise<{
   stored: StoredMailSettings;
   updatedAt: Date | null;
@@ -99,28 +168,45 @@ async function storedSettings(): Promise<{
     where: { key: MAIL_SETTINGS_KEY },
   });
   const raw = (row?.value ?? {}) as Partial<StoredMailSettings>;
+  const env = envMailSettings();
+
+  // A host whose Admin screen has never been saved takes the whole transport
+  // from the environment, so a deployment can ship a working mail setup without
+  // anyone having to open the screen first.
+  if (!row && env) {
+    return { stored: env, updatedAt: null, updatedBy: null };
+  }
+
+  const stored: StoredMailSettings = {
+    ...DEFAULT_SETTINGS,
+    ...raw,
+    smtp: raw.smtp
+      ? {
+          host: raw.smtp.host ?? "",
+          port: Number(raw.smtp.port) || 587,
+          secure: Boolean(raw.smtp.secure),
+          username: raw.smtp.username ?? "",
+          ...(raw.smtp.passwordEnc ? { passwordEnc: raw.smtp.passwordEnc } : {}),
+        }
+      : undefined,
+    otpSender: raw.otpSender?.fromEmail
+      ? readPurposeSender(raw.otpSender)
+      : undefined,
+    securitySender: raw.securitySender?.fromEmail
+      ? readPurposeSender(raw.securitySender)
+      : undefined,
+  };
+
+  // Secrets fall back to the deployment's, per field: a saved row keeps whatever
+  // the Admin entered, and only a gap is filled. That way a row that names a
+  // provider but left the key blank (or lost it) still sends.
+  if (!stored.resendApiKeyEnc && env?.resendApiKey)
+    stored.resendApiKey = env.resendApiKey;
+  if (stored.smtp && !stored.smtp.passwordEnc && env?.smtp?.password)
+    stored.smtp.password = env.smtp.password;
+
   return {
-    stored: {
-      ...DEFAULT_SETTINGS,
-      ...raw,
-      smtp: raw.smtp
-        ? {
-            host: raw.smtp.host ?? "",
-            port: Number(raw.smtp.port) || 587,
-            secure: Boolean(raw.smtp.secure),
-            username: raw.smtp.username ?? "",
-            ...(raw.smtp.passwordEnc
-              ? { passwordEnc: raw.smtp.passwordEnc }
-              : {}),
-          }
-        : undefined,
-      otpSender: raw.otpSender?.fromEmail
-        ? readPurposeSender(raw.otpSender)
-        : undefined,
-      securitySender: raw.securitySender?.fromEmail
-        ? readPurposeSender(raw.securitySender)
-        : undefined,
-    },
+    stored,
     updatedAt: row?.updatedAt ?? null,
     updatedBy: row?.updatedBy ?? null,
   };
@@ -164,7 +250,8 @@ function requirementGaps(settings: StoredMailSettings): MailRequirementGap[] {
     });
   }
   if (settings.provider === "resend" && !settings.resendApiKeyEnc) {
-    gaps.push({ code: "provider.resendKey", label: "Resend API key" });
+    if (!settings.resendApiKey)
+      gaps.push({ code: "provider.resendKey", label: "Resend API key" });
   }
   if (settings.provider === "smtp") {
     if (!settings.smtp?.host)
@@ -173,17 +260,20 @@ function requirementGaps(settings: StoredMailSettings): MailRequirementGap[] {
       gaps.push({ code: "smtp.port", label: "SMTP port" });
     if (!settings.smtp?.username)
       gaps.push({ code: "smtp.username", label: "SMTP username" });
-    if (!settings.smtp?.passwordEnc)
+    if (!settings.smtp?.passwordEnc && !settings.smtp?.password)
       gaps.push({ code: "smtp.password", label: "SMTP password" });
     // A purpose mailbox logging in as a different account needs a password of
     // its own; the main password belongs to another user.
+    const mainPasswordAvailable = Boolean(
+      settings.smtp?.passwordEnc || settings.smtp?.password,
+    );
     for (const [code, label, sender] of [
       ["senders.otpPassword", "OTP sender", settings.otpSender],
       ["senders.securityPassword", "Security sender", settings.securitySender],
     ] as const) {
       if (!sender?.username) continue;
       const sharesMainLogin = sender.username === settings.smtp?.username;
-      if (!sender.passwordEnc && !sharesMainLogin) {
+      if (!sender.passwordEnc && !(sharesMainLogin && mainPasswordAvailable)) {
         gaps.push({ code, label: `${label} password` });
       }
     }
@@ -224,13 +314,17 @@ export async function mailSettingsOverview(): Promise<{
       fromName: stored.fromName,
       fromEmail: stored.fromEmail,
       replyTo: stored.replyTo,
-      resendApiKeyConfigured: Boolean(stored.resendApiKeyEnc),
+      resendApiKeyConfigured: Boolean(
+        stored.resendApiKeyEnc || stored.resendApiKey,
+      ),
       smtp: {
         host: stored.smtp?.host ?? "",
         port: stored.smtp?.port ?? 587,
         secure: stored.smtp?.secure ?? true,
         username: stored.smtp?.username ?? "",
-        passwordConfigured: Boolean(stored.smtp?.passwordEnc),
+        passwordConfigured: Boolean(
+          stored.smtp?.passwordEnc || stored.smtp?.password,
+        ),
       },
       otpSender: publicSender(stored.otpSender),
       securitySender: publicSender(stored.securitySender),
@@ -313,18 +407,43 @@ export async function saveMailSettings(
     stored.securitySender,
   );
 
+  // Only what the Admin actually typed is persisted. A password or API key the
+  // deployment supplies through its environment lives in memory, so it must not
+  // ride along into the row on an unrelated save.
   const next: StoredMailSettings = {
     provider: input.provider,
     fromName: input.fromName.trim(),
     fromEmail: input.fromEmail.trim(),
     replyTo: input.replyTo?.trim() ?? "",
     ...(resendApiKeyEnc ? { resendApiKeyEnc } : {}),
-    ...(smtp ? { smtp } : {}),
+    ...(smtp
+      ? {
+          smtp: {
+            host: smtp.host,
+            port: smtp.port,
+            secure: smtp.secure,
+            username: smtp.username,
+            ...(smtp.passwordEnc ? { passwordEnc: smtp.passwordEnc } : {}),
+          },
+        }
+      : {}),
     ...(otpSender ? { otpSender } : {}),
     ...(securitySender ? { securitySender } : {}),
   };
 
-  const missing = missingFor(next);
+  // Validation judges the transport that would actually send, so a secret the
+  // deployment already supplies is not reported as a gap the Admin must fill.
+  const env = envMailSettings();
+  const effective: StoredMailSettings = {
+    ...next,
+    ...(!next.resendApiKeyEnc && env?.resendApiKey
+      ? { resendApiKey: env.resendApiKey }
+      : {}),
+    ...(next.smtp && !next.smtp.passwordEnc && env?.smtp?.password
+      ? { smtp: { ...next.smtp, password: env.smtp.password } }
+      : {}),
+  };
+  const missing = missingFor(effective);
   if (missing.length > 0) {
     badRequest(
       `Email transport is not ready: ${missing.join(", ")} is required for ${input.provider}.`,
@@ -344,7 +463,9 @@ export async function saveMailSettings(
     fromName: next.fromName,
     fromEmail: next.fromEmail,
     replyTo: next.replyTo,
-    resendApiKeyConfigured: Boolean(next.resendApiKeyEnc),
+      resendApiKeyConfigured: Boolean(
+        next.resendApiKeyEnc || next.resendApiKey,
+      ),
     smtp: {
       host: next.smtp?.host ?? "",
       port: next.smtp?.port ?? 587,
@@ -516,12 +637,14 @@ async function sendWithResend(
   html: string,
   sender: SenderContext,
 ): Promise<void> {
-  if (!settings.resendApiKeyEnc)
-    throw new Error("Resend API key is not configured");
+  const apiKey = settings.resendApiKeyEnc
+    ? decryptSecret(settings.resendApiKeyEnc)
+    : settings.resendApiKey;
+  if (!apiKey) throw new Error("Resend API key is not configured");
   const response = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${decryptSecret(settings.resendApiKeyEnc)}`,
+      authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
@@ -557,7 +680,9 @@ async function sendWithSmtp(
       ? {
           auth: {
             user: sender.username,
-            pass: sender.passwordEnc ? decryptSecret(sender.passwordEnc) : "",
+            pass: sender.passwordEnc
+              ? decryptSecret(sender.passwordEnc)
+              : (sender.password ?? ""),
           },
         }
       : {}),
@@ -585,6 +710,8 @@ type SenderContext = {
   fromEmail: string;
   username: string;
   passwordEnc?: string;
+  /** Plaintext password from the environment; never persisted. */
+  password?: string;
 };
 
 /**
@@ -604,15 +731,17 @@ function resolveSender(
         : undefined;
   if (override?.fromEmail) {
     const username = override.username || override.fromEmail;
+    const sharesMainLogin = settings.smtp?.username === username;
     const passwordEnc =
       override.passwordEnc ??
-      (settings.smtp?.username === username
-        ? settings.smtp?.passwordEnc
-        : undefined);
+      (sharesMainLogin ? settings.smtp?.passwordEnc : undefined);
+    const password =
+      !passwordEnc && sharesMainLogin ? settings.smtp?.password : undefined;
     return {
       fromEmail: override.fromEmail,
       username,
       ...(passwordEnc ? { passwordEnc } : {}),
+      ...(password ? { password } : {}),
     };
   }
   return {
@@ -621,6 +750,7 @@ function resolveSender(
     ...(settings.smtp?.passwordEnc
       ? { passwordEnc: settings.smtp.passwordEnc }
       : {}),
+    ...(settings.smtp?.password ? { password: settings.smtp.password } : {}),
   };
 }
 
@@ -652,6 +782,18 @@ export async function sendMail(message: MailMessage): Promise<MailResult> {
   });
 
   if (stored.provider === "fake") {
+    // Production must never pretend. The fake transport is a development tool:
+    // it records the message and returns, which is how every verification code
+    // went missing — caller could not tell a send from a no-op.
+    if (isProduction()) {
+      const reason =
+        "The 'fake' email transport cannot deliver in production. Configure a real provider on Admin → Mail, or set MAIL_PROVIDER with RESEND_API_KEY (or SMTP_HOST) in the environment.";
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: { state: "failed", simulated: false, error: reason },
+      });
+      throw new Error(reason);
+    }
     await prisma.notification.update({
       where: { id: notification.id },
       data: { state: "simulated", simulated: true, sentAt: new Date() },
